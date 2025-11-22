@@ -11,15 +11,39 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from functools import wraps
+
+# Optional CORS support
+try:
+    from flask_cors import CORS  # noqa: F401
+    CORS_AVAILABLE = True
+except ImportError:
+    CORS_AVAILABLE = False
+    CORS = None  # Placeholder for type checking
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for web interfaces
+
+# Enable CORS if available
+if CORS_AVAILABLE:
+    CORS(app)  # Enable CORS for web interfaces
+else:
+    # Fallback: Add CORS headers manually if needed
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add(
+            'Access-Control-Allow-Headers',
+            'Content-Type,Authorization,X-API-Key'
+        )
+        response.headers.add(
+            'Access-Control-Allow-Methods',
+            'GET,POST,PUT,DELETE,OPTIONS'
+        )
+        return response
 
 # Configuration
 API_CONFIG_FILE = PROJECT_ROOT / "config" / "api.conf"

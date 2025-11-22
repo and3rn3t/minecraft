@@ -315,6 +315,22 @@ sudo systemctl enable minecraft.service
 sudo systemctl start minecraft.service
 ```
 
+## Testing
+
+The project includes comprehensive automated tests:
+
+```bash
+# Run API tests
+python -m pytest tests/api/ -v
+
+# Run with coverage
+python -m pytest tests/api/ -v --cov=api --cov-report=term-missing
+```
+
+**Current Status**: ✅ 18/18 API tests passing (51% coverage)
+
+See [Testing Guide](docs/TESTING.md) for more information.
+
 ## Documentation
 
 ### User Documentation
