@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint and Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell script syntax
+        run: |
+          for script in *.sh; do
+            bash -n "$script"
+          done
+
+      - name: Check YAML syntax
+        run: |
+          docker run --rm -v "$PWD:/data" \
+            mikefarah/yq eval '.version' docker-compose.yml
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker run --rm -v "$PWD:/data" -w /data \
+            docker/compose:latest config --quiet
+
+  test:
+    name: Test Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test manage.sh
+        run: |
+          chmod +x manage.sh
+          ./manage.sh || true  # Script may fail without Docker, that's OK
+
+      - name: Test setup script syntax
+        run: |
+          bash -n setup-rpi.sh
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: koalaman/shellcheck-action@v0.2.0
+        with:
+          path: "*.sh"

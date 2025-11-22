@@ -39,12 +39,15 @@ A custom Minecraft server setup optimized for Raspberry Pi 5, providing easy con
 1. Insert the microSD card into your Raspberry Pi 5
 2. Power on the Raspberry Pi
 3. SSH into your Raspberry Pi:
+
    ```bash
    ssh pi@minecraft-server.local
    ```
+
    Or use the IP address if hostname doesn't work
 
 4. Clone this repository:
+
    ```bash
    cd ~
    git clone https://github.com/and3rn3t/minecraft.git minecraft-server
@@ -52,12 +55,14 @@ A custom Minecraft server setup optimized for Raspberry Pi 5, providing easy con
    ```
 
 5. Run the setup script:
+
    ```bash
    chmod +x setup-rpi.sh
    ./setup-rpi.sh
    ```
 
 6. **Important**: Log out and log back in for Docker permissions to take effect:
+
    ```bash
    exit
    # SSH back in
@@ -109,6 +114,7 @@ motd=My Minecraft Server   # Server name in multiplayer list
 ```
 
 After changing settings, restart the server:
+
 ```bash
 ./manage.sh restart
 ```
@@ -124,6 +130,7 @@ environment:
 ```
 
 **Recommended Memory Settings:**
+
 - Raspberry Pi 5 (4GB): MIN=1G, MAX=2G
 - Raspberry Pi 5 (8GB): MIN=2G, MAX=4G
 
@@ -137,6 +144,7 @@ environment:
 ```
 
 Then rebuild and restart:
+
 ```bash
 docker-compose down
 docker-compose up -d --build
@@ -147,6 +155,7 @@ docker-compose up -d --build
 To allow players outside your local network to connect:
 
 1. Find your Raspberry Pi's local IP address:
+
    ```bash
    hostname -I
    ```
@@ -164,6 +173,7 @@ To allow players outside your local network to connect:
 ## Backups
 
 ### Manual Backup
+
 ```bash
 ./manage.sh backup
 ```
@@ -171,6 +181,7 @@ To allow players outside your local network to connect:
 Backups are stored in the `backups/` directory.
 
 ### Restore from Backup
+
 ```bash
 # Stop the server
 ./manage.sh stop
@@ -185,42 +196,52 @@ tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
 ## Troubleshooting
 
 ### Server won't start
+
 1. Check if Docker is running:
+
    ```bash
    sudo systemctl status docker
    ```
 
 2. View detailed logs:
+
    ```bash
    docker-compose logs
    ```
 
 3. Check available memory:
+
    ```bash
    free -h
    ```
 
 ### Performance Issues
+
 1. Reduce view distance in `server.properties`:
+
    ```properties
    view-distance=6
    simulation-distance=6
    ```
 
 2. Lower max players:
+
    ```properties
    max-players=5
    ```
 
 3. Reduce memory if system is struggling:
+
    ```yaml
    MEMORY_MAX=1G
    ```
 
 ### Cannot connect from outside network
+
 1. Verify port forwarding is set up correctly
 2. Check if server is running: `./manage.sh status`
 3. Ensure firewall allows port 25565:
+
    ```bash
    sudo ufw allow 25565/tcp
    ```
@@ -253,6 +274,7 @@ sudo nano /etc/systemd/system/minecraft.service
 ```
 
 Add:
+
 ```ini
 [Unit]
 Description=Minecraft Server
@@ -272,10 +294,32 @@ WantedBy=multi-user.target
 ```
 
 Enable the service:
+
 ```bash
 sudo systemctl enable minecraft.service
 sudo systemctl start minecraft.service
 ```
+
+## Documentation
+
+### User Documentation
+
+- **[INSTALL.md](INSTALL.md)** - Detailed installation guide
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick command reference
+- **[CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md)** - Configuration examples
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Problem solving guide
+
+### Developer Documentation
+
+- **[ROADMAP.md](ROADMAP.md)** - Comprehensive development roadmap
+- **[TASKS.md](TASKS.md)** - Detailed development tasks
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Developer guide
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
+- **[WORKSPACE_ENHANCEMENTS.md](WORKSPACE_ENHANCEMENTS.md)** - Workspace optimizations
+
+### Project Information
+
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
 
 ## Resources
 
@@ -283,6 +327,37 @@ sudo systemctl start minecraft.service
 - [Raspberry Pi Documentation](https://www.raspberrypi.com/documentation/)
 - [Docker Documentation](https://docs.docker.com/)
 - [Server Properties Guide](https://minecraft.fandom.com/wiki/Server.properties)
+
+## Development
+
+### Quick Start for Developers
+
+```bash
+# Clone repository
+git clone https://github.com/and3rn3t/minecraft.git
+cd minecraft
+
+# Setup environment
+cp .env.example .env  # Edit with your settings
+make install
+
+# Test
+make test
+make build
+
+# Start development
+make start
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development guide.
+
+### Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Roadmap
+
+Check out [ROADMAP.md](ROADMAP.md) for planned features and development phases.
 
 ## License
 
