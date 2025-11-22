@@ -81,8 +81,8 @@ def require_api_key(f):
     """Decorator to require API key authentication"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        api_key = (request.headers.get('X-API-Key') or
-                   request.args.get('api_key'))
+        api_key = (request.headers.get('X-API-Key')
+                   or request.args.get('api_key'))
 
         if not api_key:
             return jsonify({'error': 'API key required'}), 401
@@ -380,8 +380,8 @@ def list_worlds():
     worlds = []
     if stdout:
         for line in stdout.split('\n'):
-            if ('world' in line.lower() and
-                    ('ACTIVE' in line or '○' in line or '✓' in line)):
+            if ('world' in line.lower()
+                    and ('ACTIVE' in line or '○' in line or '✓' in line)):
                 # Extract world name (simplified parsing)
                 parts = line.split()
                 for part in parts:
@@ -409,8 +409,8 @@ def list_plugins():
                 # Extract plugin name
                 parts = line.split()
                 for part in parts:
-                    if (part and not part.startswith('(') and
-                            not part.startswith('v')):
+                    if (part and not part.startswith('(')
+                            and not part.startswith('v')):
                         plugins.append(part)
                         break
 
@@ -437,4 +437,3 @@ if __name__ == '__main__':
 
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     app.run(host=API_HOST, port=API_PORT, debug=False)
-

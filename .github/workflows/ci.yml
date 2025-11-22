@@ -17,6 +17,11 @@ jobs:
         run: |
           find scripts tests -name "*.sh" -type f | while read -r script; do
             echo "Checking: $script"
+            # Skip BATS test files as they use @test syntax that bash -n doesn't understand
+            if grep -qE "^@test|^#!/usr/bin/env bats|^#!/bin/bats" "$script"; then
+              echo "Skipping BATS test file: $script"
+              continue
+            fi
             bash -n "$script" || exit 1
           done
 
