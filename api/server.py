@@ -15,7 +15,7 @@ from functools import wraps
 
 # Optional CORS support
 try:
-    from flask_cors import CORS  # noqa: F401
+    from flask_cors import CORS  # type: ignore  # noqa: F401
     CORS_AVAILABLE = True
 except ImportError:
     CORS_AVAILABLE = False
