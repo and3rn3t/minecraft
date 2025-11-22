@@ -28,7 +28,7 @@ services:
     stdin_open: true
     tty: true
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "java"]
+      test: ["CMD-SHELL", "pgrep -f java || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

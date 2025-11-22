@@ -3,16 +3,37 @@
 ## Essential Commands
 
 ### Server Management
+
 ```bash
 ./manage.sh start      # Start server
 ./manage.sh stop       # Stop server
 ./manage.sh restart    # Restart server
 ./manage.sh status     # Check status
 ./manage.sh logs       # View logs
-./manage.sh backup     # Create backup
+./manage.sh backup     # Create backup (with world save & verification)
+./manage.sh console    # Attach to server console
+./manage.sh update     # Update configuration from git
+```
+
+### Backup Management
+
+```bash
+./scripts/manage.sh backup              # Manual backup
+./scripts/backup-scheduler.sh          # Run scheduled backup
+./scripts/cleanup-backups.sh           # Clean up old backups
+./scripts/install-backup-timer.sh      # Install systemd timer
+```
+
+### Monitoring
+
+```bash
+./scripts/monitor.sh                   # Collect metrics
+./scripts/health-check.sh              # Check server health
+./scripts/prometheus-exporter.sh      # Export Prometheus metrics
 ```
 
 ### Docker Commands
+
 ```bash
 docker-compose up -d              # Start in background
 docker-compose down               # Stop and remove
@@ -23,6 +44,7 @@ docker attach minecraft-server    # Attach to console
 ```
 
 ### System Commands
+
 ```bash
 htop                    # Monitor system resources
 docker stats            # Monitor Docker resources
@@ -38,6 +60,7 @@ Attach to console: `docker attach minecraft-server`
 Detach: Press `Ctrl+P` then `Ctrl+Q`
 
 Common Minecraft server commands:
+
 ```
 /op <player>            # Give operator status
 /deop <player>          # Remove operator status
@@ -70,6 +93,7 @@ Common Minecraft server commands:
 ## Common Configuration Changes
 
 ### server.properties
+
 ```properties
 # Change these commonly adjusted settings:
 max-players=10              # Player limit
@@ -84,6 +108,7 @@ spawn-protection=16        # Protected spawn radius
 ```
 
 ### docker-compose.yml
+
 ```yaml
 environment:
   - MINECRAFT_VERSION=1.20.4  # Server version
@@ -94,6 +119,7 @@ environment:
 ## Performance Tuning
 
 ### For 4GB Raspberry Pi 5
+
 ```yaml
 # In docker-compose.yml
 environment:
@@ -107,6 +133,7 @@ max-players=5
 ```
 
 ### For 8GB Raspberry Pi 5
+
 ```yaml
 # In docker-compose.yml
 environment:
@@ -122,6 +149,7 @@ max-players=10
 ## Network Settings
 
 ### Find Your Local IP
+
 ```bash
 hostname -I
 # Or
@@ -129,24 +157,28 @@ ip addr show | grep "inet "
 ```
 
 ### Check Port Status
+
 ```bash
 sudo apt install nmap
 nmap -p 25565 localhost
 ```
 
 ### Server Address Format
+
 - **Local network**: `192.168.1.XXX:25565` or `minecraft-server.local:25565`
 - **Internet**: `YOUR.PUBLIC.IP:25565`
 
 ## Backup & Restore
 
 ### Create Backup
+
 ```bash
 ./manage.sh backup
 # Stored in: ./backups/minecraft_backup_TIMESTAMP.tar.gz
 ```
 
 ### Restore Backup
+
 ```bash
 ./manage.sh stop
 tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
@@ -154,6 +186,7 @@ tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
 ```
 
 ### Automated Backups (Cron)
+
 ```bash
 crontab -e
 # Add line for daily backup at 3 AM:
@@ -163,6 +196,7 @@ crontab -e
 ## Troubleshooting Quick Fixes
 
 ### Server Won't Start
+
 ```bash
 sudo systemctl restart docker
 docker-compose down
@@ -170,6 +204,7 @@ docker-compose up -d
 ```
 
 ### High Memory Usage
+
 ```bash
 # Reduce memory in docker-compose.yml
 # Reduce view-distance in server.properties
@@ -178,6 +213,7 @@ docker-compose up -d
 ```
 
 ### Connection Refused
+
 ```bash
 # Check if server is running
 ./manage.sh status
@@ -190,6 +226,7 @@ sudo netstat -tlnp | grep 25565
 ```
 
 ### Disk Space Full
+
 ```bash
 # Check space
 df -h
@@ -204,6 +241,7 @@ docker system prune -a
 ## Update Procedures
 
 ### Update Server Configuration
+
 ```bash
 cd ~/minecraft-server
 git pull
@@ -211,6 +249,7 @@ git pull
 ```
 
 ### Update Minecraft Version
+
 ```bash
 # Edit docker-compose.yml
 nano docker-compose.yml
@@ -223,6 +262,7 @@ docker-compose up -d --build
 ```
 
 ### Update Raspberry Pi OS
+
 ```bash
 sudo apt update
 sudo apt upgrade -y
@@ -240,6 +280,7 @@ sudo reboot
 - [ ] Keep system updated
 
 ### Basic Firewall Setup
+
 ```bash
 sudo apt install ufw
 sudo ufw allow ssh
@@ -250,6 +291,7 @@ sudo ufw enable
 ## Useful Monitoring
 
 ### View Resource Usage Continuously
+
 ```bash
 # Terminal 1: System resources
 htop
@@ -262,6 +304,7 @@ docker stats minecraft-server
 ```
 
 ### Check Server Uptime
+
 ```bash
 docker ps --filter "name=minecraft-server" --format "{{.Status}}"
 ```
@@ -286,6 +329,7 @@ docker ps --filter "name=minecraft-server" --format "{{.Status}}"
 ---
 
 **Quick Setup Summary:**
+
 1. Flash Raspberry Pi OS with Imager
 2. SSH to Pi: `ssh pi@minecraft-server.local`
 3. Clone repo: `git clone https://github.com/and3rn3t/minecraft.git minecraft-server`

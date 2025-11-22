@@ -1,0 +1,16 @@
+[Unit]
+Description=Minecraft Server Automated Backup Timer
+Requires=minecraft-backup.service
+
+[Timer]
+# Run daily at 3:00 AM
+OnCalendar=daily
+OnCalendar=*-*-* 03:00:00
+# If the system was off, run immediately when it comes back online
+Persistent=true
+# Add some randomization to avoid system load spikes
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+

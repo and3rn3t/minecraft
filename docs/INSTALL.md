@@ -3,6 +3,7 @@
 This guide provides detailed step-by-step instructions for setting up your Minecraft server on a Raspberry Pi 5.
 
 ## Table of Contents
+
 1. [Hardware Requirements](#hardware-requirements)
 2. [Software Requirements](#software-requirements)
 3. [Preparation](#preparation)
@@ -14,6 +15,7 @@ This guide provides detailed step-by-step instructions for setting up your Minec
 ## Hardware Requirements
 
 ### Minimum Requirements
+
 - **Raspberry Pi 5** (4GB RAM model)
 - **MicroSD Card**: 32GB, Class 10, A2 rating recommended
 - **Power Supply**: Official Raspberry Pi 5 27W USB-C power supply
@@ -21,6 +23,7 @@ This guide provides detailed step-by-step instructions for setting up your Minec
 - **Cooling**: Case with active cooling (fan) recommended
 
 ### Recommended Setup
+
 - **Raspberry Pi 5** (8GB RAM model)
 - **MicroSD Card**: 64GB or larger, U3, A2 rating
 - **Power Supply**: Official Raspberry Pi 5 27W USB-C power supply
@@ -39,9 +42,10 @@ This guide provides detailed step-by-step instructions for setting up your Minec
 
 ### 1. Download Raspberry Pi Imager
 
-Download from: https://www.raspberrypi.com/software/
+Download from: <https://www.raspberrypi.com/software/>
 
 Available for:
+
 - Windows
 - macOS
 - Linux
@@ -59,23 +63,28 @@ Available for:
 Click the gear icon (⚙️) or press `Ctrl+Shift+X`:
 
 #### General Settings
+
 - **Set hostname**: `minecraft-server` (or your preferred name)
 - **Set username and password**:
   - Username: `pi` (or your preferred username)
   - Password: Create a strong password
-  
+
 #### Services
+
 - **Enable SSH**: ✅ Check this box
 - Select "Use password authentication"
 
 #### WiFi (Optional)
+
 If not using Ethernet:
+
 - **Configure wireless LAN**:
   - SSID: Your WiFi network name
   - Password: Your WiFi password
   - Wireless LAN country: Your country code
 
 #### Locale Settings
+
 - **Set locale settings**:
   - Time zone: Your timezone
   - Keyboard layout: Your keyboard layout
@@ -101,16 +110,20 @@ If not using Ethernet:
 ### Step 2: Connect to Your Raspberry Pi
 
 #### Option A: Using Hostname (Easy)
+
 ```bash
 ssh pi@minecraft-server.local
 ```
 
 #### Option B: Using IP Address
+
 If hostname doesn't work, find the IP address:
+
 - Check your router's admin panel
 - Use network scanning tools (e.g., Angry IP Scanner)
 
 Then connect:
+
 ```bash
 ssh pi@192.168.1.XXX
 ```
@@ -154,6 +167,7 @@ chmod +x setup-rpi.sh
 ```
 
 The setup script will:
+
 1. Update system packages
 2. Install Docker
 3. Install Docker Compose
@@ -218,6 +232,7 @@ chmod +x manage.sh
 ```
 
 First startup takes 5-10 minutes as it:
+
 1. Downloads Minecraft server jar
 2. Generates world
 3. Prepares spawn area
@@ -229,10 +244,12 @@ You'll see "Done!" in the logs when ready.
 ### Local Network Access
 
 Players on the same network can connect using:
+
 - Your local IP address: `192.168.1.XXX:25565`
 - Or hostname: `minecraft-server.local:25565`
 
 Find your local IP:
+
 ```bash
 hostname -I
 ```
@@ -246,11 +263,13 @@ For players outside your network:
 Set a static local IP for your Raspberry Pi:
 
 **Option A: DHCP Reservation (Recommended)**
+
 1. Log into your router
 2. Find DHCP settings
 3. Reserve IP for Raspberry Pi's MAC address
 
 **Option B: Static IP on Pi**
+
 ```bash
 sudo nmtui
 # Select "Edit a connection"
@@ -273,7 +292,7 @@ sudo nmtui
 
 #### Step 3: Find Your Public IP
 
-Visit: https://whatismyipaddress.com/
+Visit: <https://whatismyipaddress.com/>
 
 Share this IP with friends: `YOUR.PUBLIC.IP:25565`
 
@@ -334,6 +353,7 @@ docker-compose logs
 If you have 4GB Pi and server is slow:
 
 Edit `docker-compose.yml`:
+
 ```yaml
 environment:
   - MEMORY_MIN=512M
@@ -341,6 +361,7 @@ environment:
 ```
 
 Then restart:
+
 ```bash
 ./manage.sh restart
 ```
@@ -383,6 +404,7 @@ nmap -p 25565 localhost
 ## Getting Help
 
 If you encounter issues:
+
 1. Check the Troubleshooting section above
 2. Review logs: `./manage.sh logs`
 3. Check system resources: `htop`

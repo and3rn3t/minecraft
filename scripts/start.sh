@@ -13,10 +13,38 @@ echo -e "${GREEN}Starting Minecraft Server for Raspberry Pi 5${NC}"
 
 # Set default values
 MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
-MINECRAFT_JAR=${MINECRAFT_JAR:-server.jar}
+SERVER_TYPE=${SERVER_TYPE:-vanilla}
 MEMORY_MIN=${MEMORY_MIN:-1G}
 MEMORY_MAX=${MEMORY_MAX:-2G}
 SERVER_PORT=${SERVER_PORT:-25565}
+
+# Determine jar filename based on server type
+case "$SERVER_TYPE" in
+    paper)
+        MINECRAFT_JAR="paper-${MINECRAFT_VERSION}.jar"
+        # Fallback to server.jar if paper jar doesn't exist
+        if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
+            MINECRAFT_JAR="server.jar"
+        fi
+        ;;
+    fabric)
+        MINECRAFT_JAR="fabric-server.jar"
+        # Fallback to server.jar if fabric jar doesn't exist
+        if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
+            MINECRAFT_JAR="server.jar"
+        fi
+        ;;
+    spigot)
+        MINECRAFT_JAR="spigot.jar"
+        # Fallback to server.jar if spigot jar doesn't exist
+        if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
+            MINECRAFT_JAR="server.jar"
+        fi
+        ;;
+    vanilla|*)
+        MINECRAFT_JAR="server.jar"
+        ;;
+esac
 
 # Check if EULA is accepted
 if [ ! -f "/minecraft/server/eula.txt" ] || ! grep -q "eula=true" "/minecraft/server/eula.txt"; then
@@ -28,15 +56,15 @@ fi
 if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
     echo -e "${YELLOW}Downloading Minecraft Server ${MINECRAFT_VERSION}...${NC}"
     DOWNLOAD_URL="https://piston-data.mojang.com/v1/objects/8dd1a28015f51b1803213892b50b7b4fc76e594d/server.jar"
-    
+
     # For version 1.20.4 - update this URL for different versions
     # You can find the correct URL at https://www.minecraft.net/en-us/download/server
-    
+
     wget -O "/minecraft/server/${MINECRAFT_JAR}" "${DOWNLOAD_URL}" || {
         echo -e "${RED}Failed to download Minecraft server jar${NC}"
         exit 1
     }
-    
+
     echo -e "${GREEN}Download complete!${NC}"
 fi
 

@@ -88,14 +88,16 @@ chmod +x manage.sh
 The `manage.sh` script provides easy server management:
 
 ```bash
-./manage.sh start      # Start the server
-./manage.sh stop       # Stop the server
-./manage.sh restart    # Restart the server
-./manage.sh status     # Check server status
-./manage.sh logs       # View server logs
-./manage.sh backup     # Create a backup
-./manage.sh console    # Attach to server console (Ctrl+P, Ctrl+Q to detach)
-./manage.sh update     # Update configuration from git
+./manage.sh start              # Start the server
+./manage.sh stop               # Stop the server
+./manage.sh restart            # Restart the server
+./manage.sh status             # Check server status
+./manage.sh logs               # View server logs
+./manage.sh backup             # Create a backup
+./manage.sh console            # Attach to server console (Ctrl+P, Ctrl+Q to detach)
+./manage.sh update [version]   # Update server to latest or specified version
+./manage.sh check-version      # Check for available updates
+./manage.sh check-compatibility # Check compatibility before updating
 ```
 
 ## Customization
@@ -260,9 +262,22 @@ tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
 
 If you want to use plugins, you'll need to use Paper or Spigot instead of vanilla:
 
-1. Edit `start.sh` to download Paper/Spigot
-2. Place plugins in the `plugins/` directory
-3. Restart the server
+1. Switch to Paper or Spigot:
+   ```bash
+   ./scripts/switch-server-type.sh paper
+   ```
+
+2. Install plugins:
+   ```bash
+   ./scripts/plugin-manager.sh install /path/to/plugin.jar
+   ```
+
+3. Restart the server:
+   ```bash
+   ./scripts/manage.sh restart
+   ```
+
+See [PLUGIN_MANAGEMENT.md](docs/PLUGIN_MANAGEMENT.md) for detailed plugin management guide.
 
 ### Automatic Startup on Boot
 
@@ -305,9 +320,12 @@ sudo systemctl start minecraft.service
 ### User Documentation
 
 - **[INSTALL.md](INSTALL.md)** - Detailed installation guide
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick command reference
-- **[CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md)** - Configuration examples
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Problem solving guide
+- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Quick command reference
+- **[CONFIGURATION_EXAMPLES.md](docs/CONFIGURATION_EXAMPLES.md)** - Configuration examples
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Problem solving guide
+- **[BACKUP_AND_MONITORING.md](docs/BACKUP_AND_MONITORING.md)** - Backup & monitoring guide
+- **[UPDATE_MANAGEMENT.md](docs/UPDATE_MANAGEMENT.md)** - Update management & server types guide
+- **[PLUGIN_MANAGEMENT.md](docs/PLUGIN_MANAGEMENT.md)** - Plugin installation & management guide
 
 ### Developer Documentation
 
