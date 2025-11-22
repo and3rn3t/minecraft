@@ -31,6 +31,8 @@ usage() {
     echo -e "  check-version      - Check for available server updates"
     echo -e "  check-compatibility - Check compatibility before updating"
     echo -e "  plugins            - Plugin management (list, install, etc.)"
+    echo -e "  logs-manage        - Log management (index, rotate, errors, stats)"
+    echo -e "  logs-search        - Search server logs"
     exit 1
 }
 
@@ -311,6 +313,24 @@ case "${1}" in
             "${SCRIPT_DIR}/plugin-manager.sh" "$@"
         else
             echo -e "${RED}plugin-manager.sh not found${NC}"
+            exit 1
+        fi
+        ;;
+    logs-manage)
+        if [ -f "${SCRIPT_DIR}/log-manager.sh" ]; then
+            shift
+            "${SCRIPT_DIR}/log-manager.sh" "$@"
+        else
+            echo -e "${RED}log-manager.sh not found${NC}"
+            exit 1
+        fi
+        ;;
+    logs-search)
+        if [ -f "${SCRIPT_DIR}/log-search.sh" ]; then
+            shift
+            "${SCRIPT_DIR}/log-search.sh" "$@"
+        else
+            echo -e "${RED}log-search.sh not found${NC}"
             exit 1
         fi
         ;;

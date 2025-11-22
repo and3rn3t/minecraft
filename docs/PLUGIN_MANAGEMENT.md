@@ -38,10 +38,22 @@ Or use the manage.sh wrapper:
 
 The installer will:
 
-- Extract plugin information (name, version)
+- **Check compatibility** with your server type and version
+- **Check dependencies** and warn about missing required plugins
+- Extract plugin information (name, version, API version)
 - Copy plugin to the plugins directory
 - Backup existing plugin if it exists
 - Backup plugin configuration if it exists
+
+**Compatibility Checks**:
+- Verifies server type supports plugins (Paper/Spigot required)
+- Checks API version compatibility with server version
+- Warns if plugin may not work correctly
+
+**Dependency Resolution**:
+- Automatically detects required dependencies from plugin.yml
+- Warns about missing dependencies
+- Allows installation to continue (dependencies may be optional)
 
 ### Plugin Locations
 
@@ -115,11 +127,47 @@ Update a plugin to a newer version:
 
 The updater will:
 
+- Check compatibility of new version
 - Backup old plugin and configuration
 - Replace plugin .jar file
 - Preserve existing configuration
 
 **Note**: Review configuration changes after updating - some plugins change config format between versions.
+
+### Check for Plugin Updates
+
+Check which plugins have updates available:
+
+```bash
+./scripts/plugin-manager.sh check-updates
+```
+
+This will:
+- List all installed plugins with their current versions
+- Show update status (requires API integration for automatic checking)
+
+**Note**: Currently shows installed versions. Full automatic update checking requires integration with SpigotMC/PaperMC APIs.
+
+### Hot-Reload Plugins
+
+Reload plugins without restarting the server (Paper/Spigot only):
+
+```bash
+./scripts/plugin-manager.sh reload
+```
+
+Or via manage.sh:
+
+```bash
+./scripts/manage.sh plugins reload
+```
+
+**Requirements**:
+- Server must be running
+- Server type must be Paper or Spigot (Vanilla doesn't support hot-reload)
+- Some plugins may not support hot-reload and may require a full restart
+
+**Note**: Hot-reload is experimental. Some plugins may not reload correctly. If issues occur, restart the server.
 
 ## Plugin Configuration Management
 

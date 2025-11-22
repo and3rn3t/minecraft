@@ -3,6 +3,7 @@
 This guide helps you diagnose and fix common issues with the Minecraft Server on Raspberry Pi 5.
 
 ## Table of Contents
+
 1. [Installation Issues](#installation-issues)
 2. [Server Startup Issues](#server-startup-issues)
 3. [Connection Issues](#connection-issues)
@@ -19,22 +20,26 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 **Solutions**:
 
 1. **Check internet connection**:
+
    ```bash
    ping -c 4 google.com
    ```
 
 2. **Update package lists first**:
+
    ```bash
    sudo apt update
    sudo apt upgrade -y
    ```
 
 3. **Run script with more verbose output**:
+
    ```bash
    bash -x ./setup-rpi.sh
    ```
 
 4. **Check disk space**:
+
    ```bash
    df -h
    # Should have at least 5GB free
@@ -47,6 +52,7 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 **Solutions**:
 
 1. **Manually install Docker**:
+
    ```bash
    curl -fsSL https://get.docker.com -o get-docker.sh
    sudo sh get-docker.sh
@@ -55,11 +61,13 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
    ```
 
 2. **Install Docker Compose separately**:
+
    ```bash
    sudo apt install docker-compose
    ```
 
 3. **Verify installation**:
+
    ```bash
    docker --version
    docker-compose --version
@@ -72,17 +80,20 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 **Solutions**:
 
 1. **Add user to Docker group**:
+
    ```bash
    sudo usermod -aG docker $USER
    ```
 
 2. **Log out and back in**:
+
    ```bash
    exit
    # Then SSH back in
    ```
 
 3. **Fix file permissions**:
+
    ```bash
    sudo chown -R $USER:$USER ~/minecraft-server
    chmod +x ~/minecraft-server/*.sh
@@ -97,22 +108,27 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 **Diagnostic Steps**:
 
 1. **Check Docker service**:
+
    ```bash
    sudo systemctl status docker
    ```
+
    If not running: `sudo systemctl start docker`
 
 2. **View detailed logs**:
+
    ```bash
    docker-compose logs
    ```
 
 3. **Check for port conflicts**:
+
    ```bash
    sudo netstat -tlnp | grep 25565
    ```
 
 4. **Verify disk space**:
+
    ```bash
    df -h
    ```
@@ -120,18 +136,22 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 **Common Causes & Solutions**:
 
 #### EULA Not Accepted
+
 **Error**: "You need to agree to the EULA"
 
 **Solution**:
+
 ```bash
 echo "eula=true" > ~/minecraft-server/eula.txt
 ./manage.sh restart
 ```
 
 #### Out of Memory
+
 **Error**: "OutOfMemoryError" in logs
 
 **Solution**: Reduce memory allocation in `docker-compose.yml`:
+
 ```yaml
 environment:
   - MEMORY_MIN=512M
@@ -139,9 +159,11 @@ environment:
 ```
 
 #### Port Already in Use
+
 **Error**: "Address already in use"
 
 **Solution**:
+
 ```bash
 # Find what's using the port
 sudo netstat -tlnp | grep 25565
@@ -161,11 +183,13 @@ ports:
 **Solutions**:
 
 1. **Increase memory allocation**:
+
    ```yaml
    MEMORY_MAX=2G  # In docker-compose.yml
    ```
 
 2. **Check system temperature**:
+
    ```bash
    vcgencmd measure_temp
    # Should be below 80°C
@@ -176,6 +200,7 @@ ports:
    - Improve case ventilation
 
 4. **Delete corrupted world**:
+
    ```bash
    ./manage.sh stop
    rm -rf data/world*
@@ -189,11 +214,13 @@ ports:
 **Solutions**:
 
 1. **Check internet connection**:
+
    ```bash
    curl -I https://www.minecraft.net
    ```
 
 2. **Manually download jar**:
+
    ```bash
    cd ~/minecraft-server/data
    # Use the same URL from start.sh (line 30)
@@ -201,7 +228,7 @@ ports:
    ```
 
 3. **Update download URL** in `start.sh` (line 30) for different Minecraft versions
-   - Find version-specific URLs at https://www.minecraft.net/en-us/download/server
+   - Find version-specific URLs at <https://www.minecraft.net/en-us/download/server>
 
 ## Connection Issues
 
@@ -212,18 +239,21 @@ ports:
 **Diagnostic Steps**:
 
 1. **Verify server is running**:
+
    ```bash
    ./manage.sh status
    # Should show "Up"
    ```
 
 2. **Check server logs**:
+
    ```bash
    ./manage.sh logs
    # Look for "Done!" message
    ```
 
 3. **Test port accessibility**:
+
    ```bash
    sudo apt install nmap
    nmap -p 25565 localhost
@@ -231,6 +261,7 @@ ports:
    ```
 
 4. **Check firewall**:
+
    ```bash
    sudo ufw status
    # If active, add rule:
@@ -238,6 +269,7 @@ ports:
    ```
 
 5. **Verify IP address**:
+
    ```bash
    hostname -I
    ```
@@ -250,6 +282,7 @@ ports:
    - `192.168.1.XXX:25565` (actual IP)
 
 2. **Check server.properties**:
+
    ```properties
    server-ip=
    # Should be empty for all interfaces
@@ -269,12 +302,13 @@ ports:
    - Protocol should be TCP
 
 2. **Check public IP**:
+
    ```bash
    curl ifconfig.me
    ```
 
 3. **Test from external service**:
-   - Use https://mcsrvstat.us/
+   - Use <https://mcsrvstat.us/>
    - Enter your public IP
 
 **Solutions**:
@@ -304,9 +338,11 @@ ports:
 
 1. **Increase timeout in Minecraft client**
 2. **Check network latency**:
+
    ```bash
    ping YOUR_SERVER_IP
    ```
+
 3. **Reduce server load**:
    - Lower view-distance
    - Reduce max-players
@@ -320,18 +356,21 @@ ports:
 **Diagnostic Steps**:
 
 1. **Check TPS** (in-game):
+
    ```
    /forge tps
    # Should be 20 TPS
    ```
 
 2. **Monitor resources**:
+
    ```bash
    htop
    docker stats minecraft-server
    ```
 
 3. **Check temperature**:
+
    ```bash
    vcgencmd measure_temp
    ```
@@ -339,6 +378,7 @@ ports:
 **Solutions**:
 
 1. **Optimize server.properties**:
+
    ```properties
    view-distance=6
    simulation-distance=6
@@ -347,6 +387,7 @@ ports:
    ```
 
 2. **Reduce memory if swapping**:
+
    ```bash
    free -h
    # If swap is used, reduce MEMORY_MAX
@@ -361,6 +402,7 @@ ports:
    - Reduces stuttering
 
 5. **Limit chunk loading**:
+
    ```properties
    max-chained-neighbor-updates=100000
    ```
@@ -372,24 +414,28 @@ ports:
 **Solutions**:
 
 1. **Check memory usage**:
+
    ```bash
    free -h
    docker stats
    ```
 
 2. **Reduce allocation**:
+
    ```yaml
    # docker-compose.yml
    MEMORY_MAX=1G  # Instead of 2G
    ```
 
 3. **Lower view distance**:
+
    ```properties
    view-distance=6
    simulation-distance=4
    ```
 
 4. **Restart server periodically**:
+
    ```bash
    # Add to crontab for daily restart
    0 4 * * * cd ~/minecraft-server && ./manage.sh restart
@@ -402,11 +448,13 @@ ports:
 **Solutions**:
 
 1. **Reduce simulation distance**:
+
    ```properties
    simulation-distance=4
    ```
 
 2. **Limit entities**:
+
    ```properties
    entity-broadcast-range-percentage=50
    spawn-animals=false  # If not needed
@@ -414,6 +462,7 @@ ports:
    ```
 
 3. **Ensure thermal throttling isn't occurring**:
+
    ```bash
    vcgencmd measure_temp
    vcgencmd get_throttled
@@ -429,6 +478,7 @@ ports:
 **Solutions**:
 
 1. **Remove old containers**:
+
    ```bash
    docker-compose down
    docker rm minecraft-server
@@ -436,6 +486,7 @@ ports:
    ```
 
 2. **Rebuild image**:
+
    ```bash
    docker-compose down
    docker-compose build --no-cache
@@ -443,6 +494,7 @@ ports:
    ```
 
 3. **Check Docker logs**:
+
    ```bash
    docker logs minecraft-server
    ```
@@ -454,17 +506,20 @@ ports:
 **Solutions**:
 
 1. **Check Docker disk usage**:
+
    ```bash
    docker system df
    ```
 
 2. **Clean up Docker**:
+
    ```bash
    docker system prune -a
    # Warning: removes unused images
    ```
 
 3. **Remove old images**:
+
    ```bash
    docker images
    docker rmi IMAGE_ID
@@ -477,6 +532,7 @@ ports:
 **Solutions**:
 
 1. **Ensure TTY is enabled**:
+
    ```yaml
    # In docker-compose.yml
    tty: true
@@ -484,6 +540,7 @@ ports:
    ```
 
 2. **Use docker exec instead**:
+
    ```bash
    docker exec -it minecraft-server /bin/bash
    ```
@@ -495,6 +552,7 @@ ports:
 **Symptoms**: File system errors, read-only filesystem
 
 **Prevention**:
+
 - Use high-quality microSD card (A2 rated)
 - Regular backups
 - Proper shutdown procedures
@@ -502,11 +560,13 @@ ports:
 **Solutions**:
 
 1. **Check filesystem**:
+
    ```bash
    sudo fsck -f /dev/mmcblk0p2
    ```
 
 2. **Restore from backup**:
+
    ```bash
    ./manage.sh stop
    tar -xzf backups/minecraft_backup_*.tar.gz -C data/
@@ -543,6 +603,7 @@ ports:
 **Solutions**:
 
 1. **Check temperature**:
+
    ```bash
    watch vcgencmd measure_temp
    ```
@@ -558,6 +619,92 @@ ports:
    - Reduce view-distance
    - Lower memory allocation
 
+## Log Management
+
+### Viewing Logs
+
+**Basic log viewing**:
+
+```bash
+./manage.sh logs
+# Shows last 100 lines of server logs
+```
+
+**Search logs**:
+
+```bash
+./manage.sh logs-search "error"
+# Search for "error" in logs
+
+./manage.sh logs-search -l ERROR
+# Show all ERROR level messages
+
+./manage.sh logs-search -d 2025-01-15 "crash"
+# Search for "crash" on specific date
+
+./manage.sh logs-search -r 2025-01-01 2025-01-31 "player joined"
+# Search date range
+```
+
+**Log management**:
+
+```bash
+./manage.sh logs-manage all
+# Run all log operations (rotate, index, errors, stats)
+
+./manage.sh logs-manage index
+# Parse and index logs for faster searching
+
+./manage.sh logs-manage errors
+# Detect and report error patterns
+
+./manage.sh logs-manage rotate
+# Rotate and archive old logs
+
+./manage.sh logs-manage stats
+# Show log statistics
+```
+
+### Log Configuration
+
+Edit `config/log-management.conf` to configure:
+
+- Log retention period (default: 30 days)
+- Maximum log file size before rotation (default: 100MB)
+- Indexing and error detection settings
+
+### Common Log Issues
+
+**Logs growing too large**:
+
+```bash
+# Manually rotate logs
+./manage.sh logs-manage rotate
+
+# Or reduce retention period in config/log-management.conf
+LOG_RETENTION_DAYS=7
+```
+
+**Cannot find specific log entries**:
+
+```bash
+# Re-index logs
+./manage.sh logs-manage index
+
+# Then search
+./manage.sh logs-search "your search term"
+```
+
+**Too many errors detected**:
+
+```bash
+# View error summary
+./manage.sh logs-manage errors
+
+# Check specific error patterns
+./manage.sh logs-search -l ERROR
+```
+
 ## Getting Additional Help
 
 ### Collecting Debug Information
@@ -565,6 +712,7 @@ ports:
 When asking for help, include:
 
 1. **System information**:
+
    ```bash
    cat /proc/device-tree/model
    free -h
@@ -573,17 +721,23 @@ When asking for help, include:
    ```
 
 2. **Server logs**:
+
    ```bash
    docker-compose logs > logs.txt
+   # Or use log management
+   ./manage.sh logs-manage errors > errors.txt
+   ./manage.sh logs-search "error" > search_results.txt
    ```
 
 3. **Configuration**:
+
    ```bash
    cat docker-compose.yml
    cat server.properties | grep -v "^#"
    ```
 
 4. **Docker status**:
+
    ```bash
    docker ps -a
    docker stats --no-stream
@@ -595,8 +749,8 @@ When asking for help, include:
 - **README.md**: General documentation
 - **INSTALL.md**: Installation guide
 - **QUICK_REFERENCE.md**: Command reference
-- **Minecraft Wiki**: https://minecraft.fandom.com/wiki/Server
-- **Raspberry Pi Forums**: https://forums.raspberrypi.com/
+- **Minecraft Wiki**: <https://minecraft.fandom.com/wiki/Server>
+- **Raspberry Pi Forums**: <https://forums.raspberrypi.com/>
 
 ### Best Practices
 
@@ -609,6 +763,7 @@ When asking for help, include:
 ---
 
 Still having issues? Open an issue on GitHub with:
+
 - Detailed problem description
 - Steps to reproduce
 - Log output
