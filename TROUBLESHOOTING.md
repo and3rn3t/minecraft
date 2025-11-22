@@ -196,11 +196,11 @@ ports:
 2. **Manually download jar**:
    ```bash
    cd ~/minecraft-server/data
-   # Use the same URL from start.sh (line 29)
+   # Use the same URL from start.sh (line 30)
    wget -O server.jar https://piston-data.mojang.com/v1/objects/8dd1a28015f51b1803213892b50b7b4fc76e594d/server.jar
    ```
 
-3. **Update download URL** in `start.sh` (line 29) for different Minecraft versions
+3. **Update download URL** in `start.sh` (line 30) for different Minecraft versions
    - Find version-specific URLs at https://www.minecraft.net/en-us/download/server
 
 ## Connection Issues
