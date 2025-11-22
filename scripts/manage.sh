@@ -33,6 +33,9 @@ usage() {
     echo -e "  plugins            - Plugin management (list, install, etc.)"
     echo -e "  logs-manage        - Log management (index, rotate, errors, stats)"
     echo -e "  logs-search        - Search server logs"
+    echo -e "  worlds             - World management (list, create, switch, etc.)"
+    echo -e "  rcon               - RCON client (send commands via RCON)"
+    echo -e "  api                - API server management (start, stop, status)"
     exit 1
 }
 
@@ -331,6 +334,33 @@ case "${1}" in
             "${SCRIPT_DIR}/log-search.sh" "$@"
         else
             echo -e "${RED}log-search.sh not found${NC}"
+            exit 1
+        fi
+        ;;
+    worlds)
+        if [ -f "${SCRIPT_DIR}/world-manager.sh" ]; then
+            shift
+            "${SCRIPT_DIR}/world-manager.sh" "$@"
+        else
+            echo -e "${RED}world-manager.sh not found${NC}"
+            exit 1
+        fi
+        ;;
+    rcon)
+        if [ -f "${SCRIPT_DIR}/rcon-client.sh" ]; then
+            shift
+            "${SCRIPT_DIR}/rcon-client.sh" "$@"
+        else
+            echo -e "${RED}rcon-client.sh not found${NC}"
+            exit 1
+        fi
+        ;;
+    api)
+        if [ -f "${SCRIPT_DIR}/api-server.sh" ]; then
+            shift
+            "${SCRIPT_DIR}/api-server.sh" "$@"
+        else
+            echo -e "${RED}api-server.sh not found${NC}"
             exit 1
         fi
         ;;

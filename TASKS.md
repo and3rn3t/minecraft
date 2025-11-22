@@ -242,21 +242,21 @@ This document contains detailed tasks organized by feature and priority for futu
 
 #### Multi-World Support 🟡 P2
 
-- [ ] **Task 3.1.1**: Multiple world management
+- [x] **Task 3.1.1**: Multiple world management ✅
   - Create world manager script
   - World creation/deletion
   - World switching system
   - Test multi-world setup
   - Documentation: Add multi-world guide
 
-- [ ] **Task 3.1.2**: Per-world configuration
+- [x] **Task 3.1.2**: Per-world configuration ✅
   - World-specific server.properties
   - Per-world resource allocation
   - World templates
   - Test per-world config
   - Documentation: Add examples
 
-- [ ] **Task 3.1.3**: World backup scheduling
+- [x] **Task 3.1.3**: World backup scheduling ✅
   - Per-world backup schedules
   - World-specific retention policies
   - Test world backups
@@ -264,14 +264,14 @@ This document contains detailed tasks organized by feature and priority for futu
 
 #### Advanced Server Management 🟡 P2
 
-- [ ] **Task 3.2.1**: RCON integration
+- [x] **Task 3.2.1**: RCON integration ✅
   - Enable RCON in server.properties
   - Create RCON client script
   - Secure RCON password generation
   - Test RCON functionality
   - Documentation: Add RCON guide
 
-- [ ] **Task 3.2.2**: Remote server control API
+- [x] **Task 3.2.2**: Remote server control API ✅
   - Create REST API server
   - Authentication system
   - API endpoints for server control
