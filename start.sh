@@ -13,6 +13,7 @@ echo -e "${GREEN}Starting Minecraft Server for Raspberry Pi 5${NC}"
 
 # Set default values
 MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
+MINECRAFT_JAR=${MINECRAFT_JAR:-server.jar}
 MEMORY_MIN=${MEMORY_MIN:-1G}
 MEMORY_MAX=${MEMORY_MAX:-2G}
 SERVER_PORT=${SERVER_PORT:-25565}
