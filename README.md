@@ -127,8 +127,8 @@ Edit `docker-compose.yml` to adjust memory settings:
 
 ```yaml
 environment:
-  - MEMORY_MIN=1G  # Minimum memory (1G for 4GB Pi, 2G for 8GB Pi)
-  - MEMORY_MAX=2G  # Maximum memory (2G for 4GB Pi, 4G for 8GB Pi)
+  - MEMORY_MIN=1G # Minimum memory (1G for 4GB Pi, 2G for 8GB Pi)
+  - MEMORY_MAX=2G # Maximum memory (2G for 4GB Pi, 4G for 8GB Pi)
 ```
 
 **Recommended Memory Settings:**
@@ -142,7 +142,7 @@ To change Minecraft version, edit `docker-compose.yml`:
 
 ```yaml
 environment:
-  - MINECRAFT_VERSION=1.20.4  # Change to desired version
+  - MINECRAFT_VERSION=1.20.4 # Change to desired version
 ```
 
 Then rebuild and restart:
@@ -164,6 +164,7 @@ To allow players outside your local network to connect:
 
 2. Log into your router's admin panel
 3. Set up port forwarding:
+
    - External Port: 25565
    - Internal Port: 25565
    - Internal IP: Your Raspberry Pi's IP address
@@ -263,11 +264,13 @@ tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
 If you want to use plugins, you'll need to use Paper or Spigot instead of vanilla:
 
 1. Switch to Paper or Spigot:
+
    ```bash
    ./scripts/switch-server-type.sh paper
    ```
 
 2. Install plugins:
+
    ```bash
    ./scripts/plugin-manager.sh install /path/to/plugin.jar
    ```
@@ -333,27 +336,46 @@ See [Testing Guide](docs/TESTING.md) for more information.
 
 ## Documentation
 
-### User Documentation
+📚 **Start here**: [Documentation Index](docs/INDEX.md) - Complete navigation guide
 
-- **[INSTALL.md](INSTALL.md)** - Detailed installation guide
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Quick command reference
-- **[CONFIGURATION_EXAMPLES.md](docs/CONFIGURATION_EXAMPLES.md)** - Configuration examples
-- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Problem solving guide
-- **[BACKUP_AND_MONITORING.md](docs/BACKUP_AND_MONITORING.md)** - Backup & monitoring guide
-- **[UPDATE_MANAGEMENT.md](docs/UPDATE_MANAGEMENT.md)** - Update management & server types guide
-- **[PLUGIN_MANAGEMENT.md](docs/PLUGIN_MANAGEMENT.md)** - Plugin installation & management guide
+### Quick Links
 
-### Developer Documentation
+**Getting Started:**
 
-- **[ROADMAP.md](ROADMAP.md)** - Comprehensive development roadmap
-- **[TASKS.md](TASKS.md)** - Detailed development tasks
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Developer guide
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
-- **[WORKSPACE_ENHANCEMENTS.md](WORKSPACE_ENHANCEMENTS.md)** - Workspace optimizations
+- **[Installation Guide](docs/INSTALL.md)** - Complete setup instructions
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Command cheat sheet
+- **[Configuration Examples](docs/CONFIGURATION_EXAMPLES.md)** - Config file examples
 
-### Project Information
+**User Guides:**
 
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+- **[Backup & Monitoring](docs/BACKUP_AND_MONITORING.md)** - Automated backups and metrics
+- **[Update Management](docs/UPDATE_MANAGEMENT.md)** - Server updates and versions
+- **[Plugin Management](docs/PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
+- **[Multi-World Support](docs/MULTI_WORLD.md)** - Managing multiple worlds
+- **[Log Management](docs/LOG_MANAGEMENT.md)** - Log rotation and analysis
+- **[RCON Guide](docs/RCON.md)** - Remote console setup
+- **[REST API](docs/API.md)** - API documentation
+- **[Web Interface](docs/WEB_INTERFACE.md)** - Web admin panel
+
+**Developer Guides:**
+
+- **[Development Guide](docs/DEVELOPMENT.md)** - Setup and workflow
+- **[Testing Guide](docs/TESTING.md)** - Testing best practices
+- **[Cursor Configuration](docs/CURSOR_CONFIGURATION.md)** - IDE setup
+- **[Contributing](CONTRIBUTING.md)** - Contribution guidelines
+- **[Agent Instructions](AGENT_INSTRUCTIONS.md)** - AI agent consistency guide
+
+**Project Planning:**
+
+- **[Roadmap](docs/ROADMAP.md)** - Development roadmap
+- **[Tasks](TASKS.md)** - Detailed task breakdown
+- **[Changelog](CHANGELOG.md)** - Version history
+
+**Troubleshooting:**
+
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common problems and solutions
+
+For complete documentation navigation, see [docs/INDEX.md](docs/INDEX.md).
 
 ## Resources
 

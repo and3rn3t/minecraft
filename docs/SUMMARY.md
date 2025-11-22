@@ -1,5 +1,7 @@
 # Project Analysis & Enhancement Summary
 
+> **Note**: This document is a historical record of project analysis. For current project status, see [CHANGELOG.md](../CHANGELOG.md) and [ROADMAP.md](ROADMAP.md).
+
 ## Executive Summary
 
 This document summarizes the comprehensive analysis and enhancements made to the Minecraft Server for Raspberry Pi 5 project. The analysis included reviewing all documentation, configuration files, and current project state to create an extensive roadmap, detailed task breakdown, and workspace optimizations.

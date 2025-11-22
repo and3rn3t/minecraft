@@ -1,0 +1,317 @@
+# Minecraft Server Management - Agent Instructions
+
+## Project Overview
+
+This is a Minecraft server management system optimized for Raspberry Pi 5 (ARM64), providing Docker-based deployment, automated backups, plugin management, multi-world support, REST API, and a React web interface.
+
+## Architecture
+
+### Technology Stack
+
+- **Backend API**: Python 3 with Flask (REST API for server management)
+- **Frontend**: React with Vite, Tailwind CSS
+- **Server Management**: Bash scripts for server operations
+- **Containerization**: Docker & Docker Compose
+- **Target Platform**: Raspberry Pi 5 (ARM64), but supports x86_64
+- **Testing**: pytest for Python, Vitest for React, BATS for shell scripts
+
+### Project Structure
+
+```
+minecraft/
+├── api/                    # Python Flask REST API
+│   ├── server.py          # Main API server
+│   └── requirements.txt   # Python dependencies
+├── web/                    # React frontend
+│   ├── src/               # React source code
+│   └── package.json       # Node dependencies
+├── scripts/               # Shell scripts for server management
+│   ├── manage.sh          # Main management script
+│   ├── backup-scheduler.sh
+│   ├── plugin-manager.sh
+│   └── ...
+├── config/                # Configuration files
+│   ├── api.conf           # API configuration
+│   └── *.conf             # Various config files
+├── docs/                  # Documentation
+├── tests/                 # Test suites
+│   ├── api/               # Python API tests
+│   ├── integration/       # Integration tests
+│   └── unit/              # Unit tests
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerfile             # Docker image definition
+├── Makefile               # Convenience commands
+└── README.md              # Main documentation
+```
+
+## Code Standards
+
+### Shell Scripts
+
+- **Shebang**: Always use `#!/bin/bash`
+- **Error Handling**: Use `set -e` at the start
+- **Indentation**: 4 spaces (not tabs)
+- **Variables**: Always quote variables: `"$VAR"` not `$VAR`
+- **Functions**: Use functions for repeated code
+- **Colors**: Use ANSI color codes for output (RED, GREEN, YELLOW, BLUE, NC)
+- **Comments**: Add comments for complex logic
+- **Syntax Check**: Run `bash -n script.sh` before committing
+
+Example:
+
+```bash
+#!/bin/bash
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+function example_function() {
+    local param="$1"
+    echo -e "${GREEN}Processing: $param${NC}"
+}
+```
+
+### Python Code
+
+- **Style**: Follow PEP 8
+- **Type Hints**: Use type hints where appropriate
+- **Docstrings**: Include docstrings for functions and classes
+- **Error Handling**: Use try/except with specific exceptions
+- **Imports**: Group imports (stdlib, third-party, local)
+- **Path Handling**: Use `pathlib.Path` for file paths
+
+Example:
+
+```python
+from pathlib import Path
+from typing import Optional
+
+def example_function(param: str) -> Optional[Path]:
+    """Process parameter and return path."""
+    try:
+        path = Path(param)
+        return path if path.exists() else None
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+```
+
+### React/JavaScript
+
+- **Framework**: React with functional components and hooks
+- **Styling**: Tailwind CSS for styling
+- **Testing**: Vitest for unit tests
+- **API Calls**: Use services/api.js for API communication
+- **Components**: Keep components small and focused
+- **State Management**: Use React hooks (useState, useEffect)
+
+### Docker
+
+- **Base Images**: Use official images when possible
+- **Multi-stage**: Use multi-stage builds for optimization
+- **Layers**: Minimize layers, clean up in same layer
+- **Environment Variables**: Use .env files and docker-compose.yml
+- **Health Checks**: Include healthcheck in docker-compose.yml
+
+### YAML Files
+
+- **Indentation**: 2 spaces
+- **Environment Variables**: Use `${VAR:-default}` syntax
+- **Validation**: Run `docker-compose config` to validate
+
+## Development Workflow
+
+### Making Changes
+
+1. Create feature branch: `git checkout -b feature/feature-name`
+2. Make changes following code standards
+3. Test changes thoroughly
+4. Update documentation if needed
+5. Commit with clear messages: `git commit -m "Add feature: description"`
+6. Push and create PR
+
+### Testing Requirements
+
+- **Shell Scripts**: Run `bash -n script.sh` for syntax check
+- **Python**: Run `pytest tests/api/ -v` for API tests
+- **React**: Run `npm test` for frontend tests
+- **Docker**: Run `docker-compose config` to validate
+- **Integration**: Test on Raspberry Pi 5 when possible
+
+### Documentation
+
+- **Update README.md** for user-facing changes
+- **Update relevant docs/** files for feature changes
+- **Update CHANGELOG.md** for all changes
+- **Add examples** to CONFIGURATION_EXAMPLES.md when adding config options
+- **Update QUICK_REFERENCE.md** when adding commands
+
+## Important Considerations
+
+### Raspberry Pi 5 Optimization
+
+- **Memory**: Be mindful of memory constraints (4GB/8GB models)
+- **CPU**: ARM64 architecture, optimize for efficiency
+- **Storage**: Consider SD card write limits
+- **Performance**: Test on actual hardware when possible
+
+### Docker Best Practices
+
+- **Resource Limits**: Set appropriate memory limits in docker-compose.yml
+- **Volumes**: Use named volumes or bind mounts appropriately
+- **Networking**: Use custom networks for isolation
+- **Logging**: Configure log rotation to prevent disk fill
+
+### Security
+
+- **API Keys**: Store in config/api-keys.json, never commit secrets
+- **RCON**: Use secure passwords, generate randomly
+- **File Permissions**: Ensure proper permissions on scripts and configs
+- **Input Validation**: Validate all user inputs in API
+
+### Error Handling
+
+- **Graceful Degradation**: Handle missing dependencies gracefully
+- **User Feedback**: Provide clear error messages
+- **Logging**: Log errors with context
+- **Recovery**: Implement rollback mechanisms where appropriate
+
+## Common Patterns
+
+### Script Structure
+
+```bash
+#!/bin/bash
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Functions
+function main_function() {
+    # Implementation
+}
+
+# Main execution
+if [ "$#" -eq 0 ]; then
+    usage
+    exit 1
+fi
+
+case "$1" in
+    command)
+        main_function
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
+```
+
+### API Endpoint Pattern
+
+```python
+@app.route('/api/endpoint', methods=['GET'])
+@require_api_key
+def endpoint():
+    """Endpoint description."""
+    try:
+        # Implementation
+        return jsonify({"status": "success", "data": result})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+```
+
+### React Component Pattern
+
+```jsx
+import { useState, useEffect } from 'react';
+import { api } from '../services/api';
+
+export function Component() {
+    const [data, setData] = useState(null);
+
+    useEffect(() => {
+        api.getData().then(setData);
+    }, []);
+
+    return <div>{/* Component JSX */}</div>;
+}
+```
+
+## File Naming Conventions
+
+- **Scripts**: `kebab-case.sh` (e.g., `backup-scheduler.sh`)
+- **Python**: `snake_case.py` (e.g., `server.py`)
+- **React**: `PascalCase.jsx` for components (e.g., `StatusCard.jsx`)
+- **Config**: `kebab-case.conf` (e.g., `backup-schedule.conf`)
+- **Documentation**: `UPPERCASE.md` (e.g., `README.md`)
+
+## Testing Standards
+
+- **Unit Tests**: Test individual functions/components
+- **Integration Tests**: Test script interactions
+- **API Tests**: Test all endpoints with pytest
+- **Coverage**: Aim for >50% coverage (currently at 51%)
+- **Test Files**: Mirror source structure in `tests/` directory
+
+## Documentation Standards
+
+- **Markdown**: Use Markdown for all documentation
+- **Code Examples**: Include working code examples
+- **Links**: Keep internal links relative
+- **Structure**: Use clear headings and sections
+- **Updates**: Update docs when making changes
+
+## Git Workflow
+
+- **Branches**: Use `feature/`, `fix/`, `docs/` prefixes
+- **Commits**: Clear, descriptive commit messages
+- **PRs**: One feature/fix per PR
+- **Reviews**: Address feedback before merging
+
+## When Adding New Features
+
+1. **Check TASKS.md** for related tasks
+2. **Follow existing patterns** in similar features
+3. **Add tests** for new functionality
+4. **Update documentation** (README, relevant docs/)
+5. **Update CHANGELOG.md** with changes
+6. **Test on Raspberry Pi 5** if hardware-specific
+
+## Common Commands
+
+- `./manage.sh start` - Start server
+- `./manage.sh stop` - Stop server
+- `make test` - Run tests
+- `make build` - Build Docker image
+- `docker-compose logs` - View logs
+- `pytest tests/api/ -v` - Run API tests
+
+## Key Files to Know
+
+- `scripts/manage.sh` - Main management script
+- `api/server.py` - REST API server
+- `docker-compose.yml` - Docker configuration
+- `README.md` - Main documentation
+- `TASKS.md` - Development tasks
+- `CONTRIBUTING.md` - Contribution guidelines
+
+## Remember
+
+- Always test on Raspberry Pi 5 when possible
+- Keep memory usage in mind (4GB/8GB models)
+- Follow existing code patterns
+- Update documentation with changes
+- Write tests for new features
+- Use clear, descriptive names
+- Handle errors gracefully
+- Provide user feedback

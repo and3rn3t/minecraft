@@ -1,0 +1,15 @@
+# ShellCheck configuration
+# See: https://github.com/koalaman/shellcheck/wiki
+
+# Enable additional checks
+enable=all
+
+# Disable specific warnings if needed
+# disable=SC2034,SC2086
+
+# Source paths for external scripts
+# shellcheck source=/dev/null
+
+# Exclude patterns (comma-separated)
+# exclude=
+
