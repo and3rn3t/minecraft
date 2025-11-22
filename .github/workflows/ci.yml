@@ -15,8 +15,9 @@ jobs:
 
       - name: Check shell script syntax
         run: |
-          for script in *.sh; do
-            bash -n "$script"
+          find scripts tests -name "*.sh" -type f | while read -r script; do
+            echo "Checking: $script"
+            bash -n "$script" || exit 1
           done
 
       - name: Check YAML syntax
@@ -37,12 +38,12 @@ jobs:
 
       - name: Test manage.sh
         run: |
-          chmod +x manage.sh
-          ./manage.sh || true  # Script may fail without Docker, that's OK
+          chmod +x scripts/manage.sh
+          ./scripts/manage.sh || true  # Script may fail without Docker, that's OK
 
       - name: Test setup script syntax
         run: |
-          bash -n setup-rpi.sh
+          bash -n scripts/setup-rpi.sh
 
   security:
     name: Security Scan
@@ -50,7 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
       - name: Run ShellCheck
-        uses: koalaman/shellcheck-action@v0.2.0
-        with:
-          path: "*.sh"
+        run: |
+          find scripts tests -name "*.sh" -type f -exec shellcheck {} \;
