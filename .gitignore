@@ -1,0 +1,22 @@
+# Minecraft Server Data
+data/
+backups/
+plugins/
+
+# Temporary files
+*.log
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker volumes
+docker-volumes/
