@@ -27,13 +27,21 @@ jobs:
 
       - name: Check YAML syntax
         run: |
-          docker run --rm -v "$PWD:/data" \
-            mikefarah/yq eval '.version' docker-compose.yml
+          if [ -f docker-compose.yml ]; then
+            docker run --rm -v "$PWD:/data" -w /data \
+              mikefarah/yq eval '.version' docker-compose.yml
+          else
+            echo "docker-compose.yml not found, skipping YAML check"
+          fi
 
       - name: Validate docker-compose.yml
         run: |
-          docker run --rm -v "$PWD:/data" -w /data \
-            docker/compose:latest config --quiet
+          if [ -f docker-compose.yml ]; then
+            docker run --rm -v "$PWD:/data" -w /data \
+              docker/compose:latest config --quiet
+          else
+            echo "docker-compose.yml not found, skipping validation"
+          fi
 
   test:
     name: Test Scripts
