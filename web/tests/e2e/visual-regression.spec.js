@@ -39,7 +39,9 @@ test.describe('Visual Regression Tests', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     // Wait for loading to complete
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page).toHaveScreenshot('dashboard.png', {
       fullPage: true,
       maxDiffPixels: 100,
@@ -49,7 +51,9 @@ test.describe('Visual Regression Tests', () => {
   test('analytics page visual snapshot', async ({ page }) => {
     await page.goto('/analytics');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page).toHaveScreenshot('analytics.png', {
       fullPage: true,
       maxDiffPixels: 100,
@@ -59,7 +63,9 @@ test.describe('Visual Regression Tests', () => {
   test('backups page visual snapshot', async ({ page }) => {
     await page.goto('/backups');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page).toHaveScreenshot('backups.png', {
       fullPage: true,
       maxDiffPixels: 100,
@@ -69,7 +75,9 @@ test.describe('Visual Regression Tests', () => {
   test('players page visual snapshot', async ({ page }) => {
     await page.goto('/players');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page).toHaveScreenshot('players.png', {
       fullPage: true,
       maxDiffPixels: 100,
@@ -79,7 +87,9 @@ test.describe('Visual Regression Tests', () => {
   test('worlds page visual snapshot', async ({ page }) => {
     await page.goto('/worlds');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page).toHaveScreenshot('worlds.png', {
       fullPage: true,
       maxDiffPixels: 100,
@@ -89,7 +99,9 @@ test.describe('Visual Regression Tests', () => {
   test('login page visual snapshot', async ({ page }) => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page).toHaveScreenshot('login.png', {
       fullPage: true,
       maxDiffPixels: 100,

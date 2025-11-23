@@ -12,20 +12,20 @@ test.describe('Complete User Journey', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ 
-            success: true, 
+          body: JSON.stringify({
+            success: true,
             token: 'test-token',
-            user: { username: testUser, role: 'user' }
+            user: { username: testUser, role: 'user' },
           }),
         });
       } else if (url.includes('/login')) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ 
-            success: true, 
+          body: JSON.stringify({
+            success: true,
             token: 'test-token',
-            user: { username: testUser, role: 'user' }
+            user: { username: testUser, role: 'user' },
           }),
         });
       } else if (url.includes('/user') || url.includes('/current')) {
@@ -104,8 +104,12 @@ test.describe('Complete User Journey', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     // Wait for loading to complete
-    await page.waitForSelector('text=/dashboard/i, text=/Loading/i', { state: 'visible', timeout: 10000 }).catch(() => {});
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/dashboard/i, text=/Loading/i', { state: 'visible', timeout: 10000 })
+      .catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
 
     await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 10000 });
 
@@ -168,7 +172,9 @@ test.describe('Complete User Journey', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     // Wait for loading to complete
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
 
     // Wait for button to be visible and clickable
     await page.waitForSelector('button:has-text("Start Server"), button:has-text("START SERVER")', {
