@@ -20,7 +20,7 @@ describe('ConfigFiles', () => {
     renderWithRouter(<ConfigFiles />);
     // Wait for both AuthProvider and ConfigFiles to finish loading
     await waitFor(() => {
-      expect(screen.getByText('Configuration Files')).toBeInTheDocument();
+      expect(screen.getByText(/configuration files/i)).toBeInTheDocument();
     });
   });
 
@@ -28,7 +28,7 @@ describe('ConfigFiles', () => {
     api.listConfigFiles.mockImplementation(() => new Promise(() => {}));
 
     renderWithRouter(<ConfigFiles />);
-    expect(screen.getByText('Loading configuration files...')).toBeInTheDocument();
+    expect(screen.getByText(/loading configuration files/i)).toBeInTheDocument();
   });
 
   it('displays config file list', async () => {
@@ -119,7 +119,7 @@ describe('ConfigFiles', () => {
     renderWithRouter(<ConfigFiles />);
 
     await waitFor(() => {
-      expect(screen.getByText('No file selected')).toBeInTheDocument();
+      expect(screen.getByText(/no file selected/i)).toBeInTheDocument();
     });
   });
 });

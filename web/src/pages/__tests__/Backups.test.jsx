@@ -49,7 +49,8 @@ describe('Backups', () => {
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText(/backup/i)).toBeInTheDocument();
+      // Use getByRole to find the heading specifically
+      expect(screen.getByRole('heading', { name: /backups/i })).toBeInTheDocument();
     });
   });
 
