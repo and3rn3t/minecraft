@@ -1,14 +1,15 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ApiKeys from './pages/ApiKeys';
 import Backups from './pages/Backups';
 import ConfigFiles from './pages/ConfigFiles';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Logs from './pages/Logs';
+import OAuthCallback from './pages/OAuthCallback';
 import Players from './pages/Players';
 import Plugins from './pages/Plugins';
-import OAuthCallback from './pages/OAuthCallback';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
 import Worlds from './pages/Worlds';
@@ -109,6 +110,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/api-keys"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ApiKeys />
               </Layout>
             </ProtectedRoute>
           }

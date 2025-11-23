@@ -218,6 +218,35 @@ export const api = {
     const response = await apiClient.post(`/auth/oauth/${provider}/unlink`);
     return response.data;
   },
+
+  // API Key Management
+  async listApiKeys() {
+    const response = await apiClient.get('/keys');
+    return response.data;
+  },
+
+  async createApiKey(name, description = '') {
+    const response = await apiClient.post('/keys', {
+      name,
+      description,
+    });
+    return response.data;
+  },
+
+  async deleteApiKey(keyId) {
+    const response = await apiClient.delete(`/keys/${keyId}`);
+    return response.data;
+  },
+
+  async enableApiKey(keyId) {
+    const response = await apiClient.put(`/keys/${keyId}/enable`);
+    return response.data;
+  },
+
+  async disableApiKey(keyId) {
+    const response = await apiClient.put(`/keys/${keyId}/disable`);
+    return response.data;
+  },
 };
 
 export default api;

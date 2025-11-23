@@ -19,6 +19,7 @@ const Layout = ({ children }) => {
     { path: '/worlds', label: 'Worlds', icon: '🌍' },
     { path: '/plugins', label: 'Plugins', icon: '🔌' },
     { path: '/config', label: 'Config Files', icon: '📄' },
+    { path: '/api-keys', label: 'API Keys', icon: '🔑' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 

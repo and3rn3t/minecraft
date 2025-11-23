@@ -5,6 +5,7 @@ Provides HTTP API for remote server management
 """
 
 import json
+import secrets
 import subprocess
 import sys
 import urllib.parse
@@ -120,6 +121,31 @@ def save_users():
         return True
     except Exception:
         return False
+
+
+def save_api_keys():
+    """Save API keys to file"""
+    try:
+        API_KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(API_KEYS_FILE, "w") as f:
+            json.dump(API_KEYS, f, indent=2)
+        # Set restrictive permissions (owner read/write only) - Unix only
+        try:
+            import os
+            os.chmod(API_KEYS_FILE, 0o600)
+        except (AttributeError, OSError):
+            # Windows doesn't support chmod the same way, skip
+            pass
+        return True
+    except Exception:
+        return False
+
+
+def generate_api_key():
+    """Generate a secure random API key"""
+    # Generate 32-character alphanumeric key
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    return "".join(secrets.choice(alphabet) for _ in range(32))
 
 
 def require_api_key(f):
@@ -805,6 +831,148 @@ def apple_oauth_callback():
 
     except Exception as e:
         return jsonify({"error": f"Failed to process Apple OAuth: {str(e)}"}), 500
+
+
+# API Key Management Endpoints
+@app.route("/api/keys", methods=["GET"])
+@require_auth
+def list_api_keys():
+    """List all API keys (without showing full key values)"""
+    try:
+        keys_list = []
+        for key, info in API_KEYS.items():
+            keys_list.append(
+                {
+                    "id": key[:8] + "..." + key[-4:],  # Show preview only
+                    "name": info.get("name", "Unknown"),
+                    "description": info.get("description", ""),
+                    "enabled": info.get("enabled", True),
+                    "created": info.get("created", ""),
+                }
+            )
+        return jsonify({"success": True, "keys": keys_list}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to list API keys: {str(e)}"}), 500
+
+
+@app.route("/api/keys", methods=["POST"])
+@require_auth
+def create_api_key():
+    """Create a new API key"""
+    try:
+        data = request.get_json() or {}
+        name = data.get("name")
+        description = data.get("description", "")
+
+        if not name:
+            return jsonify({"error": "Key name is required"}), 400
+
+        # Generate new API key
+        api_key = generate_api_key()
+
+        # Create key entry
+        API_KEYS[api_key] = {
+            "name": name,
+            "description": description,
+            "enabled": True,
+            "created": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if not save_api_keys():
+            return jsonify({"error": "Failed to save API key"}), 500
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "key": api_key,  # Return full key only on creation
+                    "id": api_key[:8] + "..." + api_key[-4:],
+                    "name": name,
+                    "description": description,
+                    "message": "API key created. Save this key securely - it will not be shown again.",
+                }
+            ),
+            201,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to create API key: {str(e)}"}), 500
+
+
+@app.route("/api/keys/<key_id>", methods=["DELETE"])
+@require_auth
+def delete_api_key(key_id):
+    """Delete an API key"""
+    try:
+        # Find the full key by preview
+        key_to_delete = None
+        for key in API_KEYS:
+            if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
+                key_to_delete = key
+                break
+
+        if not key_to_delete:
+            return jsonify({"error": "API key not found"}), 404
+
+        # Delete the key
+        key_name = API_KEYS[key_to_delete].get("name", "Unknown")
+        del API_KEYS[key_to_delete]
+
+        if not save_api_keys():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return jsonify({"success": True, "message": f"API key '{key_name}' deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete API key: {str(e)}"}), 500
+
+
+@app.route("/api/keys/<key_id>/enable", methods=["PUT"])
+@require_auth
+def enable_api_key(key_id):
+    """Enable an API key"""
+    try:
+        # Find the full key by preview
+        key_to_enable = None
+        for key in API_KEYS:
+            if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
+                key_to_enable = key
+                break
+
+        if not key_to_enable:
+            return jsonify({"error": "API key not found"}), 404
+
+        API_KEYS[key_to_enable]["enabled"] = True
+
+        if not save_api_keys():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return jsonify({"success": True, "message": "API key enabled"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to enable API key: {str(e)}"}), 500
+
+
+@app.route("/api/keys/<key_id>/disable", methods=["PUT"])
+@require_auth
+def disable_api_key(key_id):
+    """Disable an API key"""
+    try:
+        # Find the full key by preview
+        key_to_disable = None
+        for key in API_KEYS:
+            if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
+                key_to_disable = key
+                break
+
+        if not key_to_disable:
+            return jsonify({"error": "API key not found"}), 404
+
+        API_KEYS[key_to_disable]["enabled"] = False
+
+        if not save_api_keys():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return jsonify({"success": True, "message": "API key disabled"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to disable API key: {str(e)}"}), 500
 
 
 @app.route("/api/status", methods=["GET"])
