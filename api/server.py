@@ -299,7 +299,6 @@ ROLE_PERMISSIONS = {
     "user": [
         "server.view",
         "backup.view",
-        "backup.create",
         "config.view",
         "players.view",
         "worlds.view",
@@ -315,13 +314,10 @@ ROLE_PERMISSIONS = {
         "backup.view",
         "backup.restore",
         "config.view",
-        "config.edit",
         "players.view",
         "players.manage",
         "worlds.view",
-        "worlds.manage",
         "plugins.view",
-        "plugins.manage",
         "logs.view",
         "metrics.view",
     ],
@@ -381,7 +377,7 @@ def require_permission(permission):
 
 
 def require_auth(f):
-    """Decorator to require user authentication (session or token)"""
+    """Decorator to require user authentication (session, token, or API key)"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -391,6 +387,16 @@ def require_auth(f):
             provider = kwargs["provider"]
             if provider not in ["google", "apple"]:
                 return jsonify({"error": "Invalid OAuth provider"}), 400
+
+        # Check API key first (for backward compatibility)
+        api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
+        if api_key:
+            if api_key in API_KEYS and API_KEYS[api_key].get("enabled", True):
+                request.user = "__api_key__"
+                request.user_info = {"role": "admin", "username": "__api_key__"}
+                return f(*args, **kwargs)
+            else:
+                return jsonify({"error": "Invalid API key"}), 401
 
         # Check session
         if "username" in session:
@@ -1318,9 +1324,15 @@ def start_server():
     stdout, stderr, code = run_script("manage.sh", "start")
 
     if code == 0:
-        return jsonify({"success": True, "message": "Server starting", "output": stdout}), 200
+        output = stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else stdout
+        return jsonify({"success": True, "message": "Server starting", "output": output}), 200
     else:
-        return jsonify({"success": False, "error": stderr or "Failed to start server"}), 500
+        error = (
+            stderr.decode("utf-8", errors="replace")
+            if isinstance(stderr, bytes)
+            else (stderr or "Failed to start server")
+        )
+        return jsonify({"success": False, "error": error}), 500
 
 
 @app.route("/api/server/stop", methods=["POST"])
@@ -1372,9 +1384,11 @@ def create_backup():
     stdout, stderr, code = run_script("manage.sh", "backup")
 
     if code == 0:
-        return jsonify({"success": True, "message": "Backup created", "output": stdout}), 200
+        output = stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else stdout
+        return jsonify({"success": True, "message": "Backup created", "output": output}), 200
     else:
-        return jsonify({"success": False, "error": stderr or "Backup failed"}), 500
+        error = stderr.decode("utf-8", errors="replace") if isinstance(stderr, bytes) else (stderr or "Backup failed")
+        return jsonify({"success": False, "error": error}), 500
 
 
 @app.route("/api/backups", methods=["GET"])
