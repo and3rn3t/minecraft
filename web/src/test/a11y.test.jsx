@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthProvider } from '../contexts/AuthContext';
 import { ToastProvider } from '../components/ToastContainer';
+import { AuthProvider } from '../contexts/AuthContext';
 import Analytics from '../pages/Analytics';
 import Backups from '../pages/Backups';
 import Dashboard from '../pages/Dashboard';
