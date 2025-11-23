@@ -170,4 +170,20 @@ pytest tests/api/ --cov=api --cov-report=html
 
 # View coverage report
 open htmlcov/index.html
+
+# Web UI tests with coverage
+cd web
+npm run test:coverage
+
+# Check coverage threshold
+./scripts/check-coverage.sh check
 ```
+
+## Current Coverage Status
+
+- **API Tests**: ~65% coverage
+- **Web UI Component Tests**: ~50% coverage
+- **E2E Workflows**: ~40% coverage
+- **Overall Coverage**: ~65%+ (target: 70%)
+
+See [TEST_COVERAGE.md](../docs/TEST_COVERAGE.md) for detailed coverage information.
