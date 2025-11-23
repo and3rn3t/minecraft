@@ -18,16 +18,18 @@ sys.path.insert(0, str(PROJECT_ROOT))
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from api.server import app  # noqa: E402
-
 # Create a mock analytics_processor module for patching
 # The actual file is analytics-processor.py (with hyphen), but it's imported as analytics_processor
 # We need to create a mock module that can be patched
 import types
 
+from api.server import app  # noqa: E402
+
+
 # Create mock AnalyticsProcessor class
 class MockAnalyticsProcessor:
     pass
+
 
 # Create and register the mock module
 mock_analytics_module = types.ModuleType("analytics_processor")
@@ -390,4 +392,5 @@ class TestCustomReport:
             response = client.post("/api/analytics/custom-report", headers={"X-API-Key": mock_api_key}, json={})
 
         # Should handle missing fields gracefully
+        assert response.status_code in [200, 400, 500]
         assert response.status_code in [200, 400, 500]

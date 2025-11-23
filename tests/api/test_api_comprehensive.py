@@ -127,7 +127,9 @@ class TestConfigFilesComprehensive:
     def test_get_config_file_success(self, mock_open, client, mock_api_key):
         """Test successful config file retrieval"""
         from pathlib import Path
-        from unittest.mock import MagicMock, patch, mock_open as mock_file_open
+        from unittest.mock import MagicMock
+        from unittest.mock import mock_open as mock_file_open
+        from unittest.mock import patch
 
         # Create a proper mock path
         mock_path = MagicMock(spec=Path)
@@ -152,7 +154,9 @@ class TestConfigFilesComprehensive:
                 with patch("api.server.PROJECT_ROOT", mock_project_root):
                     response = client.get("/api/config/files/server.properties", headers={"X-API-Key": mock_api_key})
 
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.data.decode() if hasattr(response.data, 'decode') else response.data}"
+        assert (
+            response.status_code == 200
+        ), f"Expected 200, got {response.status_code}. Response: {response.data.decode() if hasattr(response.data, 'decode') else response.data}"
         data = json.loads(response.data)
         assert "content" in data or "file" in data
 
@@ -263,4 +267,5 @@ class TestQueryParameters:
             response = client.get("/api/analytics/report?hours=6", headers={"X-API-Key": mock_api_key})
 
         # Should accept parameter (may fail if no data, but not 401)
+        assert response.status_code != 401
         assert response.status_code != 401

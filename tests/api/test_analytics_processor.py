@@ -432,7 +432,7 @@ class TestPlayerBehavior:
         hourly_data = []
         for hour_offset in range(24):
             # Create timestamps for the last 24 hours
-            timestamp = int((base_hour - timedelta(hours=23-hour_offset)).timestamp())
+            timestamp = int((base_hour - timedelta(hours=23 - hour_offset)).timestamp())
             dt = datetime.fromtimestamp(timestamp)
             actual_hour = dt.hour
             # Hour 20 should have peak (10 players), others have 2
@@ -453,7 +453,9 @@ class TestPlayerBehavior:
         behavior = processor.analyze_player_behavior(hours=24)
         # Peak hour should be 20 (the hour with 10 players)
         # Note: if current hour is 20, there might be a tie, so check that 20 is in the distribution
-        assert behavior["peak_hour"] == 20 or (20 in behavior.get("hourly_distribution", {}) and behavior["hourly_distribution"][20] == 10)
+        assert behavior["peak_hour"] == 20 or (
+            20 in behavior.get("hourly_distribution", {}) and behavior["hourly_distribution"][20] == 10
+        )
 
     def test_analyze_player_behavior_hourly_distribution(self, processor):
         """Test hourly activity distribution"""
