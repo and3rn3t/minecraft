@@ -1,35 +1,30 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { renderWithRouter } from '../../test/utils'
-import Backups from '../Backups'
-import * as api from '../../services/api'
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../../services/api';
+import { renderWithRouter } from '../../test/utils';
+import Backups from '../Backups';
 
-vi.mock('../../services/api', () => ({
-  api: {
-    listBackups: vi.fn(),
-    createBackup: vi.fn(),
-  },
-}))
+vi.mock('../../services/api');
 
 describe('Backups', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('renders backups page title', () => {
-    api.api.listBackups.mockResolvedValue({ backups: [] })
+    api.listBackups.mockResolvedValue({ backups: [] });
 
-    renderWithRouter(<Backups />)
-    expect(screen.getByText('Backups')).toBeInTheDocument()
-  })
+    renderWithRouter(<Backups />);
+    expect(screen.getByText('Backups')).toBeInTheDocument();
+  });
 
   it('displays loading state initially', () => {
-    api.api.listBackups.mockImplementation(() => new Promise(() => {}))
+    api.listBackups.mockImplementation(() => new Promise(() => {}));
 
-    renderWithRouter(<Backups />)
-    expect(screen.getByText('Loading backups...')).toBeInTheDocument()
-  })
+    renderWithRouter(<Backups />);
+    expect(screen.getByText('Loading backups...')).toBeInTheDocument();
+  });
 
   it('displays backup list', async () => {
     const mockBackups = [
@@ -38,16 +33,16 @@ describe('Backups', () => {
         size: 104857600,
         created: '2025-01-15T10:30:00Z',
       },
-    ]
+    ];
 
-    api.api.listBackups.mockResolvedValue({ backups: mockBackups })
+    api.listBackups.mockResolvedValue({ backups: mockBackups });
 
-    renderWithRouter(<Backups />)
+    renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText(mockBackups[0].name)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(mockBackups[0].name)).toBeInTheDocument();
+    });
+  });
 
   it('formats backup size correctly', async () => {
     const mockBackups = [
@@ -56,48 +51,108 @@ describe('Backups', () => {
         size: 104857600, // 100 MB
         created: '2025-01-15T10:30:00Z',
       },
-    ]
+    ];
 
-    api.api.listBackups.mockResolvedValue({ backups: mockBackups })
+    api.listBackups.mockResolvedValue({ backups: mockBackups });
 
-    renderWithRouter(<Backups />)
+    renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText(/100\.00 MB/)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText(/100\.00 MB/)).toBeInTheDocument();
+    });
+  });
 
   it('creates backup when button is clicked', async () => {
-    const user = userEvent.setup()
-    api.api.listBackups.mockResolvedValue({ backups: [] })
-    api.api.createBackup.mockResolvedValue({ success: true })
+    const user = userEvent.setup();
+    api.listBackups.mockResolvedValue({ backups: [] });
+    api.createBackup.mockResolvedValue({ success: true, message: 'Backup created' });
 
-    // Mock window.alert
-    window.alert = vi.fn()
-
-    renderWithRouter(<Backups />)
+    renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      const createButton = screen.getByText('Create Backup')
-      expect(createButton).toBeInTheDocument()
-    })
+      const createButton = screen.getByText('Create Backup');
+      expect(createButton).toBeInTheDocument();
+    });
 
-    const createButton = screen.getByText('Create Backup')
-    await user.click(createButton)
+    const createButton = screen.getByText('Create Backup');
+    await user.click(createButton);
 
     await waitFor(() => {
-      expect(api.api.createBackup).toHaveBeenCalled()
-    })
-  })
+      expect(api.createBackup).toHaveBeenCalled();
+    });
+  });
+
+  it('restores backup when restore button is clicked', async () => {
+    const user = userEvent.setup();
+    const mockBackups = [
+      {
+        name: 'minecraft_backup_20250115.tar.gz',
+        size: 104857600,
+        created: '2025-01-15T10:30:00Z',
+      },
+    ];
+
+    api.listBackups.mockResolvedValue({ backups: mockBackups });
+    api.restoreBackup.mockResolvedValue({ success: true });
+
+    // Mock window.confirm
+    window.confirm = vi.fn(() => true);
+
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      const restoreButton = screen.getByText('Restore');
+      expect(restoreButton).toBeInTheDocument();
+    });
+
+    const restoreButton = screen.getByText('Restore');
+    await user.click(restoreButton);
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalled();
+      expect(api.restoreBackup).toHaveBeenCalled();
+    });
+  });
+
+  it('deletes backup when delete button is clicked', async () => {
+    const user = userEvent.setup();
+    const mockBackups = [
+      {
+        name: 'minecraft_backup_20250115.tar.gz',
+        size: 104857600,
+        created: '2025-01-15T10:30:00Z',
+      },
+    ];
+
+    api.listBackups.mockResolvedValue({ backups: mockBackups });
+    api.deleteBackup.mockResolvedValue({ success: true });
+
+    // Mock window.confirm
+    window.confirm = vi.fn(() => true);
+
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      const deleteButton = screen.getByText('Delete');
+      expect(deleteButton).toBeInTheDocument();
+    });
+
+    const deleteButton = screen.getByText('Delete');
+    await user.click(deleteButton);
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalled();
+      expect(api.deleteBackup).toHaveBeenCalled();
+    });
+  });
 
   it('displays no backups message when empty', async () => {
-    api.api.listBackups.mockResolvedValue({ backups: [] })
+    api.listBackups.mockResolvedValue({ backups: [] });
 
-    renderWithRouter(<Backups />)
+    renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText('No backups found')).toBeInTheDocument()
-    })
-  })
-})
-
+      expect(screen.getByText('No backups found')).toBeInTheDocument();
+    });
+  });
+});

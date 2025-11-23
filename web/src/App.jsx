@@ -1,31 +1,121 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import Logs from './pages/Logs'
-import Players from './pages/Players'
-import Settings from './pages/Settings'
-import Backups from './pages/Backups'
-import Worlds from './pages/Worlds'
-import Plugins from './pages/Plugins'
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import Backups from './pages/Backups';
+import ConfigFiles from './pages/ConfigFiles';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import Logs from './pages/Logs';
+import Players from './pages/Players';
+import Plugins from './pages/Plugins';
+import OAuthCallback from './pages/OAuthCallback';
+import Register from './pages/Register';
+import Settings from './pages/Settings';
+import Worlds from './pages/Worlds';
 
 function App() {
   return (
     <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/logs" element={<Logs />} />
-          <Route path="/players" element={<Players />} />
-          <Route path="/backups" element={<Backups />} />
-          <Route path="/worlds" element={<Worlds />} />
-          <Route path="/plugins" element={<Plugins />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/oauth/callback" element={<OAuthCallback />} />
+
+        {/* Protected routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Navigate to="/dashboard" replace />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/logs"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Logs />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/players"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Players />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/backups"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Backups />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/worlds"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Worlds />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plugins"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Plugins />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/config"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ConfigFiles />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </Router>
-  )
+  );
 }
 
-export default App
-
+export default App;

@@ -17,7 +17,8 @@ RUN useradd -m -U -d /minecraft -s /bin/bash minecraft && \
 RUN apt-get update && \
     apt-get install -y wget curl screen && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/* /var/tmp/*
 
 # Set working directory
 WORKDIR /minecraft/server

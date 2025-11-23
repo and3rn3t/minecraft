@@ -1,11 +1,13 @@
-import { render } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import { render } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '../contexts/AuthContext';
 
-// Custom render function that includes Router
-export const renderWithRouter = (ui, { route = '/' } = {}) => {
-  window.history.pushState({}, 'Test page', route)
-  return render(ui, { wrapper: BrowserRouter })
-}
+// Custom render function that includes Router and optionally AuthProvider
+export const renderWithRouter = (ui, { route = '/', withAuth = true } = {}) => {
+  window.history.pushState({}, 'Test page', route);
+  const content = withAuth ? <AuthProvider>{ui}</AuthProvider> : ui;
+  return render(<BrowserRouter>{content}</BrowserRouter>);
+};
 
 // Mock API responses
 export const mockApiResponse = (data, status = 200) => ({
@@ -14,5 +16,4 @@ export const mockApiResponse = (data, status = 200) => ({
   statusText: 'OK',
   headers: {},
   config: {},
-})
-
+});

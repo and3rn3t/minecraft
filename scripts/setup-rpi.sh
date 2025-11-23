@@ -47,11 +47,21 @@ else
 fi
 
 # Install additional utilities
-echo -e "${GREEN}[4/6] Installing additional utilities...${NC}"
-sudo apt-get install -y git wget curl screen htop
+echo -e "${GREEN}[4/8] Installing additional utilities...${NC}"
+sudo apt-get install -y git wget curl screen htop python3 python3-pip python3-venv
+
+# Install Node.js for web interface (if not already installed)
+if ! command -v node &> /dev/null; then
+    echo -e "${GREEN}Installing Node.js...${NC}"
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    echo -e "${GREEN}Node.js installed successfully${NC}"
+else
+    echo -e "${YELLOW}Node.js is already installed ($(node --version))${NC}"
+fi
 
 # Clone or update repository
-echo -e "${GREEN}[5/6] Setting up Minecraft server files...${NC}"
+echo -e "${GREEN}[5/8] Setting up Minecraft server files...${NC}"
 MINECRAFT_DIR="$HOME/minecraft-server"
 if [ ! -d "$MINECRAFT_DIR" ]; then
     mkdir -p "$MINECRAFT_DIR"
@@ -63,8 +73,39 @@ mkdir -p "$MINECRAFT_DIR/data"
 mkdir -p "$MINECRAFT_DIR/backups"
 mkdir -p "$MINECRAFT_DIR/plugins"
 
+# Setup Python API dependencies (optional, for API server)
+echo -e "${GREEN}[6/8] Setting up Python API dependencies...${NC}"
+if [ -d "$MINECRAFT_DIR/api" ]; then
+    cd "$MINECRAFT_DIR/api"
+    if [ ! -d "venv" ]; then
+        python3 -m venv venv
+    fi
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    echo -e "${GREEN}Python API dependencies installed${NC}"
+    cd "$HOME"
+else
+    echo -e "${YELLOW}API directory not found, skipping Python dependencies${NC}"
+fi
+
+# Setup Node.js web interface dependencies (optional, for web interface)
+echo -e "${GREEN}[7/8] Setting up Node.js web interface dependencies...${NC}"
+if [ -d "$MINECRAFT_DIR/web" ]; then
+    cd "$MINECRAFT_DIR/web"
+    if [ -f "package.json" ]; then
+        npm install
+        echo -e "${GREEN}Web interface dependencies installed${NC}"
+    else
+        echo -e "${YELLOW}package.json not found, skipping web dependencies${NC}"
+    fi
+    cd "$HOME"
+else
+    echo -e "${YELLOW}Web directory not found, skipping web dependencies${NC}"
+fi
+
 # Enable Docker service
-echo -e "${GREEN}[6/6] Enabling Docker service...${NC}"
+echo -e "${GREEN}[8/8] Enabling Docker service...${NC}"
 sudo systemctl enable docker
 sudo systemctl start docker
 

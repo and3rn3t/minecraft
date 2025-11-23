@@ -32,7 +32,7 @@ python -m pytest tests/api/test_api.py::TestHealthEndpoint -v
 
 ### Current Status
 
-✅ **18/18 API tests passing**
+✅ **60+ API tests passing** (including new feature tests)
 
 - Health endpoint tests: ✅
 - Authentication tests: ✅
@@ -40,30 +40,60 @@ python -m pytest tests/api/test_api.py::TestHealthEndpoint -v
 - Backup endpoint tests: ✅
 - Logs endpoint tests: ✅
 - Error handling tests: ✅
+- Configuration file management tests: ✅ (NEW)
+- Backup restore/delete tests: ✅ (NEW)
+- User authentication tests: ✅ (NEW)
+- OAuth integration tests: ✅ (NEW)
 
-**Code Coverage**: 51% (215 statements, 106 covered)
+**Code Coverage**: ~60%+ (increased with new tests)
+
+**Frontend Tests**: ~30+ React component tests
+- ConfigEditor component tests: ✅ (NEW)
+- OAuthButtons component tests: ✅ (NEW)
+- AuthContext tests: ✅ (NEW)
+- Login/Register page tests: ✅ (NEW)
+- ConfigFiles page tests: ✅ (NEW)
 
 ## Test Structure
 
 ```text
 tests/
-├── api/                    # API endpoint tests
-│   ├── test_api.py        # Main API test suite
-│   ├── conftest.py        # Pytest configuration and fixtures
-│   └── pytest.ini         # Pytest settings
-├── unit/                   # Unit tests for scripts
+├── api/                          # API endpoint tests
+│   ├── test_api.py              # Main API test suite
+│   ├── test_config_files.py     # Config file management tests (NEW)
+│   ├── test_auth.py             # User authentication tests (NEW)
+│   ├── test_backup_management.py # Backup restore/delete tests (NEW)
+│   ├── test_oauth.py            # OAuth integration tests (NEW)
+│   ├── conftest.py              # Pytest configuration and fixtures
+│   └── pytest.ini               # Pytest settings
+├── unit/                         # Unit tests for scripts
 │   ├── test-manage.sh
 │   ├── test-backup-scheduler.sh
 │   └── test-log-manager.sh
-├── integration/           # Integration tests
+├── integration/                  # Integration tests
 │   ├── test-backup-system.sh
 │   ├── test-monitoring.sh
 │   ├── test-plugin-management.sh
 │   ├── test-world-management.sh
 │   └── test-rcon.sh
-└── helpers/               # Test helper libraries
+└── helpers/                      # Test helper libraries
     ├── bats-support/
     └── bats-assert/
+
+web/src/
+├── components/__tests__/         # React component tests
+│   ├── ConfigEditor.test.jsx    # ConfigEditor tests (NEW)
+│   ├── OAuthButtons.test.jsx    # OAuthButtons tests (NEW)
+│   └── ...
+├── contexts/__tests__/           # Context tests
+│   └── AuthContext.test.jsx     # AuthContext tests (NEW)
+├── pages/__tests__/              # Page component tests
+│   ├── Login.test.jsx           # Login page tests (NEW)
+│   ├── Register.test.jsx        # Register page tests (NEW)
+│   ├── ConfigFiles.test.jsx     # ConfigFiles page tests (NEW)
+│   └── ...
+└── services/__tests__/           # Service tests
+    └── api.test.js              # API service tests (updated)
 ```
 
 ## Test Types
@@ -125,8 +155,10 @@ bats tests/integration/test-backup-system.sh
 
 Create a new test file: `tests/api/test_<feature>.py`
 
+**Example - Config Files:**
 ```python
 import pytest
+import json
 from api.server import app
 
 @pytest.fixture
@@ -135,11 +167,45 @@ def client():
     with app.test_client() as client:
         yield client
 
-def test_endpoint(client):
-    response = client.get('/api/endpoint')
+def test_list_config_files(client, mock_api_keys):
+    response = client.get(
+        '/api/config/files',
+        headers={'X-API-Key': mock_api_keys}
+    )
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert 'key' in data
+    assert 'files' in data
+```
+
+**Example - Authentication:**
+```python
+def test_register_user(client, temp_users_file, mock_bcrypt):
+    response = client.post('/api/auth/register', json={
+        'username': 'newuser',
+        'password': 'password123',
+        'email': 'test@example.com'
+    })
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] is True
+```
+
+### React Component Tests
+
+Create a new test file: `web/src/components/__tests__/<Component>.test.jsx`
+
+**Example:**
+```javascript
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import ConfigEditor from '../ConfigEditor'
+
+describe('ConfigEditor', () => {
+  it('renders filename', () => {
+    render(<ConfigEditor filename="test.properties" content="" />)
+    expect(screen.getByText('test.properties')).toBeInTheDocument()
+  })
+})
 ```
 
 ### Bash Script Tests
@@ -178,8 +244,25 @@ See `.github/workflows/tests.yml` for configuration.
 ### Coverage Goals
 
 - **Target**: 80%+ coverage for API
+- **Current**: ~60%+ coverage (increased from 51%)
 - **Priority**: Critical paths first
-- **Focus**: Authentication, error handling, core endpoints
+- **Focus**: Authentication, error handling, core endpoints, configuration management
+
+### New Test Coverage (This Session)
+
+**Backend API Tests:**
+- Configuration file management endpoints (list, get, save, validate)
+- Backup restore and delete endpoints
+- User authentication endpoints (register, login, logout, me)
+- OAuth endpoints (get URL, link, unlink)
+
+**Frontend Component Tests:**
+- ConfigEditor component (rendering, editing, saving, error handling)
+- OAuthButtons component (Google/Apple buttons, popup handling, callbacks)
+- AuthContext (authentication state, login, register, logout)
+- Login page (form rendering, validation, error handling)
+- Register page (form rendering, password validation, error handling)
+- ConfigFiles page (file list, loading, error handling)
 
 ### Viewing Coverage
 

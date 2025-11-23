@@ -17,14 +17,19 @@ Complete guide to all project documentation, organized by category.
 
 ### Installation & Setup
 
+- **[RASPBERRY_PI_IMAGE_PREPARATION.md](RASPBERRY_PI_IMAGE_PREPARATION.md)** - Complete guide for preparing Raspberry Pi OS image
+- **[IMAGE_PREP_CHECKLIST.md](IMAGE_PREP_CHECKLIST.md)** - Quick checklist for image preparation
+- **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps
+- **[RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md)** - Performance optimizations and enhancements for Raspberry Pi 5
 - **[INSTALL.md](INSTALL.md)** - Complete installation guide for Raspberry Pi 5
 - **[README.md](../README.md)** - Project overview and quick start
 
 ### First Steps
 
-1. Read [INSTALL.md](INSTALL.md) for installation
-2. Review [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common commands
-3. Check [CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md) for configuration
+1. Prepare Raspberry Pi image: [RASPBERRY_PI_IMAGE_PREPARATION.md](RASPBERRY_PI_IMAGE_PREPARATION.md) or use [IMAGE_PREP_CHECKLIST.md](IMAGE_PREP_CHECKLIST.md)
+2. Read [INSTALL.md](INSTALL.md) for installation
+3. Review [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common commands
+4. Check [CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md) for configuration
 
 ---
 
@@ -145,6 +150,8 @@ See [INSTALL.md](INSTALL.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for environmen
 ```
 docs/
 ├── INDEX.md                    # This file - navigation hub
+├── RASPBERRY_PI_IMAGE_PREPARATION.md  # Image preparation guide
+├── IMAGE_PREP_CHECKLIST.md     # Quick image prep checklist
 ├── INSTALL.md                  # Installation guide
 ├── QUICK_REFERENCE.md          # Command reference
 ├── CONFIGURATION_EXAMPLES.md   # Config examples

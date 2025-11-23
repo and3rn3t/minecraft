@@ -22,6 +22,11 @@ A custom Minecraft server setup optimized for Raspberry Pi 5, providing easy con
 
 ### 1. Flash Raspberry Pi OS
 
+> **📘 For detailed image preparation instructions, see [RASPBERRY_PI_IMAGE_PREPARATION.md](docs/RASPBERRY_PI_IMAGE_PREPARATION.md).**  
+> **📋 For a quick checklist, see [IMAGE_PREP_CHECKLIST.md](docs/IMAGE_PREP_CHECKLIST.md).**
+
+Quick steps:
+
 1. Download and install [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
 2. Insert your microSD card into your computer
 3. Open Raspberry Pi Imager
