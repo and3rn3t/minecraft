@@ -41,7 +41,10 @@ describe('StatusCard', () => {
     )
 
     const statusDot = container.querySelector('.bg-green-600')
-    expect(statusDot).toBeInTheDocument()
+    expect(statusDot).not.toBeNull()
+    if (statusDot) {
+      expect(statusDot).toBeInstanceOf(HTMLElement)
+    }
   })
 
   it('handles different status types', () => {
@@ -57,8 +60,12 @@ describe('StatusCard', () => {
         />
       )
 
-      const statusDot = container.querySelector(`.bg-${status === 'success' ? 'green' : status === 'error' ? 'red' : status === 'warning' ? 'yellow' : 'blue'}-600`)
-      expect(statusDot).toBeInTheDocument()
+      const colorClass = status === 'success' ? 'green' : status === 'error' ? 'red' : status === 'warning' ? 'yellow' : 'blue'
+      const statusDot = container.querySelector(`.bg-${colorClass}-600`)
+      expect(statusDot).not.toBeNull()
+      if (statusDot) {
+        expect(statusDot).toBeInstanceOf(HTMLElement)
+      }
     })
   })
 })

@@ -15,18 +15,21 @@ export default defineConfig({
   // Test directory - tests are now in web/tests/e2e/
   testDir: path.join(__dirname, 'tests/e2e'),
 
-  // Test match pattern - only match .spec.js files
-  testMatch: /.*\.spec\.js/,
+  // Test match pattern - only match .spec.js files in tests/e2e directory
+  testMatch: ['**/tests/e2e/**/*.spec.js'],
 
   // Exclude Vitest files and source files from Playwright
   testIgnore: [
     '**/node_modules/**',
     '**/src/**',
     '**/vitest.config.js',
+    '**/vite.config.js',
     '**/src/test/**',
+    '**/__tests__/**',
     '**/*.test.jsx',
     '**/*.test.js',
     '**/web/src/**',
+    '**/web/vitest.config.js',
   ],
 
   // Maximum time one test can run for

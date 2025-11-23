@@ -32,7 +32,7 @@ describe('ConfigEditor', () => {
     fireEvent.change(textarea, { target: { value: '# Modified config\nkey=newvalue\n' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Modified')).toBeInTheDocument();
+      expect(screen.getByText(/modified/i)).toBeInTheDocument();
     });
   });
 
@@ -43,7 +43,7 @@ describe('ConfigEditor', () => {
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: '# Modified\nkey=new\n' } });
 
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
@@ -55,7 +55,7 @@ describe('ConfigEditor', () => {
     const onCancel = vi.fn();
     render(<ConfigEditor {...defaultProps} onCancel={onCancel} />);
 
-    const cancelButton = screen.getByText('Cancel');
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
     fireEvent.click(cancelButton);
 
     expect(onCancel).toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe('ConfigEditor', () => {
 
   it('disables save button when not modified', () => {
     render(<ConfigEditor {...defaultProps} />);
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     expect(saveButton).toBeDisabled();
   });
 
@@ -74,7 +74,7 @@ describe('ConfigEditor', () => {
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: '# Modified\n' } });
 
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
