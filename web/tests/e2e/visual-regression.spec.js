@@ -40,12 +40,12 @@ test.describe('Visual Regression Tests', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ 
-            report: {}, 
-            trends: {}, 
-            anomalies: [], 
-            prediction: {}, 
-            behavior: {} 
+          body: JSON.stringify({
+            report: {},
+            trends: {},
+            anomalies: [],
+            prediction: {},
+            behavior: {},
           }),
         });
       } else if (url.includes('/backups')) {

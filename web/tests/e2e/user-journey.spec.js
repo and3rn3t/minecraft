@@ -51,7 +51,7 @@ test.describe('Complete User Journey', () => {
     await page.fill('#username', testUser);
     await page.fill('#password', testPassword);
     await page.fill('#confirmPassword', testPassword);
-    
+
     // Submit registration form
     await Promise.all([
       page.waitForResponse(resp => resp.url().includes('/register') && resp.status() === 200),
@@ -68,13 +68,13 @@ test.describe('Complete User Journey', () => {
       await page.waitForSelector('#username', { state: 'visible', timeout: 10000 });
       await page.fill('#username', testUser);
       await page.fill('#password', testPassword);
-      
+
       // Submit login form
       await Promise.all([
         page.waitForResponse(resp => resp.url().includes('/login') && resp.status() === 200),
         page.click('button:has-text("LOGIN"), button:has-text("Login")'),
       ]);
-      
+
       await page.waitForURL('/dashboard', { timeout: 15000 });
     }
 
@@ -82,8 +82,12 @@ test.describe('Complete User Journey', () => {
     await page.waitForURL('/dashboard', { timeout: 10000 });
     await page.waitForLoadState('networkidle');
     // Wait for loading to complete and dashboard to render
-    await page.waitForSelector('text=/DASHBOARD/i, text=/Loading/i', { state: 'visible', timeout: 10000 }).catch(() => {});
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/DASHBOARD/i, text=/Loading/i', { state: 'visible', timeout: 10000 })
+      .catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page.getByText(/DASHBOARD/i)).toBeVisible({ timeout: 10000 });
   });
 
@@ -126,7 +130,13 @@ test.describe('Complete User Journey', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ report: {}, trends: {}, anomalies: [], prediction: {}, behavior: {} }),
+          body: JSON.stringify({
+            report: {},
+            trends: {},
+            anomalies: [],
+            prediction: {},
+            behavior: {},
+          }),
         });
       } else if (url.includes('/backups')) {
         await route.fulfill({
@@ -165,25 +175,33 @@ test.describe('Complete User Journey', () => {
     // Navigate to Analytics
     await page.click('a:has-text("Analytics"), a[href="/analytics"]');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page.getByText(/ANALYTICS/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Players
     await page.click('a:has-text("Players"), a[href="/players"]');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page.getByText(/PLAYER MANAGEMENT/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Backups
     await page.click('a:has-text("Backups"), a[href="/backups"]');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page.getByText(/BACKUP/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Worlds
     await page.click('a:has-text("Worlds"), a[href="/worlds"]');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
+      .catch(() => {});
     await expect(page.getByText(/WORLD MANAGEMENT/i)).toBeVisible({ timeout: 10000 });
   });
 
