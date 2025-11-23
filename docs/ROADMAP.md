@@ -257,6 +257,7 @@ This document outlines the comprehensive development roadmap for the Minecraft S
 
 #### Cloud Backup
 
+- [ ] Cloudflare R2 backup integration (S3-compatible, no egress fees) - **Recommended for Raspberry Pi**
 - [ ] AWS S3 backup integration
 - [ ] Backblaze B2 integration
 - [ ] Google Cloud Storage integration
@@ -553,6 +554,7 @@ This document outlines the comprehensive development roadmap for the Minecraft S
    - Cloudflare DNS integration
 
 5. **Cloud backup integration** (v1.6.0)
+   - Cloudflare R2 integration (S3-compatible, recommended - no egress fees)
    - AWS S3 integration
    - Backblaze B2 integration
    - Other cloud providers

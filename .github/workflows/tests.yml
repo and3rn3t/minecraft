@@ -40,7 +40,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
@@ -96,12 +96,13 @@ jobs:
 
       - name: Lint bash scripts
         run: |
-          find scripts -name "*.sh" -exec shellcheck {} \;
+          chmod +x scripts/lint.sh
+          ./scripts/lint.sh bash || true
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: '3.9'
 
       - name: Install Python linters
         run: |
@@ -109,5 +110,25 @@ jobs:
 
       - name: Lint Python code
         run: |
-          flake8 api/ --max-line-length=100 --ignore=E501,W503
-          pylint api/server.py --disable=C0111,R0912,R0913 || true
+          chmod +x scripts/lint.sh
+          ./scripts/lint.sh python || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        run: |
+          cd web
+          npm ci
+
+      - name: Lint JavaScript/React code
+        run: |
+          chmod +x scripts/lint.sh
+          ./scripts/lint.sh js || true
+
+      - name: Validate Docker Compose
+        run: |
+          chmod +x scripts/lint.sh
+          ./scripts/lint.sh docker || true

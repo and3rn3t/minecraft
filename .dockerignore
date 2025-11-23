@@ -1,0 +1,96 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+tests/
+*.test.js
+*.test.jsx
+*.test.py
+__pycache__/
+.pytest_cache/
+coverage/
+*.coverage
+
+# Node modules (if any in root)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Data directories (should be volumes)
+data/
+backups/
+logs/
+worlds/
+
+# Config files (handled separately)
+config/*.example
+config/README.md
+
+# IDE files
+.cursor/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker files (don't copy into image)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Scripts that aren't needed in container
+scripts/*.sh
+!scripts/start.sh
+
+# Web frontend (not needed in server container)
+web/
+
+# API (not needed in server container, separate service)
+api/
+
+# Systemd files
+systemd/
+
+# Makefile
+Makefile
+

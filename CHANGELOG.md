@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Static Code Analysis Infrastructure**
+
+  - Comprehensive linting script (`scripts/lint.sh`) for bash, Python, JavaScript/React, and YAML
+  - ShellCheck configuration (`.shellcheckrc`) for bash script linting
+  - ESLint already configured for React frontend
+  - Makefile targets for linting (`make lint`, `make lint-bash`, etc.)
+  - CI/CD integration with GitHub Actions for automated linting
+  - Linting documentation (`docs/LINTING.md`) with best practices and troubleshooting
+
+- **Docker Image Optimization**
+
+  - Optimized Dockerfile with multi-stage builds
+  - Reduced image size through layer optimization
+  - Improved build caching strategy
+  - `.dockerignore` file to exclude unnecessary files from build context
+  - Docker optimization documentation (`docs/DOCKER_OPTIMIZATION.md`)
+  - Support for build arguments (MINECRAFT_VERSION, BUILD_TYPE)
+
+- **Cloud Backup Planning**
+  - Added Cloudflare R2 to cloud backup integration tasks (S3-compatible, no egress fees)
+  - Updated roadmap to prioritize R2 for Raspberry Pi users
+
+- **Performance Benchmarking Suite**
+  - Comprehensive benchmark script (`scripts/benchmark.sh`) for performance measurement
+  - Startup time, TPS, memory, and CPU benchmarks
+  - Baseline creation and comparison functionality
+  - Regression detection capabilities
+  - Performance benchmarking documentation (`docs/PERFORMANCE_BENCHMARKING.md`)
+
+- **Multi-Architecture Support**
+  - Multi-architecture Docker build script (`scripts/build-multiarch.sh`)
+  - Support for ARM64 (Raspberry Pi 5), ARM32 (Raspberry Pi 4), and x86_64
+  - Docker Buildx integration for cross-platform builds
+  - Multi-architecture documentation (`docs/MULTI_ARCHITECTURE.md`)
+  - Updated Dockerfile to support multiple architectures
+
+### Changed
+
+- Updated GitHub Actions workflow to include frontend linting
+- Enhanced Makefile with linting targets
+- Optimized Dockerfile structure for better caching and smaller images
+- Updated TASKS.md and ROADMAP.md to include Cloudflare R2 as recommended cloud backup option
+
 ## [1.4.0] - 2025-01-27
 
 ### Added

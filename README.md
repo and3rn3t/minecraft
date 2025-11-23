@@ -335,9 +335,50 @@ python -m pytest tests/api/ -v
 python -m pytest tests/api/ -v --cov=api --cov-report=term-missing
 ```
 
-**Current Status**: ✅ 18/18 API tests passing (51% coverage)
+**Current Status**: ✅ 60+ API tests passing (~60% coverage)
 
 See [Testing Guide](docs/TESTING.md) for more information.
+
+## Code Quality
+
+The project uses static code analysis to ensure code quality:
+
+```bash
+# Run all linting checks
+make lint
+
+# Or use the linting script directly
+./scripts/lint.sh all
+```
+
+**Linting Tools**:
+
+- **ShellCheck** - Bash script linting
+- **ESLint** - JavaScript/React linting
+- **flake8/pylint** - Python code analysis (optional)
+- **yamllint** - YAML file validation (optional)
+
+See [Linting Guide](docs/LINTING.md) for more information.
+
+## Docker Optimization
+
+The project uses optimized Docker images for Raspberry Pi 5:
+
+- **Multi-stage builds** - Reduced image size
+- **Layer optimization** - Better build caching
+- **Minimal base image** - Security and performance
+- **Build arguments** - Flexible configuration
+
+```bash
+# Build with custom version
+docker build --build-arg MINECRAFT_VERSION=1.21.0 -t minecraft-server .
+
+# Use BuildKit for faster builds
+export DOCKER_BUILDKIT=1
+docker build -t minecraft-server .
+```
+
+See [Docker Optimization Guide](docs/DOCKER_OPTIMIZATION.md) for details.
 
 ## Documentation
 

@@ -60,6 +60,7 @@ Complete guide to all project documentation, organized by category.
 
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development environment setup and workflow
 - **[CURSOR_CONFIGURATION.md](CURSOR_CONFIGURATION.md)** - Cursor IDE configuration guide
+- **[LINTING.md](LINTING.md)** - Code linting and static analysis
 - **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
 
 ### Project Planning
@@ -81,9 +82,13 @@ Complete guide to all project documentation, organized by category.
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Command reference and cheat sheet
 - **[CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md)** - Configuration file examples
 
-### Testing
+### Testing & Code Quality
 
 - **[TESTING.md](TESTING.md)** - Testing guide and best practices
+- **[LINTING.md](LINTING.md)** - Code linting and static analysis guide
+- **[DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md)** - Docker image optimization guide
+- **[PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md)** - Performance benchmarking and regression testing
+- **[MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md)** - Multi-architecture build and deployment guide
 
 ---
 
