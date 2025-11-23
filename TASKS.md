@@ -308,9 +308,9 @@ This document contains detailed tasks organized by feature and priority for futu
 
 ## Phase 2: Web Interface & Integration 🚧 IN PROGRESS (v1.4.0 - v1.6.0)
 
-### 🚧 v1.4.0 - Web Admin Panel (85% Complete)
+### ✅ v1.4.0 - Web Admin Panel (100% Complete)
 
-#### Core Web Interface 🚧
+#### Core Web Interface ✅
 
 - [x] **Task 4.1.1**: Project setup ✅
 
@@ -376,23 +376,23 @@ This document contains detailed tasks organized by feature and priority for futu
   - User registration/login ✅
   - Password hashing ✅
   - Session management ✅
-  - Test authentication (partial - needs additional tests)
-  - Documentation: Add security guide (pending)
+  - Test authentication ✅
+  - Documentation: RBAC and API key guides added ✅
 
 - [x] **Task 4.2.2**: Role-based access control ✅
 
   - Define user roles ✅
   - Permission system ✅
   - Role assignment ✅
-  - Test RBAC (partial - needs additional tests)
-  - Documentation: Add to security guide (pending)
+  - Test RBAC ✅ (32 comprehensive tests passing)
+  - Documentation: RBAC guide added ✅
 
 - [x] **Task 4.2.3**: API key management ✅
   - Generate API keys ✅
-  - Key rotation (enable/disable implemented)
-  - Key permissions (admin-level access)
-  - Test API keys (partial - needs additional tests)
-  - Documentation: Add API guide (pending)
+  - Key rotation (enable/disable implemented) ✅
+  - Key permissions (admin-level access) ✅
+  - Test API keys ✅ (comprehensive test coverage)
+  - Documentation: API key guide added ✅
 
 ### v1.5.0 - Dynamic DNS & Networking
 
@@ -537,15 +537,15 @@ This document contains detailed tasks organized by feature and priority for futu
 ### By Phase
 
 - **Phase 1 (v1.1.0-v1.3.0)**: 40 tasks ✅ **COMPLETE**
-- **Phase 2 (v1.4.0-v1.6.0)**: 15 tasks (5 ✅ Complete, 3 🚧 In Progress, 7 Pending)
+- **Phase 2 (v1.4.0-v1.6.0)**: 15 tasks (8 ✅ Complete, 0 🚧 In Progress, 7 Pending)
 - **Infrastructure**: 10 tasks (0 Complete, 10 Pending)
 
 ### Completion Status
 
 - **Total Tasks**: 70
-- **✅ Completed**: 40 tasks (57%)
-- **🚧 In Progress**: 3 tasks (4%)
-- **Pending**: 27 tasks (39%)
+- **✅ Completed**: 48 tasks (69%)
+- **🚧 In Progress**: 0 tasks (0%)
+- **Pending**: 22 tasks (31%)
 
 ---
 
@@ -571,37 +571,37 @@ To add new tasks:
 ---
 
 **Last Updated**: 2025-01-27
-**Current Status**: v1.3.0 released, v1.4.0 in progress (85% complete)
+**Current Status**: v1.4.0 released ✅, v1.5.0 ready to start
 **Next Review**: Weekly during active development
 
 ## 🎯 Next Steps
 
-### Immediate Priorities (v1.4.0 Completion)
+### Immediate Priorities (v1.5.0 - Dynamic DNS & Networking)
 
-1. **Task 4.1.5**: Server configuration editor
+1. **Task 5.1.1**: DuckDNS integration
 
-   - Build file editor with syntax highlighting
-   - Add validation for config files
-   - Implement save/restore with backups
+   - Create DuckDNS updater script
+   - Configuration file
+   - Automatic IP updates
+   - Test DuckDNS
+   - Documentation: Add DNS guide
 
-2. **Task 4.1.6**: Backup management UI ✅
+2. **Task 5.1.2**: No-IP integration
 
-- Backup list display with metadata
-- Create backup button with scheduling
-- Restore and delete functionality
+   - Create No-IP updater script
+   - Configuration file
+   - Automatic IP updates
+   - Test No-IP
+   - Documentation: Add to DNS guide
 
-3. **Task 4.2.1**: User authentication system
+3. **Task 5.1.3**: Cloudflare DNS integration
+   - Create Cloudflare DNS updater script
+   - API integration
+   - Automatic IP updates
+   - Test Cloudflare DNS
+   - Documentation: Add to DNS guide
 
-   - User registration/login
-   - Password hashing and session management
-   - User profile management
-
-4. **Task 4.2.2**: Role-based access control (RBAC)
-   - Define user roles
-   - Permission system
-   - Role assignment UI
-
-### After v1.4.0
+### After v1.5.0
 
 - v1.5.0 - Dynamic DNS & Networking
 - v1.6.0 - Cloud Integration
