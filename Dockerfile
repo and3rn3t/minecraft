@@ -8,10 +8,9 @@ ARG BUILD_TYPE=standard
 
 # Stage 1: Base image with Java and tools
 # Docker buildx automatically selects the correct base image based on --platform
-# For ARM64: uses arm64v8/openjdk
-# For ARM32: uses arm32v7/openjdk
-# For AMD64: uses openjdk (default)
-FROM openjdk:21-jdk-slim AS base
+# Eclipse Temurin supports ARM64 (Raspberry Pi 5), ARM32 (Raspberry Pi 4), and AMD64
+# Official OpenJDK images were deprecated, using Eclipse Temurin as replacement
+FROM eclipse-temurin:21-jdk-jammy AS base
 
 # Install required packages in a single layer to reduce image size
 RUN apt-get update && \
