@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import OAuthButtons from '../components/OAuthButtons';
+import { useToast } from '../components/ToastContainer';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
@@ -8,10 +9,10 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [totpToken, setTotpToken] = useState('');
   const [requires2FA, setRequires2FA] = useState(false);
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { error: showError, info } = useToast();
 
   useEffect(() => {
     // Redirect if already authenticated
@@ -22,7 +23,6 @@ const Login = () => {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
@@ -32,31 +32,27 @@ const Login = () => {
       } else {
         if (result.requires_2fa) {
           setRequires2FA(true);
-          setError('Please enter your 2FA code');
+          info('Please enter your 2FA code');
         } else {
-          setError(result.error || 'Login failed');
+          showError(result.error || 'Login failed');
         }
       }
     } catch (err) {
-      setError(err.message || 'Login failed');
+      showError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-minecraft-background-DEFAULT">
-      <div className="card-minecraft p-8 w-full max-w-md">
-        <h1 className="text-xl font-minecraft text-minecraft-grass-light mb-6 text-center leading-tight">
-          MINECRAFT ADMIN
-        </h1>
-        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-6 text-center">LOGIN</h2>
-
-        {error && (
-          <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-            {error}
-          </div>
-        )}
+    <div className="min-h-screen flex items-center justify-center bg-minecraft-background-DEFAULT p-4">
+      <div className="card-minecraft p-8 w-full max-w-md animate-fadeIn shadow-2xl">
+        <div className="text-center mb-8">
+          <h1 className="text-xl lg:text-2xl font-minecraft text-minecraft-grass-light mb-2 leading-tight drop-shadow-lg">
+            MINECRAFT ADMIN
+          </h1>
+          <h2 className="text-sm font-minecraft text-minecraft-text-light">LOGIN</h2>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -107,7 +103,7 @@ const Login = () => {
                 id="totp"
                 type="text"
                 value={totpToken}
-                onChange={e => setTotpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={e => setTotpToken(e.target.value.replaceAll(/\D/g, '').slice(0, 6))}
                 required
                 className="input-minecraft w-full"
                 placeholder="000000"

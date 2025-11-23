@@ -20,6 +20,7 @@
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  image-rendering: -webkit-optimize-contrast; /* For Edge 79+ */
 }
 
 body {
@@ -41,38 +42,145 @@ body {
   min-height: 100vh;
 }
 
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 /* Minecraft-style button */
 @layer components {
   .btn-minecraft {
     @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#616161] border-b-[#616161] bg-[#8D6E63] text-white;
-    @apply hover:bg-[#6D4C41] active:border-t-[#616161] active:border-l-[#616161] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
-    @apply transition-none;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+    @apply hover:bg-[#6D4C41] hover:shadow-lg active:border-t-[#616161] active:border-l-[#616161] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+    @apply transition-all duration-150 ease-out;
+    @apply transform hover:scale-[1.02] active:scale-[0.98];
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-minecraft:hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 1.5s infinite;
   }
 
   .btn-minecraft-primary {
     @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#33691E] border-b-[#33691E] bg-[#558B2F] text-white;
-    @apply hover:bg-[#7CB342] active:border-t-[#33691E] active:border-l-[#33691E] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
-    @apply transition-none;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+    @apply hover:bg-[#7CB342] hover:shadow-lg active:border-t-[#33691E] active:border-l-[#33691E] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+    @apply transition-all duration-150 ease-out;
+    @apply transform hover:scale-[1.02] active:scale-[0.98];
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(92, 184, 92, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-minecraft-primary:hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    animation: shimmer 1.5s infinite;
   }
 
   .btn-minecraft-danger {
     @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#B71C1C] border-b-[#B71C1C] bg-[#C62828] text-white;
-    @apply hover:bg-[#D32F2F] active:border-t-[#B71C1C] active:border-l-[#B71C1C] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
-    @apply transition-none;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+    @apply hover:bg-[#D32F2F] hover:shadow-lg active:border-t-[#B71C1C] active:border-l-[#B71C1C] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+    @apply transition-all duration-150 ease-out;
+    @apply transform hover:scale-[1.02] active:scale-[0.98];
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(198, 40, 40, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-minecraft-danger:hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 1.5s infinite;
   }
 
   .card-minecraft {
     @apply bg-[#6D4C41] border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#5D4037] border-b-[#5D4037];
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+      0 4px 6px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s ease-out;
+    @apply transition-shadow duration-200;
+  }
+
+  .card-minecraft:hover {
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+      0 6px 12px rgba(0, 0, 0, 0.3);
   }
 
   .input-minecraft {
     @apply bg-[#5D4037] border-2 border-t-[#616161] border-l-[#616161] border-r-[#E0E0E0] border-b-[#E0E0E0] text-white font-minecraft text-xs px-3 py-2;
-    @apply focus:outline-none focus:border-t-[#558B2F] focus:border-l-[#558B2F] focus:border-r-[#7CB342] focus:border-b-[#7CB342];
+    @apply focus:outline-none focus:border-t-[#558B2F] focus:border-l-[#558B2F] focus:border-r-[#7CB342] focus:border-b-[#7CB342] focus:shadow-lg;
     box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.2);
+    @apply transition-all duration-200;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, #5d4037 25%, #6d4c41 50%, #5d4037 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
   }
 }
 
@@ -90,8 +198,47 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #8d6e63;
   border: 2px solid #616161;
+  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #6d4c41;
+}
+
+/* Toast notification styles */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+}
+
+.toast {
+  animation: slideInRight 0.3s ease-out;
+  @apply card-minecraft p-4;
+  min-width: 300px;
+}
+
+.toast-success {
+  @apply border-t-[#7CB342] border-l-[#7CB342] border-r-[#558B2F] border-b-[#558B2F];
+  background: linear-gradient(135deg, #558b2f 0%, #7cb342 100%);
+}
+
+.toast-error {
+  @apply border-t-[#F44336] border-l-[#F44336] border-r-[#C62828] border-b-[#C62828];
+  background: linear-gradient(135deg, #c62828 0%, #f44336 100%);
+}
+
+.toast-info {
+  @apply border-t-[#42A5F5] border-l-[#42A5F5] border-r-[#2196F3] border-b-[#2196F3];
+  background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
+}
+
+.toast-warning {
+  @apply border-t-[#FFB74D] border-l-[#FFB74D] border-r-[#F57C00] border-b-[#F57C00];
+  background: linear-gradient(135deg, #f57c00 0%, #ffb74d 100%);
 }
