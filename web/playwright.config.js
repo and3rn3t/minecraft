@@ -1,10 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Playwright configuration for end-to-end tests
  * Tests are located in tests/e2e/browser/
  */
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default defineConfig({
   // Test directory - point to the actual test location (relative to web/)
   testDir: path.join(__dirname, '../tests/e2e/browser'),
