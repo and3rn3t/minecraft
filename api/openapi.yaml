@@ -1,0 +1,893 @@
+openapi: 3.0.3
+info:
+  title: Minecraft Server Management API
+  description: |
+    REST API for managing Minecraft server on Raspberry Pi 5.
+
+    Provides endpoints for:
+    - Server control (start, stop, restart, commands)
+    - Backup management (create, list, restore, delete)
+    - Player management (list, whitelist, ban, op)
+    - World management
+    - Plugin management
+    - Configuration file management
+    - Monitoring and metrics
+    - User authentication and authorization
+    - API key management
+    - Dynamic DNS management
+
+  version: 1.4.0
+  contact:
+    name: Minecraft Server Project
+    url: https://github.com/and3rn3t/minecraft
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: http://minecraft-server.local:8080
+    description: Raspberry Pi server (local network)
+  - url: https://your-domain.com:8080
+    description: Production server (with SSL)
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: User authentication and registration
+  - name: API Keys
+    description: API key management
+  - name: Users
+    description: User management
+  - name: Roles & Permissions
+    description: Role-based access control
+  - name: Server Control
+    description: Server start, stop, restart, commands
+  - name: Backups
+    description: Backup creation, listing, restore, deletion
+  - name: Players
+    description: Player management
+  - name: Worlds
+    description: World management
+  - name: Plugins
+    description: Plugin management
+  - name: Configuration
+    description: Configuration file management
+  - name: Logs
+    description: Server log access
+  - name: Metrics
+    description: Server metrics and monitoring
+  - name: Dynamic DNS
+    description: Dynamic DNS management
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+  - SessionAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for programmatic access
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from login endpoint
+    SessionAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Session cookie from login
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - status
+        - timestamp
+
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, operator, user]
+        email:
+          type: string
+        enabled:
+          type: boolean
+        created:
+          type: string
+          format: date-time
+      required:
+        - username
+        - role
+
+    ServerStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [running, stopped, starting, stopping]
+        uptime:
+          type: integer
+          description: Uptime in seconds
+        players:
+          type: integer
+        max_players:
+          type: integer
+        version:
+          type: string
+      required:
+        - status
+
+    Backup:
+      type: object
+      properties:
+        filename:
+          type: string
+        size:
+          type: integer
+          description: Size in bytes
+        created:
+          type: string
+          format: date-time
+        path:
+          type: string
+      required:
+        - filename
+        - size
+        - created
+
+    Player:
+      type: object
+      properties:
+        name:
+          type: string
+        online:
+          type: boolean
+        uuid:
+          type: string
+      required:
+        - name
+        - online
+
+paths:
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health status (no authentication required)
+      operationId: getHealth
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '500':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                password:
+                  type: string
+                  minLength: 8
+                email:
+                  type: string
+                  format: email
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+                        description: JWT token (if available)
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user and create session
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: End user session
+      operationId: logout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Get information about currently authenticated user
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/status:
+    get:
+      tags:
+        - Server Control
+      summary: Get server status
+      description: Get current server status and information
+      operationId: getServerStatus
+      responses:
+        '200':
+          description: Server status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerStatus'
+
+  /api/server/start:
+    post:
+      tags:
+        - Server Control
+      summary: Start server
+      description: Start the Minecraft server
+      operationId: startServer
+      responses:
+        '200':
+          description: Server started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Server already running or error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/server/stop:
+    post:
+      tags:
+        - Server Control
+      summary: Stop server
+      description: Stop the Minecraft server
+      operationId: stopServer
+      responses:
+        '200':
+          description: Server stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/server/restart:
+    post:
+      tags:
+        - Server Control
+      summary: Restart server
+      description: Restart the Minecraft server
+      operationId: restartServer
+      responses:
+        '200':
+          description: Server restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /api/server/command:
+    post:
+      tags:
+        - Server Control
+      summary: Send server command
+      description: Execute a command on the Minecraft server
+      operationId: sendServerCommand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                  description: Minecraft server command (e.g., "say Hello")
+              required:
+                - command
+      responses:
+        '200':
+          description: Command executed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      output:
+                        type: string
+                        description: Command output
+
+  /api/backup:
+    post:
+      tags:
+        - Backups
+      summary: Create backup
+      description: Create a new server backup
+      operationId: createBackup
+      responses:
+        '200':
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      backup:
+                        $ref: '#/components/schemas/Backup'
+
+  /api/backups:
+    get:
+      tags:
+        - Backups
+      summary: List backups
+      description: Get list of all backups
+      operationId: listBackups
+      responses:
+        '200':
+          description: List of backups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Backup'
+
+  /api/backups/{filename}/restore:
+    post:
+      tags:
+        - Backups
+      summary: Restore backup
+      description: Restore server from a backup
+      operationId: restoreBackup
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Backup filename
+      responses:
+        '200':
+          description: Backup restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Backup not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/backups/{filename}:
+    delete:
+      tags:
+        - Backups
+      summary: Delete backup
+      description: Delete a backup file
+      operationId: deleteBackup
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Backup filename
+      responses:
+        '200':
+          description: Backup deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Backup not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/players:
+    get:
+      tags:
+        - Players
+      summary: List players
+      description: Get list of players (online and offline)
+      operationId: listPlayers
+      responses:
+        '200':
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  players:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Player'
+                  online_count:
+                    type: integer
+
+  /api/worlds:
+    get:
+      tags:
+        - Worlds
+      summary: List worlds
+      description: Get list of available worlds
+      operationId: listWorlds
+      responses:
+        '200':
+          description: List of worlds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  worlds:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        active:
+                          type: boolean
+                        size:
+                          type: integer
+
+  /api/plugins:
+    get:
+      tags:
+        - Plugins
+      summary: List plugins
+      description: Get list of installed plugins
+      operationId: listPlugins
+      responses:
+        '200':
+          description: List of plugins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        enabled:
+                          type: boolean
+                        version:
+                          type: string
+
+  /api/logs:
+    get:
+      tags:
+        - Logs
+      summary: Get server logs
+      description: Retrieve server logs
+      operationId: getLogs
+      parameters:
+        - name: lines
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: Number of lines to retrieve
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: Filter logs by text
+      responses:
+        '200':
+          description: Server logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: string
+                  total_lines:
+                    type: integer
+
+  /api/metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Get server metrics
+      description: Get server performance metrics
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Server metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tps:
+                    type: number
+                    description: Ticks per second
+                  memory_usage:
+                    type: integer
+                    description: Memory usage in MB
+                  cpu_usage:
+                    type: number
+                    description: CPU usage percentage
+                  player_count:
+                    type: integer
+                  uptime:
+                    type: integer
+                    description: Uptime in seconds
+
+  /api/config/files:
+    get:
+      tags:
+        - Configuration
+      summary: List configuration files
+      description: Get list of available configuration files
+      operationId: listConfigFiles
+      responses:
+        '200':
+          description: List of configuration files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        path:
+                          type: string
+                        size:
+                          type: integer
+
+  /api/config/files/{filename}:
+    get:
+      tags:
+        - Configuration
+      summary: Get configuration file
+      description: Retrieve contents of a configuration file
+      operationId: getConfigFile
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Configuration filename
+      responses:
+        '200':
+          description: Configuration file contents
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Configuration
+      summary: Update configuration file
+      description: Update contents of a configuration file
+      operationId: updateConfigFile
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Configuration filename
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: File contents
+              required:
+                - content
+      responses:
+        '200':
+          description: File updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Invalid content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/keys:
+    get:
+      tags:
+        - API Keys
+      summary: List API keys
+      description: Get list of API keys (preview only, not full keys)
+      operationId: listApiKeys
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        enabled:
+                          type: boolean
+                        created:
+                          type: string
+                          format: date-time
+
+    post:
+      tags:
+        - API Keys
+      summary: Create API key
+      description: Create a new API key
+      operationId: createApiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+              required:
+                - name
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      key:
+                        type: string
+                        description: Full API key (shown only on creation)
+                      id:
+                        type: string
+                        description: Key identifier
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: Get list of all users
+      operationId: listUsers
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+
+  /api/ddns/status:
+    get:
+      tags:
+        - Dynamic DNS
+      summary: Get DDNS status
+      description: Get current Dynamic DNS status
+      operationId: getDdnsStatus
+      responses:
+        '200':
+          description: DDNS status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  provider:
+                    type: string
+                  last_update:
+                    type: string
+                  current_ip:
+                    type: string
+
+  /api/ddns/update:
+    post:
+      tags:
+        - Dynamic DNS
+      summary: Update DDNS
+      description: Manually trigger Dynamic DNS update
+      operationId: updateDdns
+      responses:
+        '200':
+          description: DDNS updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'

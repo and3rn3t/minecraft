@@ -1,0 +1,132 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r api/requirements.txt
+          pip install pytest pytest-cov pytest-json-report coverage[toml]
+
+      - name: Run tests with coverage
+        run: |
+          cd tests/api
+          pytest -v \
+            --cov=../../api \
+            --cov-config=../../.coverage-config.ini \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-report=xml \
+            --cov-report=json \
+            --json-report \
+            --json-report-file=../../coverage-report.json
+
+      - name: Check coverage threshold
+        run: |
+          python3 << EOF
+          import json
+          import sys
+
+          with open('coverage-report.json', 'r') as f:
+              report = json.load(f)
+
+          # Extract coverage percentage
+          coverage = report.get('totals', {}).get('percent_covered', 0)
+          threshold = 60  # Minimum coverage percentage
+
+          print(f"Coverage: {coverage:.2f}%")
+          print(f"Threshold: {threshold}%")
+
+          if coverage < threshold:
+              print(f"ERROR: Coverage {coverage:.2f}% is below threshold {threshold}%")
+              sys.exit(1)
+          else:
+              print(f"SUCCESS: Coverage {coverage:.2f}% meets threshold {threshold}%")
+          EOF
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Generate coverage badge
+        run: |
+          python3 << EOF
+          import json
+          import re
+
+          with open('coverage-report.json', 'r') as f:
+              report = json.load(f)
+
+          coverage = report.get('totals', {}).get('percent_covered', 0)
+
+          # Determine color based on coverage
+          if coverage >= 80:
+              color = 'brightgreen'
+          elif coverage >= 60:
+              color = 'green'
+          elif coverage >= 40:
+              color = 'yellow'
+          else:
+              color = 'red'
+
+          # Generate badge URL
+          badge_url = f"https://img.shields.io/badge/coverage-{coverage:.1f}%25-{color}"
+
+          # Update README.md with badge
+          with open('README.md', 'r') as f:
+              readme = f.read()
+
+          # Replace or add coverage badge
+          badge_pattern = r'!\[Coverage\]\([^\)]+\)'
+          badge_markdown = f'![Coverage]({badge_url})'
+
+          if re.search(badge_pattern, readme):
+              readme = re.sub(badge_pattern, badge_markdown, readme)
+          else:
+              # Add after title or at top
+              readme = re.sub(r'(^# .+?\n)', r'\1\n' + badge_markdown + '\n', readme, count=1)
+
+          with open('README.md', 'w') as f:
+              f.write(readme)
+
+          print(f"Coverage badge updated: {coverage:.1f}%")
+          EOF
+        continue-on-error: true
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 30
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MINIMUM_GREEN: 60
+          MINIMUM_ORANGE: 40

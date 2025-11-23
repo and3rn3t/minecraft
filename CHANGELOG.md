@@ -25,10 +25,12 @@ All notable changes to this project will be documented in this file.
   - Support for build arguments (MINECRAFT_VERSION, BUILD_TYPE)
 
 - **Cloud Backup Planning**
+
   - Added Cloudflare R2 to cloud backup integration tasks (S3-compatible, no egress fees)
   - Updated roadmap to prioritize R2 for Raspberry Pi users
 
 - **Performance Benchmarking Suite**
+
   - Comprehensive benchmark script (`scripts/benchmark.sh`) for performance measurement
   - Startup time, TPS, memory, and CPU benchmarks
   - Baseline creation and comparison functionality
@@ -36,11 +38,47 @@ All notable changes to this project will be documented in this file.
   - Performance benchmarking documentation (`docs/PERFORMANCE_BENCHMARKING.md`)
 
 - **Multi-Architecture Support**
+
   - Multi-architecture Docker build script (`scripts/build-multiarch.sh`)
   - Support for ARM64 (Raspberry Pi 5), ARM32 (Raspberry Pi 4), and x86_64
   - Docker Buildx integration for cross-platform builds
   - Multi-architecture documentation (`docs/MULTI_ARCHITECTURE.md`)
   - Updated Dockerfile to support multiple architectures
+
+- **CI/CD Pipeline Enhancements**
+
+  - Automated release workflow (`.github/workflows/release.yml`)
+  - Version tagging automation
+  - Release notes generation from CHANGELOG.md
+  - Docker image publishing to GitHub Container Registry
+  - Multi-architecture image builds in CI/CD
+  - Release documentation (`docs/CI_CD.md`)
+  - Release notes generation script (`scripts/generate-release-notes.sh`)
+
+- **Code Coverage Enhancements**
+
+  - Coverage threshold enforcement (60% minimum)
+  - Coverage reporting workflow (`.github/workflows/coverage.yml`)
+  - Coverage check script (`scripts/check-coverage.sh`)
+  - Coverage configuration (`.coverage-config.ini`)
+  - Coverage badges and trend tracking
+  - Makefile targets for coverage (`make coverage`, `make coverage-check`)
+
+- **Cloudflare R2 Backup Integration**
+
+  - R2 backup client script (`scripts/cloud-backup-r2.sh`)
+  - S3-compatible API integration
+  - Backup upload, download, list, and delete functionality
+  - Configuration management (`config/cloud-backup-r2.conf`)
+  - Cloud backup documentation (`docs/CLOUD_BACKUP.md`)
+  - Cost-effective solution with no egress fees
+
+- **API Documentation (OpenAPI/Swagger)**
+  - Complete OpenAPI 3.0 specification (`api/openapi.yaml`)
+  - Interactive API documentation support
+  - API documentation guide (`docs/API_DOCUMENTATION.md`)
+  - Documentation serving script (`scripts/serve-api-docs.sh`)
+  - All 40+ endpoints documented with schemas and examples
 
 ### Changed
 

@@ -1,0 +1,37 @@
+# Cloudflare R2 Backup Configuration
+# Copy this file to config/cloud-backup-r2.conf and fill in your credentials
+
+# R2 Account ID (found in Cloudflare dashboard under R2)
+# Format: 32-character hex string
+R2_ACCOUNT_ID=""
+
+# R2 Access Key ID
+# Create API tokens in Cloudflare dashboard: R2 > Manage R2 API Tokens
+R2_ACCESS_KEY_ID=""
+
+# R2 Secret Access Key
+# Keep this secret! Never commit this file to git.
+R2_SECRET_ACCESS_KEY=""
+
+# R2 Bucket Name
+# The name of your R2 bucket
+R2_BUCKET_NAME="minecraft-backups"
+
+# R2 Endpoint
+# Format: https://<account-id>.r2.cloudflarestorage.com
+# Or use custom domain if configured
+R2_ENDPOINT=""
+
+# Backup prefix in bucket (optional)
+# All backups will be stored under this prefix
+R2_PREFIX="minecraft-backups"
+
+# Auto-upload after local backup (optional)
+# Set to "true" to automatically upload backups to R2 after creation
+AUTO_UPLOAD="false"
+
+# Auto-delete local after upload (optional, use with caution)
+# Set to "true" to delete local backup after successful upload
+# WARNING: This removes local backup, keep R2 as only copy
+AUTO_DELETE_LOCAL="false"
+

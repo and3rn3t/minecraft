@@ -1,7 +1,7 @@
 # Minecraft Server Management Makefile
 # Provides convenient commands for server management
 
-.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker benchmark build-multiarch
+.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch
 
 # Default target
 help:
@@ -22,7 +22,9 @@ help:
 	@echo "  make lint-bash   - Lint bash scripts"
 	@echo "  make lint-python - Lint Python code"
 	@echo "  make lint-js     - Lint JavaScript/React"
-	@echo "  make benchmark   - Run performance benchmarks"
+	@echo "  make coverage   - Run tests with coverage report"
+	@echo "  make coverage-check - Check coverage threshold"
+	@echo "  make benchmark  - Run performance benchmarks"
 	@echo "  make build       - Build Docker image"
 	@echo "  make build-multiarch - Build for multiple architectures"
 	@echo "  make shell       - Open shell in container"
@@ -105,6 +107,19 @@ lint-yaml:
 lint-docker:
 	@echo "Validating Docker Compose..."
 	@./scripts/lint.sh docker
+
+# Coverage
+coverage:
+	@echo "Running tests with coverage..."
+	@cd tests/api && pytest -v --cov=../../api --cov-config=../../.coverage-config.ini --cov-report=term-missing --cov-report=html
+
+coverage-check:
+	@echo "Checking coverage threshold..."
+	@./scripts/check-coverage.sh check
+
+coverage-report:
+	@echo "Generating coverage report..."
+	@./scripts/check-coverage.sh report
 
 # Benchmarking
 benchmark:

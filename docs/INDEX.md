@@ -38,6 +38,7 @@ Complete guide to all project documentation, organized by category.
 ### Core Features
 
 - **[BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md)** - Backup scheduling, retention, and monitoring
+- **[CLOUD_BACKUP.md](CLOUD_BACKUP.md)** - Cloud backup integration (Cloudflare R2)
 - **[UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md)** - Server updates and version management
 - **[PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
 - **[MULTI_WORLD.md](MULTI_WORLD.md)** - Managing multiple worlds
@@ -89,6 +90,7 @@ Complete guide to all project documentation, organized by category.
 - **[DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md)** - Docker image optimization guide
 - **[PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md)** - Performance benchmarking and regression testing
 - **[MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md)** - Multi-architecture build and deployment guide
+- **[CI_CD.md](CI_CD.md)** - CI/CD pipeline and automated releases guide
 
 ---
 
