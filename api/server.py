@@ -394,6 +394,8 @@ PERMISSIONS = {
     "logs.view": "View server logs",
     # Metrics
     "metrics.view": "View server metrics",
+    "analytics.view": "View analytics and reports",
+    "analytics.generate": "Generate analytics reports",
     # Settings
     "settings.view": "View application settings",
     "settings.edit": "Edit application settings",
@@ -411,12 +413,15 @@ ROLE_PERMISSIONS = {
         "plugins.view",
         "logs.view",
         "metrics.view",
+        "analytics.view",
         "settings.view",
     ],
     "operator": [
         "server.view",
         "server.control",
         "server.command",
+        "analytics.view",
+        "analytics.generate",
         "backup.create",
         "backup.view",
         "backup.restore",
@@ -2260,6 +2265,203 @@ def get_metrics():
         pass
 
     return jsonify({"metrics": metrics, "timestamp": datetime.now(timezone.utc).isoformat()})
+
+
+@app.route("/api/analytics/collect", methods=["POST"])
+@require_permission("analytics.view")
+def collect_analytics():
+    """Trigger analytics data collection"""
+    try:
+        stdout, stderr, code = run_script("analytics-collector.sh")
+        if code == 0:
+            return jsonify({"success": True, "message": "Analytics data collected"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to collect analytics"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to collect analytics: {str(e)}"}), 500
+
+
+@app.route("/api/analytics/report", methods=["GET"])
+@require_permission("analytics.view")
+def get_analytics_report():
+    """Get analytics report"""
+    try:
+        hours = int(request.args.get("hours", 24))
+        if hours not in [1, 6, 24, 168]:
+            hours = 24
+
+        # Run analytics processor
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPTS_DIR / "analytics-processor.py"),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(PROJECT_ROOT),
+        )
+
+        if result.returncode != 0:
+            return jsonify({"error": "Failed to generate report", "details": result.stderr}), 500
+
+        # Load latest report
+        report_file = PROJECT_ROOT / "analytics" / "processed" / "latest_report.json"
+        if report_file.exists():
+            with open(report_file, "r") as f:
+                report = json.load(f)
+            return jsonify({"report": report}), 200
+        else:
+            return jsonify({"error": "Report not available"}), 404
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to get report: {str(e)}"}), 500
+
+
+@app.route("/api/analytics/trends", methods=["GET"])
+@require_permission("analytics.view")
+def get_analytics_trends():
+    """Get performance trends"""
+    try:
+        hours = int(request.args.get("hours", 24))
+        metric_type = request.args.get("type", "performance")  # performance, players, network
+
+        # Import analytics processor
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from analytics_processor import AnalyticsProcessor
+
+        processor = AnalyticsProcessor()
+
+        if metric_type == "performance":
+            trends = processor.analyze_performance_trends(hours)
+        elif metric_type == "players":
+            trends = processor.analyze_player_behavior(hours)
+        else:
+            trends = {}
+
+        return jsonify({"trends": trends, "period_hours": hours}), 200
+
+    except ImportError:
+        # Fallback: return basic trends from metrics
+        return jsonify({"trends": {}, "period_hours": hours, "note": "Full analytics not available"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get trends: {str(e)}"}), 500
+
+
+@app.route("/api/analytics/anomalies", methods=["GET"])
+@require_permission("analytics.view")
+def get_analytics_anomalies():
+    """Get detected anomalies"""
+    try:
+        hours = int(request.args.get("hours", 24))
+        metric = request.args.get("metric", "tps")  # tps, cpu, memory
+
+        # Import analytics processor
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from analytics_processor import AnalyticsProcessor
+
+        processor = AnalyticsProcessor()
+        perf_data = processor.load_analytics_data("performance", hours)
+
+        if not perf_data:
+            return jsonify({"anomalies": [], "message": "No data available"}), 200
+
+        anomalies = processor.detect_anomalies(perf_data, metric)
+        return jsonify({"anomalies": anomalies, "metric": metric, "period_hours": hours}), 200
+
+    except ImportError:
+        return jsonify({"anomalies": [], "note": "Full analytics not available"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get anomalies: {str(e)}"}), 500
+
+
+@app.route("/api/analytics/predictions", methods=["GET"])
+@require_permission("analytics.view")
+def get_analytics_predictions():
+    """Get resource usage predictions"""
+    try:
+        hours_ahead = int(request.args.get("hours_ahead", 1))
+        metric = request.args.get("metric", "memory")  # memory, tps, cpu
+
+        # Import analytics processor
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from analytics_processor import AnalyticsProcessor
+
+        processor = AnalyticsProcessor()
+        perf_data = processor.load_analytics_data("performance", hours=24)
+
+        if not perf_data:
+            return jsonify({"prediction": {}, "message": "No data available"}), 200
+
+        prediction = processor.predict_future(perf_data, metric, hours_ahead)
+        return jsonify({"prediction": prediction, "metric": metric, "hours_ahead": hours_ahead}), 200
+
+    except ImportError:
+        return jsonify({"prediction": {}, "note": "Full analytics not available"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get predictions: {str(e)}"}), 500
+
+
+@app.route("/api/analytics/player-behavior", methods=["GET"])
+@require_permission("analytics.view")
+def get_player_behavior():
+    """Get player behavior analytics"""
+    try:
+        hours = int(request.args.get("hours", 24))
+
+        # Import analytics processor
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from analytics_processor import AnalyticsProcessor
+
+        processor = AnalyticsProcessor()
+        behavior = processor.analyze_player_behavior(hours)
+
+        return jsonify({"behavior": behavior, "period_hours": hours}), 200
+
+    except ImportError:
+        return jsonify({"behavior": {}, "note": "Full analytics not available"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get player behavior: {str(e)}"}), 500
+
+
+@app.route("/api/analytics/custom-report", methods=["POST"])
+@require_permission("analytics.generate")
+def generate_custom_report():
+    """Generate custom analytics report"""
+    try:
+        data = request.get_json() or {}
+        hours = int(data.get("hours", 24))
+        metrics = data.get("metrics", ["performance", "players"])
+
+        # Import analytics processor
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from analytics_processor import AnalyticsProcessor
+
+        processor = AnalyticsProcessor()
+
+        report = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "period_hours": hours,
+            "requested_metrics": metrics,
+        }
+
+        if "performance" in metrics:
+            report["performance"] = processor.analyze_performance_trends(hours)
+
+        if "players" in metrics:
+            report["player_behavior"] = processor.analyze_player_behavior(hours)
+
+        # Save custom report
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"custom_report_{timestamp}.json"
+        processor.save_report(report, filename)
+
+        return jsonify({"report": report, "saved_as": filename}), 200
+
+    except ImportError:
+        return jsonify({"error": "Analytics processor not available"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
 
 
 @app.route("/api/worlds", methods=["GET"])

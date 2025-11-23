@@ -115,6 +115,44 @@ export const api = {
     return response.data;
   },
 
+  // Analytics
+  async collectAnalytics() {
+    const response = await apiClient.post('/analytics/collect');
+    return response.data;
+  },
+
+  async getAnalyticsReport(hours = 24) {
+    const response = await apiClient.get('/analytics/report', { params: { hours } });
+    return response.data;
+  },
+
+  async getAnalyticsTrends(hours = 24, type = 'performance') {
+    const response = await apiClient.get('/analytics/trends', { params: { hours, type } });
+    return response.data;
+  },
+
+  async getAnalyticsAnomalies(hours = 24, metric = 'tps') {
+    const response = await apiClient.get('/analytics/anomalies', { params: { hours, metric } });
+    return response.data;
+  },
+
+  async getAnalyticsPredictions(hoursAhead = 1, metric = 'memory') {
+    const response = await apiClient.get('/analytics/predictions', {
+      params: { hours_ahead: hoursAhead, metric },
+    });
+    return response.data;
+  },
+
+  async getPlayerBehavior(hours = 24) {
+    const response = await apiClient.get('/analytics/player-behavior', { params: { hours } });
+    return response.data;
+  },
+
+  async generateCustomReport(config) {
+    const response = await apiClient.post('/analytics/custom-report', config);
+    return response.data;
+  },
+
   // Worlds
   async listWorlds() {
     const response = await apiClient.get('/worlds');
