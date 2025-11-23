@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 /**
  * Playwright configuration for end-to-end tests
- * Tests are located in tests/e2e/browser/
+ * Tests are located in web/tests/e2e/
  */
 
 // ES module equivalent of __dirname
