@@ -27,26 +27,6 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps
 
-      - name: Start dev server
-        working-directory: web
-        run: npm run dev &
-        
-      - name: Wait for server
-        working-directory: web
-        run: |
-          timeout=120
-          elapsed=0
-          while ! curl -f http://localhost:5173 > /dev/null 2>&1; do
-            if [ $elapsed -ge $timeout ]; then
-              echo "Server failed to start within $timeout seconds"
-              exit 1
-            fi
-            echo "Waiting for server to start... ($elapsed/$timeout)"
-            sleep 2
-            elapsed=$((elapsed + 2))
-          done
-          echo "Server is ready!"
-
       - name: Run Playwright tests
         working-directory: web
         run: npx playwright test
