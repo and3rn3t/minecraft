@@ -320,7 +320,7 @@ def log_audit_event(username, action, details=None, ip_address=None):
     try:
         AUDIT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(timezone.utc).isoformat()
-        ip = ip_address or request.remote_addr if hasattr(request, 'remote_addr') else 'unknown'
+        ip = ip_address or request.remote_addr if hasattr(request, "remote_addr") else "unknown"
 
         log_entry = {
             "timestamp": timestamp,
@@ -672,13 +672,15 @@ def setup_2fa():
     if not save_users():
         return jsonify({"error": "Failed to save user"}), 500
 
-    return jsonify({
-        "success": True,
-        "secret": secret,
-        "qr_code": qr_code,
-        "uri": uri,
-        "message": "Scan QR code with authenticator app, then verify to enable 2FA",
-    })
+    return jsonify(
+        {
+            "success": True,
+            "secret": secret,
+            "qr_code": qr_code,
+            "uri": uri,
+            "message": "Scan QR code with authenticator app, then verify to enable 2FA",
+        }
+    )
 
 
 @app.route("/api/auth/2fa/verify", methods=["POST"])
@@ -708,10 +710,12 @@ def verify_2fa_setup():
         user["totp_enabled"] = True
         if not save_users():
             return jsonify({"error": "Failed to save user"}), 500
-        return jsonify({
-            "success": True,
-            "message": "2FA enabled successfully",
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "2FA enabled successfully",
+            }
+        )
     else:
         return jsonify({"error": "Invalid token"}), 401
 
@@ -743,10 +747,12 @@ def disable_2fa():
     if not save_users():
         return jsonify({"error": "Failed to save user"}), 500
 
-    return jsonify({
-        "success": True,
-        "message": "2FA disabled successfully",
-    })
+    return jsonify(
+        {
+            "success": True,
+            "message": "2FA disabled successfully",
+        }
+    )
 
 
 @app.route("/api/auth/2fa/status", methods=["GET"])
@@ -758,11 +764,13 @@ def get_2fa_status():
         return jsonify({"error": "User not found"}), 404
 
     user = USERS[username]
-    return jsonify({
-        "success": True,
-        "enabled": user.get("totp_enabled", False),
-        "configured": "totp_secret" in user,
-    })
+    return jsonify(
+        {
+            "success": True,
+            "enabled": user.get("totp_enabled", False),
+            "configured": "totp_secret" in user,
+        }
+    )
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -1703,6 +1711,7 @@ def create_schedule():
 
         # Generate ID
         import uuid
+
         schedule_id = str(uuid.uuid4())
 
         # Create schedule entry
@@ -1845,15 +1854,20 @@ def get_audit_logs():
 
         # Apply pagination
         total = len(logs)
-        logs = logs[offset:offset + limit]
+        logs = logs[offset : offset + limit]
 
-        return jsonify({
-            "success": True,
-            "logs": logs,
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "logs": logs,
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset,
+                }
+            ),
+            200,
+        )
     except Exception as e:
         return jsonify({"error": f"Failed to get audit logs: {str(e)}"}), 500
 
@@ -3084,10 +3098,6 @@ if __name__ == "__main__":
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
-        socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
-    else:
-        print("WebSocket support disabled (Flask-SocketIO not available)")
-        app.run(host=API_HOST, port=API_PORT, debug=False)
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")
