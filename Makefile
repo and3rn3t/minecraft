@@ -186,4 +186,24 @@ quick-setup: install
 	@echo "  1. Copy .env.example to .env and configure"
 	@echo "  2. Run 'make start' to start the server"
 	@echo "  3. Run 'make logs' to view server logs"
+	@echo "  4. Run 'make perf-preset' to apply performance preset"
+
+# Minecraft management
+server-props:
+	@./scripts/server-properties-manager.sh help
+
+whitelist:
+	@./scripts/whitelist-manager.sh help
+
+ban:
+	@./scripts/ban-manager.sh help
+
+op:
+	@./scripts/op-manager.sh help
+
+jvm-optimize:
+	@./scripts/jvm-optimizer.sh generate
+
+perf-preset:
+	@./scripts/performance-presets.sh help
 

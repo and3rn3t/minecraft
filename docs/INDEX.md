@@ -42,6 +42,8 @@ Complete guide to all project documentation, organized by category.
 - **[UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md)** - Server updates and version management
 - **[PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
 - **[MOD_SUPPORT.md](MOD_SUPPORT.md)** - Mod loader detection and mod pack installation
+- **[MINECRAFT_ENHANCEMENTS.md](MINECRAFT_ENHANCEMENTS.md)** - Minecraft-specific enhancements and configurations
+- **[MINECRAFT_MANAGEMENT.md](MINECRAFT_MANAGEMENT.md)** - Minecraft server management tools and scripts
 - **[MULTI_WORLD.md](MULTI_WORLD.md)** - Managing multiple worlds
 - **[LOG_MANAGEMENT.md](LOG_MANAGEMENT.md)** - Log rotation, search, and analysis
 

@@ -23,6 +23,33 @@ All notable changes to this project will be documented in this file.
   - Mod compatibility verification
   - Mod support documentation (`docs/MOD_SUPPORT.md`)
 
+- **Minecraft-Specific Enhancements (Complete)**
+
+  - **Server Properties Manager** (`scripts/server-properties-manager.sh`)
+    - Get/set individual properties with validation
+    - Performance presets (low-end, balanced, high-performance)
+    - Property validation (ranges, enums)
+    - Automatic backups before changes
+    - API endpoints for programmatic access
+  - **Player Management Scripts**
+    - Whitelist Manager (`scripts/whitelist-manager.sh`) - Add/remove, import/export, enable/disable
+    - Ban Manager (`scripts/ban-manager.sh`) - Ban/unban with reasons, IP bans
+    - OP Manager (`scripts/op-manager.sh`) - Grant/revoke operator status with levels (1-4)
+    - Complete API endpoints for all player management operations
+  - **JVM Arguments Optimizer** (`scripts/jvm-optimizer.sh`)
+    - Aikar's Flags integration
+    - Raspberry Pi 5 optimizations
+    - Memory and CPU-based optimization
+    - Multiple presets (aikar, basic, rpi)
+  - **Performance Presets** (`scripts/performance-presets.sh`)
+    - Low-end preset (4GB Pi) - View distance 6, max players 5
+    - Balanced preset (8GB Pi) - View distance 10, max players 10
+    - High-performance preset - View distance 12, max players 20
+    - Preset comparison and current settings display
+  - **Documentation**
+    - Minecraft enhancements guide (`docs/MINECRAFT_ENHANCEMENTS.md`)
+    - Minecraft management guide (`docs/MINECRAFT_MANAGEMENT.md`)
+
 - **Static Code Analysis Infrastructure**
 
   - Comprehensive linting script (`scripts/lint.sh`) for bash, Python, JavaScript/React, and YAML

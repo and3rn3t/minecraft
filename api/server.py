@@ -1539,6 +1539,236 @@ def get_players():
     return jsonify({"players": players, "count": len(players)})
 
 
+@app.route("/api/players/whitelist", methods=["GET"])
+@require_permission("players.manage")
+def get_whitelist():
+    """Get whitelisted players"""
+    try:
+        whitelist_file = PROJECT_ROOT / "data" / "whitelist.json"
+        if not whitelist_file.exists():
+            return jsonify({"success": True, "players": []}), 200
+
+        with open(whitelist_file, "r") as f:
+            whitelist = json.load(f)
+
+        return jsonify({"success": True, "players": whitelist}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get whitelist: {str(e)}"}), 500
+
+
+@app.route("/api/players/whitelist", methods=["POST"])
+@require_permission("players.manage")
+def add_whitelist():
+    """Add player to whitelist"""
+    try:
+        data = request.get_json() or {}
+        player = data.get("player")
+        if not player:
+            return jsonify({"error": "Player name required"}), 400
+
+        stdout, stderr, code = run_script("whitelist-manager.sh", "add", player)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Player '{player}' added to whitelist"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to add player to whitelist"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to add to whitelist: {str(e)}"}), 500
+
+
+@app.route("/api/players/whitelist/<player>", methods=["DELETE"])
+@require_permission("players.manage")
+def remove_whitelist(player):
+    """Remove player from whitelist"""
+    try:
+        stdout, stderr, code = run_script("whitelist-manager.sh", "remove", player)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Player '{player}' removed from whitelist"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to remove player from whitelist"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to remove from whitelist: {str(e)}"}), 500
+
+
+@app.route("/api/players/banned", methods=["GET"])
+@require_permission("players.manage")
+def get_banned():
+    """Get banned players"""
+    try:
+        banned_file = PROJECT_ROOT / "data" / "banned-players.json"
+        if not banned_file.exists():
+            return jsonify({"success": True, "players": []}), 200
+
+        with open(banned_file, "r") as f:
+            banned = json.load(f)
+
+        return jsonify({"success": True, "players": banned}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get ban list: {str(e)}"}), 500
+
+
+@app.route("/api/players/ban", methods=["POST"])
+@require_permission("players.manage")
+def ban_player():
+    """Ban a player"""
+    try:
+        data = request.get_json() or {}
+        player = data.get("player")
+        reason = data.get("reason", "Banned by operator")
+        if not player:
+            return jsonify({"error": "Player name required"}), 400
+
+        stdout, stderr, code = run_script("ban-manager.sh", "ban", player, reason)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Player '{player}' banned"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to ban player"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to ban player: {str(e)}"}), 500
+
+
+@app.route("/api/players/ban/<player>", methods=["DELETE"])
+@require_permission("players.manage")
+def unban_player(player):
+    """Unban a player"""
+    try:
+        stdout, stderr, code = run_script("ban-manager.sh", "unban", player)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Player '{player}' unbanned"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to unban player"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to unban player: {str(e)}"}), 500
+
+
+@app.route("/api/players/ops", methods=["GET"])
+@require_permission("players.manage")
+def get_ops():
+    """Get operators"""
+    try:
+        ops_file = PROJECT_ROOT / "data" / "ops.json"
+        if not ops_file.exists():
+            return jsonify({"success": True, "operators": []}), 200
+
+        with open(ops_file, "r") as f:
+            ops = json.load(f)
+
+        return jsonify({"success": True, "operators": ops}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get operators: {str(e)}"}), 500
+
+
+@app.route("/api/players/op", methods=["POST"])
+@require_permission("players.manage")
+def grant_op():
+    """Grant operator status"""
+    try:
+        data = request.get_json() or {}
+        player = data.get("player")
+        level = data.get("level", 4)
+        if not player:
+            return jsonify({"error": "Player name required"}), 400
+
+        stdout, stderr, code = run_script("op-manager.sh", "grant", player, str(level))
+        if code == 0:
+            return jsonify({"success": True, "message": f"Operator status granted to '{player}'"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to grant operator status"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to grant operator: {str(e)}"}), 500
+
+
+@app.route("/api/players/op/<player>", methods=["DELETE"])
+@require_permission("players.manage")
+def revoke_op(player):
+    """Revoke operator status"""
+    try:
+        stdout, stderr, code = run_script("op-manager.sh", "revoke", player)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Operator status revoked from '{player}'"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to revoke operator status"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to revoke operator: {str(e)}"}), 500
+
+
+@app.route("/api/server/properties", methods=["GET"])
+@require_permission("server.manage")
+def get_server_properties():
+    """Get all server properties"""
+    try:
+        props_file = PROJECT_ROOT / "data" / "server.properties"
+        if not props_file.exists():
+            return jsonify({"error": "server.properties not found"}), 404
+
+        properties = {}
+        with open(props_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    properties[key.strip()] = value.strip()
+
+        return jsonify({"success": True, "properties": properties}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get server properties: {str(e)}"}), 500
+
+
+@app.route("/api/server/properties/<key>", methods=["GET"])
+@require_permission("server.manage")
+def get_server_property(key):
+    """Get specific server property"""
+    try:
+        stdout, stderr, code = run_script("server-properties-manager.sh", "get", key)
+        if code == 0:
+            return jsonify({"success": True, "key": key, "value": stdout.strip()}), 200
+        else:
+            return jsonify({"error": stderr or f"Property '{key}' not found"}), 404
+    except Exception as e:
+        return jsonify({"error": f"Failed to get property: {str(e)}"}), 500
+
+
+@app.route("/api/server/properties/<key>", methods=["PUT"])
+@require_permission("server.manage")
+def set_server_property(key):
+    """Set server property"""
+    try:
+        data = request.get_json() or {}
+        value = data.get("value")
+        if value is None:
+            return jsonify({"error": "Value is required"}), 400
+
+        stdout, stderr, code = run_script("server-properties-manager.sh", "set", key, str(value))
+        if code == 0:
+            return jsonify({"success": True, "message": f"Property '{key}' set to '{value}'"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to set property"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to set property: {str(e)}"}), 500
+
+
+@app.route("/api/server/properties/preset", methods=["POST"])
+@require_permission("server.manage")
+def apply_server_preset():
+    """Apply server properties preset"""
+    try:
+        data = request.get_json() or {}
+        preset = data.get("preset")
+        if not preset:
+            return jsonify({"error": "Preset name required"}), 400
+
+        valid_presets = ["low-end", "balanced", "high-performance"]
+        if preset not in valid_presets:
+            return jsonify({"error": f"Invalid preset. Valid: {', '.join(valid_presets)}"}), 400
+
+        stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to apply preset"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to apply preset: {str(e)}"}), 500
+
+
 @app.route("/api/metrics", methods=["GET"])
 @require_permission("metrics.view")
 def get_metrics():

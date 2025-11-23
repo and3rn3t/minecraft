@@ -105,6 +105,26 @@ The `manage.sh` script provides easy server management:
 ./manage.sh check-compatibility # Check compatibility before updating
 ```
 
+### Minecraft-Specific Tools
+
+Additional scripts for Minecraft server management:
+
+```bash
+# Server Properties
+./scripts/server-properties-manager.sh get view-distance
+./scripts/server-properties-manager.sh set view-distance 10
+./scripts/server-properties-manager.sh preset balanced
+
+# Player Management
+./scripts/whitelist-manager.sh add PlayerName
+./scripts/ban-manager.sh ban PlayerName "Reason"
+./scripts/op-manager.sh grant PlayerName 4
+
+# Performance
+./scripts/jvm-optimizer.sh generate 2G 4 aikar
+./scripts/performance-presets.sh balanced
+```
+
 ## Customization
 
 ### Server Properties
