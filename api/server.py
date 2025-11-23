@@ -112,6 +112,12 @@ if USERS_FILE.exists():
     except (FileNotFoundError, json.JSONDecodeError):
         USERS = {}
 
+# Audit log file
+AUDIT_LOG_FILE = PROJECT_ROOT / "config" / "audit.log"
+
+# Command scheduler file
+SCHEDULE_FILE = PROJECT_ROOT / "config" / "command-schedule.json"
+
 
 def save_users():
     """Save users to file"""
@@ -216,6 +222,20 @@ except ImportError:
     bcrypt = None
     jwt = None
 
+# Two-Factor Authentication
+try:
+    import base64
+    import io
+
+    import pyotp
+    import qrcode
+
+    TOTP_AVAILABLE = True
+except ImportError:
+    TOTP_AVAILABLE = False
+    pyotp = None
+    qrcode = None
+
 
 def hash_password(password):
     """Hash password using bcrypt"""
@@ -255,6 +275,89 @@ def verify_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+
+
+def generate_totp_secret():
+    """Generate a TOTP secret for 2FA"""
+    if not TOTP_AVAILABLE:
+        raise ImportError("pyotp not available")
+    return pyotp.random_base32()
+
+
+def generate_totp_uri(username, secret, issuer="Minecraft Server"):
+    """Generate TOTP URI for QR code"""
+    if not TOTP_AVAILABLE:
+        raise ImportError("pyotp not available")
+    totp = pyotp.TOTP(secret)
+    return totp.provisioning_uri(name=username, issuer_name=issuer)
+
+
+def generate_qr_code(uri):
+    """Generate QR code image from URI"""
+    if not TOTP_AVAILABLE:
+        raise ImportError("qrcode not available")
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+    return base64.b64encode(buffer.read()).decode("utf-8")
+
+
+def verify_totp(secret, token):
+    """Verify TOTP token"""
+    if not TOTP_AVAILABLE:
+        raise ImportError("pyotp not available")
+    totp = pyotp.TOTP(secret)
+    return totp.verify(token, valid_window=1)  # Allow 1 time step window
+
+
+# Audit Logging
+def log_audit_event(username, action, details=None, ip_address=None):
+    """Log an audit event"""
+    try:
+        AUDIT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).isoformat()
+        ip = ip_address or request.remote_addr if hasattr(request, 'remote_addr') else 'unknown'
+
+        log_entry = {
+            "timestamp": timestamp,
+            "username": username,
+            "action": action,
+            "details": details or {},
+            "ip_address": ip,
+        }
+
+        # Append to audit log file (JSONL format)
+        with open(AUDIT_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        # Don't fail the request if audit logging fails
+        print(f"Audit logging error: {e}")
+
+
+def get_username_from_request():
+    """Get username from request (API key, session, or token)"""
+    # Check API key
+    api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
+    if api_key and api_key in API_KEYS:
+        return f"api_key:{API_KEYS[api_key].get('name', 'unknown')}"
+
+    # Check session
+    if "username" in session:
+        return session.get("username")
+
+    # Check JWT token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        username = verify_token(token)
+        if username:
+            return username
+
+    return "unknown"
 
 
 # Permission System
@@ -485,6 +588,7 @@ def login():
     data = request.get_json() or {}
     username = data.get("username")
     password = data.get("password")
+    totp_token = data.get("totp_token")
 
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
@@ -506,6 +610,21 @@ def login():
     if not verify_password(password, user["password_hash"]):
         return jsonify({"error": "Invalid username or password"}), 401
 
+    # Check if 2FA is enabled
+    if user.get("totp_enabled", False):
+        if not totp_token:
+            return jsonify({"error": "2FA token required", "requires_2fa": True}), 401
+
+        totp_secret = user.get("totp_secret")
+        if not totp_secret:
+            return jsonify({"error": "2FA not properly configured"}), 500
+
+        if not TOTP_AVAILABLE:
+            return jsonify({"error": "2FA not available"}), 500
+
+        if not verify_totp(totp_secret, totp_token):
+            return jsonify({"error": "Invalid 2FA token"}), 401
+
     # Create session or token
     session["username"] = username
 
@@ -526,6 +645,124 @@ def logout():
     """Logout user"""
     session.pop("username", None)
     return jsonify({"success": True, "message": "Logged out successfully"})
+
+
+@app.route("/api/auth/2fa/setup", methods=["POST"])
+@require_auth
+def setup_2fa():
+    """Setup 2FA for current user"""
+    if not TOTP_AVAILABLE:
+        return jsonify({"error": "2FA not available"}), 500
+
+    username = request.user
+    if username not in USERS:
+        return jsonify({"error": "User not found"}), 404
+
+    user = USERS[username]
+
+    # Generate new secret
+    secret = generate_totp_secret()
+    user["totp_secret"] = secret
+    user["totp_enabled"] = False  # Not enabled until verified
+
+    # Generate QR code
+    uri = generate_totp_uri(username, secret)
+    qr_code = generate_qr_code(uri)
+
+    if not save_users():
+        return jsonify({"error": "Failed to save user"}), 500
+
+    return jsonify({
+        "success": True,
+        "secret": secret,
+        "qr_code": qr_code,
+        "uri": uri,
+        "message": "Scan QR code with authenticator app, then verify to enable 2FA",
+    })
+
+
+@app.route("/api/auth/2fa/verify", methods=["POST"])
+@require_auth
+def verify_2fa_setup():
+    """Verify 2FA setup with token"""
+    if not TOTP_AVAILABLE:
+        return jsonify({"error": "2FA not available"}), 500
+
+    data = request.get_json() or {}
+    token = data.get("token")
+
+    if not token:
+        return jsonify({"error": "Token required"}), 400
+
+    username = request.user
+    if username not in USERS:
+        return jsonify({"error": "User not found"}), 404
+
+    user = USERS[username]
+    secret = user.get("totp_secret")
+
+    if not secret:
+        return jsonify({"error": "2FA not set up. Please set up 2FA first."}), 400
+
+    if verify_totp(secret, token):
+        user["totp_enabled"] = True
+        if not save_users():
+            return jsonify({"error": "Failed to save user"}), 500
+        return jsonify({
+            "success": True,
+            "message": "2FA enabled successfully",
+        })
+    else:
+        return jsonify({"error": "Invalid token"}), 401
+
+
+@app.route("/api/auth/2fa/disable", methods=["POST"])
+@require_auth
+def disable_2fa():
+    """Disable 2FA for current user"""
+    username = request.user
+    if username not in USERS:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json() or {}
+    password = data.get("password")
+
+    if not password:
+        return jsonify({"error": "Password required to disable 2FA"}), 400
+
+    user = USERS[username]
+
+    # Verify password
+    if not verify_password(password, user["password_hash"]):
+        return jsonify({"error": "Invalid password"}), 401
+
+    # Disable 2FA
+    user["totp_enabled"] = False
+    user.pop("totp_secret", None)
+
+    if not save_users():
+        return jsonify({"error": "Failed to save user"}), 500
+
+    return jsonify({
+        "success": True,
+        "message": "2FA disabled successfully",
+    })
+
+
+@app.route("/api/auth/2fa/status", methods=["GET"])
+@require_auth
+def get_2fa_status():
+    """Get 2FA status for current user"""
+    username = request.user
+    if username not in USERS:
+        return jsonify({"error": "User not found"}), 404
+
+    user = USERS[username]
+    return jsonify({
+        "success": True,
+        "enabled": user.get("totp_enabled", False),
+        "configured": "totp_secret" in user,
+    })
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -1326,6 +1563,9 @@ def get_status():
 @require_permission("server.control")
 def start_server():
     """Start the server"""
+    username = get_username_from_request()
+    log_audit_event(username, "server.start", {"action": "start_server"})
+
     stdout, stderr, code = run_script("manage.sh", "start")
 
     if code == 0:
@@ -1374,6 +1614,9 @@ def send_command():
     if not command:
         return jsonify({"error": "Command required"}), 400
 
+    username = get_username_from_request()
+    log_audit_event(username, "server.command", {"command": command})
+
     stdout, stderr, code = run_script("rcon-client.sh", "command", command)
 
     if code == 0:
@@ -1386,6 +1629,9 @@ def send_command():
 @require_permission("backup.create")
 def create_backup():
     """Create a server backup"""
+    username = get_username_from_request()
+    log_audit_event(username, "backup.create", {"action": "create_backup"})
+
     stdout, stderr, code = run_script("manage.sh", "backup")
 
     if code == 0:
@@ -1421,10 +1667,204 @@ def list_backups():
     return jsonify({"backups": backups, "count": len(backups)})
 
 
+@app.route("/api/scheduler/schedules", methods=["GET"])
+@require_permission("server.command")
+def list_schedules():
+    """List all scheduled commands"""
+    try:
+        if not SCHEDULE_FILE.exists():
+            return jsonify({"success": True, "schedules": []}), 200
+
+        with open(SCHEDULE_FILE, "r") as f:
+            schedule_data = json.load(f)
+        return jsonify({"success": True, "schedules": schedule_data.get("schedules", [])}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to list schedules: {str(e)}"}), 500
+
+
+@app.route("/api/scheduler/schedules", methods=["POST"])
+@require_permission("server.command")
+def create_schedule():
+    """Create a new scheduled command"""
+    try:
+        data = request.get_json() or {}
+        command = data.get("command")
+        schedule_type = data.get("type", "interval")  # interval, daily, weekly
+        enabled = data.get("enabled", True)
+
+        if not command:
+            return jsonify({"error": "Command required"}), 400
+
+        # Load existing schedules
+        schedule_data = {"schedules": []}
+        if SCHEDULE_FILE.exists():
+            with open(SCHEDULE_FILE, "r") as f:
+                schedule_data = json.load(f)
+
+        # Generate ID
+        import uuid
+        schedule_id = str(uuid.uuid4())
+
+        # Create schedule entry
+        schedule = {
+            "id": schedule_id,
+            "command": command,
+            "type": schedule_type,
+            "enabled": enabled,
+            "created": datetime.now(timezone.utc).isoformat(),
+            "last_run": None,
+        }
+
+        # Add type-specific fields
+        if schedule_type == "interval":
+            schedule["interval_minutes"] = data.get("interval_minutes", 60)
+        elif schedule_type == "daily":
+            schedule["run_time"] = data.get("run_time", "00:00")
+        elif schedule_type == "weekly":
+            schedule["day_of_week"] = data.get("day_of_week", 0)
+            schedule["run_time"] = data.get("run_time", "00:00")
+
+        schedule_data["schedules"].append(schedule)
+
+        # Save
+        SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(SCHEDULE_FILE, "w") as f:
+            json.dump(schedule_data, f, indent=2)
+
+        username = get_username_from_request()
+        log_audit_event(username, "scheduler.create", {"schedule_id": schedule_id, "command": command})
+
+        return jsonify({"success": True, "schedule": schedule}), 201
+    except Exception as e:
+        return jsonify({"error": f"Failed to create schedule: {str(e)}"}), 500
+
+
+@app.route("/api/scheduler/schedules/<schedule_id>", methods=["PUT"])
+@require_permission("server.command")
+def update_schedule(schedule_id):
+    """Update a scheduled command"""
+    try:
+        data = request.get_json() or {}
+
+        if not SCHEDULE_FILE.exists():
+            return jsonify({"error": "Schedule not found"}), 404
+
+        with open(SCHEDULE_FILE, "r") as f:
+            schedule_data = json.load(f)
+
+        schedules = schedule_data.get("schedules", [])
+        schedule = None
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                schedule = s
+                break
+
+        if not schedule:
+            return jsonify({"error": "Schedule not found"}), 404
+
+        # Update fields
+        if "command" in data:
+            schedule["command"] = data["command"]
+        if "type" in data:
+            schedule["type"] = data["type"]
+        if "enabled" in data:
+            schedule["enabled"] = data["enabled"]
+        if "interval_minutes" in data:
+            schedule["interval_minutes"] = data["interval_minutes"]
+        if "run_time" in data:
+            schedule["run_time"] = data["run_time"]
+        if "day_of_week" in data:
+            schedule["day_of_week"] = data["day_of_week"]
+
+        # Save
+        with open(SCHEDULE_FILE, "w") as f:
+            json.dump(schedule_data, f, indent=2)
+
+        username = get_username_from_request()
+        log_audit_event(username, "scheduler.update", {"schedule_id": schedule_id})
+
+        return jsonify({"success": True, "schedule": schedule}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to update schedule: {str(e)}"}), 500
+
+
+@app.route("/api/scheduler/schedules/<schedule_id>", methods=["DELETE"])
+@require_permission("server.command")
+def delete_schedule(schedule_id):
+    """Delete a scheduled command"""
+    try:
+        if not SCHEDULE_FILE.exists():
+            return jsonify({"error": "Schedule not found"}), 404
+
+        with open(SCHEDULE_FILE, "r") as f:
+            schedule_data = json.load(f)
+
+        schedules = schedule_data.get("schedules", [])
+        schedule_data["schedules"] = [s for s in schedules if s.get("id") != schedule_id]
+
+        # Save
+        with open(SCHEDULE_FILE, "w") as f:
+            json.dump(schedule_data, f, indent=2)
+
+        username = get_username_from_request()
+        log_audit_event(username, "scheduler.delete", {"schedule_id": schedule_id})
+
+        return jsonify({"success": True, "message": "Schedule deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete schedule: {str(e)}"}), 500
+
+
+@app.route("/api/audit/logs", methods=["GET"])
+@require_permission("logs.view")
+def get_audit_logs():
+    """Get audit logs"""
+    try:
+        limit = request.args.get("limit", 100, type=int)
+        offset = request.args.get("offset", 0, type=int)
+        action_filter = request.args.get("action")
+        username_filter = request.args.get("username")
+
+        logs = []
+        if AUDIT_LOG_FILE.exists():
+            with open(AUDIT_LOG_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            log_entry = json.loads(line.strip())
+                            # Apply filters
+                            if action_filter and log_entry.get("action") != action_filter:
+                                continue
+                            if username_filter and log_entry.get("username") != username_filter:
+                                continue
+                            logs.append(log_entry)
+                        except json.JSONDecodeError:
+                            continue
+
+        # Sort by timestamp (newest first)
+        logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+
+        # Apply pagination
+        total = len(logs)
+        logs = logs[offset:offset + limit]
+
+        return jsonify({
+            "success": True,
+            "logs": logs,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to get audit logs: {str(e)}"}), 500
+
+
 @app.route("/api/backups/<path:filename>/restore", methods=["POST"])
 @require_permission("backup.restore")
 def restore_backup(filename):
     """Restore a backup"""
+    username = get_username_from_request()
+    log_audit_event(username, "backup.restore", {"filename": filename})
+
     # Check for path traversal attacks first
     if ".." in filename or "/" in filename or "\\" in filename:
         return jsonify({"error": "Invalid backup filename"}), 400
@@ -1616,6 +2056,9 @@ def ban_player():
         reason = data.get("reason", "Banned by operator")
         if not player:
             return jsonify({"error": "Player name required"}), 400
+
+        username = get_username_from_request()
+        log_audit_event(username, "player.ban", {"player": player, "reason": reason})
 
         stdout, stderr, code = run_script("ban-manager.sh", "ban", player, reason)
         if code == 0:
@@ -1867,6 +2310,14 @@ CONFIG_ALLOWED_PATHS = {
     "update-check.conf": PROJECT_ROOT / "config" / "update-check.conf",
     "ddns.conf": PROJECT_ROOT / "config" / "ddns.conf",
 }
+
+# File Browser - Allowed directories (for security)
+ALLOWED_FILE_PATHS = [
+    PROJECT_ROOT / "data",
+    PROJECT_ROOT / "config",
+    PROJECT_ROOT / "backups",
+    PROJECT_ROOT / "scripts",
+]
 
 
 @app.route("/api/config/files", methods=["GET"])
@@ -2157,6 +2608,307 @@ def get_ddns_config():
         return jsonify({"error": f"Failed to read DDNS config: {str(e)}"}), 500
 
 
+# File Browser Endpoints
+def is_path_allowed(file_path):
+    """Check if a file path is within allowed directories"""
+    try:
+        resolved_path = Path(file_path).resolve()
+        for allowed_path in ALLOWED_FILE_PATHS:
+            try:
+                allowed_resolved = allowed_path.resolve()
+                if resolved_path.is_relative_to(allowed_resolved):
+                    return True
+            except (ValueError, OSError):
+                continue
+        return False
+    except (ValueError, OSError):
+        return False
+
+
+@app.route("/api/files/list", methods=["GET"])
+@require_permission("config.view")
+def list_files():
+    """List files and directories in a given path"""
+    try:
+        path_param = request.args.get("path", "")
+        if not path_param:
+            # List allowed root directories
+            roots = []
+            for allowed_path in ALLOWED_FILE_PATHS:
+                if allowed_path.exists():
+                    roots.append(
+                        {
+                            "name": allowed_path.name,
+                            "path": str(allowed_path.relative_to(PROJECT_ROOT)),
+                            "type": "directory",
+                            "size": 0,
+                        }
+                    )
+            return jsonify({"success": True, "files": roots, "path": ""}), 200
+
+        # Resolve path
+        file_path = PROJECT_ROOT / path_param
+        if not is_path_allowed(file_path):
+            return jsonify({"error": "Path not allowed"}), 403
+
+        if not file_path.exists():
+            return jsonify({"error": "Path not found"}), 404
+
+        if not file_path.is_dir():
+            return jsonify({"error": "Path is not a directory"}), 400
+
+        # List directory contents
+        files = []
+        try:
+            for item in file_path.iterdir():
+                try:
+                    stat = item.stat()
+                    files.append(
+                        {
+                            "name": item.name,
+                            "path": str(item.relative_to(PROJECT_ROOT)),
+                            "type": "directory" if item.is_dir() else "file",
+                            "size": stat.st_size if item.is_file() else 0,
+                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        }
+                    )
+                except (OSError, PermissionError):
+                    continue
+
+            # Sort: directories first, then files, both alphabetically
+            files.sort(key=lambda x: (x["type"] != "directory", x["name"].lower()))
+
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "files": files,
+                        "path": str(file_path.relative_to(PROJECT_ROOT)),
+                    }
+                ),
+                200,
+            )
+        except PermissionError:
+            return jsonify({"error": "Permission denied"}), 403
+    except Exception as e:
+        return jsonify({"error": f"Failed to list files: {str(e)}"}), 500
+
+
+@app.route("/api/files/read", methods=["GET"])
+@require_permission("config.view")
+def read_file():
+    """Read file content"""
+    try:
+        path_param = request.args.get("path", "")
+        if not path_param:
+            return jsonify({"error": "Path required"}), 400
+
+        file_path = PROJECT_ROOT / path_param
+        if not is_path_allowed(file_path):
+            return jsonify({"error": "Path not allowed"}), 403
+
+        if not file_path.exists():
+            return jsonify({"error": "File not found"}), 404
+
+        if not file_path.is_file():
+            return jsonify({"error": "Path is not a file"}), 400
+
+        # Check file size (limit to 1MB for safety)
+        if file_path.stat().st_size > 1024 * 1024:
+            return jsonify({"error": "File too large (max 1MB)"}), 400
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "content": content,
+                        "path": str(file_path.relative_to(PROJECT_ROOT)),
+                        "size": file_path.stat().st_size,
+                    }
+                ),
+                200,
+            )
+        except UnicodeDecodeError:
+            return jsonify({"error": "File is not a text file"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to read file: {str(e)}"}), 500
+
+
+@app.route("/api/files/write", methods=["POST"])
+@require_permission("config.edit")
+def write_file():
+    """Write file content"""
+    try:
+        data = request.get_json() or {}
+        path_param = data.get("path", "")
+        content = data.get("content", "")
+
+        if not path_param:
+            return jsonify({"error": "Path required"}), 400
+
+        file_path = PROJECT_ROOT / path_param
+        if not is_path_allowed(file_path):
+            return jsonify({"error": "Path not allowed"}), 403
+
+        # Create backup if file exists
+        backup_path = None
+        if file_path.exists():
+            backup_dir = PROJECT_ROOT / "backups" / "file-edits"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_path = backup_dir / f"{file_path.name}.{datetime.now().strftime('%Y%m%d_%H%M%S')}.backup"
+            try:
+                import shutil
+
+                shutil.copy2(file_path, backup_path)
+            except Exception:
+                pass
+
+        # Ensure parent directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write file
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "message": "File saved successfully",
+                        "path": str(file_path.relative_to(PROJECT_ROOT)),
+                        "backup": (
+                            str(backup_path.relative_to(PROJECT_ROOT)) if backup_path and backup_path.exists() else None
+                        ),
+                    }
+                ),
+                200,
+            )
+        except Exception as e:
+            # Restore from backup on failure
+            if backup_path and backup_path.exists():
+                try:
+                    import shutil
+
+                    shutil.copy2(backup_path, file_path)
+                except Exception:
+                    pass
+            return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
+
+
+@app.route("/api/files/delete", methods=["DELETE"])
+@require_permission("config.edit")
+def delete_file():
+    """Delete a file or directory"""
+    try:
+        path_param = request.args.get("path", "")
+        if not path_param:
+            return jsonify({"error": "Path required"}), 400
+
+        file_path = PROJECT_ROOT / path_param
+        if not is_path_allowed(file_path):
+            return jsonify({"error": "Path not allowed"}), 403
+
+        if not file_path.exists():
+            return jsonify({"error": "File not found"}), 404
+
+        # Prevent deleting critical directories
+        critical_paths = ["data", "config", "scripts"]
+        if any(file_path.name == cp for cp in critical_paths) and file_path.is_dir():
+            return jsonify({"error": "Cannot delete critical directory"}), 403
+
+        try:
+            if file_path.is_dir():
+                import shutil
+
+                shutil.rmtree(file_path)
+            else:
+                file_path.unlink()
+            return jsonify({"success": True, "message": "File deleted successfully"}), 200
+        except Exception as e:
+            return jsonify({"error": f"Failed to delete file: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete file: {str(e)}"}), 500
+
+
+@app.route("/api/files/upload", methods=["POST"])
+@require_permission("config.edit")
+def upload_file():
+    """Upload a file"""
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files["file"]
+        path_param = request.form.get("path", "")
+
+        if not path_param:
+            return jsonify({"error": "Path required"}), 400
+
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
+
+        # Check file size (limit to 10MB)
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset
+        if file_size > 10 * 1024 * 1024:
+            return jsonify({"error": "File too large (max 10MB)"}), 400
+
+        file_path = PROJECT_ROOT / path_param / file.filename
+        if not is_path_allowed(file_path):
+            return jsonify({"error": "Path not allowed"}), 403
+
+        # Ensure parent directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save file
+        file.save(str(file_path))
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "File uploaded successfully",
+                    "path": str(file_path.relative_to(PROJECT_ROOT)),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+
+
+@app.route("/api/files/download", methods=["GET"])
+@require_permission("config.view")
+def download_file():
+    """Download a file"""
+    try:
+        from flask import send_file
+
+        path_param = request.args.get("path", "")
+        if not path_param:
+            return jsonify({"error": "Path required"}), 400
+
+        file_path = PROJECT_ROOT / path_param
+        if not is_path_allowed(file_path):
+            return jsonify({"error": "Path not allowed"}), 403
+
+        if not file_path.exists():
+            return jsonify({"error": "File not found"}), 404
+
+        if not file_path.is_file():
+            return jsonify({"error": "Path is not a file"}), 400
+
+        return send_file(str(file_path), as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": f"Failed to download file: {str(e)}"}), 500
+
+
 @app.route("/api/ddns/config", methods=["POST"])
 @require_permission("config.edit")
 def save_ddns_config():
@@ -2290,6 +3042,35 @@ if SOCKETIO_AVAILABLE:
         logs = get_log_tail(lines)
         socketio.emit("logs", {"logs": logs, "type": "request"}, room=request.sid)
 
+    @socketio.on("execute_command")
+    def handle_execute_command(data):
+        """Handle command execution from client"""
+        command = data.get("command") if data else None
+        if not command:
+            socketio.emit("command_error", {"message": "Command required"}, room=request.sid)
+            return
+
+        # Check if user has permission (api_key already validated in connect)
+        # Execute command via RCON
+        try:
+            stdout, stderr, code = run_script("rcon-client.sh", "command", command)
+            if code == 0:
+                socketio.emit(
+                    "command_response", {"command": command, "response": stdout, "success": True}, room=request.sid
+                )
+            else:
+                socketio.emit(
+                    "command_response",
+                    {"command": command, "response": stderr or "Command failed", "success": False},
+                    room=request.sid,
+                )
+        except Exception as e:
+            socketio.emit(
+                "command_error",
+                {"message": f"Failed to execute command: {str(e)}", "command": command},
+                room=request.sid,
+            )
+
 else:
     # WebSocket not available - log warning
     print("Warning: Flask-SocketIO not available. WebSocket support disabled.")
@@ -2303,6 +3084,10 @@ if __name__ == "__main__":
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
+        socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
+    else:
+        print("WebSocket support disabled (Flask-SocketIO not available)")
+        app.run(host=API_HOST, port=API_PORT, debug=False)
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")

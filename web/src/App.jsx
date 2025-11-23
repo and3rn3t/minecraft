@@ -2,16 +2,20 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ApiKeys from './pages/ApiKeys';
+import AuditLogs from './pages/AuditLogs';
 import Backups from './pages/Backups';
 import ConfigFiles from './pages/ConfigFiles';
+import Console from './pages/Console';
 import Dashboard from './pages/Dashboard';
 import DynamicDNS from './pages/DynamicDNS';
+import FileBrowser from './pages/FileBrowser';
 import Login from './pages/Login';
 import Logs from './pages/Logs';
 import OAuthCallback from './pages/OAuthCallback';
 import Players from './pages/Players';
 import Plugins from './pages/Plugins';
 import Register from './pages/Register';
+import Scheduler from './pages/Scheduler';
 import Settings from './pages/Settings';
 import Users from './pages/Users';
 import Worlds from './pages/Worlds';
@@ -52,6 +56,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Logs />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/console"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Console />
               </Layout>
             </ProtectedRoute>
           }
@@ -107,6 +121,16 @@ function App() {
           }
         />
         <Route
+          path="/files"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <FileBrowser />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <ProtectedRoute>
@@ -132,6 +156,26 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Users />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <AuditLogs />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scheduler"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Scheduler />
               </Layout>
             </ProtectedRoute>
           }

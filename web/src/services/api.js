@@ -160,11 +160,33 @@ export const api = {
     return response.data;
   },
 
-  async login(username, password) {
+  async login(username, password, totpToken = null) {
     const response = await apiClient.post('/auth/login', {
       username,
       password,
+      totp_token: totpToken,
     });
+    return response.data;
+  },
+
+  // Two-Factor Authentication
+  async setup2FA() {
+    const response = await apiClient.post('/auth/2fa/setup');
+    return response.data;
+  },
+
+  async verify2FASetup(token) {
+    const response = await apiClient.post('/auth/2fa/verify', { token });
+    return response.data;
+  },
+
+  async disable2FA(password) {
+    const response = await apiClient.post('/auth/2fa/disable', { password });
+    return response.data;
+  },
+
+  async get2FAStatus() {
+    const response = await apiClient.get('/auth/2fa/status');
     return response.data;
   },
 
@@ -302,6 +324,86 @@ export const api = {
 
   async saveDdnsConfig(content) {
     const response = await apiClient.post('/ddns/config', { content });
+    return response.data;
+  },
+
+  // File Browser
+  async listFiles(path = '') {
+    const response = await apiClient.get('/files/list', {
+      params: { path },
+    });
+    return response.data;
+  },
+
+  async readFile(path) {
+    const response = await apiClient.get('/files/read', {
+      params: { path },
+    });
+    return response.data;
+  },
+
+  async writeFile(path, content) {
+    const response = await apiClient.post('/files/write', {
+      path,
+      content,
+    });
+    return response.data;
+  },
+
+  async deleteFile(path) {
+    const response = await apiClient.delete('/files/delete', {
+      params: { path },
+    });
+    return response.data;
+  },
+
+  async uploadFile(path, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('path', path);
+    const response = await apiClient.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async downloadFile(path) {
+    const response = await apiClient.get('/files/download', {
+      params: { path },
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  // Audit Logs
+  async getAuditLogs(limit = 100, offset = 0, action = null, username = null) {
+    const params = { limit, offset };
+    if (action) params.action = action;
+    if (username) params.username = username;
+    const response = await apiClient.get('/audit/logs', { params });
+    return response.data;
+  },
+
+  // Command Scheduler
+  async listSchedules() {
+    const response = await apiClient.get('/scheduler/schedules');
+    return response.data;
+  },
+
+  async createSchedule(schedule) {
+    const response = await apiClient.post('/scheduler/schedules', schedule);
+    return response.data;
+  },
+
+  async updateSchedule(scheduleId, schedule) {
+    const response = await apiClient.put(`/scheduler/schedules/${scheduleId}`, schedule);
+    return response.data;
+  },
+
+  async deleteSchedule(scheduleId) {
+    const response = await apiClient.delete(`/scheduler/schedules/${scheduleId}`);
     return response.data;
   },
 };

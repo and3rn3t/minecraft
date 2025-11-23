@@ -9,11 +9,95 @@ const Settings = () => {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [linking, setLinking] = useState(null);
+  const [twoFactorStatus, setTwoFactorStatus] = useState(null);
+  const [twoFactorSetup, setTwoFactorSetup] = useState(null);
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
 
   useEffect(() => {
     // Check auth on mount
     checkAuth();
+    load2FAStatus();
   }, [checkAuth]);
+
+  const load2FAStatus = async () => {
+    try {
+      const data = await api.get2FAStatus();
+      if (data.success) {
+        setTwoFactorStatus(data);
+      }
+    } catch (err) {
+      console.error('Failed to load 2FA status:', err);
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.setup2FA();
+      if (data.success) {
+        setTwoFactorSetup(data);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to setup 2FA');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (!twoFactorToken || twoFactorToken.length !== 6) {
+      setError('Please enter a valid 6-digit code');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.verify2FASetup(twoFactorToken);
+      if (data.success) {
+        setMessage('2FA enabled successfully!');
+        setTwoFactorSetup(null);
+        setTwoFactorToken('');
+        await load2FAStatus();
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Invalid verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!disablePassword) {
+      setError('Password required to disable 2FA');
+      return;
+    }
+
+    if (
+      !window.confirm(
+        'Are you sure you want to disable 2FA? This will make your account less secure.'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.disable2FA(disablePassword);
+      if (data.success) {
+        setMessage('2FA disabled successfully');
+        setDisablePassword('');
+        await load2FAStatus();
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to disable 2FA');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveApiKey = () => {
     if (apiKey) {
@@ -190,6 +274,121 @@ const Settings = () => {
               <span className="text-minecraft-text-dark">ROLE:</span>{' '}
               <span className="text-minecraft-text-light uppercase">{user.role || 'user'}</span>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Two-Factor Authentication */}
+      <div className="card-minecraft p-6 max-w-2xl mb-6">
+        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+          TWO-FACTOR AUTHENTICATION
+        </h2>
+
+        {twoFactorStatus && (
+          <div className="mb-4">
+            <div className="text-[10px] font-minecraft mb-2">
+              <span className="text-minecraft-text-dark">STATUS:</span>{' '}
+              <span
+                className={
+                  twoFactorStatus.enabled
+                    ? 'text-minecraft-grass-light'
+                    : 'text-minecraft-text-light'
+                }
+              >
+                {twoFactorStatus.enabled ? 'ENABLED' : 'DISABLED'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {twoFactorSetup ? (
+          <div className="space-y-4">
+            <div className="text-[10px] font-minecraft text-minecraft-text-light">
+              Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):
+            </div>
+            {twoFactorSetup.qr_code && (
+              <div className="flex justify-center p-4 bg-white">
+                <img
+                  src={`data:image/png;base64,${twoFactorSetup.qr_code}`}
+                  alt="2FA QR Code"
+                  className="w-48 h-48"
+                />
+              </div>
+            )}
+            <div className="text-[10px] font-minecraft text-minecraft-text-dark">
+              Or enter this secret manually:{' '}
+              <code className="bg-minecraft-dirt-DEFAULT px-2 py-1">{twoFactorSetup.secret}</code>
+            </div>
+            <div>
+              <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
+                ENTER VERIFICATION CODE
+              </label>
+              <input
+                type="text"
+                value={twoFactorToken}
+                onChange={e => setTwoFactorToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                maxLength={6}
+                className="input-minecraft w-full"
+                autoComplete="one-time-code"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleVerify2FA}
+                disabled={loading || twoFactorToken.length !== 6}
+                className="btn-minecraft-primary text-[10px] disabled:opacity-50"
+              >
+                VERIFY & ENABLE
+              </button>
+              <button
+                onClick={() => {
+                  setTwoFactorSetup(null);
+                  setTwoFactorToken('');
+                }}
+                className="btn-minecraft text-[10px]"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        ) : twoFactorStatus?.enabled ? (
+          <div className="space-y-4">
+            <div className="text-[10px] font-minecraft text-minecraft-text-light">
+              2FA is currently enabled. To disable it, enter your password below.
+            </div>
+            <div>
+              <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
+                PASSWORD
+              </label>
+              <input
+                type="password"
+                value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value)}
+                placeholder="Enter password to disable 2FA"
+                className="input-minecraft w-full"
+              />
+            </div>
+            <button
+              onClick={handleDisable2FA}
+              disabled={loading || !disablePassword}
+              className="btn-minecraft-danger text-[10px] disabled:opacity-50"
+            >
+              DISABLE 2FA
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="text-[10px] font-minecraft text-minecraft-text-light mb-4">
+              Two-factor authentication adds an extra layer of security to your account.
+            </div>
+            <button
+              onClick={handleSetup2FA}
+              disabled={loading}
+              className="btn-minecraft-primary text-[10px] disabled:opacity-50"
+            >
+              SETUP 2FA
+            </button>
           </div>
         )}
       </div>

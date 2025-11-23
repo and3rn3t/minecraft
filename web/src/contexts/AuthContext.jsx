@@ -25,18 +25,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (username, password, totpToken = null) => {
     try {
-      const data = await api.login(username, password);
+      const data = await api.login(username, password, totpToken);
       setUser(data.user);
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
       }
       return { success: true, user: data.user };
     } catch (error) {
+      const requires2FA = error.response?.data?.requires_2fa;
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Login failed',
+        requires_2fa: requires2FA,
       };
     }
   };

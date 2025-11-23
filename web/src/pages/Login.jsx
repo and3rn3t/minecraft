@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totpToken, setTotpToken] = useState('');
+  const [requires2FA, setRequires2FA] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
@@ -24,11 +26,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const result = await login(username, password);
+      const result = await login(username, password, requires2FA ? totpToken : null);
       if (result.success) {
         navigate('/dashboard');
       } else {
-        setError(result.error || 'Login failed');
+        if (result.requires_2fa) {
+          setRequires2FA(true);
+          setError('Please enter your 2FA code');
+        } else {
+          setError(result.error || 'Login failed');
+        }
       }
     } catch (err) {
       setError(err.message || 'Login failed');
@@ -87,6 +94,28 @@ const Login = () => {
               placeholder="Enter password"
             />
           </div>
+
+          {requires2FA && (
+            <div>
+              <label
+                htmlFor="totp"
+                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
+              >
+                2FA CODE
+              </label>
+              <input
+                id="totp"
+                type="text"
+                value={totpToken}
+                onChange={e => setTotpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                className="input-minecraft w-full"
+                placeholder="000000"
+                maxLength={6}
+                autoComplete="one-time-code"
+              />
+            </div>
+          )}
 
           <button
             type="submit"

@@ -14,14 +14,18 @@ const Layout = ({ children }) => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/logs', label: 'Logs', icon: '📝' },
+    { path: '/console', label: 'Console', icon: '💻' },
+    { path: '/scheduler', label: 'Scheduler', icon: '⏰' },
     { path: '/players', label: 'Players', icon: '👥' },
     { path: '/backups', label: 'Backups', icon: '💾' },
     { path: '/worlds', label: 'Worlds', icon: '🌍' },
     { path: '/plugins', label: 'Plugins', icon: '🔌' },
     { path: '/config', label: 'Config Files', icon: '📄' },
+    { path: '/files', label: 'File Browser', icon: '📂' },
     { path: '/ddns', label: 'Dynamic DNS', icon: '🌐' },
     { path: '/api-keys', label: 'API Keys', icon: '🔑' },
     { path: '/users', label: 'Users & Roles', icon: '👤' },
+    { path: '/audit', label: 'Audit Logs', icon: '📋' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
