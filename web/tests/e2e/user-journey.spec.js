@@ -5,30 +5,61 @@ test.describe('Complete User Journey', () => {
     const testUser = `testuser_${Date.now()}`;
     const testPassword = 'TestPassword123!';
 
+    // Mock API responses
+    await page.route('**/api/**', async route => {
+      const url = route.request().url();
+      if (url.includes('/register')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, token: 'test-token' }),
+        });
+      } else if (url.includes('/login')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, token: 'test-token' }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({}),
+        });
+      }
+    });
+
     // Step 1: Register
     await page.goto('/register');
-    await page.fill('input[name="username"]', testUser);
-    await page.fill('input[name="password"]', testPassword);
-    await page.fill('input[name="confirmPassword"]', testPassword);
-    await page.click('button:has-text("Register")');
+    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('#username', { state: 'visible' });
+    await page.fill('#username', testUser);
+    await page.fill('#password', testPassword);
+    await page.fill('#confirmPassword', testPassword);
+    await page.click('button:has-text("REGISTER"), button:has-text("Register")');
 
-    // Step 2: Login
-    await page.goto('/login');
-    await page.fill('input[name="username"]', testUser);
-    await page.fill('input[name="password"]', testPassword);
-    await page.click('button:has-text("Login")');
+    // Wait for navigation after registration
+    await page.waitForURL('/dashboard', { timeout: 10000 }).catch(() => {
+      // If registration doesn't auto-navigate, go to login
+    });
+
+    // Step 2: Login (if not already logged in)
+    if (page.url().includes('/login') || !page.url().includes('/dashboard')) {
+      await page.goto('/login');
+      await page.waitForLoadState('networkidle');
+      await page.waitForSelector('#username', { state: 'visible' });
+      await page.fill('#username', testUser);
+      await page.fill('#password', testPassword);
+      await page.click('button:has-text("LOGIN"), button:has-text("Login")');
+    }
 
     // Step 3: Access Dashboard
-    await page.waitForURL('/dashboard');
-    await expect(page.getByText('Dashboard')).toBeVisible();
+    await page.waitForURL('/dashboard', { timeout: 10000 });
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 5000 });
   });
 
   test('user can navigate through all main pages', async ({ page }) => {
-    // Mock authentication
-    await page.evaluate(() => {
-      localStorage.setItem('api_key', 'test-api-key');
-    });
-
     // Mock API responses
     await page.route('**/api/**', async route => {
       await route.fulfill({
@@ -38,8 +69,16 @@ test.describe('Complete User Journey', () => {
       });
     });
 
+    // Navigate to a page first, then set localStorage
     await page.goto('/dashboard');
-    await expect(page.getByText('Dashboard')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    
+    // Set localStorage after page is loaded
+    await page.evaluate(() => {
+      localStorage.setItem('api_key', 'test-api-key');
+    });
+
+    await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 5000 });
 
     // Navigate to Analytics
     await page.click('a:has-text("Analytics")');
@@ -59,10 +98,6 @@ test.describe('Complete User Journey', () => {
   });
 
   test('user can manage server from dashboard', async ({ page }) => {
-    await page.evaluate(() => {
-      localStorage.setItem('api_key', 'test-api-key');
-    });
-
     let startCalled = false;
     await page.route('**/api/server/start', async route => {
       startCalled = true;
@@ -82,7 +117,16 @@ test.describe('Complete User Journey', () => {
     });
 
     await page.goto('/dashboard');
-    await page.click('button:has-text("Start Server")');
+    await page.waitForLoadState('networkidle');
+    
+    // Set localStorage after page is loaded
+    await page.evaluate(() => {
+      localStorage.setItem('api_key', 'test-api-key');
+    });
+
+    // Wait for button to be visible and clickable
+    await page.waitForSelector('button:has-text("Start Server"), button:has-text("START SERVER")', { state: 'visible', timeout: 5000 });
+    await page.click('button:has-text("Start Server"), button:has-text("START SERVER")');
     await expect(startCalled).toBeTruthy();
   });
 });

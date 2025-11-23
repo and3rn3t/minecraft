@@ -18,6 +18,11 @@ test.describe('Visual Regression Tests', () => {
       });
     });
 
+    // Navigate to a page first to establish context
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    
+    // Set localStorage after page is loaded
     await page.evaluate(() => {
       localStorage.setItem('api_key', 'test-api-key');
     });
