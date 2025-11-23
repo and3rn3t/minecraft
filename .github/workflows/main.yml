@@ -198,6 +198,10 @@ jobs:
 
       - name: Download Raspberry Pi OS Lite
         run: |
+          echo "📥 Downloading Raspberry Pi OS Lite (64-bit) image..."
+          echo "This may take 5-15 minutes depending on connection speed..."
+          echo "Starting at: $(date '+%Y-%m-%d %H:%M:%S')"
+          
           # Download Raspberry Pi OS Lite (64-bit) image
           # Using a known stable version URL
           set +e
@@ -210,35 +214,42 @@ jobs:
           )
 
           DOWNLOADED=false
+          URL_NUM=1
           for URL in "${URLS[@]}"; do
-            echo "Trying URL: $URL"
-            if wget -q --show-progress --timeout=60 --tries=2 \
+            echo ""
+            echo "🔄 Attempt $URL_NUM/${#URLS[@]}: Trying to download from Raspberry Pi..."
+            echo "URL: ${URL:0:80}..."
+            if wget --progress=bar:force:noscroll --timeout=60 --tries=2 \
               --user-agent="Mozilla/5.0" \
               "$URL" \
-              -O raspios-lite.img.xz; then
+              -O raspios-lite.img.xz 2>&1 | grep -E "(Connecting|Downloading|saved|ERROR)" || true; then
               # Verify file exists and has reasonable size
               if [ -f raspios-lite.img.xz ]; then
                 FILE_SIZE=$(stat -c%s raspios-lite.img.xz 2>/dev/null || echo "0")
                 if [ "$FILE_SIZE" -gt 104857600 ]; then
-                  echo "Download successful from: $URL"
-                  echo "File size: $(numfmt --to=iec-i --suffix=B $FILE_SIZE)"
+                  echo ""
+                  echo "✅ Download successful!"
+                  echo "📦 File size: $(numfmt --to=iec-i --suffix=B $FILE_SIZE 2>/dev/null || echo "${FILE_SIZE} bytes")"
+                  echo "Completed at: $(date '+%Y-%m-%d %H:%M:%S')"
                   DOWNLOADED=true
                   break
                 else
-                  echo "File too small ($FILE_SIZE bytes), trying next URL..."
+                  echo "❌ File too small ($FILE_SIZE bytes), trying next URL..."
                   rm -f raspios-lite.img.xz
                 fi
               fi
             else
-              echo "Download failed, trying next URL..."
+              echo "❌ Download failed, trying next URL..."
               rm -f raspios-lite.img.xz
             fi
+            URL_NUM=$((URL_NUM + 1))
           done
 
           set -e
 
           if [ "$DOWNLOADED" != "true" ]; then
-            echo "Error: All download attempts failed"
+            echo ""
+            echo "❌ Error: All download attempts failed"
             echo "Please check Raspberry Pi download page for latest URL:"
             echo "https://www.raspberrypi.com/software/operating-systems/"
             exit 1
@@ -309,9 +320,12 @@ jobs:
           echo "✅ Partitions mounted"
 
           # Enable SSH
+          echo "🔐 Enabling SSH..."
           sudo touch /mnt/rpi-boot/ssh
+          echo "✅ SSH enabled"
 
           # Configure WiFi (optional - can be customized)
+          echo "📶 Configuring WiFi..."
           cat << EOF | sudo tee /mnt/rpi-boot/wpa_supplicant.conf > /dev/null
           ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
           update_config=1
@@ -323,11 +337,15 @@ jobs:
                psk="${{ secrets.WIFI_PASSWORD }}"
            }
           EOF
+          echo "✅ WiFi configured"
 
           # Set hostname
+          echo "🏷️  Setting hostname..."
           echo "minecraft-server" | sudo tee /mnt/rpi-root/etc/hostname
+          echo "✅ Hostname set to: minecraft-server"
 
           # Create first-boot script
+          echo "📝 Creating first-boot setup script..."
           cat << 'SCRIPT' | sudo tee /mnt/rpi-root/usr/local/bin/minecraft-firstboot.sh > /dev/null
           #!/bin/bash
           # First boot script for Minecraft Server setup
@@ -408,6 +426,7 @@ jobs:
 
           sudo ln -sf /etc/systemd/system/minecraft-firstboot.service \
             /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/minecraft-firstboot.service
+          echo "✅ First-boot service configured"
 
           # Unmount
           echo "🔓 Unmounting partitions..."
