@@ -197,14 +197,14 @@ jobs:
           # Download Raspberry Pi OS Lite (64-bit) image
           # Using a known stable version URL
           set +e
-          
+
           # List of known-good URLs to try
           URLS=(
             "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-01-11/2024-01-11-raspios-bookworm-arm64-lite.img.xz"
             "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2023-12-05/2023-12-05-raspios-bookworm-arm64-lite.img.xz"
             "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2023-10-10/2023-10-10-raspios-bookworm-arm64-lite.img.xz"
           )
-          
+
           DOWNLOADED=false
           for URL in "${URLS[@]}"; do
             echo "Trying URL: $URL"
@@ -230,9 +230,9 @@ jobs:
               rm -f raspios-lite.img.xz
             fi
           done
-          
+
           set -e
-          
+
           if [ "$DOWNLOADED" != "true" ]; then
             echo "Error: All download attempts failed"
             echo "Please check Raspberry Pi download page for latest URL:"
