@@ -1,0 +1,82 @@
+import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+
+/**
+ * Playwright configuration for end-to-end tests
+ * Tests are located in tests/e2e/browser/
+ */
+export default defineConfig({
+  // Test directory - point to the actual test location (relative to web/)
+  testDir: path.join(__dirname, '../tests/e2e/browser'),
+  
+  // Test match pattern - only match .spec.js files
+  testMatch: /.*\.spec\.js/,
+  
+  // Exclude Vitest files and source files from Playwright
+  testIgnore: [
+    '**/node_modules/**',
+    '**/src/**',
+    '**/vitest.config.js',
+    '**/src/test/**',
+    '**/*.test.jsx',
+    '**/*.test.js',
+    '**/web/src/**',
+  ],
+  
+  // Resolve modules from web/node_modules
+  resolve: {
+    modules: [path.join(__dirname, 'node_modules')],
+  },
+  
+  // Maximum time one test can run for
+  timeout: 30 * 1000,
+  
+  // Test execution
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  
+  // Reporter configuration
+  reporter: [
+    ['html', { outputFolder: 'playwright-report' }],
+    ['list'],
+  ],
+  
+  // Shared settings for all projects
+  use: {
+    // Base URL for tests
+    baseURL: 'http://localhost:5173',
+    
+    // Collect trace when retrying the failed test
+    trace: 'on-first-retry',
+    
+    // Screenshot on failure
+    screenshot: 'only-on-failure',
+  },
+
+  // Configure projects for major browsers
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
+
+  // Run your local dev server before starting the tests
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+  },
+});
+
