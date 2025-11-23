@@ -244,10 +244,10 @@ jobs:
           country=US
 
           # Uncomment and configure for WiFi:
-          # network={
-          #     ssid="YOUR_WIFI_SSID"
-          #     psk="YOUR_WIFI_PASSWORD"
-          # }
+           network={
+               ssid="Andernet"
+               psk="J0nah$ilas55700"
+           }
           EOF
 
           # Set hostname
@@ -393,7 +393,7 @@ jobs:
           echo "| Frontend Tests | ${{ needs.frontend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Playwright Tests | ${{ needs.playwright-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Build | ${{ needs.build-docker.result }} |" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.python-tests.result }}" != "success" ] || \
              [ "${{ needs.bash-tests.result }}" != "success" ] || \
@@ -403,4 +403,3 @@ jobs:
           else
             echo "✅ All critical jobs passed!" >> $GITHUB_STEP_SUMMARY
           fi
-

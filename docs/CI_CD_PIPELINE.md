@@ -34,11 +34,13 @@ All jobs ──> summary
 ## Non-Blocking Tests
 
 ### Frontend Tests
+
 - **Status**: Non-blocking (`continue-on-error: true`)
 - **Purpose**: Unit tests for React components
 - **Failure Impact**: Pipeline continues, failure is reported in summary
 
 ### Playwright Tests
+
 - **Status**: Non-blocking (`continue-on-error: true`)
 - **Purpose**: End-to-end browser automation tests
 - **Timeout**: 60 minutes
@@ -50,6 +52,7 @@ All jobs ──> summary
 ### When Images Are Built
 
 Images are automatically built when:
+
 - Pushing to `main` branch
 - Manual workflow dispatch with `build_image: true`
 - Creating a release tag
@@ -81,23 +84,27 @@ The generated `.img` file includes:
 ### Using the Image
 
 1. **Download** the `.img.xz` file from:
+
    - Workflow artifacts (for main branch builds)
    - GitHub Releases (for tagged releases)
 
 2. **Extract** the image:
+
    ```bash
    xz -d minecraft-server-rpi5-YYYYMMDD.img.xz
    ```
 
 3. **Flash** to microSD card:
+
    ```bash
    # On Linux/macOS
    sudo dd if=minecraft-server-rpi5-YYYYMMDD.img of=/dev/sdX bs=4M status=progress
-   
+
    # Or use Raspberry Pi Imager
    ```
 
 4. **Boot** the Raspberry Pi:
+
    - Insert microSD card
    - Connect power and network
    - Wait 10-20 minutes for first-boot setup
@@ -121,33 +128,38 @@ The generated `.img` file includes:
 ### Manual Triggers
 
 Use GitHub Actions UI to manually trigger:
+
 - Run all tests
 - Build image (set `build_image: true`)
 
 ## Critical vs Non-Critical Jobs
 
 ### Critical (Must Pass)
+
 - ✅ Lint
 - ✅ Python Tests
 - ✅ Bash Tests
 - ✅ Docker Build
 
 ### Non-Critical (Can Fail)
+
 - ⚠️ Frontend Tests
 - ⚠️ Playwright Tests
 
 ## Artifacts
 
 ### Playwright Report
+
 - **Location**: `web/playwright-report/`
 - **Retention**: 30 days
 - **Access**: Download from workflow run
 
 ### Raspberry Pi Image
+
 - **Location**: Root directory
 - **Format**: `.img.xz` (compressed)
 - **Retention**: 90 days
-- **Access**: 
+- **Access**:
   - Artifacts (main branch)
   - GitHub Releases (tags)
 
@@ -167,9 +179,11 @@ Since Playwright tests are non-blocking, failures won't block the pipeline. To i
 Common issues:
 
 1. **Download timeout**: Raspberry Pi OS download may timeout
+
    - **Solution**: Workflow will retry, or manually trigger
 
 2. **Disk space**: Image building requires ~10GB free space
+
    - **Solution**: GitHub Actions runners have sufficient space
 
 3. **QEMU issues**: ARM emulation may fail
@@ -178,6 +192,7 @@ Common issues:
 ### Pipeline Summary
 
 The summary job provides an overview of all job results. Check the workflow run summary for:
+
 - Job status (✅ success, ❌ failure, ⚠️ skipped)
 - Critical job failures
 - Non-critical job warnings
@@ -193,9 +208,10 @@ The old separate workflows are still present but can be disabled:
 - `release.yml` → Image building replaces Docker image push
 
 To disable old workflows, add this to each:
+
 ```yaml
 on:
-  workflow_dispatch:  # Only manual trigger
+  workflow_dispatch: # Only manual trigger
 ```
 
 ## Future Enhancements
@@ -207,4 +223,3 @@ Potential improvements:
 3. **Image signing**: Sign images for security
 4. **Automated testing**: Test the built image in QEMU
 5. **Multi-architecture**: Support Raspberry Pi 4 (ARM32)
-
