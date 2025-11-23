@@ -123,32 +123,36 @@ class TestMetricsComprehensive:
 class TestConfigFilesComprehensive:
     """Comprehensive tests for config file endpoints"""
 
-    @patch("api.server.CONFIG_ALLOWED_PATHS")
     @patch("builtins.open", create=True)
-    def test_get_config_file_success(self, mock_open, mock_config_paths, client, mock_api_key):
+    def test_get_config_file_success(self, mock_open, client, mock_api_key):
         """Test successful config file retrieval"""
         from pathlib import Path
-        from unittest.mock import MagicMock
+        from unittest.mock import MagicMock, patch, mock_open as mock_file_open
         
-        # Create a mock path that exists
+        # Create a proper mock path
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = True
         mock_path.is_file.return_value = True
+        mock_path.stat.return_value.st_size = 12
+        # Mock relative_to to return a string path
         mock_path.relative_to.return_value = Path("data/server.properties")
-        mock_config_paths.__getitem__.return_value = mock_path
-        mock_config_paths.__contains__.return_value = True
+        # Make str() work on the mock
+        mock_path.__str__ = MagicMock(return_value="data/server.properties")
         
         # Mock file content
-        mock_file = MagicMock()
-        mock_file.read.return_value = "test content"
-        mock_open.return_value.__enter__.return_value = mock_file
+        mock_file_content = "test content"
+        mock_file = mock_file_open(read_data=mock_file_content)
+        mock_open.return_value = mock_file.return_value
 
         with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
-            # Also patch CONFIG_ALLOWED_PATHS to return our mock
             with patch("api.server.CONFIG_ALLOWED_PATHS", {"server.properties": mock_path}):
-                response = client.get("/api/config/files/server.properties", headers={"X-API-Key": mock_api_key})
+                # Mock PROJECT_ROOT to avoid path issues
+                mock_project_root = MagicMock(spec=Path)
+                mock_project_root.__truediv__ = MagicMock(return_value=mock_path)
+                with patch("api.server.PROJECT_ROOT", mock_project_root):
+                    response = client.get("/api/config/files/server.properties", headers={"X-API-Key": mock_api_key})
 
-        assert response.status_code == 200
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.data.decode() if hasattr(response.data, 'decode') else response.data}"
         data = json.loads(response.data)
         assert "content" in data or "file" in data
 
