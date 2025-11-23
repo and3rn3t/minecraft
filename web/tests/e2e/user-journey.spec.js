@@ -12,13 +12,28 @@ test.describe('Complete User Journey', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ success: true, token: 'test-token' }),
+          body: JSON.stringify({ 
+            success: true, 
+            token: 'test-token',
+            user: { username: testUser, role: 'user' }
+          }),
         });
       } else if (url.includes('/login')) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ success: true, token: 'test-token' }),
+          body: JSON.stringify({ 
+            success: true, 
+            token: 'test-token',
+            user: { username: testUser, role: 'user' }
+          }),
+        });
+      } else if (url.includes('/user') || url.includes('/current')) {
+        // Mock getCurrentUser for AuthContext
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ username: testUser, role: 'user' }),
         });
       } else {
         await route.fulfill({
@@ -60,25 +75,39 @@ test.describe('Complete User Journey', () => {
   });
 
   test('user can navigate through all main pages', async ({ page }) => {
-    // Mock API responses
-    await page.route('**/api/**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({}),
-      });
-    });
-
-    // Navigate to a page first, then set localStorage
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
-
-    // Set localStorage after page is loaded
+    // Set localStorage before navigation
+    await page.goto('/');
     await page.evaluate(() => {
       localStorage.setItem('api_key', 'test-api-key');
     });
 
-    await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 5000 });
+    // Mock API responses
+    await page.route('**/api/**', async route => {
+      const url = route.request().url();
+      if (url.includes('/user') || url.includes('/current')) {
+        // Mock getCurrentUser for AuthContext
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ username: 'testuser', role: 'user' }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({}),
+        });
+      }
+    });
+
+    // Navigate to dashboard
+    await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
+    // Wait for loading to complete
+    await page.waitForSelector('text=/dashboard/i, text=/Loading/i', { state: 'visible', timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+
+    await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Analytics
     await page.click('a:has-text("Analytics")');
@@ -98,31 +127,48 @@ test.describe('Complete User Journey', () => {
   });
 
   test('user can manage server from dashboard', async ({ page }) => {
-    let startCalled = false;
-    await page.route('**/api/server/start', async route => {
-      startCalled = true;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true }),
-      });
+    // Set localStorage before navigation
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('api_key', 'test-api-key');
     });
 
-    await page.route('**/api/status', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ running: false, status: 'Stopped' }),
-      });
+    let startCalled = false;
+    await page.route('**/api/**', async route => {
+      const url = route.request().url();
+      if (url.includes('/server/start')) {
+        startCalled = true;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true }),
+        });
+      } else if (url.includes('/status')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ running: false, status: 'Stopped' }),
+        });
+      } else if (url.includes('/user') || url.includes('/current')) {
+        // Mock getCurrentUser for AuthContext
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ username: 'testuser', role: 'user' }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({}),
+        });
+      }
     });
 
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
-
-    // Set localStorage after page is loaded
-    await page.evaluate(() => {
-      localStorage.setItem('api_key', 'test-api-key');
-    });
+    // Wait for loading to complete
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
 
     // Wait for button to be visible and clickable
     await page.waitForSelector('button:has-text("Start Server"), button:has-text("START SERVER")', {
