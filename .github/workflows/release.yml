@@ -1,9 +1,10 @@
-name: Release
+name: Release (DISABLED - Use main.yml instead)
 
+# This workflow is disabled in favor of the unified main.yml workflow
+# Release functionality (Docker image build) is included in main.yml
+# Raspberry Pi image building is also in main.yml
+# Kept for reference only - can be manually triggered if needed
 on:
-  push:
-    tags:
-      - 'v*.*.*' # Triggers on version tags like v1.4.0
   workflow_dispatch:
     inputs:
       version:

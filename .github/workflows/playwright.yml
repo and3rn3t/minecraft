@@ -1,10 +1,10 @@
-name: Playwright Tests
+name: Playwright Tests (DISABLED - Use main.yml instead)
 
+# This workflow is disabled in favor of the unified main.yml workflow
+# Playwright tests are now non-blocking in main.yml
+# Kept for reference only - can be manually triggered if needed
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:

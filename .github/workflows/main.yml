@@ -245,8 +245,8 @@ jobs:
 
           # Uncomment and configure for WiFi:
            network={
-               ssid="Andernet"
-               psk="J0nah$ilas55700"
+               ssid="${{ secrets.WIFI_SSID }}"
+               psk="${{ secrets.WIFI_PASSWORD }}"
            }
           EOF
 

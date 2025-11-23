@@ -1,10 +1,9 @@
-name: Coverage
+name: Coverage (DISABLED - Use main.yml instead)
 
+# This workflow is disabled in favor of the unified main.yml workflow
+# Coverage is included in the python-tests job in main.yml
+# Kept for reference only - can be manually triggered if needed
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
