@@ -247,6 +247,42 @@ export const api = {
     const response = await apiClient.put(`/keys/${keyId}/disable`);
     return response.data;
   },
+
+  // User and Role Management
+  async listUsers() {
+    const response = await apiClient.get('/users');
+    return response.data;
+  },
+
+  async updateUserRole(username, role) {
+    const response = await apiClient.put(`/users/${username}/role`, { role });
+    return response.data;
+  },
+
+  async deleteUser(username) {
+    const response = await apiClient.delete(`/users/${username}`);
+    return response.data;
+  },
+
+  async enableUser(username) {
+    const response = await apiClient.put(`/users/${username}/enable`);
+    return response.data;
+  },
+
+  async disableUser(username) {
+    const response = await apiClient.put(`/users/${username}/disable`);
+    return response.data;
+  },
+
+  async getPermissions() {
+    const response = await apiClient.get('/permissions');
+    return response.data;
+  },
+
+  async listRoles() {
+    const response = await apiClient.get('/roles');
+    return response.data;
+  },
 };
 
 export default api;

@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react'
-import { api } from '../services/api'
-import StatusCard from '../components/StatusCard'
-import MetricsChart from '../components/MetricsChart'
+import { useEffect, useState } from 'react';
+import MetricsChart from '../components/MetricsChart';
+import StatusCard from '../components/StatusCard';
+import { api } from '../services/api';
 
 const Dashboard = () => {
-  const [status, setStatus] = useState(null)
-  const [metrics, setMetrics] = useState(null)
-  const [players, setPlayers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 5000) // Update every 5 seconds
-    return () => clearInterval(interval)
-  }, [])
+    loadData();
+    const interval = setInterval(loadData, 5000); // Update every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -21,50 +21,52 @@ const Dashboard = () => {
         api.getStatus(),
         api.getMetrics(),
         api.getPlayers(),
-      ])
-      setStatus(statusData)
-      setMetrics(metricsData)
-      setPlayers(playersData.players || [])
+      ]);
+      setStatus(statusData);
+      setMetrics(metricsData);
+      setPlayers(playersData.players || []);
     } catch (error) {
-      console.error('Failed to load dashboard data:', error)
+      console.error('Failed to load dashboard data:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleServerAction = async (action) => {
+  const handleServerAction = async action => {
     try {
       if (action === 'start') {
-        await api.startServer()
+        await api.startServer();
       } else if (action === 'stop') {
-        await api.stopServer()
+        await api.stopServer();
       } else if (action === 'restart') {
-        await api.restartServer()
+        await api.restartServer();
       }
-      setTimeout(loadData, 2000) // Reload after action
+      setTimeout(loadData, 2000); // Reload after action
     } catch (error) {
-      console.error(`Failed to ${action} server:`, error)
-      alert(`Failed to ${action} server: ${error.message}`)
+      console.error(`Failed to ${action} server:`, error);
+      alert(`Failed to ${action} server: ${error.message}`);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-xl">Loading...</div>
+        <div className="text-sm font-minecraft text-minecraft-text-light">LOADING...</div>
       </div>
-    )
+    );
   }
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
+        DASHBOARD
+      </h1>
 
       {/* Server Status */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatusCard
           title="Server Status"
-          value={status?.running ? 'Online' : 'Offline'}
+          value={status?.running ? 'ONLINE' : 'OFFLINE'}
           status={status?.running ? 'success' : 'error'}
           icon="🟢"
         />
@@ -74,57 +76,61 @@ const Dashboard = () => {
           status="info"
           icon="👥"
         />
-        <StatusCard
-          title="Uptime"
-          value={status?.status || 'Unknown'}
-          status="info"
-          icon="⏱️"
-        />
+        <StatusCard title="Uptime" value={status?.status || 'UNKNOWN'} status="info" icon="⏱️" />
       </div>
 
       {/* Server Controls */}
-      <div className="bg-gray-800 rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Server Controls</h2>
+      <div className="card-minecraft p-6 mb-8">
+        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+          SERVER CONTROLS
+        </h2>
         <div className="flex gap-4">
           <button
             onClick={() => handleServerAction('start')}
             disabled={status?.running}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
+            className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Start Server
+            START SERVER
           </button>
           <button
             onClick={() => handleServerAction('stop')}
             disabled={!status?.running}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
+            className="btn-minecraft-danger text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Stop Server
+            STOP SERVER
           </button>
           <button
             onClick={() => handleServerAction('restart')}
             disabled={!status?.running}
-            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
+            className="btn-minecraft text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Restart Server
+            RESTART SERVER
           </button>
         </div>
       </div>
 
       {/* Metrics */}
       {metrics && (
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Server Metrics</h2>
+        <div className="card-minecraft p-6">
+          <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+            SERVER METRICS
+          </h2>
           <MetricsChart metrics={metrics} />
         </div>
       )}
 
       {/* Online Players */}
       {players.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-6 mt-8">
-          <h2 className="text-xl font-semibold mb-4">Online Players</h2>
+        <div className="card-minecraft p-6 mt-8">
+          <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+            ONLINE PLAYERS
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {players.map((player, index) => (
-              <div key={index} className="bg-gray-700 rounded p-3 text-center">
+              <div
+                key={index}
+                className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-3 text-center text-[10px] font-minecraft text-minecraft-text-light"
+              >
                 {player}
               </div>
             ))}
@@ -132,8 +138,7 @@ const Dashboard = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
-
+export default Dashboard;

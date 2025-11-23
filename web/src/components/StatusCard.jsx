@@ -1,20 +1,20 @@
 const StatusCard = ({ title, value, status, icon }) => {
   const statusColors = {
-    success: 'bg-green-600',
-    error: 'bg-red-600',
-    warning: 'bg-yellow-600',
-    info: 'bg-blue-600',
+    success: 'bg-minecraft-grass-DEFAULT',
+    error: 'bg-[#C62828]',
+    warning: 'bg-[#F57C00]',
+    info: 'bg-minecraft-water-DEFAULT',
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
+    <div className="card-minecraft p-6">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-400">{title}</h3>
-        <span className="text-2xl">{icon}</span>
+        <h3 className="text-[10px] font-minecraft text-minecraft-text-dark uppercase">{title}</h3>
+        <span className="text-xl">{icon}</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className={`w-3 h-3 rounded-full ${statusColors[status] || statusColors.info}`}></div>
-        <p className="text-2xl font-bold">{value}</p>
+        <div className={`w-3 h-3 ${statusColors[status] || statusColors.info]}`} style={{ imageRendering: 'pixelated' }}></div>
+        <p className="text-lg font-minecraft text-minecraft-text-light">{value}</p>
       </div>
     </div>
   )

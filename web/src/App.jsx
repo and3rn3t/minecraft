@@ -12,6 +12,7 @@ import Players from './pages/Players';
 import Plugins from './pages/Plugins';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
+import Users from './pages/Users';
 import Worlds from './pages/Worlds';
 
 function App() {
@@ -120,6 +121,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <ApiKeys />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Users />
               </Layout>
             </ProtectedRoute>
           }

@@ -38,21 +38,26 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold mb-8 text-center">Minecraft Admin</h1>
-        <h2 className="text-2xl font-semibold mb-6 text-center">Login</h2>
+    <div className="min-h-screen flex items-center justify-center bg-minecraft-background-DEFAULT">
+      <div className="card-minecraft p-8 w-full max-w-md">
+        <h1 className="text-xl font-minecraft text-minecraft-grass-light mb-6 text-center leading-tight">
+          MINECRAFT ADMIN
+        </h1>
+        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-6 text-center">LOGIN</h2>
 
         {error && (
-          <div className="bg-red-900/50 border border-red-700 rounded p-4 mb-6 text-red-300">
+          <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium mb-2">
-              Username
+            <label
+              htmlFor="username"
+              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
+            >
+              USERNAME
             </label>
             <input
               id="username"
@@ -60,14 +65,17 @@ const Login = () => {
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
-              className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-primary-500"
+              className="input-minecraft w-full"
               placeholder="Enter username"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-2">
-              Password
+            <label
+              htmlFor="password"
+              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
+            >
+              PASSWORD
             </label>
             <input
               id="password"
@@ -75,7 +83,7 @@ const Login = () => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-primary-500"
+              className="input-minecraft w-full"
               placeholder="Enter password"
             />
           </div>
@@ -83,24 +91,27 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
+            className="btn-minecraft-primary w-full text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'LOGGING IN...' : 'LOGIN'}
           </button>
         </form>
 
         <OAuthButtons />
 
-        <div className="mt-6 text-center text-sm text-gray-400">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-primary-400 hover:text-primary-300">
-            Register here
+        <div className="mt-6 text-center text-[10px] font-minecraft text-minecraft-text-dark">
+          DON&apos;T HAVE AN ACCOUNT?{' '}
+          <Link
+            to="/register"
+            className="text-minecraft-grass-light hover:text-minecraft-grass-DEFAULT"
+          >
+            REGISTER HERE
           </Link>
         </div>
 
-        <div className="mt-4 text-center text-xs text-gray-500">
-          <Link to="/dashboard" className="hover:text-gray-400">
-            Continue with API Key
+        <div className="mt-4 text-center text-[8px] font-minecraft text-minecraft-text-dark">
+          <Link to="/dashboard" className="hover:text-minecraft-text-light">
+            CONTINUE WITH API KEY
           </Link>
         </div>
       </div>

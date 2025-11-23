@@ -151,7 +151,7 @@ def generate_api_key():
 
 
 def require_api_key(f):
-    """Decorator to require API key authentication"""
+    """Decorator to require API key authentication (grants admin permissions)"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -171,6 +171,9 @@ def require_api_key(f):
 
         # Store key info in request context
         request.api_key_info = key_info
+        # Set virtual admin user for permission checks (API keys have admin access)
+        request.user = "__api_key__"
+        request.user_info = {"role": "admin", "username": "__api_key__"}
         return f(*args, **kwargs)
 
     return decorated_function
@@ -252,6 +255,129 @@ def verify_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+
+
+# Permission System
+# Define permissions as constants
+PERMISSIONS = {
+    # Server control
+    "server.view": "View server status",
+    "server.control": "Control server (start/stop/restart)",
+    "server.command": "Send commands to server",
+    # Backup management
+    "backup.create": "Create backups",
+    "backup.restore": "Restore backups",
+    "backup.delete": "Delete backups",
+    "backup.view": "View backup list",
+    # Configuration
+    "config.view": "View configuration files",
+    "config.edit": "Edit configuration files",
+    # Player management
+    "players.view": "View player list",
+    "players.manage": "Manage players (ban/whitelist/op)",
+    # World management
+    "worlds.view": "View world list",
+    "worlds.manage": "Manage worlds (create/delete/switch)",
+    # Plugin management
+    "plugins.view": "View plugin list",
+    "plugins.manage": "Manage plugins (install/remove/enable/disable)",
+    # User management
+    "users.view": "View user list",
+    "users.manage": "Manage users (create/edit/delete/roles)",
+    # API key management
+    "api_keys.view": "View API keys",
+    "api_keys.manage": "Manage API keys (create/delete/enable/disable)",
+    # Logs
+    "logs.view": "View server logs",
+    # Metrics
+    "metrics.view": "View server metrics",
+}
+
+# Role to permissions mapping
+ROLE_PERMISSIONS = {
+    "admin": list(PERMISSIONS.keys()),  # Admins have all permissions
+    "user": [
+        "server.view",
+        "backup.view",
+        "backup.create",
+        "config.view",
+        "players.view",
+        "worlds.view",
+        "plugins.view",
+        "logs.view",
+        "metrics.view",
+    ],
+    "operator": [
+        "server.view",
+        "server.control",
+        "server.command",
+        "backup.create",
+        "backup.view",
+        "backup.restore",
+        "config.view",
+        "config.edit",
+        "players.view",
+        "players.manage",
+        "worlds.view",
+        "worlds.manage",
+        "plugins.view",
+        "plugins.manage",
+        "logs.view",
+        "metrics.view",
+    ],
+}
+
+
+def get_user_permissions(username):
+    """Get list of permissions for a user based on their role"""
+    if username not in USERS:
+        return []
+    user_role = USERS[username].get("role", "user")
+    return ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS["user"])
+
+
+def has_permission(username, permission):
+    """Check if user has a specific permission"""
+    # API keys have admin access
+    if username == "__api_key__":
+        return True
+    if username not in USERS:
+        return False
+    user_role = USERS[username].get("role", "user")
+    # Admins have all permissions
+    if user_role == "admin":
+        return True
+    user_permissions = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS["user"])
+    return permission in user_permissions
+
+
+def require_permission(permission):
+    """Decorator to require a specific permission"""
+
+    def decorator(f):
+        @wraps(f)
+        @require_auth
+        def decorated_function(*args, **kwargs):
+            username = getattr(request, "user", None)
+            if not username:
+                return jsonify({"error": "Authentication required"}), 401
+
+            if not has_permission(username, permission):
+                return (
+                    jsonify(
+                        {
+                            "error": "Permission denied",
+                            "required_permission": permission,
+                        }
+                    ),
+                    403,
+                )
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+
+    return decorator
 
 
 def require_auth(f):
@@ -831,7 +957,7 @@ def apple_oauth_callback():
 
 # API Key Management Endpoints
 @app.route("/api/keys", methods=["GET"])
-@require_auth
+@require_permission("api_keys.view")
 def list_api_keys():
     """List all API keys (without showing full key values)"""
     try:
@@ -852,7 +978,7 @@ def list_api_keys():
 
 
 @app.route("/api/keys", methods=["POST"])
-@require_auth
+@require_permission("api_keys.manage")
 def create_api_key():
     """Create a new API key"""
     try:
@@ -895,7 +1021,7 @@ def create_api_key():
 
 
 @app.route("/api/keys/<key_id>", methods=["DELETE"])
-@require_auth
+@require_permission("api_keys.manage")
 def delete_api_key(key_id):
     """Delete an API key"""
     try:
@@ -922,7 +1048,7 @@ def delete_api_key(key_id):
 
 
 @app.route("/api/keys/<key_id>/enable", methods=["PUT"])
-@require_auth
+@require_permission("api_keys.manage")
 def enable_api_key(key_id):
     """Enable an API key"""
     try:
@@ -947,7 +1073,7 @@ def enable_api_key(key_id):
 
 
 @app.route("/api/keys/<key_id>/disable", methods=["PUT"])
-@require_auth
+@require_permission("api_keys.manage")
 def disable_api_key(key_id):
     """Disable an API key"""
     try:
@@ -971,8 +1097,201 @@ def disable_api_key(key_id):
         return jsonify({"error": f"Failed to disable API key: {str(e)}"}), 500
 
 
+# Role and Permission Management Endpoints
+@app.route("/api/users", methods=["GET"])
+@require_permission("users.view")
+def list_users():
+    """List all users (without sensitive information)"""
+    try:
+        users_list = []
+        for username, user_info in USERS.items():
+            users_list.append(
+                {
+                    "username": username,
+                    "role": user_info.get("role", "user"),
+                    "email": user_info.get("email", ""),
+                    "enabled": user_info.get("enabled", True),
+                    "created": user_info.get("created", ""),
+                }
+            )
+        return jsonify({"success": True, "users": users_list}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to list users: {str(e)}"}), 500
+
+
+@app.route("/api/users/<username>/role", methods=["PUT"])
+@require_permission("users.manage")
+def update_user_role(username):
+    """Update a user's role"""
+    try:
+        if username not in USERS:
+            return jsonify({"error": "User not found"}), 404
+
+        data = request.get_json() or {}
+        new_role = data.get("role")
+
+        if not new_role:
+            return jsonify({"error": "Role is required"}), 400
+
+        # Validate role
+        if new_role not in ROLE_PERMISSIONS:
+            return (
+                jsonify({"error": f"Invalid role. Valid roles: {', '.join(ROLE_PERMISSIONS.keys())}"}),
+                400,
+            )
+
+        # Prevent removing the last admin
+        if USERS[username].get("role") == "admin" and new_role != "admin":
+            admin_count = sum(1 for u in USERS.values() if u.get("role") == "admin" and u.get("enabled", True))
+            if admin_count <= 1:
+                return (
+                    jsonify({"error": "Cannot remove the last admin. At least one admin user must exist."}),
+                    400,
+                )
+
+        USERS[username]["role"] = new_role
+
+        if not save_users():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": f"User role updated to {new_role}",
+                    "user": {"username": username, "role": new_role},
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to update user role: {str(e)}"}), 500
+
+
+@app.route("/api/users/<username>", methods=["DELETE"])
+@require_permission("users.manage")
+def delete_user(username):
+    """Delete a user"""
+    try:
+        if username not in USERS:
+            return jsonify({"error": "User not found"}), 404
+
+        # Prevent deleting the last admin
+        if USERS[username].get("role") == "admin":
+            admin_count = sum(1 for u in USERS.values() if u.get("role") == "admin" and u.get("enabled", True))
+            if admin_count <= 1:
+                return (
+                    jsonify({"error": "Cannot delete the last admin. At least one admin user must exist."}),
+                    400,
+                )
+
+        # Prevent users from deleting themselves
+        current_user = getattr(request, "user", None)
+        if current_user == username:
+            return jsonify({"error": "Cannot delete your own account"}), 400
+
+        del USERS[username]
+
+        if not save_users():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return jsonify({"success": True, "message": f"User '{username}' deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete user: {str(e)}"}), 500
+
+
+@app.route("/api/users/<username>/enable", methods=["PUT"])
+@require_permission("users.manage")
+def enable_user(username):
+    """Enable a user account"""
+    try:
+        if username not in USERS:
+            return jsonify({"error": "User not found"}), 404
+
+        USERS[username]["enabled"] = True
+
+        if not save_users():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return jsonify({"success": True, "message": "User enabled"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to enable user: {str(e)}"}), 500
+
+
+@app.route("/api/users/<username>/disable", methods=["PUT"])
+@require_permission("users.manage")
+def disable_user(username):
+    """Disable a user account"""
+    try:
+        if username not in USERS:
+            return jsonify({"error": "User not found"}), 404
+
+        # Prevent disabling the last admin
+        if USERS[username].get("role") == "admin":
+            admin_count = sum(1 for u in USERS.values() if u.get("role") == "admin" and u.get("enabled", True))
+            if admin_count <= 1:
+                return (
+                    jsonify({"error": "Cannot disable the last admin. At least one admin user must exist."}),
+                    400,
+                )
+
+        USERS[username]["enabled"] = False
+
+        if not save_users():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        return jsonify({"success": True, "message": "User disabled"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to disable user: {str(e)}"}), 500
+
+
+@app.route("/api/permissions", methods=["GET"])
+@require_auth
+def get_permissions():
+    """Get current user's permissions"""
+    try:
+        username = getattr(request, "user", None)
+        if not username:
+            return jsonify({"error": "Authentication required"}), 401
+
+        user_permissions = get_user_permissions(username)
+        user_role = USERS.get(username, {}).get("role", "user")
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "permissions": user_permissions,
+                    "role": user_role,
+                    "all_permissions": PERMISSIONS,
+                    "role_permissions": ROLE_PERMISSIONS,
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to get permissions: {str(e)}"}), 500
+
+
+@app.route("/api/roles", methods=["GET"])
+@require_permission("users.view")
+def list_roles():
+    """List all available roles and their permissions"""
+    try:
+        roles_info = {}
+        for role, permissions in ROLE_PERMISSIONS.items():
+            roles_info[role] = {
+                "permissions": permissions,
+                "permission_count": len(permissions),
+            }
+        return jsonify({"success": True, "roles": roles_info}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to list roles: {str(e)}"}), 500
+
+
 @app.route("/api/status", methods=["GET"])
-@require_api_key
+@require_auth
+@require_permission("server.view")
 def get_status():
     """Get server status"""
     # Check if server is running
@@ -993,7 +1312,7 @@ def get_status():
 
 
 @app.route("/api/server/start", methods=["POST"])
-@require_api_key
+@require_permission("server.control")
 def start_server():
     """Start the server"""
     stdout, stderr, code = run_script("manage.sh", "start")
@@ -1005,7 +1324,7 @@ def start_server():
 
 
 @app.route("/api/server/stop", methods=["POST"])
-@require_api_key
+@require_permission("server.control")
 def stop_server():
     """Stop the server"""
     stdout, stderr, code = run_script("manage.sh", "stop")
@@ -1017,7 +1336,7 @@ def stop_server():
 
 
 @app.route("/api/server/restart", methods=["POST"])
-@require_api_key
+@require_permission("server.control")
 def restart_server():
     """Restart the server"""
     stdout, stderr, code = run_script("manage.sh", "restart")
@@ -1029,7 +1348,7 @@ def restart_server():
 
 
 @app.route("/api/server/command", methods=["POST"])
-@require_api_key
+@require_permission("server.command")
 def send_command():
     """Send a command to the server via RCON"""
     data = request.get_json()
@@ -1047,7 +1366,7 @@ def send_command():
 
 
 @app.route("/api/backup", methods=["POST"])
-@require_api_key
+@require_permission("backup.create")
 def create_backup():
     """Create a server backup"""
     stdout, stderr, code = run_script("manage.sh", "backup")
@@ -1059,7 +1378,7 @@ def create_backup():
 
 
 @app.route("/api/backups", methods=["GET"])
-@require_api_key
+@require_permission("backup.view")
 def list_backups():
     """List available backups"""
     backups_dir = PROJECT_ROOT / "backups"
@@ -1084,7 +1403,7 @@ def list_backups():
 
 
 @app.route("/api/backups/<path:filename>/restore", methods=["POST"])
-@require_api_key
+@require_permission("backup.restore")
 def restore_backup(filename):
     """Restore a backup"""
     # Check for path traversal attacks first
@@ -1136,7 +1455,7 @@ def restore_backup(filename):
 
 
 @app.route("/api/backups/<path:filename>", methods=["DELETE"])
-@require_api_key
+@require_permission("backup.delete")
 def delete_backup(filename):
     """Delete a backup"""
     # Check for path traversal attacks first
@@ -1162,7 +1481,7 @@ def delete_backup(filename):
 
 
 @app.route("/api/logs", methods=["GET"])
-@require_api_key
+@require_permission("logs.view")
 def get_logs():
     """Get server logs"""
     lines = request.args.get("lines", 100, type=int)
@@ -1182,7 +1501,7 @@ def get_logs():
 
 
 @app.route("/api/players", methods=["GET"])
-@require_api_key
+@require_permission("players.view")
 def get_players():
     """Get list of online players"""
     stdout, _, _ = run_script("rcon-client.sh", "command", "list")
@@ -1202,7 +1521,7 @@ def get_players():
 
 
 @app.route("/api/metrics", methods=["GET"])
-@require_api_key
+@require_permission("metrics.view")
 def get_metrics():
     """Get server metrics"""
     # Run monitor script
@@ -1238,7 +1557,7 @@ def get_metrics():
 
 
 @app.route("/api/worlds", methods=["GET"])
-@require_api_key
+@require_permission("worlds.view")
 def list_worlds():
     """List all worlds"""
     stdout, _, _ = run_script("world-manager.sh", "list")
@@ -1259,7 +1578,7 @@ def list_worlds():
 
 
 @app.route("/api/plugins", methods=["GET"])
-@require_api_key
+@require_permission("plugins.view")
 def list_plugins():
     """List installed plugins"""
     stdout, _, _ = run_script("plugin-manager.sh", "list")
@@ -1301,7 +1620,7 @@ CONFIG_ALLOWED_PATHS = {
 
 
 @app.route("/api/config/files", methods=["GET"])
-@require_api_key
+@require_permission("config.view")
 def list_config_files():
     """List available configuration files"""
     files = []
@@ -1320,7 +1639,7 @@ def list_config_files():
 
 
 @app.route("/api/config/files/<path:filename>", methods=["GET"])
-@require_api_key
+@require_permission("config.view")
 def get_config_file(filename):
     """Get configuration file content"""
     if filename not in CONFIG_ALLOWED_PATHS:
@@ -1361,7 +1680,7 @@ def get_config_file(filename):
 
 
 @app.route("/api/config/files/<path:filename>", methods=["POST"])
-@require_api_key
+@require_permission("config.edit")
 def save_config_file(filename):
     """Save configuration file with automatic backup"""
     if filename not in CONFIG_ALLOWED_PATHS:
@@ -1465,7 +1784,7 @@ def save_config_file(filename):
 
 
 @app.route("/api/config/files/<path:filename>/validate", methods=["POST"])
-@require_api_key
+@require_permission("config.edit")
 def validate_config_file(filename):
     """Validate configuration file content"""
     if filename not in CONFIG_ALLOWED_PATHS:
