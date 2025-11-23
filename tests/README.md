@@ -9,6 +9,12 @@ tests/
 ├── unit/           # Unit tests for individual scripts
 ├── integration/    # Integration tests
 ├── api/            # API endpoint tests
+├── e2e/            # End-to-end tests for complete workflows
+├── helpers/        # Test utilities and helpers
+│   ├── test-utils.sh    # Common test functions
+│   ├── mock-server.sh   # Mock server for testing
+│   ├── bats-support/    # BATS support library
+│   └── bats-assert/     # BATS assertion library
 └── fixtures/       # Test data and fixtures
 ```
 
@@ -31,6 +37,9 @@ tests/
 
 # API tests only
 ./scripts/run-tests.sh api
+
+# E2E tests only
+./scripts/run-tests.sh e2e
 ```
 
 ### Run Individual Test
@@ -70,10 +79,31 @@ Create test file: `tests/unit/test-<script-name>.sh`
 ```bash
 #!/usr/bin/env bats
 
+load 'helpers/bats-support/load'
+load 'helpers/bats-assert/load'
+
 @test "script does something" {
     run ./scripts/script.sh command
-    [ "$status" -eq 0 ]
-    [ "$output" = "expected output" ]
+    assert_success
+    assert_output --partial "expected output"
+}
+```
+
+### End-to-End Tests
+
+Create E2E test file: `tests/e2e/test-<workflow>.sh`
+
+```bash
+#!/usr/bin/env bats
+
+load 'helpers/bats-support/load'
+load 'helpers/bats-assert/load'
+load 'helpers/test-utils.sh'
+
+@test "complete workflow test" {
+    # Test complete workflow
+    run some_command
+    assert_success
 }
 ```
 
@@ -90,6 +120,36 @@ def test_endpoint(client):
     assert response.status_code == 200
 ```
 
+## Test Utilities
+
+### test-utils.sh
+
+Common test functions:
+
+- `create_test_dir()` - Create temporary test directory
+- `wait_for_server()` - Wait for server to be ready
+- `create_test_backup()` - Create test backup file
+- `api_request()` - Make authenticated API request
+- `assert_file_exists()` - Assert file exists
+- `assert_file_contains()` - Assert file contains text
+
+### mock-server.sh
+
+Mock Minecraft server for testing:
+
+- `start_mock_server` - Start mock server
+- `stop_mock_server` - Stop mock server
+- `status_mock_server` - Check server status
+
+Usage:
+
+```bash
+source tests/helpers/mock-server.sh
+start_mock_server
+# Run tests
+stop_mock_server
+```
+
 ## CI/CD Integration
 
 Tests run automatically on:
@@ -99,3 +159,15 @@ Tests run automatically on:
 - Manual workflow dispatch
 
 See `.github/workflows/tests.yml` for configuration.
+
+## Test Coverage
+
+Run tests with coverage:
+
+```bash
+# Python tests with coverage
+pytest tests/api/ --cov=api --cov-report=html
+
+# View coverage report
+open htmlcov/index.html
+```

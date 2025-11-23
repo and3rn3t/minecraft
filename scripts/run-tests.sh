@@ -175,6 +175,45 @@ run_api_tests() {
     run_python_tests
 }
 
+# Function to run E2E tests
+run_e2e_tests() {
+    print_header "Running End-to-End Tests"
+
+    if ! command_exists bats; then
+        echo -e "${YELLOW}BATS not installed. Skipping E2E tests.${NC}"
+        echo -e "${YELLOW}Run: $0 install-deps${NC}"
+        return 0
+    fi
+
+    local test_count=0
+    local pass_count=0
+    local fail_count=0
+
+    # Find all E2E test files
+    if [ -d "${TESTS_DIR}/e2e" ]; then
+        for test_file in "${TESTS_DIR}"/e2e/*.sh; do
+            if [ -f "$test_file" ] && [ -x "$test_file" ]; then
+                echo -e "${BLUE}Running: $(basename "$test_file")${NC}"
+                if bats "$test_file"; then
+                    pass_count=$((pass_count + 1))
+                else
+                    fail_count=$((fail_count + 1))
+                fi
+                test_count=$((test_count + 1))
+            fi
+        done
+    else
+        echo -e "${YELLOW}No E2E tests directory found${NC}"
+    fi
+
+    TOTAL_TESTS=$((TOTAL_TESTS + test_count))
+    PASSED_TESTS=$((PASSED_TESTS + pass_count))
+    FAILED_TESTS=$((FAILED_TESTS + fail_count))
+
+    echo ""
+    echo -e "${BLUE}E2E Tests: $pass_count passed, $fail_count failed${NC}"
+}
+
 # Function to show test summary
 show_summary() {
     echo ""
@@ -213,6 +252,7 @@ usage() {
     echo "  unit          - Run unit tests only"
     echo "  integration   - Run integration tests only"
     echo "  api           - Run API tests only"
+    echo "  e2e           - Run end-to-end tests only"
     echo "  bash          - Run bash script tests only"
     echo ""
     echo "Options:"
@@ -228,6 +268,7 @@ main() {
         all)
             run_bash_tests
             run_python_tests
+            run_e2e_tests
             show_summary
             ;;
         unit)
@@ -240,6 +281,10 @@ main() {
             ;;
         api)
             run_api_tests
+            show_summary
+            ;;
+        e2e)
+            run_e2e_tests
             show_summary
             ;;
         bash)

@@ -1,0 +1,49 @@
+# AWS S3 Backup Configuration
+# Copy this file to config/cloud-backup-s3.conf and fill in your credentials
+
+# AWS Access Key ID
+# Create in AWS IAM: IAM > Users > Security credentials > Create access key
+# Or use AWS SSO/role-based access
+AWS_ACCESS_KEY_ID=""
+
+# AWS Secret Access Key
+# Keep this secret! Never commit this file to git.
+AWS_SECRET_ACCESS_KEY=""
+
+# AWS Region
+# Choose region closest to you for better performance
+# Examples: us-east-1, us-west-2, eu-west-1, ap-southeast-1
+AWS_REGION="us-east-1"
+
+# S3 Bucket Name
+# Must be globally unique across all AWS accounts
+# Use lowercase letters, numbers, and hyphens only
+S3_BUCKET_NAME="minecraft-backups"
+
+# Backup prefix in bucket (optional)
+# All backups will be stored under this prefix
+S3_PREFIX="minecraft-backups"
+
+# S3 Storage Class
+# Options:
+#   STANDARD - For frequent access (default)
+#   STANDARD_IA - Infrequent access (cheaper storage, retrieval fees)
+#   ONEZONE_IA - Single availability zone (cheaper, less redundancy)
+#   GLACIER - Archive storage (very cheap, slow retrieval)
+#   DEEP_ARCHIVE - Long-term archive (cheapest, slowest retrieval)
+# For regular backups, use STANDARD or STANDARD_IA
+S3_STORAGE_CLASS="STANDARD"
+
+# Auto-upload after local backup (optional)
+# Set to "true" to automatically upload backups to S3 after creation
+AUTO_UPLOAD="false"
+
+# Auto-delete local after upload (optional, use with caution)
+# Set to "true" to delete local backup after successful upload
+# WARNING: This removes local backup, keep S3 as only copy
+AUTO_DELETE_LOCAL="false"
+
+# S3 Server-Side Encryption (optional)
+# Set to "true" to enable AES256 encryption
+S3_ENCRYPTION="true"
+

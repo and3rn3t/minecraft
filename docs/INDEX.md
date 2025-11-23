@@ -38,9 +38,10 @@ Complete guide to all project documentation, organized by category.
 ### Core Features
 
 - **[BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md)** - Backup scheduling, retention, and monitoring
-- **[CLOUD_BACKUP.md](CLOUD_BACKUP.md)** - Cloud backup integration (Cloudflare R2)
+- **[CLOUD_BACKUP.md](CLOUD_BACKUP.md)** - Cloud backup integration (R2, S3, B2)
 - **[UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md)** - Server updates and version management
 - **[PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
+- **[MOD_SUPPORT.md](MOD_SUPPORT.md)** - Mod loader detection and mod pack installation
 - **[MULTI_WORLD.md](MULTI_WORLD.md)** - Managing multiple worlds
 - **[LOG_MANAGEMENT.md](LOG_MANAGEMENT.md)** - Log rotation, search, and analysis
 

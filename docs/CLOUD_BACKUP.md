@@ -1,6 +1,6 @@
 # Cloud Backup Integration Guide
 
-This guide covers cloud backup integration with Cloudflare R2 (S3-compatible) for off-site backup storage.
+This guide covers cloud backup integration with multiple providers for off-site backup storage.
 
 ## Overview
 
@@ -8,10 +8,28 @@ Cloud backup provides:
 
 - **Off-site storage** - Backups stored in the cloud
 - **Disaster recovery** - Restore from cloud if local backups are lost
-- **Cost-effective** - Cloudflare R2 has no egress fees
-- **S3-compatible** - Uses standard S3 API
+- **Cost-effective** - Multiple provider options
+- **S3-compatible** - Standard S3 API support
 
-## Cloudflare R2 Setup
+## Supported Providers
+
+The project supports three cloud backup providers:
+
+1. **Cloudflare R2** (Recommended) - No egress fees, S3-compatible
+2. **AWS S3** - Industry standard, multiple storage classes
+3. **Backblaze B2** - Cost-effective, S3-compatible API
+
+## Provider Comparison
+
+| Feature          | Cloudflare R2 | AWS S3     | Backblaze B2     |
+| ---------------- | ------------- | ---------- | ---------------- |
+| Egress Fees      | **FREE**      | Paid       | Paid             |
+| Storage Cost     | $0.015/GB     | $0.023/GB  | $0.005/GB        |
+| S3-Compatible    | ✅ Yes        | ✅ Native  | ✅ Yes           |
+| Setup Complexity | Easy          | Medium     | Easy             |
+| Best For         | Raspberry Pi  | Enterprise | Budget-conscious |
+
+## Cloudflare R2 Setup (Recommended)
 
 ### 1. Create R2 Bucket
 
@@ -62,67 +80,82 @@ Cloud backup provides:
 
 ## Usage
 
-### Upload Backup
+### Cloudflare R2
 
 ```bash
-# Upload a specific backup
-./scripts/cloud-backup-r2.sh upload backups/minecraft_backup_20250127_120000.tar.gz
+# Upload backup
+./scripts/cloud-backup-r2.sh upload backups/minecraft_backup_20250127.tar.gz
 
-# Upload latest backup
-./scripts/cloud-backup-r2.sh upload backups/$(ls -t backups/*.tar.gz | head -1)
-```
-
-### List Backups
-
-```bash
-# List all backups in R2
+# List backups
 ./scripts/cloud-backup-r2.sh list
-```
 
-### Download Backup
+# Download backup
+./scripts/cloud-backup-r2.sh download minecraft_backup_20250127.tar.gz
 
-```bash
-# Download backup from R2
-./scripts/cloud-backup-r2.sh download minecraft_backup_20250127_120000.tar.gz
-
-# Download to specific directory
-./scripts/cloud-backup-r2.sh download minecraft_backup_20250127_120000.tar.gz /path/to/restore
-```
-
-### Sync All Backups
-
-```bash
-# Upload all local backups to R2
+# Sync all backups
 ./scripts/cloud-backup-r2.sh sync
-```
 
-### Delete Backup
-
-```bash
-# Delete backup from R2
-./scripts/cloud-backup-r2.sh delete minecraft_backup_20250127_120000.tar.gz
-```
-
-### Test Connection
-
-```bash
-# Test R2 connection and configuration
+# Test connection
 ./scripts/cloud-backup-r2.sh test
+```
+
+### AWS S3
+
+```bash
+# Upload backup
+./scripts/cloud-backup-s3.sh upload backups/minecraft_backup_20250127.tar.gz
+
+# List backups
+./scripts/cloud-backup-s3.sh list
+
+# Download backup
+./scripts/cloud-backup-s3.sh download minecraft_backup_20250127.tar.gz
+
+# Sync all backups
+./scripts/cloud-backup-s3.sh sync
+
+# Test connection
+./scripts/cloud-backup-s3.sh test
+```
+
+### Backblaze B2
+
+```bash
+# Upload backup
+./scripts/cloud-backup-b2.sh upload backups/minecraft_backup_20250127.tar.gz
+
+# List backups
+./scripts/cloud-backup-b2.sh list
+
+# Download backup
+./scripts/cloud-backup-b2.sh download minecraft_backup_20250127.tar.gz
+
+# Sync all backups
+./scripts/cloud-backup-b2.sh sync
+
+# Test connection
+./scripts/cloud-backup-b2.sh test
 ```
 
 ## Automated Cloud Backup
 
 ### Integration with Backup Scheduler
 
-To automatically upload backups to R2 after creation:
+To automatically upload backups to cloud after creation:
 
-1. Edit `config/cloud-backup-r2.conf`:
+1. **Choose provider** and edit corresponding config:
+
+   - `config/cloud-backup-r2.conf` for Cloudflare R2
+   - `config/cloud-backup-s3.conf` for AWS S3
+   - `config/cloud-backup-b2.conf` for Backblaze B2
+
+2. **Enable auto-upload**:
 
    ```bash
    AUTO_UPLOAD="true"
    ```
 
-2. Modify `scripts/backup-scheduler.sh` to call R2 upload after backup creation.
+3. **Modify backup script** to call cloud upload after backup creation.
 
 ### Manual Integration
 
@@ -130,10 +163,29 @@ Add to your backup script:
 
 ```bash
 # After creating backup
-if [ -f "$BACKUP_FILE" ] && [ -f "config/cloud-backup-r2.conf" ]; then
+BACKUP_FILE="backups/minecraft_backup_20250127.tar.gz"
+
+# Try R2 first (recommended)
+if [ -f "config/cloud-backup-r2.conf" ]; then
     source config/cloud-backup-r2.conf
     if [ "$AUTO_UPLOAD" = "true" ]; then
         ./scripts/cloud-backup-r2.sh upload "$BACKUP_FILE"
+    fi
+fi
+
+# Or use S3
+if [ -f "config/cloud-backup-s3.conf" ]; then
+    source config/cloud-backup-s3.conf
+    if [ "$AUTO_UPLOAD" = "true" ]; then
+        ./scripts/cloud-backup-s3.sh upload "$BACKUP_FILE"
+    fi
+fi
+
+# Or use B2
+if [ -f "config/cloud-backup-b2.conf" ]; then
+    source config/cloud-backup-b2.conf
+    if [ "$AUTO_UPLOAD" = "true" ]; then
+        ./scripts/cloud-backup-b2.sh upload "$BACKUP_FILE"
     fi
 fi
 ```
@@ -142,10 +194,17 @@ fi
 
 ### Full Restore Process
 
-1. **Download backup from R2**:
+1. **Download backup from cloud** (choose your provider):
 
    ```bash
-   ./scripts/cloud-backup-r2.sh download minecraft_backup_20250127_120000.tar.gz
+   # From R2
+   ./scripts/cloud-backup-r2.sh download minecraft_backup_20250127.tar.gz
+
+   # From S3
+   ./scripts/cloud-backup-s3.sh download minecraft_backup_20250127.tar.gz
+
+   # From B2
+   ./scripts/cloud-backup-b2.sh download minecraft_backup_20250127.tar.gz
    ```
 
 2. **Stop server**:
@@ -158,7 +217,7 @@ fi
 
    ```bash
    # Extract backup
-   tar -xzf backups/minecraft_backup_20250127_120000.tar.gz -C ./data/
+   tar -xzf backups/minecraft_backup_20250127.tar.gz -C ./data/
    ```
 
 4. **Start server**:
@@ -169,31 +228,49 @@ fi
 
 ## Cost Considerations
 
-### Cloudflare R2 Pricing
+### Provider Pricing Comparison
 
-- **Storage**: $0.015 per GB/month
-- **Class A Operations** (writes): $4.50 per million
-- **Class B Operations** (reads): $0.36 per million
-- **Egress**: **FREE** (no egress fees!)
+**Cloudflare R2:**
+
+- Storage: $0.015/GB/month
+- Operations: $4.50 per million writes, $0.36 per million reads
+- **Egress: FREE** (no egress fees!)
+
+**AWS S3:**
+
+- Storage: $0.023/GB/month (STANDARD)
+- Operations: $0.005 per 1,000 requests
+- Egress: $0.09/GB (first 10TB)
+
+**Backblaze B2:**
+
+- Storage: $0.005/GB/month
+- Operations: Free (first 2,500 class C operations/day)
+- Egress: $0.01/GB
 
 ### Cost Example
 
-For a typical Minecraft server:
+For a typical Minecraft server (500 MB backups, 30 backups/month):
 
-- **Backup size**: 500 MB per backup
-- **Backups per month**: 30 (daily)
-- **Total storage**: ~15 GB
-- **Monthly cost**: ~$0.23/month
+| Provider | Storage Cost | Egress Cost\* | Total/Month |
+| -------- | ------------ | ------------- | ----------- |
+| **R2**   | $0.23        | **$0.00**     | **$0.23**   |
+| **B2**   | $0.08        | $0.15         | $0.23       |
+| **S3**   | $0.35        | $0.45         | $0.80       |
 
-Much cheaper than AWS S3 due to no egress fees!
+\*Assuming 1 restore per month (500 MB download)
+
+**Recommendation**: Cloudflare R2 for Raspberry Pi users due to no egress fees!
 
 ## Security Best Practices
 
-1. **Never commit credentials** - Keep `cloud-backup-r2.conf` in `.gitignore`
-2. **Use least privilege** - Create API token with only necessary permissions
-3. **Rotate keys** - Regularly rotate API tokens
+1. **Never commit credentials** - Keep all `cloud-backup-*.conf` files in `.gitignore`
+2. **Use least privilege** - Create API tokens/keys with only necessary permissions
+3. **Rotate keys** - Regularly rotate API tokens and access keys
 4. **Encrypt backups** - Consider encrypting backups before upload
-5. **Monitor usage** - Check R2 dashboard for unusual activity
+5. **Monitor usage** - Check provider dashboards for unusual activity
+6. **Use IAM roles** (AWS) - Prefer IAM roles over access keys when possible
+7. **Enable MFA** - Use multi-factor authentication for provider accounts
 
 ## Troubleshooting
 
@@ -204,8 +281,10 @@ Much cheaper than AWS S3 due to no egress fees!
 **Solutions**:
 
 - Verify credentials in config file
-- Check API token permissions
-- Test connection: `./scripts/cloud-backup-r2.sh test`
+- Check API token/access key permissions
+- Test connection: `./scripts/cloud-backup-{provider}.sh test`
+- Verify bucket exists and is accessible
+- Check network connectivity
 
 ### Download Fails
 
@@ -215,13 +294,17 @@ Much cheaper than AWS S3 due to no egress fees!
 
 - Verify backup name (use `list` command to see available backups)
 - Check bucket name and prefix
-- Verify endpoint URL
+- Verify endpoint URL (for R2)
+- Check region (for S3)
+- Verify file permissions
 
-### AWS CLI Not Found
+### CLI Tools Not Found
 
-**Issue**: Script fails because AWS CLI not installed
+**Issue**: Script fails because CLI tool not installed
 
 **Solutions**:
+
+**AWS CLI** (for R2 and S3):
 
 ```bash
 # Install AWS CLI
@@ -231,19 +314,228 @@ pip install awscli
 sudo apt-get install awscli
 ```
 
-## Alternative: AWS S3
+**B2 CLI** (for Backblaze B2):
 
-The script can be adapted for AWS S3:
+```bash
+# Install B2 SDK
+pip install b2sdk
 
-1. Use AWS credentials instead of R2
-2. Change endpoint to S3 endpoint
-3. Note: S3 has egress fees (unlike R2)
+# Or install B2 command-line tool
+# See: https://www.backblaze.com/b2/docs/quick_command_line.html
+```
+
+### High Costs (S3/B2)
+
+**Issue**: Unexpected high costs from cloud provider
+
+**Solutions**:
+
+- Check egress/bandwidth usage
+- Consider switching to Cloudflare R2 (no egress fees)
+- Use appropriate storage class (S3 STANDARD_IA for infrequent access)
+- Enable lifecycle policies to delete old backups
+- Monitor usage in provider dashboard
+
+## AWS S3 Setup
+
+### 1. Create S3 Bucket
+
+1. Log in to [AWS Console](https://console.aws.amazon.com/)
+2. Navigate to **S3** > **Create bucket**
+3. Enter bucket name (must be globally unique)
+4. Choose region (closest to you)
+5. Configure settings (versioning, encryption, etc.)
+6. Click **Create bucket**
+
+### 2. Create IAM User and Access Keys
+
+1. Go to **IAM** > **Users** > **Create user**
+2. Set username (e.g., `minecraft-backup-user`)
+3. Attach policy: `AmazonS3FullAccess` (or custom policy for specific bucket)
+4. Go to **Security credentials** tab
+5. Click **Create access key**
+6. Copy **Access Key ID** and **Secret Access Key**
+
+### 3. Configure Backup Script
+
+1. Copy example config:
+
+   ```bash
+   cp config/cloud-backup-s3.conf.example config/cloud-backup-s3.conf
+   ```
+
+2. Edit `config/cloud-backup-s3.conf`:
+   ```bash
+   AWS_ACCESS_KEY_ID="your-access-key-id"
+   AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+   AWS_REGION="us-east-1"
+   S3_BUCKET_NAME="minecraft-backups"
+   S3_PREFIX="minecraft-backups"
+   S3_STORAGE_CLASS="STANDARD"
+   ```
+
+### 4. Usage
+
+```bash
+# Upload backup
+./scripts/cloud-backup-s3.sh upload backups/minecraft_backup_20250127.tar.gz
+
+# List backups
+./scripts/cloud-backup-s3.sh list
+
+# Download backup
+./scripts/cloud-backup-s3.sh download minecraft_backup_20250127.tar.gz
+
+# Test connection
+./scripts/cloud-backup-s3.sh test
+```
+
+### S3 Storage Classes
+
+Choose based on access patterns:
+
+- **STANDARD** - Frequent access (default)
+- **STANDARD_IA** - Infrequent access (cheaper storage)
+- **GLACIER** - Archive storage (very cheap, slow retrieval)
+- **DEEP_ARCHIVE** - Long-term archive (cheapest, slowest)
+
+## Backblaze B2 Setup
+
+### 1. Create B2 Bucket
+
+1. Log in to [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html)
+2. Go to **Buckets** > **Create a Bucket**
+3. Enter bucket name
+4. Choose bucket type (Private recommended)
+5. Click **Create a Bucket**
+
+### 2. Create Application Key
+
+1. Go to **App Keys** > **Add a New Application Key**
+2. Set key name (e.g., `minecraft-backup-key`)
+3. Select bucket access (or all buckets)
+4. Grant permissions:
+   - List Files
+   - Read Files
+   - Write Files
+   - Delete Files
+5. Click **Create New Key**
+6. Copy **keyID** and **applicationKey**
+
+### 3. Install B2 CLI
+
+```bash
+# Install B2 SDK
+pip install b2sdk
+
+# Or install B2 command-line tool
+# See: https://www.backblaze.com/b2/docs/quick_command_line.html
+```
+
+### 4. Configure Backup Script
+
+1. Copy example config:
+
+   ```bash
+   cp config/cloud-backup-b2.conf.example config/cloud-backup-b2.conf
+   ```
+
+2. Edit `config/cloud-backup-b2.conf`:
+   ```bash
+   B2_KEY_ID="your-key-id"
+   B2_APPLICATION_KEY="your-application-key"
+   B2_BUCKET_NAME="minecraft-backups"
+   B2_PREFIX="minecraft-backups"
+   ```
+
+### 5. Usage
+
+```bash
+# Upload backup
+./scripts/cloud-backup-b2.sh upload backups/minecraft_backup_20250127.tar.gz
+
+# List backups
+./scripts/cloud-backup-b2.sh list
+
+# Download backup
+./scripts/cloud-backup-b2.sh download minecraft_backup_20250127.tar.gz
+
+# Test connection
+./scripts/cloud-backup-b2.sh test
+```
+
+## Choosing a Provider
+
+### Cloudflare R2 (Best for Raspberry Pi)
+
+**Pros:**
+
+- No egress fees (huge savings!)
+- S3-compatible API
+- Easy setup
+- Good performance
+
+**Cons:**
+
+- Newer service (less mature)
+- Limited regions
+
+**Best for:** Raspberry Pi users, frequent restores
+
+### AWS S3 (Best for Enterprise)
+
+**Pros:**
+
+- Industry standard
+- Multiple storage classes
+- Global infrastructure
+- Advanced features
+
+**Cons:**
+
+- Egress fees can be expensive
+- More complex pricing
+- Requires AWS account
+
+**Best for:** Enterprise deployments, AWS ecosystem users
+
+### Backblaze B2 (Best for Budget)
+
+**Pros:**
+
+- Lowest storage cost ($0.005/GB)
+- S3-compatible API
+- Simple pricing
+- Good performance
+
+**Cons:**
+
+- Egress fees (but lower than AWS)
+- Smaller ecosystem
+
+**Best for:** Budget-conscious users, long-term storage
+
+## Unified Cloud Backup Script
+
+For convenience, you can create a unified script that supports all providers:
+
+```bash
+# Example unified script usage
+./scripts/cloud-backup.sh r2 upload backup.tar.gz
+./scripts/cloud-backup.sh s3 upload backup.tar.gz
+./scripts/cloud-backup.sh b2 upload backup.tar.gz
+```
 
 ## Resources
 
 - [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
 - [R2 Pricing](https://developers.cloudflare.com/r2/pricing/)
+- [AWS S3 Documentation](https://docs.aws.amazon.com/s3/)
+- [AWS S3 Pricing](https://aws.amazon.com/s3/pricing/)
+- [Backblaze B2 Documentation](https://www.backblaze.com/b2/docs/)
+- [B2 Pricing](https://www.backblaze.com/b2/pricing.html)
 - [AWS CLI Documentation](https://aws.amazon.com/cli/)
+- [B2 CLI Documentation](https://www.backblaze.com/b2/docs/quick_command_line.html)
 
 ## See Also
 

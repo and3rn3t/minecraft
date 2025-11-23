@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Enhanced Testing Framework**
+
+  - End-to-end (E2E) tests for critical workflows (`tests/e2e/`)
+  - Test utilities and helpers (`tests/helpers/test-utils.sh`)
+  - Mock server for testing (`tests/helpers/mock-server.sh`)
+  - E2E test runner integration
+  - Enhanced test documentation
+
+- **Mod Support (Complete)**
+
+  - Mod loader detection script (`scripts/mod-loader-detector.sh`)
+  - Support for Forge, Fabric, and Quilt detection
+  - Mod pack installer script (`scripts/mod-pack-installer.sh`)
+  - Mod dependency resolution
+  - Mod compatibility verification
+  - Mod support documentation (`docs/MOD_SUPPORT.md`)
+
 - **Static Code Analysis Infrastructure**
 
   - Comprehensive linting script (`scripts/lint.sh`) for bash, Python, JavaScript/React, and YAML
@@ -64,14 +81,18 @@ All notable changes to this project will be documented in this file.
   - Coverage badges and trend tracking
   - Makefile targets for coverage (`make coverage`, `make coverage-check`)
 
-- **Cloudflare R2 Backup Integration**
+- **Cloud Backup Integration (Complete - v1.6.0)**
 
-  - R2 backup client script (`scripts/cloud-backup-r2.sh`)
-  - S3-compatible API integration
-  - Backup upload, download, list, and delete functionality
-  - Configuration management (`config/cloud-backup-r2.conf`)
-  - Cloud backup documentation (`docs/CLOUD_BACKUP.md`)
-  - Cost-effective solution with no egress fees
+  - **Cloudflare R2** - R2 backup client script (`scripts/cloud-backup-r2.sh`) ✅
+  - **AWS S3** - S3 backup client script (`scripts/cloud-backup-s3.sh`) ✅
+  - **Backblaze B2** - B2 backup client script (`scripts/cloud-backup-b2.sh`) ✅
+  - All providers support upload, download, list, and delete
+  - S3-compatible API integration for R2 and B2
+  - Configuration management for all providers
+  - Comprehensive cloud backup documentation (`docs/CLOUD_BACKUP.md`)
+  - Provider comparison and cost analysis
+  - Cloudflare R2 recommended for Raspberry Pi (no egress fees)
+  - Configuration examples for all providers
 
 - **API Documentation (OpenAPI/Swagger)**
   - Complete OpenAPI 3.0 specification (`api/openapi.yaml`)

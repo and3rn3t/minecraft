@@ -1,0 +1,39 @@
+# Backblaze B2 Backup Configuration
+# Copy this file to config/cloud-backup-b2.conf and fill in your credentials
+
+# B2 Application Key ID
+# Create in B2 dashboard: App Keys > Add a New Application Key
+# Grant: List Files, Read Files, Write Files, Delete Files
+B2_KEY_ID=""
+
+# B2 Application Key
+# Keep this secret! Never commit this file to git.
+# This is shown only once when creating the key
+B2_APPLICATION_KEY=""
+
+# B2 Bucket Name
+# The name of your B2 bucket
+B2_BUCKET_NAME="minecraft-backups"
+
+# B2 Bucket ID (optional)
+# Will be automatically looked up if not provided
+# You can find it in B2 dashboard: Buckets > Your Bucket
+B2_BUCKET_ID=""
+
+# Backup prefix in bucket (optional)
+# All backups will be stored under this prefix
+B2_PREFIX="minecraft-backups"
+
+# Auto-upload after local backup (optional)
+# Set to "true" to automatically upload backups to B2 after creation
+AUTO_UPLOAD="false"
+
+# Auto-delete local after upload (optional, use with caution)
+# Set to "true" to delete local backup after successful upload
+# WARNING: This removes local backup, keep B2 as only copy
+AUTO_DELETE_LOCAL="false"
+
+# B2 Lifecycle Rules (optional)
+# Configure in B2 dashboard for automatic file deletion/archiving
+# This script does not manage lifecycle rules
+
