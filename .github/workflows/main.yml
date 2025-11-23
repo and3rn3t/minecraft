@@ -50,9 +50,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+          cache: 'pip'
+          cache-dependency-path: api/requirements.txt
 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install -r api/requirements.txt
           pip install pytest pytest-cov requests
 
@@ -75,9 +78,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache BATS
+        id: cache-bats
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/bats
+          key: bats-${{ runner.os }}-v1
+          restore-keys: |
+            bats-${{ runner.os }}-
+
       - name: Install BATS
+        if: steps.cache-bats.outputs.cache-hit != 'true'
         run: |
-          git clone https://github.com/bats-core/bats-core.git /tmp/bats
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
           sudo /tmp/bats/install.sh /usr/local
 
       - name: Run bash tests
@@ -161,13 +174,14 @@ jobs:
           load: true
           build-args: |
             MINECRAFT_VERSION=1.20.4
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=build-docker
+          cache-to: type=gha,mode=max,scope=build-docker
 
   # Build Raspberry Pi image
   build-rpi-image:
     name: Build Raspberry Pi Image
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     needs: [build-docker]
     if: |
       github.event_name == 'workflow_dispatch' && inputs.build_image == true ||
@@ -180,11 +194,19 @@ jobs:
         with:
           platforms: arm64
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt
+          key: apt-${{ runner.os }}-rpi-build-tools
+          restore-keys: |
+            apt-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           echo "📥 Installing required tools..."
           sudo apt-get update -qq
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             wget \
             unzip \
             qemu-utils \
@@ -196,7 +218,19 @@ jobs:
             bc
           echo "✅ Dependencies installed"
 
+      - name: Cache Raspberry Pi OS image
+        id: cache-rpi-image
+        uses: actions/cache@v4
+        with:
+          path: |
+            raspios-lite.img.xz
+            raspios-base.img
+          key: rpi-os-lite-2024-01-11-arm64
+          restore-keys: |
+            rpi-os-lite-
+
       - name: Download Raspberry Pi OS Lite
+        if: steps.cache-rpi-image.outputs.cache-hit != 'true'
         run: |
           echo "📥 Downloading Raspberry Pi OS Lite (64-bit) image..."
           echo "This may take 5-15 minutes depending on connection speed..."
@@ -256,6 +290,7 @@ jobs:
           fi
 
       - name: Extract image
+        if: steps.cache-rpi-image.outputs.cache-hit != 'true'
         run: |
           echo "📦 Extracting Raspberry Pi OS image..."
           echo "This may take 2-5 minutes depending on download size..."
@@ -271,6 +306,14 @@ jobs:
 
           echo "✅ Extraction complete"
           echo "Image size: $(du -h raspios-base.img | cut -f1)"
+
+      - name: Verify base image exists
+        run: |
+          if [ ! -f raspios-base.img ]; then
+            echo "❌ Error: Base image not found after extraction"
+            exit 1
+          fi
+          echo "✅ Base image verified: $(du -h raspios-base.img | cut -f1)"
 
       - name: Resize image
         run: |
@@ -297,14 +340,21 @@ jobs:
           LOOP_DEVICE=$(sudo losetup -f --show -P raspios-base.img)
           echo "✅ Loop device: $LOOP_DEVICE"
 
-          # Wait for partitions to be ready
+          # Wait for partitions to be ready (reduced wait time)
           echo "⏳ Waiting for partitions to be ready..."
-          sleep 3
+          sleep 1
 
           # Refresh partition table
           echo "🔄 Refreshing partition table..."
           sudo partprobe $LOOP_DEVICE
-          sleep 3
+          sleep 1
+
+          # Verify partitions exist before proceeding
+          timeout=10
+          while [ $timeout -gt 0 ] && [ ! -e "${LOOP_DEVICE}p1" ]; do
+            sleep 0.5
+            timeout=$((timeout - 1))
+          done
 
           # Identify partitions
           BOOT_PARTITION="${LOOP_DEVICE}p1"
@@ -435,6 +485,20 @@ jobs:
           sudo losetup -d $LOOP_DEVICE
           echo "✅ Image customization complete"
 
+      - name: Fix image alignment
+        run: |
+          echo "🔧 Fixing image alignment to 512-byte boundary..."
+          echo "This ensures the image can be written to SD cards properly"
+
+          # Make the script executable
+          chmod +x scripts/fix-image-alignment.sh
+
+          # Fix alignment (modifies in-place)
+          ./scripts/fix-image-alignment.sh raspios-base.img
+
+          echo "✅ Image alignment fixed"
+          echo "Final size: $(du -h raspios-base.img | cut -f1)"
+
       - name: Compress image
         run: |
           echo "🗜️  Compressing final image..."
@@ -450,11 +514,12 @@ jobs:
           echo "Original size: $(du -h raspios-base.img | cut -f1)"
 
           # Compress image with progress if pv is available
+          # Using -6 instead of -9 for faster compression (still good compression ratio)
           if command -v pv &> /dev/null; then
-            pv raspios-base.img | xz -9 -T0 > "${IMAGE_NAME}.img.xz"
+            pv raspios-base.img | xz -6 -T0 > "${IMAGE_NAME}.img.xz"
           else
             echo "Compressing (this will take a while, be patient)..."
-            xz -9 -v -T0 raspios-base.img
+            xz -6 -v -T0 raspios-base.img
             mv raspios-base.img.xz "${IMAGE_NAME}.img.xz"
           fi
 
@@ -468,8 +533,9 @@ jobs:
           name: raspberry-pi-image
           path: |
             *.img.xz
-            *.img
           retention-days: 90
+          compression-level: 6
+          if-no-files-found: error
 
       - name: Create release (if tag)
         if: github.ref_type == 'tag'

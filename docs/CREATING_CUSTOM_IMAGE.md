@@ -412,6 +412,30 @@ sudo mount --bind /sys "$MOUNT_POINT/sys"
 sudo mount --bind /proc "$MOUNT_POINT/proc"
 ```
 
+### Image Size Not Multiple of 512 Bytes
+
+**Issue**: Error when writing image to SD card: "file size is not a multiple of 512 bytes".
+
+**Solution**:
+
+Use the `fix-image-alignment.sh` script to fix the alignment:
+
+```bash
+# Fix alignment (modifies in-place)
+./scripts/fix-image-alignment.sh raspberry-pi.img
+
+# Or create a new aligned file
+./scripts/fix-image-alignment.sh raspberry-pi.img raspberry-pi-fixed.img
+```
+
+The script automatically:
+
+- Checks if the file size is already aligned
+- Pads the file to the next multiple of 512 bytes if needed
+- Verifies the result
+
+**Note**: The `create-custom-image.sh` script now automatically fixes alignment when creating images.
+
 ### Image Doesn't Boot
 
 **Issue**: Raspberry Pi doesn't boot from custom image.
@@ -422,6 +446,7 @@ sudo mount --bind /proc "$MOUNT_POINT/proc"
 - Check boot partition is FAT32: `sudo file -s /dev/sdX1`
 - Ensure Raspberry Pi 5 is selected in Imager
 - Try re-flashing the image
+- Ensure image size is a multiple of 512 bytes (use `fix-image-alignment.sh` if needed)
 
 ### Docker Not Working
 

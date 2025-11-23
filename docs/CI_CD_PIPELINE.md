@@ -214,6 +214,22 @@ on:
   workflow_dispatch: # Only manual trigger
 ```
 
+## Optimizations
+
+The pipeline has been optimized for speed and efficiency. See [CI/CD Optimizations](CI_CD_OPTIMIZATIONS.md) for detailed information about:
+
+- Dependency caching (Python, Node.js, BATS, APT, RPi OS image)
+- Docker build optimizations
+- Image build optimizations
+- Job parallelization
+- Resource management
+
+**Key Benefits:**
+- 1-2 minutes saved on typical runs
+- 7-20 minutes saved on image builds (with cache hits)
+- Reduced resource usage
+- Faster feedback cycles
+
 ## Future Enhancements
 
 Potential improvements:
@@ -223,3 +239,5 @@ Potential improvements:
 3. **Image signing**: Sign images for security
 4. **Automated testing**: Test the built image in QEMU
 5. **Multi-architecture**: Support Raspberry Pi 4 (ARM32)
+6. **Larger runners**: Use 4-core runners for image builds
+7. **Parallel operations**: Further parallelize image customization

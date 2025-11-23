@@ -111,9 +111,9 @@ spawn-protection=16        # Protected spawn radius
 
 ```yaml
 environment:
-  - MINECRAFT_VERSION=1.20.4  # Server version
-  - MEMORY_MIN=1G             # Minimum RAM
-  - MEMORY_MAX=2G             # Maximum RAM
+  - MINECRAFT_VERSION=1.20.4 # Server version
+  - MEMORY_MIN=1G # Minimum RAM
+  - MEMORY_MAX=2G # Maximum RAM
 ```
 
 ## Performance Tuning
@@ -309,16 +309,40 @@ docker stats minecraft-server
 docker ps --filter "name=minecraft-server" --format "{{.Status}}"
 ```
 
+## Image Management
+
+### Fix Image Alignment
+
+If you get an error that image file size is not a multiple of 512 bytes:
+
+```bash
+# Fix alignment (modifies in-place)
+./scripts/fix-image-alignment.sh raspberry-pi.img
+
+# Or create a new aligned file
+./scripts/fix-image-alignment.sh raspberry-pi.img raspberry-pi-fixed.img
+```
+
+### Create Custom Image
+
+```bash
+# Create pre-configured Raspberry Pi OS image
+sudo ./scripts/create-custom-image.sh
+```
+
+The script automatically ensures proper 512-byte alignment.
+
 ## Common Issues & Solutions
 
-| Problem | Solution |
-|---------|----------|
-| Can't connect locally | Check if server is running: `./manage.sh status` |
-| Can't connect from internet | Configure port forwarding on router |
-| Low FPS/lag | Reduce view-distance and max-players |
-| Out of memory | Lower MEMORY_MAX in docker-compose.yml |
-| Server crash on startup | Check logs: `./manage.sh logs` |
-| Permission denied | Run: `sudo chown -R $USER:$USER ~/minecraft-server` |
+| Problem                                | Solution                                            |
+| -------------------------------------- | --------------------------------------------------- |
+| Can't connect locally                  | Check if server is running: `./manage.sh status`    |
+| Can't connect from internet            | Configure port forwarding on router                 |
+| Low FPS/lag                            | Reduce view-distance and max-players                |
+| Out of memory                          | Lower MEMORY_MAX in docker-compose.yml              |
+| Server crash on startup                | Check logs: `./manage.sh logs`                      |
+| Permission denied                      | Run: `sudo chown -R $USER:$USER ~/minecraft-server` |
+| Image size error (not multiple of 512) | Use `./scripts/fix-image-alignment.sh <image-file>` |
 
 ## Contact & Support
 

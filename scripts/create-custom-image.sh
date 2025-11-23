@@ -255,6 +255,33 @@ unmount_image() {
     echo ""
 }
 
+# Function to fix image alignment to 512-byte boundary
+fix_image_alignment() {
+    local img_file="$1"
+    local current_size
+    current_size=$(stat -f%z "$img_file" 2>/dev/null || stat -c%s "$img_file" 2>/dev/null)
+    local block_size=512
+
+    # Check if already aligned
+    if [ $((current_size % block_size)) -eq 0 ]; then
+        return 0
+    fi
+
+    # Calculate padding needed
+    local required_size
+    required_size=$((((current_size + block_size - 1) / block_size) * block_size))
+    local padding_needed
+    padding_needed=$((required_size - current_size))
+
+    echo -e "${BLUE}Aligning image to 512-byte boundary...${NC}"
+    echo -e "${YELLOW}Current size: $current_size bytes, adding $padding_needed bytes padding${NC}"
+
+    # Append padding zeros
+    dd if=/dev/zero bs=1 count="$padding_needed" >> "$img_file" 2>/dev/null
+
+    echo -e "${GREEN}Image aligned successfully${NC}"
+}
+
 # Function to create final image
 create_final_image() {
     print_header "Creating Final Image"
@@ -268,6 +295,9 @@ create_final_image() {
     # Copy image
     echo -e "${BLUE}Creating final image: $OUTPUT_FILE${NC}"
     cp "$IMAGE_FILE" "$OUTPUT_FILE"
+
+    # Fix image alignment to 512-byte boundary (required for SD card writing)
+    fix_image_alignment "$OUTPUT_FILE"
 
     # Create checksum
     echo -e "${BLUE}Creating checksum...${NC}"
