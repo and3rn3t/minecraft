@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, jsonify, redirect, request, session, url_for
+from flask import Flask, jsonify, request, session
 
 # Optional CORS support
 try:
@@ -26,8 +26,9 @@ except ImportError:
 
 # Optional WebSocket support
 try:
-    import eventlet
-    from flask_socketio import SocketIO, disconnect, emit
+    import eventlet  # type: ignore[import-untyped]
+    from flask_socketio import (SocketIO,  # type: ignore[import-untyped]
+                                disconnect, emit)
 
     eventlet.monkey_patch()
     SOCKETIO_AVAILABLE = True
@@ -132,6 +133,7 @@ def save_api_keys():
         # Set restrictive permissions (owner read/write only) - Unix only
         try:
             import os
+
             os.chmod(API_KEYS_FILE, 0o600)
         except (AttributeError, OSError):
             # Windows doesn't support chmod the same way, skip
@@ -532,7 +534,6 @@ def google_oauth_callback():
         userinfo = userinfo_response.json()
         google_id = userinfo.get("id")
         email = userinfo.get("email", "")
-        name = userinfo.get("name", "")
 
         if not google_id:
             return jsonify({"error": "Invalid user info from Google"}), 400
@@ -606,7 +607,6 @@ def link_oauth_account(provider):
     code = data.get("code")
     redirect_uri = data.get("redirect_uri")
     id_token = data.get("id_token")
-    user_data = data.get("user", {})
 
     try:
         if provider == "google":
@@ -758,10 +758,7 @@ def unlink_oauth_account(provider):
 def apple_oauth_callback():
     """Handle Apple OAuth callback"""
     data = request.get_json()
-    code = data.get("code")
-    redirect_uri = data.get("redirect_uri")
     id_token = data.get("id_token")
-    user_data = data.get("user", {})
 
     if not id_token:
         return jsonify({"error": "ID token required"}), 400
@@ -777,7 +774,6 @@ def apple_oauth_callback():
         decoded = jwt.decode(id_token, options={"verify_signature": False})
         apple_id = decoded.get("sub")
         email = decoded.get("email", "")
-        name = user_data.get("name", {}).get("fullName", {}).get("givenName", "")
 
         if not apple_id:
             return jsonify({"error": "Invalid ID token from Apple"}), 400
@@ -1626,6 +1622,10 @@ if __name__ == "__main__":
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
+        socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
+    else:
+        print("WebSocket support disabled (Flask-SocketIO not available)")
+        app.run(host=API_HOST, port=API_PORT, debug=False)
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")
