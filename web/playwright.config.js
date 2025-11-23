@@ -75,12 +75,20 @@ export default defineConfig({
   ],
 
   // Run your local dev server before starting the tests
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 180 * 1000, // Increased timeout for CI
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  // In CI, use production build for faster and more reliable startup
+  webServer: process.env.CI
+    ? {
+        command: 'npm run build && npx vite preview --port 5173 --host 0.0.0.0',
+        url: 'http://localhost:5173',
+        reuseExistingServer: false,
+        timeout: 300 * 1000, // 5 minutes for build + serve
+        stdout: 'pipe',
+        stderr: 'pipe',
+      }
+    : {
+        command: 'npm run dev -- --port 5173',
+        url: 'http://localhost:5173',
+        reuseExistingServer: true,
+        timeout: 120 * 1000,
+      },
 });
