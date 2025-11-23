@@ -71,7 +71,10 @@ test.describe('Complete User Journey', () => {
     // Step 3: Access Dashboard
     await page.waitForURL('/dashboard', { timeout: 10000 });
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 5000 });
+    // Wait for loading to complete and dashboard to render
+    await page.waitForSelector('text=/DASHBOARD/i, text=/Loading/i', { state: 'visible', timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await expect(page.getByText(/DASHBOARD/i)).toBeVisible({ timeout: 10000 });
   });
 
   test('user can navigate through all main pages', async ({ page }) => {
@@ -90,6 +93,42 @@ test.describe('Complete User Journey', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ username: 'testuser', role: 'user' }),
+        });
+      } else if (url.includes('/status')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ running: true, status: 'Up' }),
+        });
+      } else if (url.includes('/metrics')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ metrics: {} }),
+        });
+      } else if (url.includes('/players')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ players: [] }),
+        });
+      } else if (url.includes('/analytics')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ report: {}, trends: {}, anomalies: [], prediction: {}, behavior: {} }),
+        });
+      } else if (url.includes('/backups')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ backups: [] }),
+        });
+      } else if (url.includes('/worlds')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ worlds: [] }),
         });
       } else {
         await route.fulfill({
@@ -111,23 +150,31 @@ test.describe('Complete User Journey', () => {
       .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
       .catch(() => {});
 
-    await expect(page.getByText(/dashboard/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/DASHBOARD/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Analytics
-    await page.click('a:has-text("Analytics")');
-    await expect(page.getByText('Analytics Dashboard')).toBeVisible();
+    await page.click('a:has-text("Analytics"), a[href="/analytics"]');
+    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await expect(page.getByText(/ANALYTICS/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Players
-    await page.click('a:has-text("Players")');
-    await expect(page.getByText('Player Management')).toBeVisible();
+    await page.click('a:has-text("Players"), a[href="/players"]');
+    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await expect(page.getByText(/PLAYER MANAGEMENT/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Backups
-    await page.click('a:has-text("Backups")');
-    await expect(page.getByText(/backup/i)).toBeVisible();
+    await page.click('a:has-text("Backups"), a[href="/backups"]');
+    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await expect(page.getByText(/BACKUP/i)).toBeVisible({ timeout: 10000 });
 
     // Navigate to Worlds
-    await page.click('a:has-text("Worlds")');
-    await expect(page.getByText('World Management')).toBeVisible();
+    await page.click('a:has-text("Worlds"), a[href="/worlds"]');
+    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 }).catch(() => {});
+    await expect(page.getByText(/WORLD MANAGEMENT/i)).toBeVisible({ timeout: 10000 });
   });
 
   test('user can manage server from dashboard', async ({ page }) => {

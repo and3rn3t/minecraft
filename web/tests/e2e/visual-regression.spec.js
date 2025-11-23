@@ -18,18 +18,53 @@ test.describe('Visual Regression Tests', () => {
           contentType: 'application/json',
           body: JSON.stringify({ username: 'testuser', role: 'user' }),
         });
+      } else if (url.includes('/status')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ running: true, status: 'Up' }),
+        });
+      } else if (url.includes('/metrics')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ metrics: {} }),
+        });
+      } else if (url.includes('/players')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ players: [] }),
+        });
+      } else if (url.includes('/analytics')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ 
+            report: {}, 
+            trends: {}, 
+            anomalies: [], 
+            prediction: {}, 
+            behavior: {} 
+          }),
+        });
+      } else if (url.includes('/backups')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ backups: [] }),
+        });
+      } else if (url.includes('/worlds')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ worlds: [] }),
+        });
       } else {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            running: true,
-            status: 'Up',
-            players: [],
-            backups: [],
-            worlds: [],
-            metrics: {},
-          }),
+          body: JSON.stringify({}),
         });
       }
     });
