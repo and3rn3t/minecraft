@@ -14,8 +14,25 @@ import pytest
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+# Add scripts directory to path for analytics_processor import
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
 
 from api.server import app  # noqa: E402
+
+# Create a mock analytics_processor module for patching
+# The actual file is analytics-processor.py (with hyphen), but it's imported as analytics_processor
+# We need to create a mock module that can be patched
+import types
+
+# Create mock AnalyticsProcessor class
+class MockAnalyticsProcessor:
+    pass
+
+# Create and register the mock module
+mock_analytics_module = types.ModuleType("analytics_processor")
+mock_analytics_module.AnalyticsProcessor = MockAnalyticsProcessor
+sys.modules["analytics_processor"] = mock_analytics_module
 
 
 @pytest.fixture
@@ -175,7 +192,7 @@ class TestAnalyticsTrends:
         response = client.get("/api/analytics/trends")
         assert response.status_code == 401
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor", new_callable=MagicMock)
     def test_trends_performance(self, mock_processor_class, client, mock_api_key):
         """Test performance trends"""
         mock_processor = MagicMock()
@@ -192,7 +209,7 @@ class TestAnalyticsTrends:
         assert "trends" in data
         assert data["period_hours"] == 24
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_trends_players(self, mock_processor_class, client, mock_api_key):
         """Test player behavior trends"""
         mock_processor = MagicMock()
@@ -209,7 +226,7 @@ class TestAnalyticsTrends:
     def test_trends_import_error(self, client, mock_api_key):
         """Test trends when processor not available"""
         with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
-            with patch("api.server.AnalyticsProcessor", side_effect=ImportError):
+            with patch("analytics_processor.AnalyticsProcessor", side_effect=ImportError):
                 response = client.get("/api/analytics/trends", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -225,7 +242,7 @@ class TestAnalyticsAnomalies:
         response = client.get("/api/analytics/anomalies")
         assert response.status_code == 401
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_anomalies_success(self, mock_processor_class, client, mock_api_key):
         """Test successful anomaly detection"""
         mock_processor = MagicMock()
@@ -246,7 +263,7 @@ class TestAnalyticsAnomalies:
         assert "anomalies" in data
         assert data["metric"] == "tps"
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_anomalies_no_data(self, mock_processor_class, client, mock_api_key):
         """Test anomalies when no data available"""
         mock_processor = MagicMock()
@@ -269,7 +286,7 @@ class TestAnalyticsPredictions:
         response = client.get("/api/analytics/predictions")
         assert response.status_code == 401
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_predictions_success(self, mock_processor_class, client, mock_api_key):
         """Test successful prediction"""
         mock_processor = MagicMock()
@@ -295,7 +312,7 @@ class TestAnalyticsPredictions:
         assert data["metric"] == "memory"
         assert data["hours_ahead"] == 1
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_predictions_no_data(self, mock_processor_class, client, mock_api_key):
         """Test predictions when no data available"""
         mock_processor = MagicMock()
@@ -318,7 +335,7 @@ class TestPlayerBehavior:
         response = client.get("/api/analytics/player-behavior")
         assert response.status_code == 401
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_player_behavior_success(self, mock_processor_class, client, mock_api_key):
         """Test successful player behavior analysis"""
         mock_processor = MagicMock()
@@ -346,7 +363,7 @@ class TestCustomReport:
         response = client.post("/api/analytics/custom-report")
         assert response.status_code == 401
 
-    @patch("api.server.AnalyticsProcessor")
+    @patch("analytics_processor.AnalyticsProcessor")
     def test_custom_report_success(self, mock_processor_class, client, mock_api_key):
         """Test successful custom report generation"""
         mock_processor = MagicMock()
