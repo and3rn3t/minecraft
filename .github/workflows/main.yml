@@ -201,7 +201,7 @@ jobs:
           echo "📥 Downloading Raspberry Pi OS Lite (64-bit) image..."
           echo "This may take 5-15 minutes depending on connection speed..."
           echo "Starting at: $(date '+%Y-%m-%d %H:%M:%S')"
-          
+
           # Download Raspberry Pi OS Lite (64-bit) image
           # Using a known stable version URL
           set +e
@@ -259,7 +259,7 @@ jobs:
         run: |
           echo "📦 Extracting Raspberry Pi OS image..."
           echo "This may take 2-5 minutes depending on download size..."
-          
+
           # Check if pv (pipe viewer) is available for progress
           if command -v pv &> /dev/null; then
             pv raspios-lite.img.xz | unxz > raspios-base.img
@@ -268,7 +268,7 @@ jobs:
             unxz -v raspios-lite.img.xz
             mv *.img raspios-base.img
           fi
-          
+
           echo "✅ Extraction complete"
           echo "Image size: $(du -h raspios-base.img | cut -f1)"
 
@@ -276,10 +276,10 @@ jobs:
         run: |
           echo "📏 Resizing image to 4GB..."
           echo "Current size: $(du -h raspios-base.img | cut -f1)"
-          
+
           # Resize image with explicit raw format to avoid warnings
           qemu-img resize -f raw raspios-base.img 4G
-          
+
           echo "✅ Image resized to 4GB"
           echo "New size: $(du -h raspios-base.img | cut -f1)"
 
@@ -287,7 +287,7 @@ jobs:
         run: |
           echo "🔧 Mounting and customizing Raspberry Pi image..."
           echo "This step may take 3-5 minutes..."
-          
+
           # Create mount points
           sudo mkdir -p /mnt/rpi-boot /mnt/rpi-root
           echo "✅ Created mount points"
@@ -309,7 +309,7 @@ jobs:
           # Identify partitions
           BOOT_PARTITION="${LOOP_DEVICE}p1"
           ROOT_PARTITION="${LOOP_DEVICE}p2"
-          
+
           echo "📂 Boot partition: $BOOT_PARTITION"
           echo "📂 Root partition: $ROOT_PARTITION"
 
@@ -439,13 +439,13 @@ jobs:
         run: |
           echo "🗜️  Compressing final image..."
           echo "This may take 5-10 minutes depending on image size..."
-          
+
           # Create final image name with version/tag
           IMAGE_NAME="minecraft-server-rpi5-$(date +%Y%m%d)"
           if [ "${{ github.ref_type }}" = "tag" ]; then
             IMAGE_NAME="minecraft-server-rpi5-${GITHUB_REF#refs/tags/v}"
           fi
-          
+
           echo "📝 Image will be saved as: ${IMAGE_NAME}.img.xz"
           echo "Original size: $(du -h raspios-base.img | cut -f1)"
 
@@ -457,7 +457,7 @@ jobs:
             xz -9 -v -T0 raspios-base.img
             mv raspios-base.img.xz "${IMAGE_NAME}.img.xz"
           fi
-          
+
           echo "✅ Compression complete"
           echo "Final size: $(du -h ${IMAGE_NAME}.img.xz | cut -f1)"
           echo "Compression ratio: $(echo "scale=1; $(stat -c%s ${IMAGE_NAME}.img.xz) * 100 / $(stat -c%s raspios-base.img 2>/dev/null || echo 1)" | bc)%"

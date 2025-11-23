@@ -1,72 +1,54 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import StatusCard from '../StatusCard'
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import StatusCard from '../StatusCard';
 
 describe('StatusCard', () => {
   it('renders with title and value', () => {
-    render(
-      <StatusCard
-        title="Test Title"
-        value="Test Value"
-        status="success"
-        icon="🟢"
-      />
-    )
+    render(<StatusCard title="Test Title" value="Test Value" status="success" icon="🟢" />);
 
-    expect(screen.getByText('Test Title')).toBeInTheDocument()
-    expect(screen.getByText('Test Value')).toBeInTheDocument()
-  })
+    expect(screen.getByText('Test Title')).toBeInTheDocument();
+    expect(screen.getByText('Test Value')).toBeInTheDocument();
+  });
 
   it('displays the correct icon', () => {
-    render(
-      <StatusCard
-        title="Test"
-        value="Value"
-        status="info"
-        icon="📊"
-      />
-    )
+    render(<StatusCard title="Test" value="Value" status="info" icon="📊" />);
 
-    expect(screen.getByText('📊')).toBeInTheDocument()
-  })
+    expect(screen.getByText('📊')).toBeInTheDocument();
+  });
 
   it('applies correct status color class', () => {
     const { container } = render(
-      <StatusCard
-        title="Test"
-        value="Value"
-        status="success"
-        icon="🟢"
-      />
-    )
+      <StatusCard title="Test" value="Value" status="success" icon="🟢" />
+    );
 
-    const statusDot = container.querySelector('.bg-green-600')
-    expect(statusDot).not.toBeNull()
+    const statusDot = container.querySelector('.bg-green-600');
+    expect(statusDot).not.toBeNull();
     if (statusDot) {
-      expect(statusDot).toBeInstanceOf(HTMLElement)
+      expect(statusDot).toBeInstanceOf(HTMLElement);
     }
-  })
+  });
 
   it('handles different status types', () => {
-    const statuses = ['success', 'error', 'warning', 'info']
+    const statuses = ['success', 'error', 'warning', 'info'];
 
-    statuses.forEach((status) => {
+    statuses.forEach(status => {
       const { container } = render(
-        <StatusCard
-          title="Test"
-          value="Value"
-          status={status}
-          icon="🟢"
-        />
-      )
+        <StatusCard title="Test" value="Value" status={status} icon="🟢" />
+      );
 
-      const colorClass = status === 'success' ? 'green' : status === 'error' ? 'red' : status === 'warning' ? 'yellow' : 'blue'
-      const statusDot = container.querySelector(`.bg-${colorClass}-600`)
-      expect(statusDot).not.toBeNull()
+      const colorClass =
+        status === 'success'
+          ? 'green'
+          : status === 'error'
+            ? 'red'
+            : status === 'warning'
+              ? 'yellow'
+              : 'blue';
+      const statusDot = container.querySelector(`.bg-${colorClass}-600`);
+      expect(statusDot).not.toBeNull();
       if (statusDot) {
-        expect(statusDot).toBeInstanceOf(HTMLElement)
+        expect(statusDot).toBeInstanceOf(HTMLElement);
       }
-    })
-  })
-})
-
+    });
+  });
+});
