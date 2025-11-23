@@ -30,8 +30,11 @@ npx playwright test
 ### Specific Test File
 
 ```bash
-npx playwright test tests/e2e/browser/analytics.spec.js
+cd web
+npx playwright test tests/e2e/analytics.spec.js
 ```
+
+**Note**: Test files have been moved from `tests/e2e/browser/` to `web/tests/e2e/` to ensure proper module resolution.
 
 ### With UI
 

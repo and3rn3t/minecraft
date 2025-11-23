@@ -12,8 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  // Test directory - point to the actual test location (relative to web/)
-  testDir: path.join(__dirname, '../tests/e2e/browser'),
+  // Test directory - tests are now in web/tests/e2e/
+  testDir: path.join(__dirname, 'tests/e2e'),
 
   // Test match pattern - only match .spec.js files
   testMatch: /.*\.spec\.js/,
@@ -28,11 +28,6 @@ export default defineConfig({
     '**/*.test.js',
     '**/web/src/**',
   ],
-
-  // Resolve modules from web/node_modules
-  resolve: {
-    modules: [path.join(__dirname, 'node_modules')],
-  },
 
   // Maximum time one test can run for
   timeout: 30 * 1000,
