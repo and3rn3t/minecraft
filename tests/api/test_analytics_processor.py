@@ -123,10 +123,11 @@ class TestDataLoading:
     def test_load_analytics_data_handles_invalid_json(self, processor):
         """Test handling of invalid JSON lines"""
         file_path = processor.analytics_dir / "performance.jsonl"
+        base_time = int(datetime.now().timestamp())
         with open(file_path, "w") as f:
-            f.write('{"valid": "json"}\n')
+            f.write(json.dumps({"timestamp": base_time, "data": {"valid": "json"}}) + "\n")
             f.write("invalid json line\n")
-            f.write('{"another": "valid"}\n')
+            f.write(json.dumps({"timestamp": base_time, "data": {"another": "valid"}}) + "\n")
 
         data = processor.load_analytics_data("performance", hours=24)
         # Should only include valid JSON records

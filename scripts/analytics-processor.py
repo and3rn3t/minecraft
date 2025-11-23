@@ -58,6 +58,18 @@ class AnalyticsProcessor:
     def calculate_trends(self, data: List[Dict], value_key: str) -> Dict:
         """Calculate trends (slope, direction) from time series data"""
         if len(data) < 2:
+            # For single data point, return basic info
+            if len(data) == 1:
+                value = float(data[0].get("data", {}).get(value_key, 0))
+                return {
+                    "direction": "stable",
+                    "slope": 0,
+                    "change_percent": 0,
+                    "current": value,
+                    "average": value,
+                    "min": value,
+                    "max": value,
+                }
             return {"direction": "stable", "slope": 0, "change_percent": 0}
 
         values = [float(record.get("data", {}).get(value_key, 0)) for record in data]
