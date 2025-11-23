@@ -182,7 +182,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
+          echo "📥 Installing required tools..."
+          sudo apt-get update -qq
           sudo apt-get install -y \
             wget \
             unzip \
@@ -190,7 +191,10 @@ jobs:
             kpartx \
             dosfstools \
             parted \
-            rsync
+            rsync \
+            pv \
+            bc
+          echo "✅ Dependencies installed"
 
       - name: Download Raspberry Pi OS Lite
         run: |
@@ -242,35 +246,67 @@ jobs:
 
       - name: Extract image
         run: |
-          unxz raspios-lite.img.xz
-          mv *.img raspios-base.img
+          echo "📦 Extracting Raspberry Pi OS image..."
+          echo "This may take 2-5 minutes depending on download size..."
+          
+          # Check if pv (pipe viewer) is available for progress
+          if command -v pv &> /dev/null; then
+            pv raspios-lite.img.xz | unxz > raspios-base.img
+          else
+            echo "Extracting (no progress bar available, installing pv for next time)..."
+            unxz -v raspios-lite.img.xz
+            mv *.img raspios-base.img
+          fi
+          
+          echo "✅ Extraction complete"
+          echo "Image size: $(du -h raspios-base.img | cut -f1)"
 
       - name: Resize image
         run: |
-          # Resize image to accommodate our setup (minimum 4GB)
-          qemu-img resize raspios-base.img 4G
+          echo "📏 Resizing image to 4GB..."
+          echo "Current size: $(du -h raspios-base.img | cut -f1)"
+          
+          # Resize image with explicit raw format to avoid warnings
+          qemu-img resize -f raw raspios-base.img 4G
+          
+          echo "✅ Image resized to 4GB"
+          echo "New size: $(du -h raspios-base.img | cut -f1)"
 
       - name: Mount and customize image
         run: |
+          echo "🔧 Mounting and customizing Raspberry Pi image..."
+          echo "This step may take 3-5 minutes..."
+          
           # Create mount points
           sudo mkdir -p /mnt/rpi-boot /mnt/rpi-root
+          echo "✅ Created mount points"
 
-          # Get loop device
-          LOOP_DEVICE=$(sudo losetup -f --show raspios-base.img)
-          echo "Loop device: $LOOP_DEVICE"
+          # Get loop device with explicit format
+          echo "📎 Setting up loop device..."
+          LOOP_DEVICE=$(sudo losetup -f --show -P raspios-base.img)
+          echo "✅ Loop device: $LOOP_DEVICE"
 
-          # Wait for partitions
-          sleep 2
+          # Wait for partitions to be ready
+          echo "⏳ Waiting for partitions to be ready..."
+          sleep 3
 
-          # Mount partitions
+          # Refresh partition table
+          echo "🔄 Refreshing partition table..."
           sudo partprobe $LOOP_DEVICE
-          sleep 2
+          sleep 3
 
+          # Identify partitions
           BOOT_PARTITION="${LOOP_DEVICE}p1"
           ROOT_PARTITION="${LOOP_DEVICE}p2"
+          
+          echo "📂 Boot partition: $BOOT_PARTITION"
+          echo "📂 Root partition: $ROOT_PARTITION"
 
+          # Mount partitions
+          echo "🔗 Mounting partitions..."
           sudo mount $BOOT_PARTITION /mnt/rpi-boot
           sudo mount $ROOT_PARTITION /mnt/rpi-root
+          echo "✅ Partitions mounted"
 
           # Enable SSH
           sudo touch /mnt/rpi-boot/ssh
@@ -374,21 +410,38 @@ jobs:
             /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/minecraft-firstboot.service
 
           # Unmount
+          echo "🔓 Unmounting partitions..."
           sudo umount /mnt/rpi-boot
           sudo umount /mnt/rpi-root
           sudo losetup -d $LOOP_DEVICE
+          echo "✅ Image customization complete"
 
       - name: Compress image
         run: |
+          echo "🗜️  Compressing final image..."
+          echo "This may take 5-10 minutes depending on image size..."
+          
           # Create final image name with version/tag
           IMAGE_NAME="minecraft-server-rpi5-$(date +%Y%m%d)"
           if [ "${{ github.ref_type }}" = "tag" ]; then
             IMAGE_NAME="minecraft-server-rpi5-${GITHUB_REF#refs/tags/v}"
           fi
+          
+          echo "📝 Image will be saved as: ${IMAGE_NAME}.img.xz"
+          echo "Original size: $(du -h raspios-base.img | cut -f1)"
 
-          # Compress image
-          xz -9 -T0 raspios-base.img
-          mv raspios-base.img.xz "${IMAGE_NAME}.img.xz"
+          # Compress image with progress if pv is available
+          if command -v pv &> /dev/null; then
+            pv raspios-base.img | xz -9 -T0 > "${IMAGE_NAME}.img.xz"
+          else
+            echo "Compressing (this will take a while, be patient)..."
+            xz -9 -v -T0 raspios-base.img
+            mv raspios-base.img.xz "${IMAGE_NAME}.img.xz"
+          fi
+          
+          echo "✅ Compression complete"
+          echo "Final size: $(du -h ${IMAGE_NAME}.img.xz | cut -f1)"
+          echo "Compression ratio: $(echo "scale=1; $(stat -c%s ${IMAGE_NAME}.img.xz) * 100 / $(stat -c%s raspios-base.img 2>/dev/null || echo 1)" | bc)%"
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
