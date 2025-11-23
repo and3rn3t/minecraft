@@ -11,6 +11,9 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:a11y": "vitest test/a11y.test.jsx",
+    "test:playwright": "playwright test",
+    "test:playwright:ui": "playwright test --ui",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{js,jsx,css,json}\""
   },
@@ -23,6 +26,8 @@
     "socket.io-client": "^4.6.1"
   },
   "devDependencies": {
+    "@axe-core/react": "^4.8.4",
+    "@playwright/test": "^1.40.0",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
@@ -30,19 +35,20 @@
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/ui": "^1.0.4",
+    "@vitest/coverage-v8": "^1.0.4",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "jest-axe": "^8.0.0",
     "jsdom": "^23.0.1",
     "msw": "^2.0.11",
+    "playwright": "^1.40.0",
     "postcss": "^8.4.32",
     "prettier": "^3.1.1",
     "tailwindcss": "^3.3.6",
     "vite": "^5.0.8",
-    "vitest": "^1.0.4",
-    "@vitest/coverage-v8": "^1.0.4"
+    "vitest": "^1.0.4"
   }
 }
-

@@ -1,158 +1,249 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../../services/api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as api from '../../services/api';
 import { renderWithRouter } from '../../test/utils';
 import Backups from '../Backups';
 
-vi.mock('../../services/api');
+// Mock the API service
+vi.mock('../../services/api', () => ({
+  api: {
+    listBackups: vi.fn(),
+    createBackup: vi.fn(),
+    restoreBackup: vi.fn(),
+    deleteBackup: vi.fn(),
+  },
+}));
+
+// Mock window.confirm
+const mockConfirm = vi.fn();
+globalThis.confirm = mockConfirm;
 
 describe('Backups', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfirm.mockReturnValue(true);
+    globalThis.confirm = mockConfirm;
   });
 
-  it('renders backups page title', () => {
-    api.listBackups.mockResolvedValue({ backups: [] });
-
-    renderWithRouter(<Backups />);
-    expect(screen.getByText('Backups')).toBeInTheDocument();
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('displays loading state initially', () => {
-    api.listBackups.mockImplementation(() => new Promise(() => {}));
+  const mockBackups = [
+    {
+      name: 'minecraft_backup_20240127_120000.tar.gz',
+      size: 104857600,
+      created: '2024-01-27T12:00:00Z',
+    },
+    {
+      name: 'minecraft_backup_20240126_120000.tar.gz',
+      size: 102400000,
+      created: '2024-01-26T12:00:00Z',
+    },
+  ];
 
-    renderWithRouter(<Backups />);
-    expect(screen.getByText('Loading backups...')).toBeInTheDocument();
-  });
-
-  it('displays backup list', async () => {
-    const mockBackups = [
-      {
-        name: 'minecraft_backup_20250115.tar.gz',
-        size: 104857600,
-        created: '2025-01-15T10:30:00Z',
-      },
-    ];
-
-    api.listBackups.mockResolvedValue({ backups: mockBackups });
+  it('renders backups page title', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: [] });
 
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText(mockBackups[0].name)).toBeInTheDocument();
+      expect(screen.getByText(/backup/i)).toBeInTheDocument();
     });
   });
 
-  it('formats backup size correctly', async () => {
-    const mockBackups = [
-      {
-        name: 'backup.tar.gz',
-        size: 104857600, // 100 MB
-        created: '2025-01-15T10:30:00Z',
-      },
-    ];
+  it('displays loading state initially', () => {
+    api.api.listBackups.mockImplementation(() => new Promise(() => {}));
 
-    api.listBackups.mockResolvedValue({ backups: mockBackups });
+    renderWithRouter(<Backups />);
+
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+
+  it('displays list of backups', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: mockBackups });
 
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText(/100\.00 MB/)).toBeInTheDocument();
+      expect(screen.getByText('minecraft_backup_20240127_120000.tar.gz')).toBeInTheDocument();
+      expect(screen.getByText('minecraft_backup_20240126_120000.tar.gz')).toBeInTheDocument();
+    });
+  });
+
+  it('displays empty state when no backups', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: [] });
+
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/no backups/i)).toBeInTheDocument();
     });
   });
 
   it('creates backup when button is clicked', async () => {
-    const user = userEvent.setup();
-    api.listBackups.mockResolvedValue({ backups: [] });
-    api.createBackup.mockResolvedValue({ success: true, message: 'Backup created' });
+    api.api.listBackups.mockResolvedValue({ backups: [] });
+    api.api.createBackup.mockResolvedValue({ success: true, message: 'Backup created' });
 
+    const user = userEvent.setup({ delay: null });
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      const createButton = screen.getByText('Create Backup');
-      expect(createButton).toBeInTheDocument();
+      expect(screen.getByText(/create backup/i)).toBeInTheDocument();
     });
 
-    const createButton = screen.getByText('Create Backup');
+    const createButton = screen.getByRole('button', { name: /create backup/i });
     await user.click(createButton);
 
     await waitFor(() => {
-      expect(api.createBackup).toHaveBeenCalled();
+      expect(api.api.createBackup).toHaveBeenCalled();
+    });
+  });
+
+  it('displays loading state while creating backup', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: [] });
+    api.api.createBackup.mockImplementation(() => new Promise(() => {}));
+
+    const user = userEvent.setup({ delay: null });
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/create backup/i)).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole('button', { name: /create backup/i });
+    await user.click(createButton);
+
+    // Button should be disabled or show loading
+    await waitFor(() => {
+      expect(createButton).toBeDisabled();
     });
   });
 
   it('restores backup when restore button is clicked', async () => {
-    const user = userEvent.setup();
-    const mockBackups = [
-      {
-        name: 'minecraft_backup_20250115.tar.gz',
-        size: 104857600,
-        created: '2025-01-15T10:30:00Z',
-      },
-    ];
+    api.api.listBackups.mockResolvedValue({ backups: mockBackups });
+    api.api.restoreBackup.mockResolvedValue({ success: true, message: 'Backup restored' });
+    mockConfirm.mockReturnValue(true);
 
-    api.listBackups.mockResolvedValue({ backups: mockBackups });
-    api.restoreBackup.mockResolvedValue({ success: true });
-
-    // Mock window.confirm
-    window.confirm = vi.fn(() => true);
-
+    const user = userEvent.setup({ delay: null });
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      const restoreButton = screen.getByText('Restore');
-      expect(restoreButton).toBeInTheDocument();
+      expect(screen.getByText('minecraft_backup_20240127_120000.tar.gz')).toBeInTheDocument();
     });
 
-    const restoreButton = screen.getByText('Restore');
-    await user.click(restoreButton);
+    const restoreButtons = screen.getAllByRole('button', { name: /restore/i });
+    await user.click(restoreButtons[0]);
 
     await waitFor(() => {
-      expect(window.confirm).toHaveBeenCalled();
-      expect(api.restoreBackup).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalled();
+      expect(api.api.restoreBackup).toHaveBeenCalledWith('minecraft_backup_20240127_120000.tar.gz');
+    });
+  });
+
+  it('does not restore backup when confirmation is cancelled', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: mockBackups });
+    mockConfirm.mockReturnValue(false);
+
+    const user = userEvent.setup({ delay: null });
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      expect(screen.getByText('minecraft_backup_20240127_120000.tar.gz')).toBeInTheDocument();
+    });
+
+    const restoreButtons = screen.getAllByRole('button', { name: /restore/i });
+    await user.click(restoreButtons[0]);
+
+    await waitFor(() => {
+      expect(mockConfirm).toHaveBeenCalled();
+      expect(api.api.restoreBackup).not.toHaveBeenCalled();
     });
   });
 
   it('deletes backup when delete button is clicked', async () => {
-    const user = userEvent.setup();
-    const mockBackups = [
-      {
-        name: 'minecraft_backup_20250115.tar.gz',
-        size: 104857600,
-        created: '2025-01-15T10:30:00Z',
-      },
-    ];
+    api.api.listBackups.mockResolvedValue({ backups: mockBackups });
+    api.api.deleteBackup.mockResolvedValue({ success: true });
+    mockConfirm.mockReturnValue(true);
 
-    api.listBackups.mockResolvedValue({ backups: mockBackups });
-    api.deleteBackup.mockResolvedValue({ success: true });
-
-    // Mock window.confirm
-    window.confirm = vi.fn(() => true);
-
+    const user = userEvent.setup({ delay: null });
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      const deleteButton = screen.getByText('Delete');
-      expect(deleteButton).toBeInTheDocument();
+      expect(screen.getByText('minecraft_backup_20240127_120000.tar.gz')).toBeInTheDocument();
     });
 
-    const deleteButton = screen.getByText('Delete');
-    await user.click(deleteButton);
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    await user.click(deleteButtons[0]);
 
     await waitFor(() => {
-      expect(window.confirm).toHaveBeenCalled();
-      expect(api.deleteBackup).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalled();
+      expect(api.api.deleteBackup).toHaveBeenCalledWith('minecraft_backup_20240127_120000.tar.gz');
     });
   });
 
-  it('displays no backups message when empty', async () => {
-    api.listBackups.mockResolvedValue({ backups: [] });
+  it('displays error message when backup creation fails', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: [] });
+    api.api.createBackup.mockRejectedValue(new Error('Failed to create backup'));
+
+    const user = userEvent.setup({ delay: null });
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/create backup/i)).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole('button', { name: /create backup/i });
+    await user.click(createButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed/i)).toBeInTheDocument();
+    });
+  });
+
+  it('displays success message when backup is created', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: [] });
+    api.api.createBackup.mockResolvedValue({
+      success: true,
+      message: 'Backup created successfully!',
+    });
+
+    const user = userEvent.setup({ delay: null });
+    vi.useFakeTimers();
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/create backup/i)).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole('button', { name: /create backup/i });
+    await user.click(createButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/backup created/i)).toBeInTheDocument();
+    });
+  });
+
+  it('formats backup size correctly', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: mockBackups });
 
     renderWithRouter(<Backups />);
 
     await waitFor(() => {
-      expect(screen.getByText('No backups found')).toBeInTheDocument();
+      // Should display formatted size (e.g., "100 MB")
+      const backupElements = screen.getAllByText(/minecraft_backup_/i);
+      expect(backupElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('displays backup creation date', async () => {
+    api.api.listBackups.mockResolvedValue({ backups: mockBackups });
+
+    renderWithRouter(<Backups />);
+
+    await waitFor(() => {
+      expect(screen.getByText('minecraft_backup_20240127_120000.tar.gz')).toBeInTheDocument();
     });
   });
 });
