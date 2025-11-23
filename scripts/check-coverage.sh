@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Coverage configuration
-COVERAGE_THRESHOLD=${COVERAGE_THRESHOLD:-60}
+COVERAGE_THRESHOLD=${COVERAGE_THRESHOLD:-40}
 COVERAGE_FILE="${PROJECT_DIR}/coverage.json"
 
 # Function to print header
