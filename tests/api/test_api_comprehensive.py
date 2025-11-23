@@ -128,7 +128,7 @@ class TestConfigFilesComprehensive:
         """Test successful config file retrieval"""
         from pathlib import Path
         from unittest.mock import MagicMock, patch, mock_open as mock_file_open
-        
+
         # Create a proper mock path
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = True
@@ -138,7 +138,7 @@ class TestConfigFilesComprehensive:
         mock_path.relative_to.return_value = Path("data/server.properties")
         # Make str() work on the mock
         mock_path.__str__ = MagicMock(return_value="data/server.properties")
-        
+
         # Mock file content
         mock_file_content = "test content"
         mock_file = mock_file_open(read_data=mock_file_content)

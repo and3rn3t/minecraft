@@ -1,6 +1,6 @@
 {
   "1h": {
-    "generated_at": "2025-11-23T12:00:52.253740",
+    "generated_at": "2025-11-23T12:03:35.445881",
     "period_hours": 1,
     "player_behavior": {
       "unique_players": 0,
@@ -17,7 +17,7 @@
     }
   },
   "6h": {
-    "generated_at": "2025-11-23T12:00:52.254815",
+    "generated_at": "2025-11-23T12:03:35.447954",
     "period_hours": 6,
     "player_behavior": {
       "unique_players": 0,
@@ -34,7 +34,7 @@
     }
   },
   "24h": {
-    "generated_at": "2025-11-23T12:00:52.254815",
+    "generated_at": "2025-11-23T12:03:35.447954",
     "period_hours": 24,
     "player_behavior": {
       "unique_players": 0,
@@ -51,7 +51,7 @@
     }
   },
   "168h": {
-    "generated_at": "2025-11-23T12:00:52.254815",
+    "generated_at": "2025-11-23T12:03:35.450524",
     "period_hours": 168,
     "player_behavior": {
       "unique_players": 0,

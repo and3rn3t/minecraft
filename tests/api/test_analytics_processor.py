@@ -428,7 +428,7 @@ class TestPlayerBehavior:
         # Round to start of current hour
         base_dt = datetime.fromtimestamp(base_time)
         base_hour = base_dt.replace(minute=0, second=0, microsecond=0)
-        
+
         hourly_data = []
         for hour_offset in range(24):
             # Create timestamps for the last 24 hours
@@ -462,7 +462,7 @@ class TestPlayerBehavior:
         base_dt = datetime.fromtimestamp(base_time)
         base_hour_start = base_dt.replace(minute=0, second=0, microsecond=0)
         base_timestamp = int(base_hour_start.timestamp())
-        
+
         hourly_data = []
         target_hours = [20, 21, 22]
         for hour_offset, target_hour in enumerate(target_hours):
