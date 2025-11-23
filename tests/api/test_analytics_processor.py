@@ -4,20 +4,24 @@ Unit Tests: Analytics Processor
 Tests for analytics processing algorithms and functions
 """
 
+import importlib.util
 import json
-import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import mock_open, patch
 
 import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
-from analytics_processor import AnalyticsProcessor  # noqa: E402
+# Import analytics-processor.py (hyphenated filename requires importlib)
+processor_module_path = SCRIPTS_DIR / "analytics-processor.py"
+spec = importlib.util.spec_from_file_location("analytics_processor", processor_module_path)
+analytics_processor_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(analytics_processor_module)
+AnalyticsProcessor = analytics_processor_module.AnalyticsProcessor
 
 
 @pytest.fixture
