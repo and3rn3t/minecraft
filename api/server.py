@@ -27,8 +27,8 @@ except ImportError:
 # Optional WebSocket support
 try:
     import eventlet  # type: ignore[import-untyped]
-    from flask_socketio import (SocketIO,  # type: ignore[import-untyped]
-                                disconnect, emit)
+    from flask_socketio import SocketIO  # type: ignore[import-untyped]
+    from flask_socketio import disconnect, emit
 
     eventlet.monkey_patch()
     SOCKETIO_AVAILABLE = True
@@ -1622,10 +1622,6 @@ if __name__ == "__main__":
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
-        socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
-    else:
-        print("WebSocket support disabled (Flask-SocketIO not available)")
-        app.run(host=API_HOST, port=API_PORT, debug=False)
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")
