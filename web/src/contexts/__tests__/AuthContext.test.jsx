@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithRouter } from '../../test/utils';
 import { api } from '../../services/api';
+import { renderWithRouter } from '../../test/utils';
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // Mock API service
@@ -98,7 +98,7 @@ describe('AuthContext', () => {
     });
 
     await waitFor(() => {
-      expect(api.login).toHaveBeenCalledWith('testuser', 'password');
+      expect(api.login).toHaveBeenCalledWith('testuser', 'password', null);
       expect(localStorage.getItem('auth_token')).toBe('token123');
     });
   });

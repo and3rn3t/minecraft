@@ -32,7 +32,9 @@ describe('ConfigEditor', () => {
     fireEvent.change(textarea, { target: { value: '# Modified config\nkey=newvalue\n' } });
 
     await waitFor(() => {
-      expect(screen.getByText(/modified/i)).toBeInTheDocument();
+      // There may be multiple "MODIFIED" elements, so use getAllByText
+      const modifiedElements = screen.getAllByText(/modified/i);
+      expect(modifiedElements.length).toBeGreaterThan(0);
     });
   });
 

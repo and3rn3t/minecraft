@@ -222,12 +222,11 @@ jobs:
         id: cache-rpi-image
         uses: actions/cache@v4
         with:
-          path: |
-            raspios-lite.img.xz
-            raspios-base.img
-          key: rpi-os-lite-2024-01-11-arm64
+          path: raspios-lite.img.xz
+          key: rpi-os-lite-2024-01-11-arm64-xz
           restore-keys: |
             rpi-os-lite-
+        continue-on-error: true
 
       - name: Download Raspberry Pi OS Lite
         if: steps.cache-rpi-image.outputs.cache-hit != 'true'
@@ -290,8 +289,20 @@ jobs:
           fi
 
       - name: Extract image
-        if: steps.cache-rpi-image.outputs.cache-hit != 'true'
         run: |
+          # Check if base image already exists (from previous run)
+          if [ -f raspios-base.img ]; then
+            echo "✅ Using existing extracted image"
+            echo "Image size: $(du -h raspios-base.img | cut -f1)"
+            exit 0
+          fi
+
+          # Check if compressed image exists
+          if [ ! -f raspios-lite.img.xz ]; then
+            echo "❌ Error: Compressed image not found"
+            exit 1
+          fi
+
           echo "📦 Extracting Raspberry Pi OS image..."
           echo "This may take 2-5 minutes depending on download size..."
 

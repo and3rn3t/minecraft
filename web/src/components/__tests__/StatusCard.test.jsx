@@ -21,34 +21,28 @@ describe('StatusCard', () => {
       <StatusCard title="Test" value="Value" status="success" icon="🟢" />
     );
 
-    const statusDot = container.querySelector('.bg-green-600');
+    const statusDot = container.querySelector('.bg-minecraft-grass-DEFAULT');
     expect(statusDot).not.toBeNull();
-    if (statusDot) {
-      expect(statusDot).toBeInstanceOf(HTMLElement);
-    }
+    expect(statusDot).toBeInstanceOf(HTMLElement);
   });
 
   it('handles different status types', () => {
     const statuses = ['success', 'error', 'warning', 'info'];
+    const colorClasses = {
+      success: 'bg-minecraft-grass-DEFAULT',
+      error: 'bg-[#C62828]',
+      warning: 'bg-[#F57C00]',
+      info: 'bg-minecraft-water-DEFAULT',
+    };
 
     statuses.forEach(status => {
       const { container } = render(
         <StatusCard title="Test" value="Value" status={status} icon="🟢" />
       );
 
-      const colorClass =
-        status === 'success'
-          ? 'green'
-          : status === 'error'
-            ? 'red'
-            : status === 'warning'
-              ? 'yellow'
-              : 'blue';
-      const statusDot = container.querySelector(`.bg-${colorClass}-600`);
+      const statusDot = container.querySelector(`.${colorClasses[status]}`);
       expect(statusDot).not.toBeNull();
-      if (statusDot) {
-        expect(statusDot).toBeInstanceOf(HTMLElement);
-      }
+      expect(statusDot).toBeInstanceOf(HTMLElement);
     });
   });
 });
