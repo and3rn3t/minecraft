@@ -1,17 +1,15 @@
 import { render, screen } from '@testing-library/react';
-import { axe, toHaveNoViolations } from 'jest-axe';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../contexts/AuthContext';
+import { ToastProvider } from '../components/ToastContainer';
 import Analytics from '../pages/Analytics';
 import Backups from '../pages/Backups';
 import Dashboard from '../pages/Dashboard';
 import Login from '../pages/Login';
 import Players from '../pages/Players';
 import Worlds from '../pages/Worlds';
-
-// Extend Vitest's expect with jest-axe matchers
-expect.extend(toHaveNoViolations);
+import { axe } from './vitest-axe';
 
 // Mock API for components that need it
 vi.mock('../services/api', () => ({
@@ -39,7 +37,9 @@ vi.mock('../services/api', () => ({
 const renderWithA11y = component => {
   return render(
     <BrowserRouter>
-      <AuthProvider>{component}</AuthProvider>
+      <ToastProvider>
+        <AuthProvider>{component}</AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 };
