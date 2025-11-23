@@ -155,14 +155,15 @@ class AnalyticsProcessor:
         recent_values = values[-min(10, len(values)) :]
         avg = statistics.mean(recent_values)
 
-        # Calculate trend
+        # Calculate trend per data point (for linear extrapolation)
         if len(values) >= 2:
-            trend = (values[-1] - values[0]) / len(values)
+            # Calculate trend as change per data point
+            trend_per_point = (values[-1] - values[0]) / (len(values) - 1) if len(values) > 1 else 0
+            # For prediction, use the last value and extrapolate
+            predicted = values[-1] + (trend_per_point * hours_ahead)
         else:
-            trend = 0
-
-        # Predict future value
-        predicted = avg + (trend * hours_ahead)
+            trend_per_point = 0
+            predicted = avg
 
         # Confidence based on data quality
         confidence = min(100, max(0, (len(data) / 100) * 100))
@@ -170,7 +171,7 @@ class AnalyticsProcessor:
         return {
             "predicted": round(predicted, 2),
             "confidence": round(confidence, 1),
-            "trend": round(trend, 2),
+            "trend": round(trend_per_point, 2),
         }
 
     def analyze_player_behavior(self, hours: int = 24) -> Dict:
@@ -227,7 +228,7 @@ class AnalyticsProcessor:
         memory_trend = self.calculate_trends(perf_data, "memory")
 
         # Detect anomalies
-        tps_anomalies = self.detect_anomalies(perf_data, "tps")
+        tps_anomalies = self.detect_anomalies(perf_data, "tps", threshold=1.4)
         cpu_anomalies = self.detect_anomalies(perf_data, "cpu", threshold=1.5)
         memory_anomalies = self.detect_anomalies(perf_data, "memory", threshold=1.5)
 

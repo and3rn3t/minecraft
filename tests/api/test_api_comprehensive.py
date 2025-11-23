@@ -123,15 +123,30 @@ class TestMetricsComprehensive:
 class TestConfigFilesComprehensive:
     """Comprehensive tests for config file endpoints"""
 
-    @patch("pathlib.Path.exists")
+    @patch("api.server.CONFIG_ALLOWED_PATHS")
     @patch("builtins.open", create=True)
-    def test_get_config_file_success(self, mock_open, mock_exists, client, mock_api_key):
+    def test_get_config_file_success(self, mock_open, mock_config_paths, client, mock_api_key):
         """Test successful config file retrieval"""
-        mock_exists.return_value = True
-        mock_open.return_value.__enter__.return_value.read.return_value = "test content"
+        from pathlib import Path
+        from unittest.mock import MagicMock
+        
+        # Create a mock path that exists
+        mock_path = MagicMock(spec=Path)
+        mock_path.exists.return_value = True
+        mock_path.is_file.return_value = True
+        mock_path.relative_to.return_value = Path("data/server.properties")
+        mock_config_paths.__getitem__.return_value = mock_path
+        mock_config_paths.__contains__.return_value = True
+        
+        # Mock file content
+        mock_file = MagicMock()
+        mock_file.read.return_value = "test content"
+        mock_open.return_value.__enter__.return_value = mock_file
 
         with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
-            response = client.get("/api/config/files/server.properties", headers={"X-API-Key": mock_api_key})
+            # Also patch CONFIG_ALLOWED_PATHS to return our mock
+            with patch("api.server.CONFIG_ALLOWED_PATHS", {"server.properties": mock_path}):
+                response = client.get("/api/config/files/server.properties", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
         data = json.loads(response.data)

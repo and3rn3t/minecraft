@@ -8,10 +8,10 @@ import path from 'path';
 export default defineConfig({
   // Test directory - point to the actual test location (relative to web/)
   testDir: path.join(__dirname, '../tests/e2e/browser'),
-  
+
   // Test match pattern - only match .spec.js files
   testMatch: /.*\.spec\.js/,
-  
+
   // Exclude Vitest files and source files from Playwright
   testIgnore: [
     '**/node_modules/**',
@@ -22,35 +22,32 @@ export default defineConfig({
     '**/*.test.js',
     '**/web/src/**',
   ],
-  
+
   // Resolve modules from web/node_modules
   resolve: {
     modules: [path.join(__dirname, 'node_modules')],
   },
-  
+
   // Maximum time one test can run for
   timeout: 30 * 1000,
-  
+
   // Test execution
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  
+
   // Reporter configuration
-  reporter: [
-    ['html', { outputFolder: 'playwright-report' }],
-    ['list'],
-  ],
-  
+  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
+
   // Shared settings for all projects
   use: {
     // Base URL for tests
     baseURL: 'http://localhost:5173',
-    
+
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
-    
+
     // Screenshot on failure
     screenshot: 'only-on-failure',
   },
@@ -79,4 +76,3 @@ export default defineConfig({
     timeout: 120 * 1000,
   },
 });
-

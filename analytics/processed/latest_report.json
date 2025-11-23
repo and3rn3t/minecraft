@@ -1,0 +1,17 @@
+{
+  "generated_at": "2025-11-23T12:00:52.254815",
+  "period_hours": 24,
+  "player_behavior": {
+    "unique_players": 0,
+    "peak_hour": 0,
+    "hourly_distribution": {},
+    "average_session_duration_minutes": 0,
+    "total_events": 0
+  },
+  "performance": {},
+  "summary": {
+    "status": "healthy",
+    "warnings": [],
+    "recommendations": []
+  }
+}
