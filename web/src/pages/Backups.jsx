@@ -162,21 +162,23 @@ const Backups = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Backups</h1>
+        <h1 className="text-2xl font-minecraft text-minecraft-grass-light leading-tight">
+          BACKUPS
+        </h1>
         <button
           onClick={handleCreateBackup}
           disabled={creating}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors flex items-center gap-2"
+          className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {creating ? (
             <>
-              <span className="animate-spin">⏳</span>
-              Creating...
+              <span>⏳</span>
+              CREATING...
             </>
           ) : (
             <>
               <span>💾</span>
-              Create Backup
+              CREATE BACKUP
             </>
           )}
         </button>
@@ -184,63 +186,83 @@ const Backups = () => {
 
       {/* Error/Success messages */}
       {error && (
-        <div className="bg-red-900/50 border border-red-700 rounded p-4 mb-6 text-red-300">
+        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-900/50 border border-green-700 rounded p-4 mb-6 text-green-300">
+        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {success}
         </div>
       )}
 
       {/* Backups Table */}
-      <div className="bg-gray-800 rounded-lg p-6">
+      <div className="card-minecraft p-6">
         {loading ? (
-          <div className="text-center py-8">Loading backups...</div>
+          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
+            LOADING BACKUPS...
+          </div>
         ) : backups.length === 0 ? (
-          <div className="text-gray-400 text-center py-8">
-            <p className="text-lg mb-2">No backups found</p>
-            <p className="text-sm">Create a backup to get started</p>
+          <div className="text-minecraft-text-dark text-center py-8">
+            <p className="text-sm font-minecraft mb-2">NO BACKUPS FOUND</p>
+            <p className="text-[10px] font-minecraft">CREATE A BACKUP TO GET STARTED</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-3 px-4">Name</th>
-                  <th className="text-left py-3 px-4">Size</th>
-                  <th className="text-left py-3 px-4">Created</th>
-                  <th className="text-left py-3 px-4">Age</th>
-                  <th className="text-left py-3 px-4">Actions</th>
+                <tr className="border-b-2 border-[#5D4037]">
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    NAME
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    SIZE
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    CREATED
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    AGE
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    ACTIONS
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {backups.map((backup, index) => (
                   <tr
                     key={backup.name || `backup-${index}`}
-                    className="border-b border-gray-700 hover:bg-gray-700 transition-colors"
+                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
                   >
-                    <td className="py-3 px-4 font-mono text-sm">{backup.name}</td>
-                    <td className="py-3 px-4">{formatSize(backup.size)}</td>
-                    <td className="py-3 px-4">{formatDate(backup.created)}</td>
-                    <td className="py-3 px-4 text-gray-400 text-sm">{formatAge(backup.created)}</td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
+                      {backup.name}
+                    </td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
+                      {formatSize(backup.size)}
+                    </td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
+                      {formatDate(backup.created)}
+                    </td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
+                      {formatAge(backup.created)}
+                    </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleRestore(backup.name)}
                           disabled={restoring === backup.name || deleting === backup.name}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          className="btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {restoring === backup.name ? 'Restoring...' : 'Restore'}
+                          {restoring === backup.name ? 'RESTORING...' : 'RESTORE'}
                         </button>
                         <button
                           onClick={() => handleDelete(backup.name)}
                           disabled={restoring === backup.name || deleting === backup.name}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          className="btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {deleting === backup.name ? 'Deleting...' : 'Delete'}
+                          {deleting === backup.name ? 'DELETING...' : 'DELETE'}
                         </button>
                       </div>
                     </td>
@@ -254,9 +276,9 @@ const Backups = () => {
 
       {/* Info */}
       {backups.length > 0 && (
-        <div className="mt-4 bg-blue-900/30 border border-blue-700 rounded p-3 text-blue-300 text-sm">
-          <strong>Info:</strong> {backups.length} backup{backups.length !== 1 ? 's' : ''} available.
-          Restoring a backup will stop the server and create a backup of the current state first.
+        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+          <strong>INFO:</strong> {backups.length} BACKUP{backups.length !== 1 ? 'S' : ''} AVAILABLE.
+          RESTORING A BACKUP WILL STOP THE SERVER AND CREATE A BACKUP OF THE CURRENT STATE FIRST.
         </div>
       )}
     </div>

@@ -153,64 +153,70 @@ const ApiKeys = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">API Keys</h1>
+        <h1 className="text-2xl font-minecraft text-minecraft-grass-light leading-tight">
+          API KEYS
+        </h1>
         <button
           onClick={() => setShowCreateForm(true)}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded transition-colors flex items-center gap-2"
+          className="btn-minecraft-primary text-[10px] flex items-center gap-2"
         >
           <span>🔑</span>
-          Create API Key
+          CREATE API KEY
         </button>
       </div>
 
       {/* Error/Success messages */}
       {error && (
-        <div className="bg-red-900/50 border border-red-700 rounded p-4 mb-6 text-red-300">
+        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-900/50 border border-green-700 rounded p-4 mb-6 text-green-300">
+        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {success}
         </div>
       )}
 
       {/* New Key Display Modal */}
       {newKeyValue && (
-        <div className="bg-yellow-900/50 border-2 border-yellow-600 rounded p-6 mb-6">
-          <h3 className="text-xl font-bold mb-4 text-yellow-300">⚠️ New API Key Created</h3>
-          <p className="text-yellow-200 mb-4">
-            <strong>Important:</strong> Save this API key securely. It will not be shown again.
+        <div className="bg-[#F57C00] border-2 border-[#E65100] p-6 mb-6 card-minecraft">
+          <h3 className="text-sm font-minecraft mb-4 text-white leading-tight">
+            ⚠️ NEW API KEY CREATED
+          </h3>
+          <p className="text-[10px] font-minecraft text-white mb-4">
+            <strong>IMPORTANT:</strong> SAVE THIS API KEY SECURELY. IT WILL NOT BE SHOWN AGAIN.
           </p>
-          <div className="bg-gray-900 rounded p-4 mb-4">
+          <div className="bg-minecraft-background-dark border-2 border-[#5D4037] p-4 mb-4">
             <div className="flex items-center justify-between">
-              <code className="text-lg font-mono text-white break-all">{newKeyValue}</code>
+              <code className="text-xs font-minecraft text-white break-all">{newKeyValue}</code>
               <button
                 onClick={() => copyToClipboard(newKeyValue)}
-                className="ml-4 px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm whitespace-nowrap"
+                className="ml-4 btn-minecraft text-[8px] whitespace-nowrap"
               >
-                Copy
+                COPY
               </button>
             </div>
           </div>
-          <button
-            onClick={closeCreateForm}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded transition-colors"
-          >
-            I&apos;ve Saved the Key
+          <button onClick={closeCreateForm} className="btn-minecraft-primary text-[10px]">
+            I&apos;VE SAVED THE KEY
           </button>
         </div>
       )}
 
       {/* Create Form Modal */}
       {showCreateForm && !newKeyValue && (
-        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
-          <h2 className="text-2xl font-semibold mb-4">Create New API Key</h2>
+        <div className="card-minecraft p-6 mb-6">
+          <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 leading-tight">
+            CREATE NEW API KEY
+          </h2>
           <form onSubmit={handleCreateKey} className="space-y-4">
             <div>
-              <label htmlFor="key-name" className="block text-sm font-medium mb-2">
-                Key Name <span className="text-red-400">*</span>
+              <label
+                htmlFor="key-name"
+                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
+              >
+                KEY NAME <span className="text-[#C62828]">*</span>
               </label>
               <input
                 id="key-name"
@@ -218,20 +224,23 @@ const ApiKeys = () => {
                 value={newKeyName}
                 onChange={e => setNewKeyName(e.target.value)}
                 required
-                className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-primary-500"
+                className="input-minecraft w-full"
                 placeholder="e.g., Webhook Integration"
               />
             </div>
             <div>
-              <label htmlFor="key-description" className="block text-sm font-medium mb-2">
-                Description (optional)
+              <label
+                htmlFor="key-description"
+                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
+              >
+                DESCRIPTION (OPTIONAL)
               </label>
               <textarea
                 id="key-description"
                 value={newKeyDescription}
                 onChange={e => setNewKeyDescription(e.target.value)}
                 rows={3}
-                className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-primary-500"
+                className="input-minecraft w-full"
                 placeholder="Describe what this API key will be used for"
               />
             </div>
@@ -239,17 +248,17 @@ const ApiKeys = () => {
               <button
                 type="submit"
                 disabled={creating}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
+                className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {creating ? 'Creating...' : 'Create Key'}
+                {creating ? 'CREATING...' : 'CREATE KEY'}
               </button>
               <button
                 type="button"
                 onClick={closeCreateForm}
                 disabled={creating}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-500 disabled:cursor-not-allowed rounded transition-colors"
+                className="btn-minecraft text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                CANCEL
               </button>
             </div>
           </form>
@@ -257,71 +266,89 @@ const ApiKeys = () => {
       )}
 
       {/* API Keys Table */}
-      <div className="bg-gray-800 rounded-lg p-6">
+      <div className="card-minecraft p-6">
         {loading ? (
-          <div className="text-center py-8">Loading API keys...</div>
+          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
+            LOADING API KEYS...
+          </div>
         ) : keys.length === 0 ? (
-          <div className="text-gray-400 text-center py-8">
-            <p className="text-lg mb-2">No API keys found</p>
-            <p className="text-sm">Create an API key to get started</p>
+          <div className="text-minecraft-text-dark text-center py-8">
+            <p className="text-sm font-minecraft mb-2">NO API KEYS FOUND</p>
+            <p className="text-[10px] font-minecraft">CREATE AN API KEY TO GET STARTED</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-3 px-4">Name</th>
-                  <th className="text-left py-3 px-4">Key ID</th>
-                  <th className="text-left py-3 px-4">Description</th>
-                  <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Created</th>
-                  <th className="text-left py-3 px-4">Actions</th>
+                <tr className="border-b-2 border-[#5D4037]">
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    NAME
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    KEY ID
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    DESCRIPTION
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    STATUS
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    CREATED
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    ACTIONS
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {keys.map((key, index) => (
                   <tr
                     key={key.id || `key-${index}`}
-                    className="border-b border-gray-700 hover:bg-gray-700 transition-colors"
+                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
                   >
-                    <td className="py-3 px-4 font-medium">{key.name}</td>
-                    <td className="py-3 px-4">
-                      <code className="text-sm font-mono text-gray-300">{key.id}</code>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
+                      {key.name}
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-sm">
-                      {key.description || <span className="italic">No description</span>}
+                    <td className="py-3 px-4">
+                      <code className="text-[10px] font-minecraft text-minecraft-text-dark">
+                        {key.id}
+                      </code>
+                    </td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
+                      {key.description || <span className="italic">NO DESCRIPTION</span>}
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
+                        className={`px-2 py-1 text-[8px] font-minecraft ${
                           key.enabled
-                            ? 'bg-green-900/50 text-green-300'
-                            : 'bg-red-900/50 text-red-300'
+                            ? 'bg-minecraft-grass-DEFAULT text-white'
+                            : 'bg-[#C62828] text-white'
                         }`}
                       >
-                        {key.enabled ? '✓ Enabled' : '✗ Disabled'}
+                        {key.enabled ? '✓ ENABLED' : '✗ DISABLED'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-sm">{formatDate(key.created)}</td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
+                      {formatDate(key.created)}
+                    </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleToggle(key.id, key.enabled)}
                           disabled={toggling === key.id || deleting === key.id}
-                          className={`px-3 py-1 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed ${
-                            key.enabled
-                              ? 'bg-yellow-600 hover:bg-yellow-700'
-                              : 'bg-green-600 hover:bg-green-700'
+                          className={`btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed ${
+                            !key.enabled ? 'bg-minecraft-grass-DEFAULT' : ''
                           }`}
                         >
-                          {toggling === key.id ? '...' : key.enabled ? 'Disable' : 'Enable'}
+                          {toggling === key.id ? '...' : key.enabled ? 'DISABLE' : 'ENABLE'}
                         </button>
                         <button
                           onClick={() => handleDelete(key.id)}
                           disabled={toggling === key.id || deleting === key.id}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          className="btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {deleting === key.id ? 'Deleting...' : 'Delete'}
+                          {deleting === key.id ? 'DELETING...' : 'DELETE'}
                         </button>
                       </div>
                     </td>
@@ -335,9 +362,9 @@ const ApiKeys = () => {
 
       {/* Info */}
       {keys.length > 0 && (
-        <div className="mt-4 bg-blue-900/30 border border-blue-700 rounded p-3 text-blue-300 text-sm">
-          <strong>Info:</strong> {keys.length} API key{keys.length !== 1 ? 's' : ''} available. API
-          keys allow programmatic access to the server. Keep them secure and rotate them regularly.
+        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+          <strong>INFO:</strong> {keys.length} API KEY{keys.length !== 1 ? 'S' : ''} AVAILABLE. API
+          KEYS ALLOW PROGRAMMATIC ACCESS TO THE SERVER. KEEP THEM SECURE AND ROTATE THEM REGULARLY.
         </div>
       )}
     </div>

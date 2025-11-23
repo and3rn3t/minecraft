@@ -139,61 +139,63 @@ const Logs = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Server Logs</h1>
+      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
+        SERVER LOGS
+      </h1>
 
       {/* Controls */}
-      <div className="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4 items-center flex-wrap">
+      <div className="card-minecraft p-4 mb-6 flex gap-4 items-center flex-wrap">
         <input
           type="text"
-          placeholder="Filter logs..."
+          placeholder="FILTER LOGS..."
           value={filter}
           onChange={e => setFilter(e.target.value)}
-          className="flex-1 min-w-[200px] bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-primary-500"
+          className="input-minecraft flex-1 min-w-[200px]"
         />
-        <label className="flex items-center gap-2 cursor-pointer">
+        <label className="flex items-center gap-2 cursor-pointer text-[10px] font-minecraft text-minecraft-text-light">
           <input
             type="checkbox"
             checked={autoScroll}
             onChange={e => setAutoScroll(e.target.checked)}
             className="w-4 h-4"
           />
-          <span>Auto-scroll</span>
+          <span>AUTO-SCROLL</span>
         </label>
         <div className="flex items-center gap-2">
           <div
-            className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-gray-500'}`}
+            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass-DEFAULT' : 'bg-minecraft-stone-DEFAULT'}`}
             title={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
+            style={{ imageRendering: 'pixelated' }}
           />
-          <span className="text-sm text-gray-400">
-            {useWebSocket ? (connected ? 'Live' : 'Connecting...') : 'Polling'}
+          <span className="text-[10px] font-minecraft text-minecraft-text-dark">
+            {useWebSocket ? (connected ? 'LIVE' : 'CONNECTING...') : 'POLLING'}
           </span>
         </div>
-        <button
-          onClick={refreshLogs}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded transition-colors"
-        >
-          Refresh
+        <button onClick={refreshLogs} className="btn-minecraft text-[10px]">
+          REFRESH
         </button>
       </div>
 
       {/* Log Display */}
-      <div className="bg-gray-800 rounded-lg p-4">
+      <div className="card-minecraft p-4">
         {loading ? (
-          <div className="text-center py-8">Loading logs...</div>
+          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
+            LOADING LOGS...
+          </div>
         ) : (
-          <div className="font-mono text-sm overflow-auto max-h-[600px]">
+          <div className="font-minecraft text-[10px] overflow-auto max-h-[600px]">
             {filteredLogs.length === 0 ? (
-              <div className="text-gray-400 text-center py-8">No logs found</div>
+              <div className="text-minecraft-text-dark text-center py-8">NO LOGS FOUND</div>
             ) : (
               filteredLogs.map((log, index) => (
                 <div
                   key={index}
-                  className={`py-1 px-2 hover:bg-gray-700 ${
+                  className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT ${
                     log.includes('ERROR') || log.includes('WARN')
-                      ? 'text-red-400'
+                      ? 'text-[#C62828]'
                       : log.includes('INFO')
-                        ? 'text-blue-400'
-                        : 'text-gray-300'
+                        ? 'text-minecraft-water-light'
+                        : 'text-minecraft-text-light'
                   }`}
                 >
                   {log}

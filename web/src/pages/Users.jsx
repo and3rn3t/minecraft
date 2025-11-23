@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -131,131 +131,146 @@ const Users = () => {
   const getRoleColor = role => {
     switch (role) {
       case 'admin':
-        return 'bg-red-900/50 text-red-300';
+        return 'bg-[#C62828] text-white';
       case 'operator':
-        return 'bg-blue-900/50 text-blue-300';
+        return 'bg-minecraft-water-DEFAULT text-white';
       case 'user':
-        return 'bg-gray-700 text-gray-300';
+        return 'bg-minecraft-stone-DEFAULT text-white';
       default:
-        return 'bg-gray-700 text-gray-300';
+        return 'bg-minecraft-stone-DEFAULT text-white';
     }
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">User Management</h1>
+        <h1 className="text-2xl font-minecraft text-minecraft-grass-light leading-tight">
+          USER MANAGEMENT
+        </h1>
       </div>
 
       {/* Error/Success messages */}
       {error && (
-        <div className="bg-red-900/50 border border-red-700 rounded p-4 mb-6 text-red-300">
+        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-900/50 border border-green-700 rounded p-4 mb-6 text-green-300">
+        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {success}
         </div>
       )}
 
       {/* Role Selection Modal */}
       {showRoleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-2xl font-semibold mb-4">
-              Change Role for {showRoleModal.username}
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="card-minecraft p-6 w-full max-w-md">
+            <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 leading-tight">
+              CHANGE ROLE FOR {showRoleModal.username.toUpperCase()}
             </h2>
-            <p className="text-gray-400 mb-4">Current role: {showRoleModal.currentRole}</p>
+            <p className="text-[10px] font-minecraft text-minecraft-text-dark mb-4">
+              CURRENT ROLE: {showRoleModal.currentRole.toUpperCase()}
+            </p>
             <div className="space-y-2 mb-6">
               {Object.keys(roles).map(role => (
                 <button
                   key={role}
                   onClick={() => handleUpdateRole(showRoleModal.username, role)}
                   disabled={updating === showRoleModal.username || role === showRoleModal.currentRole}
-                  className={`w-full px-4 py-2 rounded transition-colors text-left ${
+                  className={`w-full btn-minecraft text-[10px] text-left ${
                     role === showRoleModal.currentRole
-                      ? 'bg-primary-600 text-white cursor-not-allowed'
-                      : 'bg-gray-700 hover:bg-gray-600 text-white'
+                      ? 'bg-minecraft-grass-DEFAULT cursor-not-allowed'
+                      : ''
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium capitalize">{role}</span>
-                    <span className="text-sm text-gray-400">
-                      {roles[role]?.permission_count || 0} permissions
+                    <span className="font-minecraft uppercase">{role}</span>
+                    <span className="text-[8px] font-minecraft text-minecraft-text-dark">
+                      {roles[role]?.permission_count || 0} PERMISSIONS
                     </span>
                   </div>
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setShowRoleModal(null)}
-              className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded transition-colors"
-            >
-              Cancel
+            <button onClick={() => setShowRoleModal(null)} className="btn-minecraft w-full text-[10px]">
+              CANCEL
             </button>
           </div>
         </div>
       )}
 
       {/* Users Table */}
-      <div className="bg-gray-800 rounded-lg p-6">
+      <div className="card-minecraft p-6">
         {loading ? (
-          <div className="text-center py-8">Loading users...</div>
+          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
+            LOADING USERS...
+          </div>
         ) : users.length === 0 ? (
-          <div className="text-gray-400 text-center py-8">
-            <p className="text-lg mb-2">No users found</p>
+          <div className="text-minecraft-text-dark text-center py-8">
+            <p className="text-sm font-minecraft mb-2">NO USERS FOUND</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-3 px-4">Username</th>
-                  <th className="text-left py-3 px-4">Role</th>
-                  <th className="text-left py-3 px-4">Email</th>
-                  <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Created</th>
-                  <th className="text-left py-3 px-4">Actions</th>
+                <tr className="border-b-2 border-[#5D4037]">
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    USERNAME
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    ROLE
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    EMAIL
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    STATUS
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    CREATED
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    ACTIONS
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user, index) => (
                   <tr
                     key={user.username || `user-${index}`}
-                    className="border-b border-gray-700 hover:bg-gray-700 transition-colors"
+                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
                   >
-                    <td className="py-3 px-4 font-medium">
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
                       {user.username}
                       {user.username === currentUser?.username && (
-                        <span className="ml-2 text-xs text-gray-400">(You)</span>
+                        <span className="ml-2 text-[8px] text-minecraft-text-dark">(YOU)</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${getRoleColor(
-                          user.role
-                        )}`}
+                        className={`px-2 py-1 text-[8px] font-minecraft ${getRoleColor(user.role)}`}
                       >
-                        {user.role || 'user'}
+                        {(user.role || 'user').toUpperCase()}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-sm">
-                      {user.email || <span className="italic">No email</span>}
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
+                      {user.email || <span className="italic">NO EMAIL</span>}
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
+                        className={`px-2 py-1 text-[8px] font-minecraft ${
                           user.enabled
-                            ? 'bg-green-900/50 text-green-300'
-                            : 'bg-red-900/50 text-red-300'
+                            ? 'bg-minecraft-grass-DEFAULT text-white'
+                            : 'bg-[#C62828] text-white'
                         }`}
                       >
-                        {user.enabled ? '✓ Enabled' : '✗ Disabled'}
+                        {user.enabled ? '✓ ENABLED' : '✗ DISABLED'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-400 text-sm">{formatDate(user.created)}</td>
+                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
+                      {formatDate(user.created)}
+                    </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
                         <button
@@ -270,9 +285,9 @@ const Users = () => {
                             deleting === user.username ||
                             user.username === currentUser?.username
                           }
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          className="btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Change Role
+                          CHANGE ROLE
                         </button>
                         <button
                           onClick={() => handleToggle(user.username, user.enabled)}
@@ -281,17 +296,15 @@ const Users = () => {
                             deleting === user.username ||
                             user.username === currentUser?.username
                           }
-                          className={`px-3 py-1 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed ${
-                            user.enabled
-                              ? 'bg-yellow-600 hover:bg-yellow-700'
-                              : 'bg-green-600 hover:bg-green-700'
+                          className={`btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed ${
+                            user.enabled ? '' : 'bg-minecraft-grass-DEFAULT'
                           }`}
                         >
                           {updating === user.username
                             ? '...'
                             : user.enabled
-                              ? 'Disable'
-                              : 'Enable'}
+                              ? 'DISABLE'
+                              : 'ENABLE'}
                         </button>
                         <button
                           onClick={() => handleDelete(user.username)}
@@ -300,9 +313,9 @@ const Users = () => {
                             deleting === user.username ||
                             user.username === currentUser?.username
                           }
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          className="btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {deleting === user.username ? 'Deleting...' : 'Delete'}
+                          {deleting === user.username ? 'DELETING...' : 'DELETE'}
                         </button>
                       </div>
                     </td>
@@ -316,9 +329,9 @@ const Users = () => {
 
       {/* Info */}
       {users.length > 0 && (
-        <div className="mt-4 bg-blue-900/30 border border-blue-700 rounded p-3 text-blue-300 text-sm">
-          <strong>Info:</strong> {users.length} user{users.length !== 1 ? 's' : ''} registered.
-          You cannot modify or delete your own account. At least one admin user must always exist.
+        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+          <strong>INFO:</strong> {users.length} USER{users.length !== 1 ? 'S' : ''} REGISTERED. YOU
+          CANNOT MODIFY OR DELETE YOUR OWN ACCOUNT. AT LEAST ONE ADMIN USER MUST ALWAYS EXIST.
         </div>
       )}
     </div>

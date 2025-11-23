@@ -78,54 +78,60 @@ const ConfigFiles = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-xl">Loading configuration files...</div>
+        <div className="text-sm font-minecraft text-minecraft-text-light">
+          LOADING CONFIGURATION FILES...
+        </div>
       </div>
     );
   }
 
   return (
     <div className="h-full flex flex-col">
-      <h1 className="text-3xl font-bold mb-8">Configuration Files</h1>
+      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
+        CONFIGURATION FILES
+      </h1>
 
       {/* Error/Success messages */}
       {error && (
-        <div className="bg-red-900/50 border border-red-700 rounded p-4 mb-6 text-red-300">
+        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
           {error}
         </div>
       )}
 
       {saveMessage && (
-        <div className="bg-green-900/50 border border-green-700 rounded p-4 mb-6 text-green-300">
+        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {saveMessage}
         </div>
       )}
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
         {/* File list */}
-        <div className="bg-gray-800 rounded-lg p-4 lg:max-h-[calc(100vh-200px)] overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4">Files</h2>
+        <div className="card-minecraft p-4 lg:max-h-[calc(100vh-200px)] overflow-y-auto">
+          <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+            FILES
+          </h2>
           <div className="space-y-2">
             {files.map(file => (
               <button
                 key={file.name}
                 onClick={() => loadFileContent(file.name)}
                 disabled={loadingContent}
-                className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                className={`w-full text-left px-3 py-2 text-[10px] font-minecraft disabled:opacity-50 disabled:cursor-not-allowed ${
                   selectedFile === file.name
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    ? 'bg-minecraft-grass-DEFAULT text-white border-2 border-minecraft-grass-dark'
+                    : 'bg-minecraft-dirt-DEFAULT hover:bg-minecraft-dirt-light text-minecraft-text-light border-2 border-[#5D4037]'
+                }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">{file.name}</span>
+                  <span className="font-minecraft">{file.name}</span>
                   {file.exists ? (
-                    <span className="text-xs text-green-400">●</span>
+                    <span className="text-[8px] text-minecraft-grass-light">●</span>
                   ) : (
-                    <span className="text-xs text-gray-500">○</span>
+                    <span className="text-[8px] text-minecraft-text-dark">○</span>
                   )}
                 </div>
                 {file.exists && file.size > 0 && (
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-[8px] font-minecraft text-minecraft-text-dark mt-1">
                     {(file.size / 1024).toFixed(1)} KB
                   </div>
                 )}
@@ -137,8 +143,10 @@ const ConfigFiles = () => {
         {/* Editor */}
         <div className="lg:col-span-3 min-h-0 flex flex-col">
           {loadingContent && (
-            <div className="flex items-center justify-center h-full bg-gray-800 rounded-lg">
-              <div className="text-xl">Loading file...</div>
+            <div className="flex items-center justify-center h-full card-minecraft">
+              <div className="text-sm font-minecraft text-minecraft-text-light">
+                LOADING FILE...
+              </div>
             </div>
           )}
           {!loadingContent && selectedFile && fileContent && (
@@ -152,10 +160,10 @@ const ConfigFiles = () => {
             </div>
           )}
           {!loadingContent && (!selectedFile || !fileContent) && (
-            <div className="flex items-center justify-center h-full bg-gray-800 rounded-lg">
-              <div className="text-center text-gray-400">
-                <p className="text-lg mb-2">No file selected</p>
-                <p className="text-sm">Select a configuration file to edit</p>
+            <div className="flex items-center justify-center h-full card-minecraft">
+              <div className="text-center text-minecraft-text-dark">
+                <p className="text-sm font-minecraft mb-2">NO FILE SELECTED</p>
+                <p className="text-[10px] font-minecraft">SELECT A CONFIGURATION FILE TO EDIT</p>
               </div>
             </div>
           )}
@@ -163,9 +171,9 @@ const ConfigFiles = () => {
       </div>
 
       {/* Warning */}
-      <div className="mt-4 bg-yellow-900/30 border border-yellow-700 rounded p-3 text-yellow-300 text-sm">
-        <strong>Warning:</strong> Changes to configuration files may require a server restart to
-        take effect. Backups are automatically created before saving.
+      <div className="mt-4 bg-[#F57C00]/30 border-2 border-[#E65100] p-3 text-[10px] font-minecraft text-white">
+        <strong>WARNING:</strong> CHANGES TO CONFIGURATION FILES MAY REQUIRE A SERVER RESTART TO
+        TAKE EFFECT. BACKUPS ARE AUTOMATICALLY CREATED BEFORE SAVING.
       </div>
     </div>
   );

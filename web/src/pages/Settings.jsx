@@ -80,7 +80,9 @@ const Settings = () => {
                 setError(result.error || `Failed to link ${provider} account`);
               }
             } catch (err) {
-              setError(err.response?.data?.error || err.message || `Failed to link ${provider} account`);
+              setError(
+                err.response?.data?.error || err.message || `Failed to link ${provider} account`
+              );
             } finally {
               setLinking(null);
               if (popup && !popup.closed) {
@@ -149,51 +151,58 @@ const Settings = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
+        SETTINGS
+      </h1>
 
       {/* Messages */}
       {message && (
-        <div className="bg-green-900/50 border border-green-700 rounded p-4 mb-6 text-green-300">
+        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {message}
         </div>
       )}
 
       {error && (
-        <div className="bg-red-900/50 border border-red-700 rounded p-4 mb-6 text-red-300">
+        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
           {error}
         </div>
       )}
 
       {/* Account Settings */}
-      <div className="bg-gray-800 rounded-lg p-6 max-w-2xl mb-6">
-        <h2 className="text-xl font-semibold mb-4">Account Information</h2>
+      <div className="card-minecraft p-6 max-w-2xl mb-6">
+        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+          ACCOUNT INFORMATION
+        </h2>
 
         {user && (
           <div className="space-y-2 mb-4">
-            <div>
-              <span className="text-sm text-gray-400">Username:</span>{' '}
-              <span className="font-medium">{user.username}</span>
+            <div className="text-[10px] font-minecraft">
+              <span className="text-minecraft-text-dark">USERNAME:</span>{' '}
+              <span className="text-minecraft-text-light">{user.username}</span>
             </div>
             {user.email && (
-              <div>
-                <span className="text-sm text-gray-400">Email:</span> <span>{user.email}</span>
+              <div className="text-[10px] font-minecraft">
+                <span className="text-minecraft-text-dark">EMAIL:</span>{' '}
+                <span className="text-minecraft-text-light">{user.email}</span>
               </div>
             )}
-            <div>
-              <span className="text-sm text-gray-400">Role:</span>{' '}
-              <span className="capitalize">{user.role || 'user'}</span>
+            <div className="text-[10px] font-minecraft">
+              <span className="text-minecraft-text-dark">ROLE:</span>{' '}
+              <span className="text-minecraft-text-light uppercase">{user.role || 'user'}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* OAuth Account Linking */}
-      <div className="bg-gray-800 rounded-lg p-6 max-w-2xl mb-6">
-        <h2 className="text-xl font-semibold mb-4">Connected Accounts</h2>
+      <div className="card-minecraft p-6 max-w-2xl mb-6">
+        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+          CONNECTED ACCOUNTS
+        </h2>
 
         <div className="space-y-4">
           {/* Google */}
-          <div className="flex items-center justify-between p-4 bg-gray-700 rounded border border-gray-600">
+          <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6" viewBox="0 0 24 24">
                 <path
@@ -214,9 +223,9 @@ const Settings = () => {
                 />
               </svg>
               <div>
-                <div className="font-medium">Google</div>
-                <div className="text-sm text-gray-400">
-                  {hasOAuthProvider('google') ? 'Connected' : 'Not connected'}
+                <div className="text-sm font-minecraft text-minecraft-text-light">GOOGLE</div>
+                <div className="text-[10px] font-minecraft text-minecraft-text-dark">
+                  {hasOAuthProvider('google') ? 'CONNECTED' : 'NOT CONNECTED'}
                 </div>
               </div>
             </div>
@@ -224,31 +233,31 @@ const Settings = () => {
               <button
                 onClick={() => handleUnlinkOAuth('google')}
                 disabled={loading}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                className="btn-minecraft-danger text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Unlink
+                UNLINK
               </button>
             ) : (
               <button
                 onClick={() => handleLinkOAuth('google')}
                 disabled={linking !== null}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                className="btn-minecraft text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {linking === 'google' ? 'Linking...' : 'Link Account'}
+                {linking === 'google' ? 'LINKING...' : 'LINK ACCOUNT'}
               </button>
             )}
           </div>
 
           {/* Apple */}
-          <div className="flex items-center justify-between p-4 bg-gray-700 rounded border border-gray-600">
+          <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
               </svg>
               <div>
-                <div className="font-medium">Apple</div>
-                <div className="text-sm text-gray-400">
-                  {hasOAuthProvider('apple') ? 'Connected' : 'Not connected'}
+                <div className="text-sm font-minecraft text-minecraft-text-light">APPLE</div>
+                <div className="text-[10px] font-minecraft text-minecraft-text-dark">
+                  {hasOAuthProvider('apple') ? 'CONNECTED' : 'NOT CONNECTED'}
                 </div>
               </div>
             </div>
@@ -256,17 +265,17 @@ const Settings = () => {
               <button
                 onClick={() => handleUnlinkOAuth('apple')}
                 disabled={loading}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                className="btn-minecraft-danger text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Unlink
+                UNLINK
               </button>
             ) : (
               <button
                 onClick={() => handleLinkOAuth('apple')}
                 disabled={linking !== null}
-                className="px-4 py-2 bg-black hover:bg-gray-900 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                className="btn-minecraft text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {linking === 'apple' ? 'Linking...' : 'Link Account'}
+                {linking === 'apple' ? 'LINKING...' : 'LINK ACCOUNT'}
               </button>
             )}
           </div>
@@ -274,28 +283,29 @@ const Settings = () => {
       </div>
 
       {/* API Configuration */}
-      <div className="bg-gray-800 rounded-lg p-6 max-w-2xl">
-        <h2 className="text-xl font-semibold mb-4">API Configuration</h2>
+      <div className="card-minecraft p-6 max-w-2xl">
+        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
+          API CONFIGURATION
+        </h2>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-2">API Key</label>
+          <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
+            API KEY
+          </label>
           <input
             type="password"
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
-            placeholder="Enter your API key"
-            className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:outline-none focus:border-primary-500"
+            placeholder="ENTER YOUR API KEY"
+            className="input-minecraft w-full"
           />
-          <p className="text-sm text-gray-400 mt-2">
-            Get your API key by running: ./scripts/api-key-manager.sh create
+          <p className="text-[10px] font-minecraft text-minecraft-text-dark mt-2">
+            GET YOUR API KEY BY RUNNING: ./scripts/api-key-manager.sh create
           </p>
         </div>
 
-        <button
-          onClick={handleSaveApiKey}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded transition-colors"
-        >
-          Save API Key
+        <button onClick={handleSaveApiKey} className="btn-minecraft-primary text-[10px]">
+          SAVE API KEY
         </button>
       </div>
     </div>

@@ -46,13 +46,15 @@ const ConfigEditor = ({ filename, content: initialContent, onSave, onCancel }) =
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="bg-gray-800 rounded-t-lg p-4 flex items-center justify-between border-b border-gray-700">
+      <div className="card-minecraft p-4 flex items-center justify-between border-b-2 border-[#5D4037]">
         <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold">{filename}</h3>
+          <h3 className="text-sm font-minecraft text-minecraft-text-light leading-tight">
+            {filename}
+          </h3>
           {isModified && (
-            <span className="text-sm text-yellow-400 flex items-center gap-1">
-              <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-              Modified
+            <span className="text-[10px] font-minecraft text-[#F57C00] flex items-center gap-1">
+              <span className="w-2 h-2 bg-[#F57C00]"></span>
+              MODIFIED
             </span>
           )}
         </div>
@@ -61,33 +63,33 @@ const ConfigEditor = ({ filename, content: initialContent, onSave, onCancel }) =
             <button
               onClick={onCancel}
               disabled={saving}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50"
+              className="btn-minecraft text-[10px] disabled:opacity-50"
             >
-              Cancel
+              CANCEL
             </button>
           )}
           <button
             onClick={handleSave}
             disabled={!isModified || saving}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'SAVING...' : 'SAVE'}
           </button>
         </div>
       </div>
 
       {/* Error message */}
       {error && (
-        <div className="bg-red-900/50 border border-red-700 rounded p-3 m-4 text-red-300">
+        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-3 m-4 text-white text-[10px] font-minecraft">
           {error}
         </div>
       )}
 
       {/* Editor */}
-      <div className="flex-1 bg-gray-900 rounded-b-lg overflow-hidden">
+      <div className="flex-1 bg-minecraft-background-dark overflow-hidden border-2 border-[#5D4037]">
         <div className="flex h-full">
           {/* Line numbers */}
-          <div className="w-12 bg-gray-800 text-gray-500 font-mono text-sm text-right pr-2 py-3 overflow-y-auto select-none border-r border-gray-700">
+          <div className="w-12 bg-minecraft-dirt-DEFAULT text-minecraft-text-dark font-minecraft text-[10px] text-right pr-2 py-3 overflow-y-auto select-none border-r-2 border-[#5D4037]">
             {content.split('\n').map((_, index) => (
               <div key={`line-${index}`} className="leading-6">
                 {index + 1}
@@ -100,7 +102,7 @@ const ConfigEditor = ({ filename, content: initialContent, onSave, onCancel }) =
             ref={textareaRef}
             value={content}
             onChange={handleChange}
-            className="flex-1 bg-transparent text-gray-200 font-mono text-sm p-3 py-3 leading-6 resize-none focus:outline-none focus:ring-0 overflow-y-auto"
+            className="flex-1 bg-transparent text-minecraft-text-light font-minecraft text-[10px] p-3 py-3 leading-6 resize-none focus:outline-none focus:ring-0 overflow-y-auto"
             spellCheck={false}
             wrap="off"
             style={{
@@ -111,9 +113,9 @@ const ConfigEditor = ({ filename, content: initialContent, onSave, onCancel }) =
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-800 rounded-b-lg px-4 py-2 text-xs text-gray-400 flex justify-between border-t border-gray-700">
-        <span>Language: {getLanguage()}</span>
-        <span>{content.split('\n').length} lines</span>
+      <div className="bg-minecraft-dirt-DEFAULT px-4 py-2 text-[8px] font-minecraft text-minecraft-text-dark flex justify-between border-t-2 border-[#5D4037]">
+        <span>LANGUAGE: {getLanguage().toUpperCase()}</span>
+        <span>{content.split('\n').length} LINES</span>
       </div>
     </div>
   );

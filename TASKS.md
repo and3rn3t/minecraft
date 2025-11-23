@@ -308,7 +308,7 @@ This document contains detailed tasks organized by feature and priority for futu
 
 ## Phase 2: Web Interface & Integration 🚧 IN PROGRESS (v1.4.0 - v1.6.0)
 
-### 🚧 v1.4.0 - Web Admin Panel (60% Complete)
+### 🚧 v1.4.0 - Web Admin Panel (85% Complete)
 
 #### Core Web Interface 🚧
 
@@ -369,30 +369,30 @@ This document contains detailed tasks organized by feature and priority for futu
   - Test backup UI
   - Documentation: Add to web panel guide
 
-#### Authentication & Security 🟠 P1
+#### Authentication & Security ✅
 
-- [ ] **Task 4.2.1**: User authentication system
+- [x] **Task 4.2.1**: User authentication system ✅
 
-  - User registration/login
-  - Password hashing
-  - Session management
-  - Test authentication
-  - Documentation: Add security guide
+  - User registration/login ✅
+  - Password hashing ✅
+  - Session management ✅
+  - Test authentication (partial - needs additional tests)
+  - Documentation: Add security guide (pending)
 
-- [ ] **Task 4.2.2**: Role-based access control
+- [x] **Task 4.2.2**: Role-based access control ✅
 
-  - Define user roles
-  - Permission system
-  - Role assignment
-  - Test RBAC
-  - Documentation: Add to security guide
+  - Define user roles ✅
+  - Permission system ✅
+  - Role assignment ✅
+  - Test RBAC (partial - needs additional tests)
+  - Documentation: Add to security guide (pending)
 
-- [ ] **Task 4.2.3**: API key management
-  - Generate API keys
-  - Key rotation
-  - Key permissions
-  - Test API keys
-  - Documentation: Add API guide
+- [x] **Task 4.2.3**: API key management ✅
+  - Generate API keys ✅
+  - Key rotation (enable/disable implemented)
+  - Key permissions (admin-level access)
+  - Test API keys (partial - needs additional tests)
+  - Documentation: Add API guide (pending)
 
 ### v1.5.0 - Dynamic DNS & Networking
 
@@ -571,7 +571,7 @@ To add new tasks:
 ---
 
 **Last Updated**: 2025-01-27
-**Current Status**: v1.3.0 released, v1.4.0 in progress (60% complete)
+**Current Status**: v1.3.0 released, v1.4.0 in progress (85% complete)
 **Next Review**: Weekly during active development
 
 ## 🎯 Next Steps

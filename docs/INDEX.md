@@ -48,6 +48,8 @@ Complete guide to all project documentation, organized by category.
 - **[RCON.md](RCON.md)** - Remote Console (RCON) setup and usage
 - **[API.md](API.md)** - REST API documentation
 - **[WEB_INTERFACE.md](WEB_INTERFACE.md)** - Web admin panel guide
+- **[RBAC.md](RBAC.md)** - Role-Based Access Control (RBAC) system
+- **[API_KEYS.md](API_KEYS.md)** - API key management and usage
 
 ---
 
@@ -142,6 +144,8 @@ See [INSTALL.md](INSTALL.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for environmen
 - [API.md](API.md) - REST API
 - [WEB_INTERFACE.md](WEB_INTERFACE.md) - Web panel
 - [RCON.md](RCON.md) - RCON protocol
+- [RBAC.md](RBAC.md) - Role-based access control
+- [API_KEYS.md](API_KEYS.md) - API key management
 
 ---
 
@@ -165,7 +169,9 @@ docs/
 │   ├── LOG_MANAGEMENT.md
 │   ├── RCON.md
 │   ├── API.md
-│   └── WEB_INTERFACE.md
+│   ├── WEB_INTERFACE.md
+│   ├── RBAC.md
+│   └── API_KEYS.md
 │
 └── Developer Guides/
     ├── DEVELOPMENT.md
