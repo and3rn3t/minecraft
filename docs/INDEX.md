@@ -19,6 +19,8 @@ Complete guide to all project documentation, organized by category.
 
 - **[RASPBERRY_PI_IMAGE_PREPARATION.md](RASPBERRY_PI_IMAGE_PREPARATION.md)** - Complete guide for preparing Raspberry Pi OS image
 - **[IMAGE_PREP_CHECKLIST.md](IMAGE_PREP_CHECKLIST.md)** - Quick checklist for image preparation
+- **[CREATING_CUSTOM_IMAGE.md](CREATING_CUSTOM_IMAGE.md)** - Create pre-configured Raspberry Pi OS .img file for direct flashing
+- **[BUILDING_RPI5_IMAGE.md](BUILDING_RPI5_IMAGE.md)** - Step-by-step guide for building Docker image for Raspberry Pi 5
 - **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps
 - **[RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md)** - Performance optimizations and enhancements for Raspberry Pi 5
 - **[INSTALL.md](INSTALL.md)** - Complete installation guide for Raspberry Pi 5
@@ -91,6 +93,7 @@ Complete guide to all project documentation, organized by category.
 - **[TESTING.md](TESTING.md)** - Testing guide and best practices
 - **[LINTING.md](LINTING.md)** - Code linting and static analysis guide
 - **[DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md)** - Docker image optimization guide
+- **[BUILDING_RPI5_IMAGE.md](BUILDING_RPI5_IMAGE.md)** - Building Docker image for Raspberry Pi 5
 - **[PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md)** - Performance benchmarking and regression testing
 - **[MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md)** - Multi-architecture build and deployment guide
 - **[CI_CD.md](CI_CD.md)** - CI/CD pipeline and automated releases guide
@@ -167,6 +170,7 @@ docs/
 ├── INDEX.md                    # This file - navigation hub
 ├── RASPBERRY_PI_IMAGE_PREPARATION.md  # Image preparation guide
 ├── IMAGE_PREP_CHECKLIST.md     # Quick image prep checklist
+├── BUILDING_RPI5_IMAGE.md      # Docker image build guide
 ├── INSTALL.md                  # Installation guide
 ├── QUICK_REFERENCE.md          # Command reference
 ├── CONFIGURATION_EXAMPLES.md   # Config examples
