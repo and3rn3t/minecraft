@@ -291,6 +291,9 @@ PERMISSIONS = {
     "logs.view": "View server logs",
     # Metrics
     "metrics.view": "View server metrics",
+    # Settings
+    "settings.view": "View application settings",
+    "settings.edit": "Edit application settings",
 }
 
 # Role to permissions mapping
@@ -305,6 +308,7 @@ ROLE_PERMISSIONS = {
         "plugins.view",
         "logs.view",
         "metrics.view",
+        "settings.view",
     ],
     "operator": [
         "server.view",
@@ -320,6 +324,7 @@ ROLE_PERMISSIONS = {
         "plugins.view",
         "logs.view",
         "metrics.view",
+        "settings.view",
     ],
 }
 
@@ -1630,6 +1635,7 @@ CONFIG_ALLOWED_PATHS = {
     "backup-schedule.conf": PROJECT_ROOT / "config" / "backup-schedule.conf",
     "backup-retention.conf": PROJECT_ROOT / "config" / "backup-retention.conf",
     "update-check.conf": PROJECT_ROOT / "config" / "update-check.conf",
+    "ddns.conf": PROJECT_ROOT / "config" / "ddns.conf",
 }
 
 
@@ -1847,6 +1853,118 @@ def validate_config_file(filename):
             "warnings": warnings,
         }
     )
+
+
+# Dynamic DNS Management Endpoints
+DDNS_CONFIG_FILE = PROJECT_ROOT / "config" / "ddns.conf"
+DDNS_SCRIPT = PROJECT_ROOT / "scripts" / "ddns-updater.sh"
+
+
+@app.route("/api/ddns/status", methods=["GET"])
+@require_permission("settings.view")
+def get_ddns_status():
+    """Get DDNS configuration status and current IP"""
+    try:
+        # Run status command
+        result = subprocess.run(
+            [str(DDNS_SCRIPT), "status"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(PROJECT_ROOT),
+        )
+
+        if result.returncode == 0:
+            # Parse status output
+            status_output = result.stdout
+            return jsonify({"success": True, "status": status_output}), 200
+        else:
+            return jsonify({"success": False, "error": result.stderr or "Failed to get status"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to get DDNS status: {str(e)}"}), 500
+
+
+@app.route("/api/ddns/update", methods=["POST"])
+@require_permission("settings.edit")
+def update_ddns():
+    """Manually trigger DDNS update"""
+    try:
+        result = subprocess.run(
+            [str(DDNS_SCRIPT), "update"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(PROJECT_ROOT),
+        )
+
+        if result.returncode == 0:
+            return jsonify({"success": True, "message": "DDNS updated successfully", "output": result.stdout}), 200
+        else:
+            return jsonify({"success": False, "error": result.stderr or "DDNS update failed"}), 500
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "DDNS update timed out"}), 504
+    except Exception as e:
+        return jsonify({"error": f"Failed to update DDNS: {str(e)}"}), 500
+
+
+@app.route("/api/ddns/config", methods=["GET"])
+@require_permission("config.view")
+def get_ddns_config():
+    """Get DDNS configuration file content"""
+    try:
+        config_file = DDNS_CONFIG_FILE
+        if not config_file.exists():
+            # Return example config
+            example_file = PROJECT_ROOT / "config" / "ddns.conf.example"
+            if example_file.exists():
+                content = example_file.read_text()
+                return jsonify({"content": content, "is_example": True}), 200
+            return jsonify({"error": "DDNS configuration not found"}), 404
+
+        content = config_file.read_text()
+        return jsonify({"content": content, "is_example": False}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to read DDNS config: {str(e)}"}), 500
+
+
+@app.route("/api/ddns/config", methods=["POST"])
+@require_permission("config.edit")
+def save_ddns_config():
+    """Save DDNS configuration file"""
+    try:
+        data = request.get_json()
+        if not data or "content" not in data:
+            return jsonify({"error": "Content required"}), 400
+
+        content = data["content"]
+        config_file = DDNS_CONFIG_FILE
+
+        # Create backup if file exists
+        backup_path = None
+        if config_file.exists():
+            backup_path = config_file.with_suffix(f".conf.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            import shutil
+
+            shutil.copy2(config_file, backup_path)
+
+        # Write new content
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(content)
+
+        # Set restrictive permissions (600)
+        import os
+
+        os.chmod(config_file, 0o600)
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "DDNS configuration saved successfully",
+                "backup": str(backup_path.relative_to(PROJECT_ROOT)) if backup_path and backup_path.exists() else None,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to save DDNS config: {str(e)}"}), 500
 
 
 # WebSocket event handlers for real-time log streaming

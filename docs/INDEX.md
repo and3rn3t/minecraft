@@ -50,6 +50,7 @@ Complete guide to all project documentation, organized by category.
 - **[WEB_INTERFACE.md](WEB_INTERFACE.md)** - Web admin panel guide
 - **[RBAC.md](RBAC.md)** - Role-Based Access Control (RBAC) system
 - **[API_KEYS.md](API_KEYS.md)** - API key management and usage
+- **[DYNAMIC_DNS.md](DYNAMIC_DNS.md)** - Dynamic DNS integration (DuckDNS, No-IP, Cloudflare)
 
 ---
 

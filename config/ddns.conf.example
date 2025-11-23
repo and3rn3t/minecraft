@@ -1,0 +1,53 @@
+# Dynamic DNS Configuration
+# Copy this file to ddns.conf and configure your settings
+# chmod 600 ddns.conf (restrict permissions)
+
+# Provider selection
+# Options: duckdns, noip, cloudflare
+DDNS_PROVIDER=duckdns
+
+# Enable/disable DDNS updates
+DDNS_ENABLED=false
+
+# Update interval in minutes (default: 5)
+# How often to check and update IP address
+DDNS_UPDATE_INTERVAL=5
+
+# ============================================
+# DuckDNS Settings
+# ============================================
+# Get your token from: https://www.duckdns.org/
+DUCKDNS_TOKEN=your-duckdns-token-here
+DUCKDNS_DOMAIN=yourdomain.duckdns.org
+
+# ============================================
+# No-IP Settings
+# ============================================
+# Create account at: https://www.noip.com/
+NOIP_USERNAME=your-username
+NOIP_PASSWORD=your-password
+NOIP_DOMAIN=yourdomain.ddns.net
+# Optional: specific hostname (defaults to NOIP_DOMAIN)
+NOIP_HOSTNAME=
+
+# ============================================
+# Cloudflare DNS Settings
+# ============================================
+# Get API token from: https://dash.cloudflare.com/profile/api-tokens
+# Create token with Zone.DNS Edit permissions
+CLOUDFLARE_API_TOKEN=your-api-token-here
+# Get Zone ID from Cloudflare dashboard (Overview page)
+CLOUDFLARE_ZONE_ID=your-zone-id-here
+CLOUDFLARE_DOMAIN=yourdomain.com
+# Optional: specific record name (defaults to CLOUDFLARE_DOMAIN)
+CLOUDFLARE_RECORD_NAME=subdomain.yourdomain.com
+
+# ============================================
+# Advanced Settings
+# ============================================
+# IP check service URL (default: https://api.ipify.org)
+DDNS_IP_CHECK_URL=https://api.ipify.org
+
+# Verify SSL certificates (default: true)
+DDNS_VERIFY_SSL=true
+

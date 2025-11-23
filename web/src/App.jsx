@@ -5,6 +5,7 @@ import ApiKeys from './pages/ApiKeys';
 import Backups from './pages/Backups';
 import ConfigFiles from './pages/ConfigFiles';
 import Dashboard from './pages/Dashboard';
+import DynamicDNS from './pages/DynamicDNS';
 import Login from './pages/Login';
 import Logs from './pages/Logs';
 import OAuthCallback from './pages/OAuthCallback';
@@ -131,6 +132,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Users />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ddns"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <DynamicDNS />
               </Layout>
             </ProtectedRoute>
           }

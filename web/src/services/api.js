@@ -283,6 +283,27 @@ export const api = {
     const response = await apiClient.get('/roles');
     return response.data;
   },
+
+  // DDNS Management
+  async getDdnsStatus() {
+    const response = await apiClient.get('/ddns/status');
+    return response.data;
+  },
+
+  async updateDdns() {
+    const response = await apiClient.post('/ddns/update');
+    return response.data;
+  },
+
+  async getDdnsConfig() {
+    const response = await apiClient.get('/ddns/config');
+    return response.data;
+  },
+
+  async saveDdnsConfig(content) {
+    const response = await apiClient.post('/ddns/config', { content });
+    return response.data;
+  },
 };
 
 export default api;
