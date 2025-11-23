@@ -47,25 +47,35 @@ test.describe('Complete User Journey', () => {
     // Step 1: Register
     await page.goto('/register');
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('#username', { state: 'visible' });
+    await page.waitForSelector('#username', { state: 'visible', timeout: 10000 });
     await page.fill('#username', testUser);
     await page.fill('#password', testPassword);
     await page.fill('#confirmPassword', testPassword);
-    await page.click('button:has-text("REGISTER"), button:has-text("Register")');
+    
+    // Submit registration form
+    await Promise.all([
+      page.waitForResponse(resp => resp.url().includes('/register') && resp.status() === 200),
+      page.click('button:has-text("REGISTER"), button:has-text("Register")'),
+    ]);
 
-    // Wait for navigation after registration
-    await page.waitForURL('/dashboard', { timeout: 10000 }).catch(() => {
-      // If registration doesn't auto-navigate, go to login
-    });
-
-    // Step 2: Login (if not already logged in)
-    if (page.url().includes('/login') || !page.url().includes('/dashboard')) {
+    // Wait for navigation after registration (registration should redirect to dashboard)
+    try {
+      await page.waitForURL('/dashboard', { timeout: 15000 });
+    } catch {
+      // If registration doesn't auto-navigate, try login
       await page.goto('/login');
       await page.waitForLoadState('networkidle');
-      await page.waitForSelector('#username', { state: 'visible' });
+      await page.waitForSelector('#username', { state: 'visible', timeout: 10000 });
       await page.fill('#username', testUser);
       await page.fill('#password', testPassword);
-      await page.click('button:has-text("LOGIN"), button:has-text("Login")');
+      
+      // Submit login form
+      await Promise.all([
+        page.waitForResponse(resp => resp.url().includes('/login') && resp.status() === 200),
+        page.click('button:has-text("LOGIN"), button:has-text("Login")'),
+      ]);
+      
+      await page.waitForURL('/dashboard', { timeout: 15000 });
     }
 
     // Step 3: Access Dashboard
