@@ -266,6 +266,7 @@ describe('API Service', () => {
       expect(mockAxiosInstance.post).toHaveBeenCalledWith('/auth/login', {
         username: 'testuser',
         password: 'password123',
+        totp_token: null,
       });
       expect(result.success).toBe(true);
     });

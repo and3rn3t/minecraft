@@ -125,14 +125,21 @@ describe('Dashboard', () => {
 
     await waitFor(
       () => {
-        const startButton = screen.getByRole('button', { name: /start server/i });
-        expect(startButton).toBeInTheDocument();
+        // Get all buttons and find the one that says START SERVER (not RESTART)
+        const buttons = screen.getAllByRole('button');
+        const startButton = buttons.find(
+          btn => btn.textContent?.includes('START SERVER') && !btn.textContent?.includes('RESTART')
+        );
+        expect(startButton).toBeDefined();
         expect(startButton).not.toBeDisabled();
       },
       { timeout: 3000 }
     );
 
-    const startButton = screen.getByRole('button', { name: /start server/i });
+    const buttons = screen.getAllByRole('button');
+    const startButton = buttons.find(
+      btn => btn.textContent?.includes('START SERVER') && !btn.textContent?.includes('RESTART')
+    );
     startButton.click();
 
     await waitFor(() => {
@@ -149,7 +156,12 @@ describe('Dashboard', () => {
 
     await waitFor(
       () => {
-        const startButton = screen.getByRole('button', { name: /start server/i });
+        // Get all buttons and find the one that says START SERVER (not RESTART)
+        const buttons = screen.getAllByRole('button');
+        const startButton = buttons.find(
+          btn => btn.textContent?.includes('START SERVER') && !btn.textContent?.includes('RESTART')
+        );
+        expect(startButton).toBeDefined();
         expect(startButton).toBeDisabled();
       },
       { timeout: 3000 }

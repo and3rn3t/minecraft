@@ -210,6 +210,7 @@ jobs:
             wget \
             unzip \
             qemu-utils \
+            qemu-system-x86 \
             kpartx \
             dosfstools \
             parted \
@@ -218,10 +219,36 @@ jobs:
             bc
           echo "✅ Dependencies installed"
 
-        # Note: RPi OS image caching disabled - file is too large for GitHub Actions cache (10GB limit)
-        # Image will be downloaded fresh each build
-        # Skip caching if file is too large (GitHub Actions cache limit is 10GB)
-        if: false
+          # Verify qemu-img is available
+          if ! command -v qemu-img &> /dev/null; then
+            echo "⚠️ qemu-img not in PATH, searching for it..."
+            find /usr -name qemu-img 2>/dev/null || true
+            echo "Checking installed qemu packages..."
+            dpkg -l | grep qemu || true
+            echo "Attempting to install qemu-user-static as fallback..."
+            sudo apt-get install -y qemu-user-static || true
+          fi
+
+          # Verify installation - check both PATH and common locations
+          QEMU_IMG=$(command -v qemu-img || find /usr -name qemu-img 2>/dev/null | head -1)
+          if [ -z "$QEMU_IMG" ]; then
+            echo "❌ Error: qemu-img not found anywhere"
+            echo "Installed qemu packages:"
+            dpkg -l | grep qemu || true
+            echo "Available qemu binaries:"
+            find /usr -name "qemu-*" -type f 2>/dev/null | head -10 || true
+            exit 1
+          fi
+          echo "✅ qemu-img found: $QEMU_IMG"
+
+          # Create symlink if not in PATH
+          if [ "$(command -v qemu-img)" != "$QEMU_IMG" ]; then
+            echo "Creating symlink for qemu-img..."
+            sudo ln -sf "$QEMU_IMG" /usr/local/bin/qemu-img
+          fi
+
+          # Final verification
+          qemu-img --version || exit 1
 
       - name: Download Raspberry Pi OS Lite
         run: |
@@ -317,6 +344,22 @@ jobs:
         run: |
           echo "📏 Resizing image to 4GB..."
           echo "Current size: $(du -h raspios-base.img | cut -f1)"
+
+          # Verify qemu-img is available
+          if ! command -v qemu-img &> /dev/null; then
+            echo "❌ Error: qemu-img command not found"
+            echo "Attempting to install qemu-utils..."
+            sudo apt-get update -qq
+            sudo apt-get install -y qemu-utils
+          fi
+
+          # Verify installation
+          if ! command -v qemu-img &> /dev/null; then
+            echo "❌ Error: qemu-img still not available after installation attempt"
+            exit 1
+          fi
+
+          echo "✅ Using qemu-img: $(which qemu-img)"
 
           # Resize image with explicit raw format to avoid warnings
           qemu-img resize -f raw raspios-base.img 4G
