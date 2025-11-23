@@ -72,7 +72,7 @@ test.describe('Complete User Journey', () => {
     // Navigate to a page first, then set localStorage
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
-    
+
     // Set localStorage after page is loaded
     await page.evaluate(() => {
       localStorage.setItem('api_key', 'test-api-key');
@@ -118,14 +118,17 @@ test.describe('Complete User Journey', () => {
 
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
-    
+
     // Set localStorage after page is loaded
     await page.evaluate(() => {
       localStorage.setItem('api_key', 'test-api-key');
     });
 
     // Wait for button to be visible and clickable
-    await page.waitForSelector('button:has-text("Start Server"), button:has-text("START SERVER")', { state: 'visible', timeout: 5000 });
+    await page.waitForSelector('button:has-text("Start Server"), button:has-text("START SERVER")', {
+      state: 'visible',
+      timeout: 5000,
+    });
     await page.click('button:has-text("Start Server"), button:has-text("START SERVER")');
     await expect(startCalled).toBeTruthy();
   });
