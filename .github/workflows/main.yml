@@ -194,41 +194,51 @@ jobs:
 
       - name: Download Raspberry Pi OS Lite
         run: |
-          # Try multiple known-good URLs for Raspberry Pi OS Lite (64-bit)
-          # Using specific version URLs that are known to work
+          # Download Raspberry Pi OS Lite (64-bit) image
+          # Using a known stable version URL
           set +e
           
-          # Try latest known stable version (2024-01-11)
-          if ! wget -q --show-progress --timeout=30 --tries=3 \
-            https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-01-11/2024-01-11-raspios-bookworm-arm64-lite.img.xz \
-            -O raspios-lite.img.xz; then
-            echo "First URL failed, trying alternative..."
-            
-            # Try alternative URL format
-            if ! wget -q --show-progress --timeout=30 --tries=3 \
-              https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-01-11/2024-01-11-raspios-bookworm-arm64-lite.img.xz \
+          # List of known-good URLs to try
+          URLS=(
+            "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-01-11/2024-01-11-raspios-bookworm-arm64-lite.img.xz"
+            "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2023-12-05/2023-12-05-raspios-bookworm-arm64-lite.img.xz"
+            "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2023-10-10/2023-10-10-raspios-bookworm-arm64-lite.img.xz"
+          )
+          
+          DOWNLOADED=false
+          for URL in "${URLS[@]}"; do
+            echo "Trying URL: $URL"
+            if wget -q --show-progress --timeout=60 --tries=2 \
+              --user-agent="Mozilla/5.0" \
+              "$URL" \
               -O raspios-lite.img.xz; then
-              echo "All download attempts failed"
-              exit 1
+              # Verify file exists and has reasonable size
+              if [ -f raspios-lite.img.xz ]; then
+                FILE_SIZE=$(stat -c%s raspios-lite.img.xz 2>/dev/null || echo "0")
+                if [ "$FILE_SIZE" -gt 104857600 ]; then
+                  echo "Download successful from: $URL"
+                  echo "File size: $(numfmt --to=iec-i --suffix=B $FILE_SIZE)"
+                  DOWNLOADED=true
+                  break
+                else
+                  echo "File too small ($FILE_SIZE bytes), trying next URL..."
+                  rm -f raspios-lite.img.xz
+                fi
+              fi
+            else
+              echo "Download failed, trying next URL..."
+              rm -f raspios-lite.img.xz
             fi
-          fi
+          done
           
           set -e
           
-          # Verify download
-          if [ ! -f raspios-lite.img.xz ]; then
-            echo "Error: Download file not found"
+          if [ "$DOWNLOADED" != "true" ]; then
+            echo "Error: All download attempts failed"
+            echo "Please check Raspberry Pi download page for latest URL:"
+            echo "https://www.raspberrypi.com/software/operating-systems/"
             exit 1
           fi
-          
-          # Check file size (should be > 100MB)
-          FILE_SIZE=$(stat -f%z raspios-lite.img.xz 2>/dev/null || stat -c%s raspios-lite.img.xz 2>/dev/null || echo "0")
-          if [ "$FILE_SIZE" -lt 104857600 ]; then
-            echo "Error: Downloaded file is too small ($FILE_SIZE bytes), likely corrupted"
-            exit 1
-          fi
-          
-          echo "Download successful: $(du -h raspios-lite.img.xz)"
 
       - name: Extract image
         run: |
