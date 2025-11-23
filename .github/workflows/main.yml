@@ -218,18 +218,12 @@ jobs:
             bc
           echo "✅ Dependencies installed"
 
-      - name: Cache Raspberry Pi OS image
-        id: cache-rpi-image
-        uses: actions/cache@v4
-        with:
-          path: raspios-lite.img.xz
-          key: rpi-os-lite-2024-01-11-arm64-xz
-          restore-keys: |
-            rpi-os-lite-
-        continue-on-error: true
+        # Note: RPi OS image caching disabled - file is too large for GitHub Actions cache (10GB limit)
+        # Image will be downloaded fresh each build
+        # Skip caching if file is too large (GitHub Actions cache limit is 10GB)
+        if: false
 
       - name: Download Raspberry Pi OS Lite
-        if: steps.cache-rpi-image.outputs.cache-hit != 'true'
         run: |
           echo "📥 Downloading Raspberry Pi OS Lite (64-bit) image..."
           echo "This may take 5-15 minutes depending on connection speed..."
@@ -290,13 +284,6 @@ jobs:
 
       - name: Extract image
         run: |
-          # Check if base image already exists (from previous run)
-          if [ -f raspios-base.img ]; then
-            echo "✅ Using existing extracted image"
-            echo "Image size: $(du -h raspios-base.img | cut -f1)"
-            exit 0
-          fi
-
           # Check if compressed image exists
           if [ ! -f raspios-lite.img.xz ]; then
             echo "❌ Error: Compressed image not found"

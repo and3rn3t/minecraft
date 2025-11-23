@@ -57,7 +57,7 @@ describe('Login', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(api.login).toHaveBeenCalledWith('testuser', 'password123');
+      expect(api.login).toHaveBeenCalledWith('testuser', 'password123', null);
     });
   });
 
@@ -94,7 +94,7 @@ describe('Login', () => {
     await user.type(passwordInput, 'password123');
     await user.click(submitButton);
 
-    expect(screen.getByText('Logging in...')).toBeInTheDocument();
+    expect(screen.getByText(/logging in/i)).toBeInTheDocument();
     expect(submitButton).toBeDisabled();
   });
 

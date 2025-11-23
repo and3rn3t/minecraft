@@ -126,11 +126,11 @@ describe('Analytics', () => {
     api.api.getAnalyticsPredictions.mockImplementation(() => new Promise(() => {}));
     api.api.getPlayerBehavior.mockImplementation(() => new Promise(() => {}));
 
-    renderWithRouter(<Analytics />);
+    const { container } = renderWithRouter(<Analytics />);
 
-    // Check that the component renders (loading state may not show text)
-    // The component should render the title even while loading
-    expect(screen.getByText(/analytics dashboard/i)).toBeInTheDocument();
+    // Check for skeleton loaders in loading state
+    const skeletons = container.querySelectorAll('.animate-pulse, .bg-gray-700');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('displays overview tab by default', async () => {
