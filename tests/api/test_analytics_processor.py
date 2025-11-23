@@ -459,30 +459,48 @@ class TestPlayerBehavior:
 
     def test_analyze_player_behavior_hourly_distribution(self, processor):
         """Test hourly activity distribution"""
-        # Use a fixed base time to ensure hour calculations are predictable
+        # Use recent timestamps within the last 12 hours to ensure they're not filtered out
         base_time = int(datetime.now().timestamp())
         base_dt = datetime.fromtimestamp(base_time)
-        base_hour_start = base_dt.replace(minute=0, second=0, microsecond=0)
-        base_timestamp = int(base_hour_start.timestamp())
-
+        
+        # Create data for specific hours within the last 12 hours
+        # This ensures the data won't be filtered out by the 24-hour window
         hourly_data = []
         target_hours = [20, 21, 22]
-        for hour_offset, target_hour in enumerate(target_hours):
-            # Create timestamp for specific hours
-            # Calculate how many hours back from base to get to target hour
-            current_hour = base_hour_start.hour
-            hours_back = (current_hour - target_hour) % 24
-            if hours_back == 0:
-                hours_back = 24  # Use previous day if same hour
-            timestamp = base_timestamp - hours_back * 3600
+        
+        for target_hour in target_hours:
+            # Create timestamp for target hour within last 12 hours
+            # Find the most recent occurrence of this hour
+            test_time = base_dt.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+            
+            # If the hour hasn't happened today yet, use yesterday
+            if test_time > base_dt:
+                test_time = test_time - timedelta(days=1)
+            
+            # If it's more than 12 hours ago, use a time 6 hours ago with the target hour
+            # (this ensures it's recent enough)
+            hours_diff = (base_time - int(test_time.timestamp())) / 3600
+            if hours_diff > 12:
+                # Use a time 6 hours ago, but set to target hour
+                recent_time = base_dt - timedelta(hours=6)
+                test_time = recent_time.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+                # If that's in the future, go back another day
+                if test_time > base_dt:
+                    test_time = test_time - timedelta(days=1)
+            
+            timestamp = int(test_time.timestamp())
             dt = datetime.fromtimestamp(timestamp)
-            # Ensure we got the right hour
+            
+            # Verify it's within 24 hours and has the correct hour
+            hours_ago = (base_time - timestamp) / 3600
+            assert hours_ago <= 24, f"Timestamp is {hours_ago} hours ago, should be <= 24"
             assert dt.hour == target_hour, f"Expected hour {target_hour}, got {dt.hour}"
+            
             hourly_data.append(
                 {
                     "timestamp": timestamp,
                     "datetime": dt.strftime("%Y-%m-%d %H:%M:%S"),
-                    "data": [f"player{i}" for i in range(target_hour - 18)],
+                    "data": [f"player{i}" for i in range(max(1, target_hour - 18))],  # Ensure at least 1 player
                 }
             )
 
@@ -493,6 +511,8 @@ class TestPlayerBehavior:
 
         behavior = processor.analyze_player_behavior(hours=24)
         assert "hourly_distribution" in behavior
+        # Verify that hour 20 is in the distribution (it should be since we created data for it)
+        assert 20 in behavior["hourly_distribution"], f"Hour 20 not found in distribution: {behavior['hourly_distribution']}"
         assert behavior["hourly_distribution"][20] > 0
 
     def test_analyze_player_behavior_no_data(self, processor):
