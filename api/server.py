@@ -5,6 +5,7 @@ Provides HTTP API for remote server management
 """
 
 import json
+import os
 import secrets
 import subprocess
 import sys
@@ -30,7 +31,17 @@ try:
     from flask_socketio import SocketIO  # type: ignore[import-untyped]
     from flask_socketio import disconnect, emit
 
-    eventlet.monkey_patch()
+    # Only monkey patch if not in testing environment
+    # eventlet.monkey_patch() can interfere with pytest parallel execution
+    # Check multiple environment variables that indicate testing
+    is_testing = (
+        os.environ.get("TESTING") == "true"
+        or os.environ.get("PYTEST_CURRENT_TEST")
+        or os.environ.get("PYTEST_RUNNING") == "1"
+        or "pytest" in sys.modules
+    )
+    if not is_testing:
+        eventlet.monkey_patch()
     SOCKETIO_AVAILABLE = True
 except ImportError:
     SOCKETIO_AVAILABLE = False

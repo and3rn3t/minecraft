@@ -60,6 +60,10 @@ jobs:
           pip install -r api/requirements-test.txt
 
       - name: Run API tests (parallel)
+        timeout-minutes: 15
+        env:
+          TESTING: 'true'
+          PYTEST_CURRENT_TEST: '1'
         run: |
           cd tests/api
           pytest -v -n auto \
@@ -69,6 +73,8 @@ jobs:
             --cov-report=html:htmlcov \
             --cov-report=json:coverage.json \
             --cov-report=xml:coverage.xml \
+            --timeout=300 \
+            --timeout-method=thread \
             -ra
 
       - name: Run performance tests
