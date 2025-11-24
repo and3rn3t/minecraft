@@ -2208,7 +2208,291 @@ def set_server_property(key):
         return jsonify({"error": f"Failed to set property: {str(e)}"}), 500
 
 
-@app.route("/api/server/properties/preset", methods=["POST"])
+    """Apply a properties preset"""
+    try:
+        data = request.get_json() or {}
+        preset = data.get("preset", "balanced")
+
+        stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
+        if code == 0:
+            return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to apply preset"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to apply preset: {str(e)}"}), 500
+
+
+# Command Scheduler Endpoints
+@app.route("/api/commands/schedules", methods=["GET"])
+@require_permission("server.manage")
+def get_command_schedules():
+    """Get all scheduled commands"""
+    try:
+        stdout, stderr, code = run_script("command-scheduler.py", "list")
+        if code == 0:
+            import json
+
+            data = json.loads(stdout)
+            return jsonify({"success": True, "schedules": data.get("schedules", [])}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to get schedules"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to get schedules: {str(e)}"}), 500
+
+
+@app.route("/api/commands/schedule", methods=["POST"])
+@require_permission("server.manage")
+def create_command_schedule():
+    """Create a new scheduled command"""
+    try:
+        data = request.get_json() or {}
+        command = data.get("command")
+        schedule_type = data.get("type", "daily")
+        run_time = data.get("run_time", "00:00")
+        interval_minutes = data.get("interval_minutes", 60)
+        cron_expression = data.get("cron_expression")
+        run_datetime = data.get("run_datetime")
+        condition = data.get("condition")
+        enabled = data.get("enabled", True)
+
+        if not command:
+            return jsonify({"error": "Command required"}), 400
+
+        # Use Python script to add schedule
+        import json as json_lib
+        import subprocess
+
+        schedule_data = {
+            "command": command,
+            "type": schedule_type,
+            "enabled": enabled,
+        }
+
+        if schedule_type == "interval":
+            schedule_data["interval_minutes"] = interval_minutes
+        elif schedule_type == "daily":
+            schedule_data["run_time"] = run_time
+        elif schedule_type == "weekly":
+            schedule_data["day_of_week"] = data.get("day_of_week", 0)
+            schedule_data["run_time"] = run_time
+        elif schedule_type == "cron":
+            if not cron_expression:
+                return jsonify({"error": "Cron expression required for cron type"}), 400
+            schedule_data["cron_expression"] = cron_expression
+        elif schedule_type == "once":
+            if not run_datetime:
+                return jsonify({"error": "Run datetime required for once type"}), 400
+            schedule_data["run_datetime"] = run_datetime
+
+        if condition:
+            schedule_data["condition"] = condition
+
+        # Call Python script to add schedule
+        script_path = SCRIPTS_DIR / "command-scheduler.py"
+        import sys
+
+        result = subprocess.run(
+            [sys.executable, str(script_path), "add", command, schedule_type],
+            input=json_lib.dumps(schedule_data),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(PROJECT_ROOT),
+        )
+
+        if result.returncode == 0:
+            schedule_id = result.stdout.strip()
+            return jsonify({"success": True, "schedule_id": schedule_id}), 200
+        else:
+            return jsonify({"error": result.stderr or "Failed to create schedule"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to create schedule: {str(e)}"}), 500
+
+
+@app.route("/api/commands/schedule/<schedule_id>", methods=["DELETE"])
+@require_permission("server.manage")
+def delete_command_schedule(schedule_id):
+    """Delete a scheduled command"""
+    try:
+        stdout, stderr, code = run_script("command-scheduler.py", "remove", schedule_id)
+        if code == 0:
+            return jsonify({"success": True, "message": "Schedule deleted"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to delete schedule"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete schedule: {str(e)}"}), 500
+
+
+@app.route("/api/commands/schedule/<schedule_id>/enable", methods=["PUT"])
+@require_permission("server.manage")
+def enable_command_schedule(schedule_id):
+    """Enable a scheduled command"""
+    try:
+        stdout, stderr, code = run_script("command-scheduler.py", "enable", schedule_id)
+        if code == 0:
+            return jsonify({"success": True, "message": "Schedule enabled"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to enable schedule"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to enable schedule: {str(e)}"}), 500
+
+
+@app.route("/api/commands/schedule/<schedule_id>/disable", methods=["PUT"])
+@require_permission("server.manage")
+def disable_command_schedule(schedule_id):
+    """Disable a scheduled command"""
+    try:
+        stdout, stderr, code = run_script("command-scheduler.py", "disable", schedule_id)
+        if code == 0:
+            return jsonify({"success": True, "message": "Schedule disabled"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to disable schedule"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to disable schedule: {str(e)}"}), 500
+
+
+# Player Statistics Endpoints
+@app.route("/api/players/stats", methods=["GET"])
+@require_permission("players.view")
+def get_all_player_stats():
+    """Get all player statistics"""
+    try:
+        stdout, stderr, code = run_script("player-stats-tracker.sh", "list")
+        if code == 0:
+            import json
+
+            stats = json.loads(stdout)
+            return jsonify({"success": True, "stats": stats}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to get player stats"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to get player stats: {str(e)}"}), 500
+
+
+@app.route("/api/players/stats/<player>", methods=["GET"])
+@require_permission("players.view")
+def get_player_stats(player):
+    """Get player statistics"""
+    try:
+        stdout, stderr, code = run_script("player-stats-tracker.sh", "get", player)
+        if code == 0:
+            import json
+
+            stats = json.loads(stdout)
+            return jsonify({"success": True, "player": player, "stats": stats}), 200
+        else:
+            return jsonify({"error": stderr or "Player not found"}), 404
+    except Exception as e:
+        return jsonify({"error": f"Failed to get player stats: {str(e)}"}), 500
+
+
+@app.route("/api/players/stats/leaderboard", methods=["GET"])
+@require_permission("players.view")
+def get_player_stats_leaderboard():
+    """Get player statistics leaderboard"""
+    try:
+        metric = request.args.get("metric", "login_count")
+        limit = request.args.get("limit", "10")
+
+        stdout, stderr, code = run_script("player-stats-tracker.sh", "leaderboard", metric, limit)
+        if code == 0:
+            import json
+
+            leaderboard = json.loads(stdout)
+            return jsonify({"success": True, **leaderboard}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to get leaderboard"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to get leaderboard: {str(e)}"}), 500
+
+
+@app.route("/api/players/stats/parse", methods=["POST"])
+@require_permission("server.manage")
+def parse_player_stats():
+    """Parse server logs for player statistics"""
+    try:
+        stdout, stderr, code = run_script("player-stats-tracker.sh", "parse")
+        if code == 0:
+            return jsonify({"success": True, "message": "Logs parsed successfully"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to parse logs"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse logs: {str(e)}"}), 500
+
+
+# Announcement Endpoints
+@app.route("/api/announcements", methods=["GET"])
+@require_permission("server.manage")
+def get_announcements():
+    """Get all announcements"""
+    try:
+        stdout, stderr, code = run_script("announcement-manager.sh", "list")
+        if code == 0:
+            import json
+
+            data = json.loads(stdout)
+            return jsonify({"success": True, "announcements": data.get("announcements", [])}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to get announcements"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to get announcements: {str(e)}"}), 500
+
+
+@app.route("/api/announcements", methods=["POST"])
+@require_permission("server.manage")
+def create_announcement():
+    """Create a new announcement"""
+    try:
+        data = request.get_json() or {}
+        message = data.get("message")
+        ann_type = data.get("type", "say")
+        schedule_type = data.get("schedule_type")
+        schedule_time = data.get("schedule_time")
+        enabled = data.get("enabled", True)
+
+        if not message:
+            return jsonify({"error": "Message required"}), 400
+
+        stdout, stderr, code = run_script(
+            "announcement-manager.sh", "create", message, ann_type, schedule_type or "", schedule_time or "", str(enabled)
+        )
+        if code == 0:
+            import json
+
+            announcement = json.loads(stdout)
+            return jsonify({"success": True, "announcement": announcement}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to create announcement"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to create announcement: {str(e)}"}), 500
+
+
+@app.route("/api/announcements/<announcement_id>/send", methods=["POST"])
+@require_permission("server.manage")
+def send_announcement(announcement_id):
+    """Send an announcement immediately"""
+    try:
+        stdout, stderr, code = run_script("announcement-manager.sh", "send", announcement_id)
+        if code == 0:
+            return jsonify({"success": True, "message": "Announcement sent"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to send announcement"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to send announcement: {str(e)}"}), 500
+
+
+@app.route("/api/announcements/<announcement_id>", methods=["DELETE"])
+@require_permission("server.manage")
+def delete_announcement(announcement_id):
+    """Delete an announcement"""
+    try:
+        stdout, stderr, code = run_script("announcement-manager.sh", "delete", announcement_id)
+        if code == 0:
+            return jsonify({"success": True, "message": "Announcement deleted"}), 200
+        else:
+            return jsonify({"error": stderr or "Failed to delete announcement"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete announcement: {str(e)}"}), 500
 @require_permission("server.manage")
 def apply_server_preset():
     """Apply server properties preset"""
@@ -3301,6 +3585,9 @@ if __name__ == "__main__":
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
+    else:
+        print("WebSocket support disabled (Flask-SocketIO not available)")
+        app.run(host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")
         app.run(host=API_HOST, port=API_PORT, debug=False)

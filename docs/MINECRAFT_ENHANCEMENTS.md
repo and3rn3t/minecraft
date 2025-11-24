@@ -350,9 +350,26 @@ Manage datapack functions and command blocks:
 ./scripts/jvm-optimizer.sh preset performance
 ```
 
+## Additional Gameplay Enhancements
+
+For more advanced Minecraft gameplay features, see:
+
+- **[Minecraft Gameplay Enhancements](MINECRAFT_GAMEPLAY_ENHANCEMENTS.md)** - Advanced features including:
+  - Enhanced command automation and scheduling
+  - Player experience enhancements (stats, teleport, notes)
+  - Server events and automation
+  - Scoreboard and team management
+  - Advanced world features
+  - Achievement and advancement systems
+  - Communication and messaging systems
+  - Economy and rewards (plugin-dependent)
+  - Performance optimization tools
+  - Data management (recipes, loot tables)
+
 ## See Also
 
 - [Server Properties Guide](https://minecraft.fandom.com/wiki/Server.properties)
 - [Gamerules Reference](https://minecraft.fandom.com/wiki/Game_rule)
 - [Datapacks Guide](https://minecraft.fandom.com/wiki/Data_pack)
 - [Performance Tuning](RASPBERRY_PI_OPTIMIZATIONS.md)
+- [Gameplay Enhancements](MINECRAFT_GAMEPLAY_ENHANCEMENTS.md)
