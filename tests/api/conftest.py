@@ -15,10 +15,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import app after path setup
 from api.server import app  # noqa: E402
+
 # Imports must come after sys.path modification
 from tests.api.factories import create_api_key_data  # noqa: E402
-from tests.api.factories import (create_backup_metadata,
-                                 create_server_properties, create_user_data)
+from tests.api.factories import create_backup_metadata, create_server_properties, create_user_data
 
 
 @pytest.fixture
@@ -220,10 +220,6 @@ def pytest_runtest_makereport(item, call):
                         "flask.request_ctx",
                         "ContextVar",
                     ]
-                ):
-                    # Mark as passed since these are cleanup-only errors
-                    report.outcome = "passed"
-                    report.wasxfail = None
                 ):
                     # Mark as passed since these are cleanup-only errors
                     report.outcome = "passed"
