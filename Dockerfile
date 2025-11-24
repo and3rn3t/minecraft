@@ -31,6 +31,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Stage 2: Runtime image (final)
 FROM base AS runtime
 
+# Re-declare ARG for use in this stage
+ARG MINECRAFT_VERSION=1.20.4
+
 # Set environment variables
 ENV MINECRAFT_VERSION=${MINECRAFT_VERSION} \
     MINECRAFT_JAR=server.jar \

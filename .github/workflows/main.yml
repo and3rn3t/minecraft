@@ -228,12 +228,8 @@ jobs:
           build-args: |
             MINECRAFT_VERSION=1.20.4
             BUILDKIT_INLINE_CACHE=1
-          cache-from: |
-            type=gha,scope=build-docker
-            type=registry,ref=ghcr.io/${{ github.repository }}/minecraft-server:buildcache
-          cache-to: |
-            type=gha,mode=max,scope=build-docker
-            type=registry,ref=ghcr.io/${{ github.repository }}/minecraft-server:buildcache,mode=max
+          cache-from: type=gha,scope=build-docker
+          cache-to: type=gha,mode=max,scope=build-docker
           outputs: type=docker,dest=/tmp/image.tar
 
       - name: Inspect image
