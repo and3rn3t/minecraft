@@ -1,0 +1,17 @@
+# OAuth Configuration
+# Copy this file to oauth.conf and fill in your OAuth credentials
+
+# Google OAuth Configuration
+# Get these from: https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/oauth/callback
+
+# Apple OAuth Configuration
+# Get these from: https://developer.apple.com/account/resources/identifiers/list
+APPLE_CLIENT_ID=your-apple-client-id
+APPLE_TEAM_ID=your-apple-team-id
+APPLE_KEY_ID=your-apple-key-id
+APPLE_PRIVATE_KEY=your-apple-private-key-content
+APPLE_REDIRECT_URI=http://localhost:3000/oauth/callback
+

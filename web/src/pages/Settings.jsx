@@ -393,15 +393,15 @@ const Settings = () => {
         )}
       </div>
 
-      {/* OAuth Account Linking */}
-      <div className="card-minecraft p-6 max-w-2xl mb-6">
+      {/* OAuth Account Linking - Disabled for future development */}
+      {/* <div className="card-minecraft p-6 max-w-2xl mb-6">
         <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
           CONNECTED ACCOUNTS
         </h2>
 
         <div className="space-y-4">
           {/* Google */}
-          <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
+      {/* <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6" viewBox="0 0 24 24">
                 <path
@@ -445,10 +445,10 @@ const Settings = () => {
                 {linking === 'google' ? 'LINKING...' : 'LINK ACCOUNT'}
               </button>
             )}
-          </div>
+          </div> */}
 
-          {/* Apple */}
-          <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
+      {/* Apple */}
+      {/* <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -479,7 +479,7 @@ const Settings = () => {
             )}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* API Configuration */}
       <div className="card-minecraft p-6 max-w-2xl">

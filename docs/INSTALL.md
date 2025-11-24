@@ -40,10 +40,7 @@ This guide provides detailed step-by-step instructions for setting up your Minec
 
 ## Preparation
 
-> **📘 For a comprehensive guide to preparing your Raspberry Pi image, including detailed configuration options, troubleshooting, and security hardening, see [RASPBERRY_PI_IMAGE_PREPARATION.md](RASPBERRY_PI_IMAGE_PREPARATION.md).**  
-> **📋 For a quick checklist, see [IMAGE_PREP_CHECKLIST.md](IMAGE_PREP_CHECKLIST.md).**
-
-This section provides a quick overview. For detailed instructions, refer to the guides above.
+This section provides instructions for preparing your Raspberry Pi OS image.
 
 ### 1. Download Raspberry Pi Imager
 

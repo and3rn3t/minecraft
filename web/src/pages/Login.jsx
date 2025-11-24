@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import OAuthButtons from '../components/OAuthButtons';
+// import OAuthButtons from '../components/OAuthButtons'; // Disabled for future development
 import { useToast } from '../components/ToastContainer';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -122,7 +122,8 @@ const Login = () => {
           </button>
         </form>
 
-        <OAuthButtons />
+        {/* OAuth buttons disabled for future development */}
+        {/* <OAuthButtons /> */}
 
         <div className="mt-6 text-center text-[10px] font-minecraft text-minecraft-text-dark">
           DON&apos;T HAVE AN ACCOUNT?{' '}

@@ -14,8 +14,6 @@ docs/
 │
 ├── Getting Started/
 │   ├── INSTALL.md              # Installation guide
-│   ├── RASPBERRY_PI_IMAGE_PREPARATION.md
-│   ├── IMAGE_PREP_CHECKLIST.md
 │   └── QUICK_REFERENCE.md      # Command reference
 │
 ├── User Guides/

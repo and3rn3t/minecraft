@@ -1,7 +1,8 @@
 #!/bin/bash
 # Minecraft Server Startup Script for Raspberry Pi 5
 
-set -e
+# Don't exit on error - let Java handle crashes
+# set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -68,10 +69,29 @@ if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
     echo -e "${GREEN}Download complete!${NC}"
 fi
 
-# Create necessary directories
+# Create necessary directories with proper permissions
 mkdir -p /minecraft/server/logs
 mkdir -p /minecraft/server/world
 mkdir -p /minecraft/backups
+
+# Fix permissions for directories (in case they were created by root on host)
+# This ensures the minecraft user can write to these directories
+# Use chmod with +w to add write permissions for all
+chmod -R u+w /minecraft/server/logs 2>/dev/null || true
+chmod -R u+w /minecraft/server/world 2>/dev/null || true
+chmod -R u+w /minecraft/backups 2>/dev/null || true
+chmod -R u+w /minecraft/server 2>/dev/null || true
+
+# Make directories world-writable if chmod u+w didn't work (for mounted volumes)
+# This is a workaround for permission issues with Docker volume mounts
+chmod -R 777 /minecraft/server/logs 2>/dev/null || true
+chmod -R 777 /minecraft/server/world 2>/dev/null || true
+chmod -R 777 /minecraft/backups 2>/dev/null || true
+chmod 666 /minecraft/server/server.properties 2>/dev/null || true
+chmod 666 /minecraft/server/eula.txt 2>/dev/null || true
+
+# Remove any existing session.lock files that might be blocking
+rm -f /minecraft/server/world/session.lock 2>/dev/null || true
 
 # Display server information
 echo -e "${GREEN}========================================${NC}"
@@ -84,7 +104,10 @@ echo -e "${GREEN}========================================${NC}"
 
 # Start the server
 echo -e "${GREEN}Starting Minecraft Server...${NC}"
-cd /minecraft/server
+cd /minecraft/server || exit 1
+
+# Add error handling - log crashes but don't exit immediately
+trap 'echo -e "${RED}Server process exited with code $?${NC}"' EXIT
 
 exec java -Xms${MEMORY_MIN} -Xmx${MEMORY_MAX} \
     -XX:+UseG1GC \

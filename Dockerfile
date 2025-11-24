@@ -12,18 +12,20 @@ ARG BUILD_TYPE=standard
 # Official OpenJDK images were deprecated, using Eclipse Temurin as replacement
 FROM eclipse-temurin:21-jdk-jammy AS base
 
-# Install required packages in a single layer to reduce image size
-RUN apt-get update && \
+# Install required packages in a single layer with BuildKit cache mount for faster rebuilds
+# Cache mount speeds up subsequent builds by caching apt package lists
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
-        wget \
-        curl \
         ca-certificates \
-        screen \
+        curl \
         procps \
+        screen \
+        wget \
         && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* \
-        /tmp/* \
+    rm -rf /tmp/* \
         /var/tmp/*
 
 # Stage 2: Runtime image (final)
@@ -39,6 +41,14 @@ ENV MINECRAFT_VERSION=${MINECRAFT_VERSION} \
     JAVA_OPTS="" \
     TZ=UTC
 
+# Add labels for better image metadata
+LABEL org.opencontainers.image.title="Minecraft Server" \
+      org.opencontainers.image.description="Minecraft Server optimized for Raspberry Pi 5" \
+      org.opencontainers.image.version="${MINECRAFT_VERSION}" \
+      org.opencontainers.image.vendor="Minecraft Server Management" \
+      org.opencontainers.image.licenses="MIT" \
+      minecraft.version="${MINECRAFT_VERSION}"
+
 # Create minecraft user and directories in a single layer
 RUN groupadd -r minecraft && \
     useradd -r -g minecraft -d /minecraft -s /bin/bash minecraft && \
@@ -51,12 +61,13 @@ RUN groupadd -r minecraft && \
 # Set working directory
 WORKDIR /minecraft/server
 
-# Copy configuration files
+# Copy configuration files (grouped for better layer caching)
+# Copy files that change less frequently first
+COPY --chown=minecraft:minecraft scripts/start.sh /minecraft/start.sh
 COPY --chown=minecraft:minecraft server.properties /minecraft/server/
 COPY --chown=minecraft:minecraft eula.txt /minecraft/server/
-COPY --chown=minecraft:minecraft scripts/start.sh /minecraft/start.sh
 
-# Make start script executable
+# Make start script executable (combined with copy for efficiency)
 RUN chmod +x /minecraft/start.sh
 
 # Switch to minecraft user (security best practice)

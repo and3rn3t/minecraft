@@ -22,10 +22,6 @@ A custom Minecraft server setup optimized for Raspberry Pi 5, providing easy con
 
 ### 1. Flash Raspberry Pi OS
 
-> **📘 For detailed image preparation instructions, see [RASPBERRY_PI_IMAGE_PREPARATION.md](docs/RASPBERRY_PI_IMAGE_PREPARATION.md).**  
-> **📋 For a quick checklist, see [IMAGE_PREP_CHECKLIST.md](docs/IMAGE_PREP_CHECKLIST.md).**  
-> **🖼️ Want a pre-configured image? See [CREATING_CUSTOM_IMAGE.md](docs/CREATING_CUSTOM_IMAGE.md) to create a custom .img file.**
-
 Quick steps:
 
 1. Download and install [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
@@ -398,8 +394,6 @@ docker build --build-arg MINECRAFT_VERSION=1.21.0 -t minecraft-server .
 export DOCKER_BUILDKIT=1
 docker build -t minecraft-server .
 ```
-
-> **📘 For detailed step-by-step instructions on building the Docker image for Raspberry Pi 5, see [BUILDING_RPI5_IMAGE.md](docs/BUILDING_RPI5_IMAGE.md).**
 
 See [Docker Optimization Guide](docs/DOCKER_OPTIMIZATION.md) for details.
 

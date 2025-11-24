@@ -9,7 +9,7 @@ services:
         - MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
     container_name: minecraft-server
     hostname: minecraft-server
-    restart: unless-stopped
+    restart: on-failure
     ports:
       - '${SERVER_PORT:-25565}:25565'
     environment:
@@ -31,8 +31,8 @@ services:
       test: ['CMD-SHELL', 'pgrep -f java || exit 1']
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
     networks:
       - minecraft-net
     logging:

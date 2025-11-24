@@ -6,12 +6,6 @@ on:
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
-    inputs:
-      build_image:
-        description: 'Build Raspberry Pi image'
-        required: false
-        type: boolean
-        default: true
 
 jobs:
   # Linting and syntax checks
@@ -205,434 +199,50 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: minecraft-server
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build Docker image (ARM64 for Raspberry Pi 5)
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           platforms: linux/arm64
           push: false
           load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             MINECRAFT_VERSION=1.20.4
-          cache-from: type=gha,scope=build-docker
-          cache-to: type=gha,mode=max,scope=build-docker
+            BUILDKIT_INLINE_CACHE=1
+          cache-from: |
+            type=gha,scope=build-docker
+            type=registry,ref=ghcr.io/${{ github.repository }}/minecraft-server:buildcache
+          cache-to: |
+            type=gha,mode=max,scope=build-docker
+            type=registry,ref=ghcr.io/${{ github.repository }}/minecraft-server:buildcache,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
 
-  # Build Raspberry Pi image
-  build-rpi-image:
-    name: Build Raspberry Pi Image
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    needs: [build-docker]
-    if: |
-      github.event_name == 'workflow_dispatch' && inputs.build_image == true ||
-      github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: /var/cache/apt/archives
-          key: apt-${{ runner.os }}-rpi-build-tools-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: |
-            apt-${{ runner.os }}-rpi-build-tools-
-            apt-${{ runner.os }}-
-
-      - name: Install dependencies
+      - name: Inspect image
         run: |
-          echo "📥 Installing required tools..."
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            wget \
-            unzip \
-            qemu-utils \
-            qemu-system-x86 \
-            kpartx \
-            dosfstools \
-            parted \
-            rsync \
-            pv \
-            bc
-          echo "✅ Dependencies installed"
-
-          # Verify qemu-img is available
-          if ! command -v qemu-img &> /dev/null; then
-            echo "⚠️ qemu-img not in PATH, searching for it..."
-            find /usr -name qemu-img 2>/dev/null || true
-            echo "Checking installed qemu packages..."
-            dpkg -l | grep qemu || true
-            echo "Attempting to install qemu-user-static as fallback..."
-            sudo apt-get install -y qemu-user-static || true
-          fi
-
-          # Verify installation - check both PATH and common locations
-          QEMU_IMG=$(command -v qemu-img || find /usr -name qemu-img 2>/dev/null | head -1)
-          if [ -z "$QEMU_IMG" ]; then
-            echo "❌ Error: qemu-img not found anywhere"
-            echo "Installed qemu packages:"
-            dpkg -l | grep qemu || true
-            echo "Available qemu binaries:"
-            find /usr -name "qemu-*" -type f 2>/dev/null | head -10 || true
-            exit 1
-          fi
-          echo "✅ qemu-img found: $QEMU_IMG"
-
-          # Create symlink if not in PATH
-          if [ "$(command -v qemu-img)" != "$QEMU_IMG" ]; then
-            echo "Creating symlink for qemu-img..."
-            sudo ln -sf "$QEMU_IMG" /usr/local/bin/qemu-img
-          fi
-
-          # Final verification
-          qemu-img --version || exit 1
-
-      - name: Download Raspberry Pi OS Lite
-        run: |
-          echo "📥 Downloading Raspberry Pi OS Lite (64-bit) image..."
-          echo "This may take 5-15 minutes depending on connection speed..."
-          echo "Starting at: $(date '+%Y-%m-%d %H:%M:%S')"
-
-          # Download Raspberry Pi OS Lite (64-bit) image
-          # Using a known stable version URL
-          set +e
-
-          # List of known-good URLs to try
-          URLS=(
-            "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-01-11/2024-01-11-raspios-bookworm-arm64-lite.img.xz"
-            "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2023-12-05/2023-12-05-raspios-bookworm-arm64-lite.img.xz"
-            "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2023-10-10/2023-10-10-raspios-bookworm-arm64-lite.img.xz"
-          )
-
-          DOWNLOADED=false
-          URL_NUM=1
-          for URL in "${URLS[@]}"; do
-            echo ""
-            echo "🔄 Attempt $URL_NUM/${#URLS[@]}: Trying to download from Raspberry Pi..."
-            echo "URL: ${URL:0:80}..."
-            if wget --progress=bar:force:noscroll --timeout=60 --tries=2 \
-              --user-agent="Mozilla/5.0" \
-              "$URL" \
-              -O raspios-lite.img.xz 2>&1 | grep -E "(Connecting|Downloading|saved|ERROR)" || true; then
-              # Verify file exists and has reasonable size
-              if [ -f raspios-lite.img.xz ]; then
-                FILE_SIZE=$(stat -c%s raspios-lite.img.xz 2>/dev/null || echo "0")
-                if [ "$FILE_SIZE" -gt 104857600 ]; then
-                  echo ""
-                  echo "✅ Download successful!"
-                  echo "📦 File size: $(numfmt --to=iec-i --suffix=B $FILE_SIZE 2>/dev/null || echo "${FILE_SIZE} bytes")"
-                  echo "Completed at: $(date '+%Y-%m-%d %H:%M:%S')"
-                  DOWNLOADED=true
-                  break
-                else
-                  echo "❌ File too small ($FILE_SIZE bytes), trying next URL..."
-                  rm -f raspios-lite.img.xz
-                fi
-              fi
-            else
-              echo "❌ Download failed, trying next URL..."
-              rm -f raspios-lite.img.xz
-            fi
-            URL_NUM=$((URL_NUM + 1))
-          done
-
-          set -e
-
-          if [ "$DOWNLOADED" != "true" ]; then
-            echo ""
-            echo "❌ Error: All download attempts failed"
-            echo "Please check Raspberry Pi download page for latest URL:"
-            echo "https://www.raspberrypi.com/software/operating-systems/"
-            exit 1
-          fi
-
-      - name: Extract image
-        run: |
-          # Check if compressed image exists
-          if [ ! -f raspios-lite.img.xz ]; then
-            echo "❌ Error: Compressed image not found"
-            exit 1
-          fi
-
-          echo "📦 Extracting Raspberry Pi OS image..."
-          echo "This may take 2-5 minutes depending on download size..."
-
-          # Check if pv (pipe viewer) is available for progress
-          if command -v pv &> /dev/null; then
-            pv raspios-lite.img.xz | unxz > raspios-base.img
-          else
-            echo "Extracting (no progress bar available, installing pv for next time)..."
-            unxz -v raspios-lite.img.xz
-            mv *.img raspios-base.img
-          fi
-
-          echo "✅ Extraction complete"
-          echo "Image size: $(du -h raspios-base.img | cut -f1)"
-
-      - name: Verify base image exists
-        run: |
-          if [ ! -f raspios-base.img ]; then
-            echo "❌ Error: Base image not found after extraction"
-            exit 1
-          fi
-          echo "✅ Base image verified: $(du -h raspios-base.img | cut -f1)"
-
-      - name: Resize image
-        run: |
-          echo "📏 Resizing image to 4GB..."
-          echo "Current size: $(du -h raspios-base.img | cut -f1)"
-
-          # Verify qemu-img is available
-          if ! command -v qemu-img &> /dev/null; then
-            echo "❌ Error: qemu-img command not found"
-            echo "Attempting to install qemu-utils..."
-            sudo apt-get update -qq
-            sudo apt-get install -y qemu-utils
-          fi
-
-          # Verify installation
-          if ! command -v qemu-img &> /dev/null; then
-            echo "❌ Error: qemu-img still not available after installation attempt"
-            exit 1
-          fi
-
-          echo "✅ Using qemu-img: $(which qemu-img)"
-
-          # Resize image with explicit raw format to avoid warnings
-          qemu-img resize -f raw raspios-base.img 4G
-
-          echo "✅ Image resized to 4GB"
-          echo "New size: $(du -h raspios-base.img | cut -f1)"
-
-      - name: Mount and customize image
-        run: |
-          echo "🔧 Mounting and customizing Raspberry Pi image..."
-          echo "This step may take 3-5 minutes..."
-
-          # Create mount points
-          sudo mkdir -p /mnt/rpi-boot /mnt/rpi-root
-          echo "✅ Created mount points"
-
-          # Get loop device with explicit format
-          echo "📎 Setting up loop device..."
-          LOOP_DEVICE=$(sudo losetup -f --show -P raspios-base.img)
-          echo "✅ Loop device: $LOOP_DEVICE"
-
-          # Wait for partitions to be ready (reduced wait time)
-          echo "⏳ Waiting for partitions to be ready..."
-          sleep 1
-
-          # Refresh partition table
-          echo "🔄 Refreshing partition table..."
-          sudo partprobe $LOOP_DEVICE
-          sleep 1
-
-          # Verify partitions exist before proceeding
-          timeout=10
-          while [ $timeout -gt 0 ] && [ ! -e "${LOOP_DEVICE}p1" ]; do
-            sleep 0.5
-            timeout=$((timeout - 1))
-          done
-
-          # Identify partitions
-          BOOT_PARTITION="${LOOP_DEVICE}p1"
-          ROOT_PARTITION="${LOOP_DEVICE}p2"
-
-          echo "📂 Boot partition: $BOOT_PARTITION"
-          echo "📂 Root partition: $ROOT_PARTITION"
-
-          # Mount partitions
-          echo "🔗 Mounting partitions..."
-          sudo mount $BOOT_PARTITION /mnt/rpi-boot
-          sudo mount $ROOT_PARTITION /mnt/rpi-root
-          echo "✅ Partitions mounted"
-
-          # Enable SSH
-          echo "🔐 Enabling SSH..."
-          sudo touch /mnt/rpi-boot/ssh
-          echo "✅ SSH enabled"
-
-          # Configure WiFi (optional - can be customized)
-          echo "📶 Configuring WiFi..."
-          cat << EOF | sudo tee /mnt/rpi-boot/wpa_supplicant.conf > /dev/null
-          ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-          update_config=1
-          country=US
-
-          # Uncomment and configure for WiFi:
-           network={
-               ssid="${{ secrets.WIFI_SSID }}"
-               psk="${{ secrets.WIFI_PASSWORD }}"
-           }
-          EOF
-          echo "✅ WiFi configured"
-
-          # Set hostname
-          echo "🏷️  Setting hostname..."
-          echo "minecraft-server" | sudo tee /mnt/rpi-root/etc/hostname
-          echo "✅ Hostname set to: minecraft-server"
-
-          # Create first-boot script
-          echo "📝 Creating first-boot setup script..."
-          cat << 'SCRIPT' | sudo tee /mnt/rpi-root/usr/local/bin/minecraft-firstboot.sh > /dev/null
-          #!/bin/bash
-          # First boot script for Minecraft Server setup
-
-          set -e
-
-          LOG_FILE="/var/log/minecraft-firstboot.log"
-          exec > >(tee -a "$LOG_FILE") 2>&1
-
-          echo "$(date): Starting Minecraft Server first boot setup..."
-
-          # Update system
-          apt-get update
-          apt-get upgrade -y
-
-          # Install Docker
-          if ! command -v docker &> /dev/null; then
-              curl -fsSL https://get.docker.com -o get-docker.sh
-              sh get-docker.sh
-              usermod -aG docker pi
-              rm get-docker.sh
-          fi
-
-          # Install Docker Compose
-          if ! command -v docker-compose &> /dev/null; then
-              apt-get install -y docker-compose
-          fi
-
-          # Install additional utilities
-          apt-get install -y git wget curl screen htop python3 python3-pip python3-venv
-
-          # Install Node.js for web interface
-          if ! command -v node &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-              apt-get install -y nodejs
-          fi
-
-          # Clone repository
-          if [ ! -d "/home/pi/minecraft-server" ]; then
-              cd /home/pi
-              git clone https://github.com/${{ github.repository }}.git minecraft-server || \
-              git clone https://github.com/and3rn3t/minecraft.git minecraft-server
-              chown -R pi:pi minecraft-server
-          fi
-
-          # Run setup script
-          if [ -f "/home/pi/minecraft-server/scripts/setup-rpi.sh" ]; then
-              cd /home/pi/minecraft-server
-              chmod +x scripts/setup-rpi.sh
-              ./scripts/setup-rpi.sh
-          fi
-
-          # Disable this script from running again
-          systemctl disable minecraft-firstboot.service
-          rm /etc/systemd/system/minecraft-firstboot.service
-          systemctl daemon-reload
-
-          echo "$(date): First boot setup completed successfully!"
-          SCRIPT
-
-          sudo chmod +x /mnt/rpi-root/usr/local/bin/minecraft-firstboot.sh
-
-          # Create systemd service for first boot
-          cat << 'SERVICE' | sudo tee /mnt/rpi-root/etc/systemd/system/minecraft-firstboot.service > /dev/null
-          [Unit]
-          Description=Minecraft Server First Boot Setup
-          After=network-online.target
-          Wants=network-online.target
-
-          [Service]
-          Type=oneshot
-          ExecStart=/usr/local/bin/minecraft-firstboot.sh
-          RemainAfterExit=yes
-
-          [Install]
-          WantedBy=multi-user.target
-          SERVICE
-
-          sudo ln -sf /etc/systemd/system/minecraft-firstboot.service \
-            /mnt/rpi-root/etc/systemd/system/multi-user.target.wants/minecraft-firstboot.service
-          echo "✅ First-boot service configured"
-
-          # Unmount
-          echo "🔓 Unmounting partitions..."
-          sudo umount /mnt/rpi-boot
-          sudo umount /mnt/rpi-root
-          sudo losetup -d $LOOP_DEVICE
-          echo "✅ Image customization complete"
-
-      - name: Fix image alignment
-        run: |
-          echo "🔧 Fixing image alignment to 512-byte boundary..."
-          echo "This ensures the image can be written to SD cards properly"
-
-          # Make the script executable
-          chmod +x scripts/fix-image-alignment.sh
-
-          # Fix alignment (modifies in-place)
-          ./scripts/fix-image-alignment.sh raspios-base.img
-
-          echo "✅ Image alignment fixed"
-          echo "Final size: $(du -h raspios-base.img | cut -f1)"
-
-      - name: Compress image
-        run: |
-          echo "🗜️  Compressing final image..."
-          echo "This may take 5-10 minutes depending on image size..."
-
-          # Create final image name with version/tag
-          IMAGE_NAME="minecraft-server-rpi5-$(date +%Y%m%d)"
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            IMAGE_NAME="minecraft-server-rpi5-${GITHUB_REF#refs/tags/v}"
-          fi
-
-          echo "📝 Image will be saved as: ${IMAGE_NAME}.img.xz"
-          echo "Original size: $(du -h raspios-base.img | cut -f1)"
-
-          # Compress image with progress if pv is available
-          # Using -6 instead of -9 for faster compression (still good compression ratio)
-          if command -v pv &> /dev/null; then
-            pv raspios-base.img | xz -6 -T0 > "${IMAGE_NAME}.img.xz"
-          else
-            echo "Compressing (this will take a while, be patient)..."
-            xz -6 -v -T0 raspios-base.img
-            mv raspios-base.img.xz "${IMAGE_NAME}.img.xz"
-          fi
-
-          echo "✅ Compression complete"
-          echo "Final size: $(du -h ${IMAGE_NAME}.img.xz | cut -f1)"
-          echo "Compression ratio: $(echo "scale=1; $(stat -c%s ${IMAGE_NAME}.img.xz) * 100 / $(stat -c%s raspios-base.img 2>/dev/null || echo 1)" | bc)%"
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: raspberry-pi-image
-          path: |
-            *.img.xz
-          retention-days: 90
-          compression-level: 6
-          if-no-files-found: error
-
-      - name: Create release (if tag)
-        if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          files: |
-            *.img.xz
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          docker load -i /tmp/image.tar
+          docker image inspect minecraft-server:latest --format='{{.Size}}' | \
+            awk '{printf "Image size: %.2f MB\n", $1/1024/1024}'
+          docker image inspect minecraft-server:latest --format='{{range .RootFS.Layers}}{{println .}}{{end}}' | wc -l | \
+            awk '{print "Number of layers: " $1}'
 
   # Summary job
   summary:

@@ -436,7 +436,6 @@ Before considering the project "Raspberry Pi 5 ready":
 - [Docker Multi-Architecture Builds](https://docs.docker.com/build/building/multi-platform/)
 - [ARM64 Architecture Guide](https://en.wikipedia.org/wiki/AArch64)
 - [Installation Guide](INSTALL.md)
-- [Image Preparation Guide](RASPBERRY_PI_IMAGE_PREPARATION.md)
 
 ---
 
