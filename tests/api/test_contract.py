@@ -53,10 +53,11 @@ class TestAPIContracts:
         """Test response schema validation utility"""
         response_data = {"status": "ok", "message": "Server is running"}
 
-        # This will skip validation if schema not available
+        # This will skip validation if schema not available or has issues
         is_valid, error = validate_response_schema(response_data, "/api/health", "GET", 200)
 
-        # Should either be valid or skip (if schema not available)
+        # Should either be valid or skip (if schema not available or has reference issues)
+        # The utility function now handles schema reference errors gracefully
         assert is_valid or error is None
 
     def test_validate_request_schema_utility(self):

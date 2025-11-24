@@ -90,12 +90,10 @@ online-mode=false
 def create_whitelist_entry(username: str, uuid: Optional[str] = None) -> Dict:
     """Create test whitelist entry."""
     if uuid is None:
-        uuid_part1 = secrets.token_hex(8)
-        uuid_part2 = secrets.token_hex(4)
-        uuid_part3 = secrets.token_hex(4)
-        uuid_part4 = secrets.token_hex(4)
-        uuid_part5 = secrets.token_hex(12)
-        uuid = f"{uuid_part1}-{uuid_part2}-{uuid_part3}-{uuid_part4}-{uuid_part5}"
+        # Standard UUID format: 8-4-4-4-12 hex characters (36 chars total)
+        import uuid as uuid_lib
+
+        uuid = str(uuid_lib.uuid4())
 
     return {"uuid": uuid, "name": username}
 
@@ -106,12 +104,10 @@ def create_ban_entry(username: str, reason: str = "Test ban", expires: Optional[
     if expires is None:
         expires = (now + timedelta(days=1)).isoformat() + "Z"
 
-    uuid_part1 = secrets.token_hex(8)
-    uuid_part2 = secrets.token_hex(4)
-    uuid_part3 = secrets.token_hex(4)
-    uuid_part4 = secrets.token_hex(4)
-    uuid_part5 = secrets.token_hex(12)
-    uuid = f"{uuid_part1}-{uuid_part2}-{uuid_part3}-{uuid_part4}-{uuid_part5}"
+    # Use standard UUID format
+    import uuid as uuid_lib
+
+    uuid = str(uuid_lib.uuid4())
 
     return {
         "uuid": uuid,

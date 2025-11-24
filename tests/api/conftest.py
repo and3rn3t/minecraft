@@ -13,13 +13,12 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Import app after path setup
+from api.server import app  # noqa: E402
+
 # Imports must come after sys.path modification
-from tests.api.factories import (
-    create_api_key_data,  # noqa: E402
-    create_backup_metadata,
-    create_server_properties,
-    create_user_data,
-)
+from tests.api.factories import create_api_key_data  # noqa: E402
+from tests.api.factories import create_backup_metadata, create_server_properties, create_user_data
 
 
 @pytest.fixture
@@ -78,6 +77,14 @@ def test_user_data():
 def test_api_key_data():
     """Create test API key data using factory"""
     return create_api_key_data()
+
+
+@pytest.fixture
+def client():
+    """Create test client"""
+    app.config["TESTING"] = True
+    with app.test_client() as test_client:
+        yield test_client
 
 
 @pytest.fixture
