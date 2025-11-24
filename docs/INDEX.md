@@ -17,6 +17,8 @@ Complete guide to all project documentation, organized by category.
 
 ### Installation & Setup
 
+- **[DOCKER_DEPLOYMENT_FLOW.md](DOCKER_DEPLOYMENT_FLOW.md)** - How Docker images are deployed from CI to Raspberry Pi
+- **[AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md)** - Step-by-step guide for automatic deployment setup
 - **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps
 - **[RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md)** - Performance optimizations and enhancements for Raspberry Pi 5
 - **[DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md)** - Configure Raspberry Pi 5 to boot and automatically pull/run Docker images

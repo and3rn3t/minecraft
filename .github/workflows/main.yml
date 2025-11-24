@@ -204,11 +204,21 @@ jobs:
             image=moby/buildkit:latest
             network=host
 
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: minecraft-server
+          images: |
+            ghcr.io/${{ github.repository }}/minecraft-server
+            minecraft-server
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -221,8 +231,8 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/arm64
-          push: false
-          load: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -230,7 +240,6 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
           cache-from: type=gha,scope=build-docker
           cache-to: type=gha,mode=max,scope=build-docker
-          outputs: type=docker,dest=/tmp/image.tar
 
       - name: Inspect image
         run: |

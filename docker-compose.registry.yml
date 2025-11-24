@@ -1,0 +1,59 @@
+# Docker Compose configuration for pulling images from registry
+# Use this when you want to pull pre-built images instead of building locally
+#
+# To use: Copy this to docker-compose.yml or use:
+#   docker compose -f docker-compose.registry.yml up -d
+
+version: '3.8'
+
+services:
+  minecraft:
+    # Pull from GitHub Container Registry instead of building
+    image: ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+    pull_policy: always # Always pull latest image on start
+    container_name: minecraft-server
+    hostname: minecraft-server
+    restart: on-failure
+    ports:
+      - '${SERVER_PORT:-25565}:25565'
+    environment:
+      - MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
+      - MEMORY_MIN=${MEMORY_MIN:-1G}
+      - MEMORY_MAX=${MEMORY_MAX:-2G}
+      - SERVER_PORT=${SERVER_PORT:-25565}
+      - EULA=${EULA:-TRUE}
+      - TZ=${TZ:-UTC}
+      - SERVER_TYPE=${SERVER_TYPE:-vanilla}
+    volumes:
+      - ./data:/minecraft/server
+      - ./backups:/minecraft/backups
+      - ./plugins:/minecraft/plugins
+      - ./config:/minecraft/config:ro
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ['CMD-SHELL', 'pgrep -f java || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - minecraft-net
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_MAX:-2G}
+        reservations:
+          memory: ${MEMORY_MIN:-1G}
+
+networks:
+  minecraft-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,26 @@
+[Unit]
+Description=Minecraft Server
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/pi/minecraft-server
+# Pull latest image from registry before starting
+ExecStartPre=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose pull || true'
+# Start the container
+ExecStart=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose up -d'
+# Stop the container
+ExecStop=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose down'
+# Reload: pull latest and recreate
+ExecReload=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose pull && /usr/bin/docker compose up -d --force-recreate'
+Restart=on-failure
+RestartSec=10
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
+

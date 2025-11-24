@@ -1,0 +1,21 @@
+[Unit]
+Description=Pull Latest Minecraft Server Image and Restart
+After=network-online.target docker.service
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/minecraft-server
+# Pull latest image
+ExecStart=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose pull'
+# Restart container if image changed
+ExecStart=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose up -d --force-recreate'
+# Log the update
+ExecStartPost=/bin/sh -c 'echo "$(date): Minecraft server image updated" >> /var/log/minecraft-update.log'
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
+

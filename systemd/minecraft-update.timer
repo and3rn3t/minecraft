@@ -1,0 +1,15 @@
+[Unit]
+Description=Periodically Check for Minecraft Server Updates
+Requires=minecraft-update.service
+
+[Timer]
+# Check 5 minutes after boot
+OnBootSec=5min
+# Then check every hour
+OnUnitActiveSec=1h
+# Randomize delay to avoid thundering herd (0-5 minutes)
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
+
