@@ -21,14 +21,14 @@ Code Push → CI Builds Image → Push to GHCR → Pi Pulls & Restarts
 The CI workflow is already configured to push images on `main` branch commits. Verify in `.github/workflows/main.yml`:
 
 - ✅ Builds Docker image
-- ✅ Pushes to `ghcr.io/and3rn3t/minecraft/minecraft-server:latest` on main branch
+- ✅ Pushes to `ghcr.io/and3rn3t/minecraft-server:latest` on main branch
 - ✅ Uses GitHub token for authentication
 
 **What happens:**
 
 - Every push to `main` triggers a build
 - Image is pushed to GitHub Container Registry
-- Available at: `ghcr.io/and3rn3t/minecraft/minecraft-server:latest`
+- Available at: `ghcr.io/and3rn3t/minecraft-server:latest`
 
 ## Step 2: Configure Raspberry Pi to Pull from Registry
 
@@ -59,7 +59,7 @@ services:
 # TO:
 services:
   minecraft:
-    image: ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+    image: ghcr.io/and3rn3t/minecraft-server:latest
     pull_policy: always
 ```
 
@@ -71,7 +71,7 @@ If you want to keep building locally but have the option to pull:
 services:
   minecraft:
     # Try to pull first, fall back to building
-    image: ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+    image: ghcr.io/and3rn3t/minecraft-server:latest
     pull_policy: always
     build:
       context: .
@@ -201,7 +201,7 @@ docker compose up -d
 docker images | grep minecraft-server
 
 # Should show:
-# ghcr.io/and3rn3t/minecraft/minecraft-server   latest   ...
+# ghcr.io/and3rn3t/minecraft-server   latest   ...
 ```
 
 ### Test Auto-Update
@@ -234,7 +234,7 @@ git push origin main
    ```
    ✅ Tests pass
    ✅ Build Docker image (ARM64)
-   ✅ Push to ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+   ✅ Push to ghcr.io/and3rn3t/minecraft-server:latest
    ```
 
 2. **Raspberry Pi** (within 1 hour):
@@ -277,14 +277,14 @@ tail -f /var/log/minecraft-update.log
 docker inspect minecraft-server | grep Image
 
 # Compare with registry
-docker pull ghcr.io/and3rn3t/minecraft/minecraft-server:latest --dry-run
+docker pull ghcr.io/and3rn3t/minecraft-server:latest --dry-run
 ```
 
 ### Check for Updates
 
 ```bash
 # See if local image is outdated
-docker images ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+docker images ghcr.io/and3rn3t/minecraft-server:latest
 
 # Pull to see if there's a newer version
 docker compose pull
@@ -303,7 +303,7 @@ docker compose pull
 echo "YOUR_TOKEN" | docker login ghcr.io -u and3rn3t --password-stdin
 
 # Verify
-docker pull ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+docker pull ghcr.io/and3rn3t/minecraft-server:latest
 ```
 
 ### Container Doesn't Update
@@ -328,7 +328,7 @@ sudo systemctl restart minecraft.service
 
 1. Verify CI workflow completed successfully
 2. Check GitHub Actions logs
-3. Verify image exists: `docker pull ghcr.io/and3rn3t/minecraft/minecraft-server:latest`
+3. Verify image exists: `docker pull ghcr.io/and3rn3t/minecraft-server:latest`
 
 ### Timer Not Running
 
@@ -362,7 +362,7 @@ For production, use specific tags instead of `latest`:
 
 ```yaml
 # In docker-compose.yml
-image: ghcr.io/and3rn3t/minecraft/minecraft-server:v1.4.0
+image: ghcr.io/and3rn3t/minecraft-server:v1.4.0
 ```
 
 Update the tag when you want to deploy a specific version.

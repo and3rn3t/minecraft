@@ -35,16 +35,16 @@ graph LR
 - Push to `main` branch triggers `.github/workflows/main.yml`
 - Tests run (linting, Python tests, etc.)
 - Docker image is built for ARM64 (Raspberry Pi 5)
-- Image is pushed to `ghcr.io/and3rn3t/minecraft/minecraft-server:latest`
+- Image is pushed to `ghcr.io/and3rn3t/minecraft-server:latest`
 
 ### Step 2: Image Available in Registry
 
 The image is now available at:
 
 ```
-ghcr.io/and3rn3t/minecraft/minecraft-server:latest
-ghcr.io/and3rn3t/minecraft/minecraft-server:main
-ghcr.io/and3rn3t/minecraft/minecraft-server:<commit-sha>
+ghcr.io/and3rn3t/minecraft-server:latest
+ghcr.io/and3rn3t/minecraft-server:main
+ghcr.io/and3rn3t/minecraft-server:<commit-sha>
 ```
 
 ### Step 3: Raspberry Pi Pulls Image
@@ -122,7 +122,7 @@ services:
 ```yaml
 services:
   minecraft:
-    image: ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+    image: ghcr.io/and3rn3t/minecraft-server:latest
     pull_policy: always # Always pull latest
 ```
 
@@ -151,7 +151,7 @@ Or use a Personal Access Token with `read:packages` permission.
 │    - Run tests                                               │
 │    - Build Docker image (ARM64)                              │
 │    - Push to GHCR:                                           │
-│      ghcr.io/and3rn3t/minecraft/minecraft-server:latest      │
+│      ghcr.io/and3rn3t/minecraft-server:latest      │
 └─────────────────────────────────────────────────────────────┘
          │
          │ Image available in registry
@@ -209,7 +209,7 @@ Set up systemd service/timer to automatically pull and restart.
 
 ```bash
 # Check if image exists in registry
-docker pull ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+docker pull ghcr.io/and3rn3t/minecraft-server:latest
 
 # Verify authentication
 docker login ghcr.io

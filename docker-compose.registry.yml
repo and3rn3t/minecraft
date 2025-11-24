@@ -9,7 +9,7 @@ version: '3.8'
 services:
   minecraft:
     # Pull from GitHub Container Registry instead of building
-    image: ghcr.io/and3rn3t/minecraft/minecraft-server:latest
+    image: ghcr.io/and3rn3t/minecraft-server:latest
     pull_policy: always # Always pull latest image on start
     container_name: minecraft-server
     hostname: minecraft-server
