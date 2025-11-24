@@ -2207,7 +2207,6 @@ def set_server_property(key):
     except Exception as e:
         return jsonify({"error": f"Failed to set property: {str(e)}"}), 500
 
-
     """Apply a properties preset"""
     try:
         data = request.get_json() or {}
@@ -2454,7 +2453,13 @@ def create_announcement():
             return jsonify({"error": "Message required"}), 400
 
         stdout, stderr, code = run_script(
-            "announcement-manager.sh", "create", message, ann_type, schedule_type or "", schedule_time or "", str(enabled)
+            "announcement-manager.sh",
+            "create",
+            message,
+            ann_type,
+            schedule_type or "",
+            schedule_time or "",
+            str(enabled),
         )
         if code == 0:
             import json
@@ -2493,6 +2498,8 @@ def delete_announcement(announcement_id):
             return jsonify({"error": stderr or "Failed to delete announcement"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to delete announcement: {str(e)}"}), 500
+
+
 @require_permission("server.manage")
 def apply_server_preset():
     """Apply server properties preset"""
@@ -3585,9 +3592,6 @@ if __name__ == "__main__":
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
-    else:
-        print("WebSocket support disabled (Flask-SocketIO not available)")
-        app.run(host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")
         app.run(host=API_HOST, port=API_PORT, debug=False)
