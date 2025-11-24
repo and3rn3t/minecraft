@@ -1,26 +1,36 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ToastProvider } from './components/ToastContainer';
-import Analytics from './pages/Analytics';
-import ApiKeys from './pages/ApiKeys';
-import AuditLogs from './pages/AuditLogs';
-import Backups from './pages/Backups';
-import ConfigFiles from './pages/ConfigFiles';
-import Console from './pages/Console';
-import Dashboard from './pages/Dashboard';
-import DynamicDNS from './pages/DynamicDNS';
-import FileBrowser from './pages/FileBrowser';
-import Login from './pages/Login';
-import Logs from './pages/Logs';
-import OAuthCallback from './pages/OAuthCallback';
-import Players from './pages/Players';
-import Plugins from './pages/Plugins';
-import Register from './pages/Register';
-import Scheduler from './pages/Scheduler';
-import Settings from './pages/Settings';
-import Users from './pages/Users';
-import Worlds from './pages/Worlds';
+
+// Lazy load components for code splitting
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const Logs = lazy(() => import('./pages/Logs'));
+const Console = lazy(() => import('./pages/Console'));
+const Players = lazy(() => import('./pages/Players'));
+const Backups = lazy(() => import('./pages/Backups'));
+const Worlds = lazy(() => import('./pages/Worlds'));
+const Plugins = lazy(() => import('./pages/Plugins'));
+const ConfigFiles = lazy(() => import('./pages/ConfigFiles'));
+const FileBrowser = lazy(() => import('./pages/FileBrowser'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ApiKeys = lazy(() => import('./pages/ApiKeys'));
+const Users = lazy(() => import('./pages/Users'));
+const AuditLogs = lazy(() => import('./pages/AuditLogs'));
+const Scheduler = lazy(() => import('./pages/Scheduler'));
+const DynamicDNS = lazy(() => import('./pages/DynamicDNS'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+
+// Loading component for Suspense fallback
+const PageLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-900">
+    <div className="text-minecraft-text-light font-minecraft text-sm">LOADING...</div>
+  </div>
+);
 
 function App() {
   return (
@@ -28,9 +38,30 @@ function App() {
       <Router>
         <Routes>
           {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/oauth/callback" element={<OAuthCallback />} />
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <Login />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <Register />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/oauth/callback"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <OAuthCallback />
+              </Suspense>
+            }
+          />
 
           {/* Protected routes */}
           <Route
@@ -38,7 +69,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Navigate to="/dashboard" replace />
+                  <Suspense fallback={<PageLoading />}>
+                    <Navigate to="/dashboard" replace />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -48,7 +81,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Dashboard />
+                  <Suspense fallback={<PageLoading />}>
+                    <Dashboard />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -58,7 +93,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Logs />
+                  <Suspense fallback={<PageLoading />}>
+                    <Logs />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -68,7 +105,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Console />
+                  <Suspense fallback={<PageLoading />}>
+                    <Console />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -78,7 +117,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Players />
+                  <Suspense fallback={<PageLoading />}>
+                    <Players />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -88,7 +129,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Backups />
+                  <Suspense fallback={<PageLoading />}>
+                    <Backups />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -98,7 +141,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Worlds />
+                  <Suspense fallback={<PageLoading />}>
+                    <Worlds />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -108,7 +153,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Plugins />
+                  <Suspense fallback={<PageLoading />}>
+                    <Plugins />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -118,7 +165,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ConfigFiles />
+                  <Suspense fallback={<PageLoading />}>
+                    <ConfigFiles />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -128,7 +177,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <FileBrowser />
+                  <Suspense fallback={<PageLoading />}>
+                    <FileBrowser />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -138,7 +189,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Settings />
+                  <Suspense fallback={<PageLoading />}>
+                    <Settings />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -148,7 +201,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ApiKeys />
+                  <Suspense fallback={<PageLoading />}>
+                    <ApiKeys />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -158,7 +213,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Users />
+                  <Suspense fallback={<PageLoading />}>
+                    <Users />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -168,7 +225,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <AuditLogs />
+                  <Suspense fallback={<PageLoading />}>
+                    <AuditLogs />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -178,7 +237,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Scheduler />
+                  <Suspense fallback={<PageLoading />}>
+                    <Scheduler />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -188,7 +249,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <DynamicDNS />
+                  <Suspense fallback={<PageLoading />}>
+                    <DynamicDNS />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }
@@ -198,7 +261,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Analytics />
+                  <Suspense fallback={<PageLoading />}>
+                    <Analytics />
+                  </Suspense>
                 </Layout>
               </ProtectedRoute>
             }

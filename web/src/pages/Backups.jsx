@@ -1,125 +1,91 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useToast } from '../components/ToastContainer';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { usePolling } from '../hooks/usePolling';
 import { api } from '../services/api';
 
 const Backups = () => {
-  const [backups, setBackups] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [restoring, setRestoring] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const { success: showSuccess, error: showError } = useToast();
+  const handleError = useErrorHandler();
 
-  useEffect(() => {
-    loadBackups();
-  }, []);
-
-  // Clear messages after 5 seconds
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
-  const loadBackups = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Poll backups list every 30 seconds
+  const { data: backupsData, loading } = usePolling(
+    useCallback(async () => {
       const data = await api.listBackups();
-      setBackups(data.backups || []);
-    } catch (err) {
-      setError('Failed to load backups');
-      console.error('Failed to load backups:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data.backups || [];
+    }, []),
+    30000
+  );
 
-  const handleCreateBackup = async () => {
+  const backups = backupsData || [];
+
+  const handleCreateBackup = useCallback(async () => {
     setCreating(true);
-    setError(null);
-    setSuccess(null);
-
     try {
       const result = await api.createBackup();
-      setSuccess(result.message || 'Backup created successfully!');
-      // Reload after creation (wait a bit for file system to sync)
-      setTimeout(loadBackups, 2000);
+      showSuccess(result.message || 'Backup created successfully!');
+      // Data will refresh automatically via polling
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to create backup');
-      console.error('Failed to create backup:', err);
+      handleError(err, 'Failed to create backup');
     } finally {
       setCreating(false);
     }
-  };
+  }, [showSuccess, handleError]);
 
-  const handleRestore = async backupName => {
-    if (
-      !window.confirm(
-        `Are you sure you want to restore backup "${backupName}"?\n\nThis will stop the server and restore the backup. The current state will be backed up first.`
-      )
-    ) {
-      return;
-    }
+  const handleRestore = useCallback(
+    async backupName => {
+      if (
+        !window.confirm(
+          `Are you sure you want to restore backup "${backupName}"?\n\nThis will stop the server and restore the backup. The current state will be backed up first.`
+        )
+      ) {
+        return;
+      }
 
-    setRestoring(backupName);
-    setError(null);
-    setSuccess(null);
+      setRestoring(backupName);
+      try {
+        const result = await api.restoreBackup(backupName);
+        showSuccess(
+          result.pre_restore_backup
+            ? `Backup restored successfully! Current state backed up to: ${result.pre_restore_backup}`
+            : 'Backup restored successfully!'
+        );
+        // Data will refresh automatically via polling
+      } catch (err) {
+        handleError(err, `Failed to restore backup: ${backupName}`);
+      } finally {
+        setRestoring(null);
+      }
+    },
+    [showSuccess, handleError]
+  );
 
-    try {
-      const result = await api.restoreBackup(backupName);
-      setSuccess(
-        result.pre_restore_backup
-          ? `Backup restored successfully! Current state backed up to: ${result.pre_restore_backup}`
-          : 'Backup restored successfully!'
-      );
-      // Reload backups after restore
-      setTimeout(loadBackups, 1000);
-    } catch (err) {
-      setError(
-        err.response?.data?.error || err.message || `Failed to restore backup: ${backupName}`
-      );
-      console.error('Failed to restore backup:', err);
-    } finally {
-      setRestoring(null);
-    }
-  };
+  const handleDelete = useCallback(
+    async backupName => {
+      if (
+        !window.confirm(
+          `Are you sure you want to delete backup "${backupName}"?\n\nThis action cannot be undone.`
+        )
+      ) {
+        return;
+      }
 
-  const handleDelete = async backupName => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete backup "${backupName}"?\n\nThis action cannot be undone.`
-      )
-    ) {
-      return;
-    }
-
-    setDeleting(backupName);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      await api.deleteBackup(backupName);
-      setSuccess(`Backup "${backupName}" deleted successfully`);
-      // Reload backups after delete
-      loadBackups();
-    } catch (err) {
-      setError(
-        err.response?.data?.error || err.message || `Failed to delete backup: ${backupName}`
-      );
-      console.error('Failed to delete backup:', err);
-    } finally {
-      setDeleting(null);
-    }
-  };
+      setDeleting(backupName);
+      try {
+        await api.deleteBackup(backupName);
+        showSuccess(`Backup "${backupName}" deleted successfully`);
+        // Data will refresh automatically via polling
+      } catch (err) {
+        handleError(err, `Failed to delete backup: ${backupName}`);
+      } finally {
+        setDeleting(null);
+      }
+    },
+    [showSuccess, handleError]
+  );
 
   const formatSize = bytes => {
     if (!bytes) return 'Unknown';
@@ -183,19 +149,6 @@ const Backups = () => {
           )}
         </button>
       </div>
-
-      {/* Error/Success messages */}
-      {error && (
-        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
-          {success}
-        </div>
-      )}
 
       {/* Backups Table */}
       <div className="card-minecraft p-6">

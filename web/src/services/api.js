@@ -1,4 +1,11 @@
 import axios from 'axios';
+import {
+  clearAllCache,
+  getCachedResponse,
+  getPendingRequest,
+  setCachedResponse,
+  setPendingRequest,
+} from '../utils/apiCache';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 const API_KEY = import.meta.env.VITE_API_KEY || localStorage.getItem('api_key');
@@ -41,32 +48,68 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Helper function to make cached GET requests
+async function cachedGet(url, params = {}, cacheTTL = 5000) {
+  // Check cache first
+  const cached = getCachedResponse(url, 'GET', params);
+  if (cached) {
+    return cached;
+  }
+
+  // Check for pending request (deduplication)
+  const pending = getPendingRequest(url, 'GET', params);
+  if (pending) {
+    return pending;
+  }
+
+  // Make request
+  const requestPromise = apiClient.get(url, { params }).then(response => {
+    // Cache successful responses
+    setCachedResponse(url, 'GET', params, response.data, cacheTTL);
+    return response.data;
+  });
+
+  // Track pending request
+  setPendingRequest(url, 'GET', params, requestPromise);
+
+  return requestPromise;
+}
+
+// Helper function to clear cache after mutations
+function invalidateCache(pattern = null) {
+  // For now, clear all cache on mutations
+  // Can be optimized later to clear specific patterns
+  clearAllCache();
+}
+
 export const api = {
-  // Health check (no auth required)
+  // Health check (no auth required, no cache)
   async getHealth() {
     const response = await apiClient.get('/health');
     return response.data;
   },
 
-  // Server status
+  // Server status (cached for 2 seconds)
   async getStatus() {
-    const response = await apiClient.get('/status');
-    return response.data;
+    return cachedGet('/status', {}, 2000);
   },
 
-  // Server control
+  // Server control (invalidate cache on state changes)
   async startServer() {
     const response = await apiClient.post('/server/start');
+    invalidateCache();
     return response.data;
   },
 
   async stopServer() {
     const response = await apiClient.post('/server/stop');
+    invalidateCache();
     return response.data;
   },
 
   async restartServer() {
     const response = await apiClient.post('/server/restart');
+    invalidateCache();
     return response.data;
   },
 
@@ -79,21 +122,23 @@ export const api = {
   // Backups
   async createBackup() {
     const response = await apiClient.post('/backup');
+    invalidateCache(); // Clear cache after creating backup
     return response.data;
   },
 
   async listBackups() {
-    const response = await apiClient.get('/backups');
-    return response.data;
+    return cachedGet('/backups', {}, 10000); // Cache for 10 seconds
   },
 
   async restoreBackup(filename) {
     const response = await apiClient.post(`/backups/${filename}/restore`);
+    invalidateCache(); // Clear cache after restore
     return response.data;
   },
 
   async deleteBackup(filename) {
     const response = await apiClient.delete(`/backups/${filename}`);
+    invalidateCache(); // Clear cache after delete
     return response.data;
   },
 
@@ -103,83 +148,73 @@ export const api = {
     return response.data;
   },
 
-  // Players
+  // Players (cached for 3 seconds)
   async getPlayers() {
-    const response = await apiClient.get('/players');
-    return response.data;
+    return cachedGet('/players', {}, 3000);
   },
 
-  // Metrics
+  // Metrics (cached for 2 seconds)
   async getMetrics() {
-    const response = await apiClient.get('/metrics');
-    return response.data;
+    return cachedGet('/metrics', {}, 2000);
   },
 
-  // Analytics
+  // Analytics (cached for longer periods - analytics don't change frequently)
   async collectAnalytics() {
     const response = await apiClient.post('/analytics/collect');
+    invalidateCache(); // Clear analytics cache after collection
     return response.data;
   },
 
   async getAnalyticsReport(hours = 24) {
-    const response = await apiClient.get('/analytics/report', { params: { hours } });
-    return response.data;
+    return cachedGet('/analytics/report', { hours }, 60000); // Cache for 60 seconds
   },
 
   async getAnalyticsTrends(hours = 24, type = 'performance') {
-    const response = await apiClient.get('/analytics/trends', { params: { hours, type } });
-    return response.data;
+    return cachedGet('/analytics/trends', { hours, type }, 60000); // Cache for 60 seconds
   },
 
   async getAnalyticsAnomalies(hours = 24, metric = 'tps') {
-    const response = await apiClient.get('/analytics/anomalies', { params: { hours, metric } });
-    return response.data;
+    return cachedGet('/analytics/anomalies', { hours, metric }, 60000); // Cache for 60 seconds
   },
 
   async getAnalyticsPredictions(hoursAhead = 1, metric = 'memory') {
-    const response = await apiClient.get('/analytics/predictions', {
-      params: { hours_ahead: hoursAhead, metric },
-    });
-    return response.data;
+    return cachedGet('/analytics/predictions', { hours_ahead: hoursAhead, metric }, 60000); // Cache for 60 seconds
   },
 
   async getPlayerBehavior(hours = 24) {
-    const response = await apiClient.get('/analytics/player-behavior', { params: { hours } });
-    return response.data;
+    return cachedGet('/analytics/player-behavior', { hours }, 60000); // Cache for 60 seconds
   },
 
   async generateCustomReport(config) {
     const response = await apiClient.post('/analytics/custom-report', config);
+    invalidateCache(); // Clear cache after generating report
     return response.data;
   },
 
-  // Worlds
+  // Worlds (cached for 30 seconds - rarely changes)
   async listWorlds() {
-    const response = await apiClient.get('/worlds');
-    return response.data;
+    return cachedGet('/worlds', {}, 30000);
   },
 
-  // Plugins
+  // Plugins (cached for 30 seconds - rarely changes)
   async listPlugins() {
-    const response = await apiClient.get('/plugins');
-    return response.data;
+    return cachedGet('/plugins', {}, 30000);
   },
 
-  // Configuration files
+  // Configuration files (cached for 30 seconds - rarely changes)
   async listConfigFiles() {
-    const response = await apiClient.get('/config/files');
-    return response.data;
+    return cachedGet('/config/files', {}, 30000);
   },
 
   async getConfigFile(filename) {
-    const response = await apiClient.get(`/config/files/${filename}`);
-    return response.data;
+    return cachedGet(`/config/files/${filename}`, {}, 30000);
   },
 
   async saveConfigFile(filename, content) {
     const response = await apiClient.post(`/config/files/${filename}`, {
       content,
     });
+    invalidateCache(); // Clear cache after saving config
     return response.data;
   },
 
@@ -281,8 +316,7 @@ export const api = {
 
   // API Key Management
   async listApiKeys() {
-    const response = await apiClient.get('/keys');
-    return response.data;
+    return cachedGet('/keys', {}, 15000); // Cache for 15 seconds
   },
 
   async createApiKey(name, description = '') {
@@ -290,37 +324,42 @@ export const api = {
       name,
       description,
     });
+    invalidateCache(); // Clear cache after creating key
     return response.data;
   },
 
   async deleteApiKey(keyId) {
     const response = await apiClient.delete(`/keys/${keyId}`);
+    invalidateCache(); // Clear cache after deleting key
     return response.data;
   },
 
   async enableApiKey(keyId) {
     const response = await apiClient.put(`/keys/${keyId}/enable`);
+    invalidateCache(); // Clear cache after enabling key
     return response.data;
   },
 
   async disableApiKey(keyId) {
     const response = await apiClient.put(`/keys/${keyId}/disable`);
+    invalidateCache(); // Clear cache after disabling key
     return response.data;
   },
 
   // User and Role Management
   async listUsers() {
-    const response = await apiClient.get('/users');
-    return response.data;
+    return cachedGet('/users', {}, 15000); // Cache for 15 seconds
   },
 
   async updateUserRole(username, role) {
     const response = await apiClient.put(`/users/${username}/role`, { role });
+    invalidateCache(); // Clear cache after role update
     return response.data;
   },
 
   async deleteUser(username) {
     const response = await apiClient.delete(`/users/${username}`);
+    invalidateCache(); // Clear cache after deleting user
     return response.data;
   },
 

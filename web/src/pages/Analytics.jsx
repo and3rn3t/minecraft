@@ -1,59 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useToast } from '../components/ToastContainer';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { usePolling } from '../hooks/usePolling';
 import { api } from '../services/api';
 
 const Analytics = () => {
-  const [report, setReport] = useState(null);
-  const [trends, setTrends] = useState(null);
-  const [anomalies, setAnomalies] = useState([]);
-  const [predictions, setPredictions] = useState(null);
-  const [playerBehavior, setPlayerBehavior] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(24);
   const [activeTab, setActiveTab] = useState('overview');
   const { success, error } = useToast();
+  const handleError = useErrorHandler();
 
-  useEffect(() => {
-    loadAnalytics();
-    const interval = setInterval(loadAnalytics, 60000); // Update every minute
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Load analytics data with polling (every minute)
+  const loadAnalytics = useCallback(async () => {
+    const [reportData, trendsData, anomaliesData, predictionsData, behaviorData] =
+      await Promise.all([
+        api.getAnalyticsReport(period),
+        api.getAnalyticsTrends(period, 'performance'),
+        api.getAnalyticsAnomalies(period, 'tps'),
+        api.getAnalyticsPredictions(1, 'memory'),
+        api.getPlayerBehavior(period),
+      ]);
+
+    return {
+      report: reportData.report,
+      trends: trendsData.trends,
+      anomalies: anomaliesData.anomalies || [],
+      predictions: predictionsData.prediction,
+      playerBehavior: behaviorData.behavior,
+    };
   }, [period]);
 
-  const loadAnalytics = async () => {
-    try {
-      setLoading(true);
-      const [reportData, trendsData, anomaliesData, predictionsData, behaviorData] =
-        await Promise.all([
-          api.getAnalyticsReport(period),
-          api.getAnalyticsTrends(period, 'performance'),
-          api.getAnalyticsAnomalies(period, 'tps'),
-          api.getAnalyticsPredictions(1, 'memory'),
-          api.getPlayerBehavior(period),
-        ]);
+  const { data: analyticsData, loading } = usePolling(loadAnalytics, 60000, [period]);
 
-      setReport(reportData.report);
-      setTrends(trendsData.trends);
-      setAnomalies(anomaliesData.anomalies || []);
-      setPredictions(predictionsData.prediction);
-      setPlayerBehavior(behaviorData.behavior);
-    } catch (err) {
-      console.error('Failed to load analytics:', err);
-      error('Failed to load analytics data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const report = analyticsData?.report || null;
+  const trends = analyticsData?.trends || null;
+  const anomalies = analyticsData?.anomalies || [];
+  const predictions = analyticsData?.predictions || null;
+  const playerBehavior = analyticsData?.playerBehavior || null;
 
-  const handleCollectData = async () => {
+  const handleCollectData = useCallback(async () => {
     try {
       await api.collectAnalytics();
       success('Analytics data collected successfully');
-      setTimeout(loadAnalytics, 2000);
+      // Data will refresh automatically via polling
     } catch (err) {
-      error('Failed to collect analytics data');
+      handleError(err, 'Failed to collect analytics data');
     }
-  };
+  }, [success, handleError]);
 
   const handleGenerateReport = async () => {
     try {

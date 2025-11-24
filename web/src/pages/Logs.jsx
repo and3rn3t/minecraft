@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+import { VirtualList } from '../components/VirtualList';
+import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../services/api';
 
 const Logs = () => {
@@ -135,7 +137,13 @@ const Logs = () => {
     }
   };
 
-  const filteredLogs = logs.filter(log => log.toLowerCase().includes(filter.toLowerCase()));
+  // Debounce filter input to reduce unnecessary filtering
+  const debouncedFilter = useDebounce(filter, 300);
+
+  const filteredLogs = useMemo(
+    () => logs.filter(log => log.toLowerCase().includes(debouncedFilter.toLowerCase())),
+    [logs, debouncedFilter]
+  );
 
   return (
     <div>
@@ -182,26 +190,48 @@ const Logs = () => {
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING LOGS...
           </div>
-        ) : (
-          <div className="font-minecraft text-[10px] overflow-auto max-h-[600px]">
-            {filteredLogs.length === 0 ? (
-              <div className="text-minecraft-text-dark text-center py-8">NO LOGS FOUND</div>
-            ) : (
-              filteredLogs.map((log, index) => (
-                <div
-                  key={index}
-                  className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT ${
-                    log.includes('ERROR') || log.includes('WARN')
-                      ? 'text-[#C62828]'
-                      : log.includes('INFO')
-                        ? 'text-minecraft-water-light'
-                        : 'text-minecraft-text-light'
-                  }`}
-                >
-                  {log}
-                </div>
-              ))
+        ) : filteredLogs.length === 0 ? (
+          <div className="text-minecraft-text-dark text-center py-8">NO LOGS FOUND</div>
+        ) : filteredLogs.length > 100 ? (
+          // Use virtual scrolling for large lists
+          <VirtualList
+            items={filteredLogs}
+            renderItem={(log, index) => (
+              <div
+                key={`log-${index}-${log.substring(0, 50)}`}
+                className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT font-minecraft text-[10px] ${
+                  log.includes('ERROR') || log.includes('WARN')
+                    ? 'text-[#C62828]'
+                    : log.includes('INFO')
+                      ? 'text-minecraft-water-light'
+                      : 'text-minecraft-text-light'
+                }`}
+              >
+                {log}
+              </div>
             )}
+            itemHeight={24}
+            containerHeight={600}
+            overscan={10}
+            className="font-minecraft text-[10px]"
+          />
+        ) : (
+          // Regular list for smaller datasets
+          <div className="font-minecraft text-[10px] overflow-auto max-h-[600px]">
+            {filteredLogs.map((log, index) => (
+              <div
+                key={`log-${index}-${log.substring(0, 50)}`}
+                className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT ${
+                  log.includes('ERROR') || log.includes('WARN')
+                    ? 'text-[#C62828]'
+                    : log.includes('INFO')
+                      ? 'text-minecraft-water-light'
+                      : 'text-minecraft-text-light'
+                }`}
+              >
+                {log}
+              </div>
+            ))}
             <div ref={logEndRef} />
           </div>
         )}

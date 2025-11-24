@@ -1,25 +1,25 @@
+import { memo, useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-const MetricsChart = ({ metrics }) => {
-  const cpuPercent = parseFloat(metrics.metrics?.cpu_percent?.replace('%', '') || 0);
-  const memoryPercent = parseFloat(metrics.metrics?.memory_percent?.replace('%', '') || 0);
+const getStatusColor = value => {
+  if (value >= 80) return '#C62828'; // Red
+  if (value >= 60) return '#F57C00'; // Orange
+  return '#7CB342'; // Green
+};
 
-  const data = [
-    {
-      name: 'CPU',
-      value: cpuPercent,
-    },
-    {
-      name: 'Memory',
-      value: memoryPercent,
-    },
-  ];
-
-  const getStatusColor = value => {
-    if (value >= 80) return '#C62828'; // Red
-    if (value >= 60) return '#F57C00'; // Orange
-    return '#7CB342'; // Green
-  };
+const MetricsChart = memo(({ metrics }) => {
+  const { cpuPercent, memoryPercent, data } = useMemo(() => {
+    const cpu = parseFloat(metrics?.metrics?.cpu_percent?.replace('%', '') || 0);
+    const memory = parseFloat(metrics?.metrics?.memory_percent?.replace('%', '') || 0);
+    return {
+      cpuPercent: cpu,
+      memoryPercent: memory,
+      data: [
+        { name: 'CPU', value: cpu },
+        { name: 'Memory', value: memory },
+      ],
+    };
+  }, [metrics?.metrics?.cpu_percent, metrics?.metrics?.memory_percent]);
 
   return (
     <div className="space-y-6">
@@ -123,6 +123,8 @@ const MetricsChart = ({ metrics }) => {
       )}
     </div>
   );
-};
+});
+
+MetricsChart.displayName = 'MetricsChart';
 
 export default MetricsChart;

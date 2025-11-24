@@ -1,65 +1,60 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StatusCardSkeleton } from '../components/LoadingSkeleton';
 import MetricsChart from '../components/MetricsChart';
 import StatusCard from '../components/StatusCard';
 import { useToast } from '../components/ToastContainer';
+import { useErrorHandler } from '../hooks/useErrorHandler';
+import { usePolling } from '../hooks/usePolling';
 import { api } from '../services/api';
 
 const Dashboard = () => {
-  const [status, setStatus] = useState(null);
-  const [metrics, setMetrics] = useState(null);
-  const [players, setPlayers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const { success, error } = useToast();
+  const { success } = useToast();
+  const handleError = useErrorHandler();
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000); // Update every 5 seconds
-    return () => clearInterval(interval);
+  // Load dashboard data with polling
+  const loadDashboardData = useCallback(async () => {
+    const [statusData, metricsData, playersData] = await Promise.all([
+      api.getStatus(),
+      api.getMetrics(),
+      api.getPlayers(),
+    ]);
+    return {
+      status: statusData,
+      metrics: metricsData,
+      players: playersData.players || [],
+    };
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [statusData, metricsData, playersData] = await Promise.all([
-        api.getStatus(),
-        api.getMetrics(),
-        api.getPlayers(),
-      ]);
-      setStatus(statusData);
-      setMetrics(metricsData);
-      setPlayers(playersData.players || []);
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err);
-      if (loading) {
-        error('Failed to load dashboard data');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: dashboardData, loading } = usePolling(loadDashboardData, 5000);
 
-  const handleServerAction = async action => {
-    setActionLoading(true);
-    try {
-      if (action === 'start') {
-        await api.startServer();
-        success('Server started successfully');
-      } else if (action === 'stop') {
-        await api.stopServer();
-        success('Server stopped successfully');
-      } else if (action === 'restart') {
-        await api.restartServer();
-        success('Server restart initiated');
+  const status = dashboardData?.status || null;
+  const metrics = dashboardData?.metrics || null;
+  const players = dashboardData?.players || [];
+
+  const handleServerAction = useCallback(
+    async action => {
+      setActionLoading(true);
+      try {
+        if (action === 'start') {
+          await api.startServer();
+          success('Server started successfully');
+        } else if (action === 'stop') {
+          await api.stopServer();
+          success('Server stopped successfully');
+        } else if (action === 'restart') {
+          await api.restartServer();
+          success('Server restart initiated');
+        }
+        // Data will refresh automatically via polling
+      } catch (err) {
+        handleError(err, `Failed to ${action} server`);
+      } finally {
+        setActionLoading(false);
       }
-      setTimeout(loadData, 2000); // Reload after action
-    } catch (err) {
-      console.error(`Failed to ${action} server:`, err);
-      error(`Failed to ${action} server: ${err.message || 'Unknown error'}`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+    },
+    [success, handleError]
+  );
 
   const formatUptime = uptime => {
     if (!uptime || uptime === 'UNKNOWN') return 'UNKNOWN';

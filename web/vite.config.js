@@ -32,5 +32,16 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'chart-vendor': ['recharts'],
+          'socket-vendor': ['socket.io-client'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 });

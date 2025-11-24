@@ -28,8 +28,11 @@ except ImportError:
 # Optional WebSocket support
 try:
     import eventlet  # type: ignore[import-untyped]
-    from flask_socketio import SocketIO  # type: ignore[import-untyped]
-    from flask_socketio import disconnect, emit
+    from flask_socketio import (
+        SocketIO,  # type: ignore[import-untyped]
+        disconnect,
+        emit,
+    )
 
     # Only monkey patch if not in testing environment
     # eventlet.monkey_patch() can interfere with pytest parallel execution
@@ -53,27 +56,116 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Import security utilities
+try:
+    from api.security import (
+        is_rate_limit_exceeded,
+        sanitize_file_path,
+        sanitize_minecraft_command,
+        sanitize_string,
+        validate_username,
+    )
+
+    SECURITY_AVAILABLE = True
+except ImportError:
+    SECURITY_AVAILABLE = False
+
+    # Provide fallback functions if security module unavailable
+    def sanitize_minecraft_command(cmd):
+        return True, (cmd[:256] if cmd else ""), None
+
+    def sanitize_file_path(path, base_dir):
+        try:
+            return True, Path(path), None
+        except Exception:
+            return False, None, "Invalid path"
+
+    def sanitize_string(s, max_length=1000, allow_newlines=False):
+        return str(s)[:max_length] if s else ""
+
+    def validate_username(u):
+        return bool(u and len(u) >= 3), None
+
+    def is_rate_limit_exceeded(*args, **kwargs):
+        return False
+
+
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "minecraft-server-api-secret"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
+
+# Rate limiting storage (in-memory, use Redis in production)
+RATE_LIMIT_STORAGE = {}
+
+# CORS configuration - restrict to specific origins in production
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 
 # Initialize SocketIO if available
 if SOCKETIO_AVAILABLE:
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+    socketio = SocketIO(app, cors_allowed_origins=ALLOWED_ORIGINS, async_mode="eventlet")
 else:
     socketio = None
 
 # Enable CORS if available
 if CORS_AVAILABLE:
-    CORS(app, supports_credentials=True)  # Enable CORS with credentials
+    CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 else:
     # Fallback: Add CORS headers manually if needed
     @app.after_request
-    def after_request(response):
-        response.headers.add("Access-Control-Allow-Origin", "*")
+    def after_request_cors(response):
+        origin = request.headers.get("Origin")
+        if origin and (ALLOWED_ORIGINS == ["*"] or origin in ALLOWED_ORIGINS):
+            response.headers.add("Access-Control-Allow-Origin", origin)
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
         response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response
+
+
+# Add security headers to all responses
+@app.after_request
+def security_headers(response):
+    """Add security headers to all responses"""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Remove server header
+    response.headers.pop("Server", None)
+    return response
+
+
+# Rate limiting decorator
+def rate_limit(max_per_minute=60, per_endpoint=False):
+    """Simple rate limiting decorator"""
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not SECURITY_AVAILABLE:
+                return f(*args, **kwargs)
+
+            # Get identifier (IP address or user)
+            identifier = request.remote_addr or "unknown"
+            if hasattr(request, "user") and request.user:
+                identifier = f"{identifier}:{request.user}"
+
+            # Add endpoint to identifier if per_endpoint is True
+            if per_endpoint:
+                identifier = f"{identifier}:{request.endpoint}"
+
+            # Check rate limit (60 requests per minute by default)
+            if is_rate_limit_exceeded(identifier, max_per_minute, 60, RATE_LIMIT_STORAGE):
+                return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+
+    return decorator
 
 
 # Configuration
@@ -1630,23 +1722,49 @@ def restart_server():
 
 @app.route("/api/server/command", methods=["POST"])
 @require_permission("server.command")
+@rate_limit(max_per_minute=30, per_endpoint=True)
 def send_command():
     """Send a command to the server via RCON"""
     data = request.get_json()
-    command = data.get("command")
+    if not data:
+        return jsonify({"error": "Invalid request body"}), 400
 
+    command = data.get("command")
     if not command:
         return jsonify({"error": "Command required"}), 400
 
+    # Validate and sanitize command to prevent command injection
+    if SECURITY_AVAILABLE:
+        is_valid, sanitized_command, error_msg = sanitize_minecraft_command(command)
+        if not is_valid:
+            log_audit_event(
+                get_username_from_request(),
+                "server.command.rejected",
+                {"original_command": sanitize_string(command[:100]), "reason": error_msg},  # Log first 100 chars only
+            )
+            return jsonify({"error": "Invalid command format"}), 400
+        command = sanitized_command
+    else:
+        # Basic sanitization if security module not available
+        command = sanitize_string(command, max_length=256) if SECURITY_AVAILABLE else command[:256]
+
     username = get_username_from_request()
-    log_audit_event(username, "server.command", {"command": command})
+    log_audit_event(username, "server.command", {"command": sanitize_string(command[:100])})
 
     stdout, stderr, code = run_script("rcon-client.sh", "command", command)
 
     if code == 0:
-        return jsonify({"success": True, "response": stdout, "command": command}), 200
+        # Sanitize response before returning
+        safe_stdout = sanitize_string(stdout, max_length=5000) if SECURITY_AVAILABLE and stdout else stdout
+        return jsonify({"success": True, "response": safe_stdout, "command": sanitize_string(command[:100])}), 200
     else:
-        return jsonify({"success": False, "error": stderr or "Command failed", "command": command}), 500
+        # Don't expose detailed error messages - generic error only
+        error_msg = "Command execution failed"
+        if SECURITY_AVAILABLE and stderr:
+            # Only log detailed error, don't expose to client
+            safe_stderr = sanitize_string(stderr[:500])
+            log_audit_event(username, "server.command.failed", {"error": safe_stderr[:100]})
+        return jsonify({"success": False, "error": error_msg}), 500
 
 
 @app.route("/api/backup", methods=["POST"])
