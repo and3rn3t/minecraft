@@ -9,9 +9,52 @@ The project already includes:
 - ✅ Player management (whitelist, ban, OP)
 - ✅ Server properties management
 - ✅ Gamerule management (planned)
-- ✅ Command scheduler (basic)
+- ✅ Enhanced Command Scheduler (see below)
 - ✅ World management
 - ✅ Multi-world support
+- ✅ Player Statistics Tracker
+- ✅ Announcement System
+
+### ✅ Recently Implemented (P1 Features)
+
+#### Enhanced Command Scheduler
+
+**Status**: ✅ Complete  
+**File**: `scripts/command-scheduler.py`
+
+Features implemented:
+
+- Cron expression support for flexible scheduling
+- Conditional execution (player count, time ranges, day of week)
+- Multiple schedule types (interval, daily, weekly, cron, once)
+- Command templates with variables
+- Full schedule management via CLI and API
+
+#### Player Statistics Tracker
+
+**Status**: ✅ Complete  
+**File**: `scripts/player-stats-tracker.sh`
+
+Features implemented:
+
+- Parse server logs to collect player statistics
+- Track player metrics (playtime, deaths, achievements, etc.)
+- Generate leaderboards
+- API endpoints for stats access
+
+#### Announcement System
+
+**Status**: ✅ Complete  
+**File**: `scripts/announcement-manager.sh`
+
+Features implemented:
+
+- Scheduled and immediate announcements
+- Multiple display types (say, title, actionbar)
+- Template support
+- Full API integration
+
+For detailed implementation notes, see [CHANGELOG.md](../CHANGELOG.md).
 
 ## New Enhancement Categories
 

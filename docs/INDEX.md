@@ -45,6 +45,7 @@ Complete guide to all project documentation, organized by category.
 - **[PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
 - **[MOD_SUPPORT.md](MOD_SUPPORT.md)** - Mod loader detection and mod pack installation
 - **[MINECRAFT_ENHANCEMENTS.md](MINECRAFT_ENHANCEMENTS.md)** - Minecraft-specific enhancements and configurations
+- **[MINECRAFT_GAMEPLAY_ENHANCEMENTS.md](MINECRAFT_GAMEPLAY_ENHANCEMENTS.md)** - Gameplay enhancement roadmap (includes implemented P1 features)
 - **[MINECRAFT_MANAGEMENT.md](MINECRAFT_MANAGEMENT.md)** - Minecraft server management tools and scripts
 - **[MULTI_WORLD.md](MULTI_WORLD.md)** - Managing multiple worlds
 - **[LOG_MANAGEMENT.md](LOG_MANAGEMENT.md)** - Log rotation, search, and analysis
@@ -52,11 +53,12 @@ Complete guide to all project documentation, organized by category.
 ### Advanced Features
 
 - **[RCON.md](RCON.md)** - Remote Console (RCON) setup and usage
-- **[API.md](API.md)** - REST API documentation
+- **[API.md](API.md)** - Complete REST API documentation (includes OpenAPI spec)
 - **[WEB_INTERFACE.md](WEB_INTERFACE.md)** - Web admin panel guide
 - **[RBAC.md](RBAC.md)** - Role-Based Access Control (RBAC) system
 - **[API_KEYS.md](API_KEYS.md)** - API key management and usage
 - **[DYNAMIC_DNS.md](DYNAMIC_DNS.md)** - Dynamic DNS integration (DuckDNS, No-IP, Cloudflare)
+- **[ANALYTICS.md](ANALYTICS.md)** - Analytics and monitoring capabilities
 
 ---
 
@@ -90,13 +92,15 @@ Complete guide to all project documentation, organized by category.
 
 ### Testing & Code Quality
 
-- **[TESTING.md](TESTING.md)** - Testing guide and best practices
+- **[TESTING.md](TESTING.md)** - Complete testing guide with framework enhancements
+- **[TEST_COVERAGE.md](TEST_COVERAGE.md)** - Test coverage analysis and gap identification
+- **[WEB_UI_TESTING.md](WEB_UI_TESTING.md)** - Frontend testing guide
 - **[LINTING.md](LINTING.md)** - Code linting and static analysis guide
 - **[DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md)** - Docker image optimization guide
 - **[BUILDING_RPI5_IMAGE.md](BUILDING_RPI5_IMAGE.md)** - Building Docker image for Raspberry Pi 5
 - **[PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md)** - Performance benchmarking and regression testing
 - **[MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md)** - Multi-architecture build and deployment guide
-- **[CI_CD.md](CI_CD.md)** - CI/CD pipeline and automated releases guide
+- **[CI_CD.md](CI_CD.md)** - Complete CI/CD pipeline guide (consolidated)
 
 ---
 
@@ -210,4 +214,12 @@ docs/
 
 ---
 
-**Last Updated**: 2025-01-XX
+## Archived Documentation
+
+Some documentation files have been consolidated and archived. See [archive/README.md](archive/README.md) for details.
+
+**Note**: All information from archived files has been integrated into the current documentation structure.
+
+---
+
+**Last Updated**: 2025-01-27
