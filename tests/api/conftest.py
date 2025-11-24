@@ -224,7 +224,3 @@ def pytest_runtest_makereport(item, call):
                     # Mark as passed since these are cleanup-only errors
                     report.outcome = "passed"
                     report.wasxfail = None
-                ):
-                    # Mark as passed since these are cleanup-only errors
-                    report.outcome = "passed"
-                    report.wasxfail = None
