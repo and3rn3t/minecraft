@@ -196,3 +196,7 @@ def isolated_test_env(tmp_path, monkeypatch):
         dir_path.mkdir(parents=True, exist_ok=True)
 
     return test_env
+    for dir_path in test_env.values():
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+    return test_env
