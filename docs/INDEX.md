@@ -23,6 +23,7 @@ Complete guide to all project documentation, organized by category.
 - **[BUILDING_RPI5_IMAGE.md](BUILDING_RPI5_IMAGE.md)** - Step-by-step guide for building Docker image for Raspberry Pi 5
 - **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps
 - **[RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md)** - Performance optimizations and enhancements for Raspberry Pi 5
+- **[DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md)** - Configure Raspberry Pi 5 to boot and automatically pull/run Docker images
 - **[INSTALL.md](INSTALL.md)** - Complete installation guide for Raspberry Pi 5
 - **[README.md](../README.md)** - Project overview and quick start
 
@@ -97,6 +98,7 @@ Complete guide to all project documentation, organized by category.
 - **[WEB_UI_TESTING.md](WEB_UI_TESTING.md)** - Frontend testing guide
 - **[LINTING.md](LINTING.md)** - Code linting and static analysis guide
 - **[DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md)** - Docker image optimization guide
+- **[DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md)** - Configure Raspberry Pi 5 to boot and automatically pull/run Docker images
 - **[BUILDING_RPI5_IMAGE.md](BUILDING_RPI5_IMAGE.md)** - Building Docker image for Raspberry Pi 5
 - **[PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md)** - Performance benchmarking and regression testing
 - **[MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md)** - Multi-architecture build and deployment guide
