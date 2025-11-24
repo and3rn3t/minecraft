@@ -3,22 +3,22 @@ Pytest configuration for API tests
 """
 
 import json
-import shutil
-import tempfile
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Add project root to path before importing tests.api.factories
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Imports must come after sys.path modification
 from tests.api.factories import (
-    create_api_key_data,
+    create_api_key_data,  # noqa: E402
     create_backup_metadata,
-    create_ban_entry,
-    create_plugin_data,
     create_server_properties,
     create_user_data,
-    create_whitelist_entry,
-    create_world_data,
 )
 
 
@@ -155,7 +155,12 @@ def mock_network():
         mock_put.return_value = mock_response
         mock_delete.return_value = mock_response
 
-        yield {"get": mock_get, "post": mock_post, "put": mock_put, "delete": mock_delete}
+        yield {
+            "get": mock_get,
+            "post": mock_post,
+            "put": mock_put,
+            "delete": mock_delete,
+        }
 
 
 @pytest.fixture(autouse=True)
