@@ -94,6 +94,18 @@ test-api:
 	@echo "Running API tests..."
 	@cd tests/api && pytest -v
 
+test-api-parallel:
+	@echo "Running API tests in parallel..."
+	@cd tests/api && pytest -v -n auto
+
+test-api-performance:
+	@echo "Running API performance tests..."
+	@cd tests/api && pytest -v -m performance
+
+test-api-contract:
+	@echo "Running API contract tests..."
+	@cd tests/api && pytest -v -m contract
+
 test-web:
 	@echo "Running web UI tests..."
 	@cd web && npm test
@@ -111,6 +123,22 @@ test-e2e:
 	@bats tests/e2e/test-complete-user-journey.sh || echo "E2E tests require running server"
 	@bats tests/e2e/test-web-ui-workflow.sh || echo "E2E tests require running server"
 	@bats tests/e2e/test-analytics-workflow.sh || echo "E2E tests require running server"
+
+test-factories:
+	@echo "Running factory tests..."
+	@cd tests/api && pytest -v test_factories.py
+
+coverage-gaps:
+	@echo "Analyzing coverage gaps..."
+	@./scripts/analyze-coverage-gaps.sh analyze
+
+coverage-gaps-detailed:
+	@echo "Showing detailed coverage gaps..."
+	@./scripts/analyze-coverage-gaps.sh detailed
+
+coverage-suggestions:
+	@echo "Getting test improvement suggestions..."
+	@./scripts/analyze-coverage-gaps.sh suggest
 
 # Linting
 lint:

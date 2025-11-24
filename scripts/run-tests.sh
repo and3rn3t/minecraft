@@ -114,12 +114,26 @@ run_python_tests() {
 
     cd "$PROJECT_DIR"
 
-    # Run pytest with coverage
-    if python3 -c "import pytest_cov" 2>/dev/null; then
-        python3 -m pytest tests/api/ -v --cov=api --cov-report=term-missing
-    else
-        python3 -m pytest tests/api/ -v
+    # Check for parallel execution support
+    local parallel_flag=""
+    if python3 -c "import xdist" 2>/dev/null; then
+        # Use auto-detection of CPU count, or specify with -n auto
+        parallel_flag="-n auto"
+        echo -e "${BLUE}Running tests in parallel mode${NC}"
     fi
+
+    # Run pytest with coverage
+    local pytest_args=("tests/api/" "-v")
+
+    if python3 -c "import pytest_cov" 2>/dev/null; then
+        pytest_args+=("--cov=api" "--cov-config=.coverage-config.ini" "--cov-report=term-missing" "--cov-report=html" "--cov-report=json" "--cov-report=xml")
+    fi
+
+    if [ -n "$parallel_flag" ]; then
+        pytest_args+=($parallel_flag)
+    fi
+
+    python3 -m pytest "${pytest_args[@]}"
 
     local exit_code=$?
 
