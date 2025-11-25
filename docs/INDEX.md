@@ -17,6 +17,7 @@ Complete guide to all project documentation, organized by category.
 
 ### Installation & Setup
 
+- **[RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md)** - Complete guide for deploying all components (Minecraft, API, Web) on Raspberry Pi 5
 - **[DOCKER_DEPLOYMENT_FLOW.md](DOCKER_DEPLOYMENT_FLOW.md)** - How Docker images are deployed from CI to Raspberry Pi
 - **[AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md)** - Step-by-step guide for automatic deployment setup
 - **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps

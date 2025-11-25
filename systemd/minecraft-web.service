@@ -1,0 +1,16 @@
+[Unit]
+Description=Minecraft Server Web Interface (Nginx)
+After=network-online.target minecraft-api.service
+Wants=network-online.target
+Requires=minecraft-api.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'if ! systemctl is-active --quiet nginx; then systemctl start nginx; fi'
+ExecStop=/bin/sh -c 'if systemctl is-active --quiet nginx; then systemctl stop nginx; fi'
+ExecReload=/bin/sh -c 'if systemctl is-active --quiet nginx; then systemctl reload nginx; fi'
+
+[Install]
+WantedBy=multi-user.target
+
