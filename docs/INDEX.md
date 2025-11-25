@@ -23,6 +23,7 @@ Complete guide to all project documentation, organized by category.
 - **[UPDATE_DOCKER_IMAGE.md](UPDATE_DOCKER_IMAGE.md)** - How to check, pull, and update to the latest Docker image
 - **[UPDATE_CODEBASE.md](UPDATE_CODEBASE.md)** - How to update the GitHub repository code on Raspberry Pi 5
 - **[API_VENV_SETUP.md](API_VENV_SETUP.md)** - How to set up and use Python virtual environment for API server
+- **[SYSTEM_OPTIMIZATIONS.md](SYSTEM_OPTIMIZATIONS.md)** - Comprehensive system and filesystem optimizations for Raspberry Pi 5
 - **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps
 - **[RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md)** - Performance optimizations and enhancements for Raspberry Pi 5
 - **[DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md)** - Configure Raspberry Pi 5 to boot and automatically pull/run Docker images
