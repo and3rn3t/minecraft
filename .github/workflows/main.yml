@@ -253,11 +253,20 @@ jobs:
           cache-to: type=gha,mode=max,scope=build-docker
 
       - name: Inspect image
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
         run: |
-          docker load -i /tmp/image.tar
-          docker image inspect minecraft-server:latest --format='{{.Size}}' | \
+          # Get the image name and first tag
+          IMAGE_NAME="${{ steps.image-name.outputs.image }}"
+          # Metadata action outputs tags separated by newlines, get first one
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          if [ -z "$FIRST_TAG" ]; then
+            # Fallback: use image name with latest tag
+            FIRST_TAG="${IMAGE_NAME}:latest"
+          fi
+          echo "Inspecting image: $FIRST_TAG"
+          docker image inspect "$FIRST_TAG" --format='{{.Size}}' | \
             awk '{printf "Image size: %.2f MB\n", $1/1024/1024}'
-          docker image inspect minecraft-server:latest --format='{{range .RootFS.Layers}}{{println .}}{{end}}' | wc -l | \
+          docker image inspect "$FIRST_TAG" --format='{{range .RootFS.Layers}}{{println .}}{{end}}' | wc -l | \
             awk '{print "Number of layers: " $1}'
 
   # Summary job
