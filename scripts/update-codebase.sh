@@ -122,21 +122,46 @@ fi
 if [ "$API_CHANGED" = true ] || [ "$1" = "--all" ]; then
     echo -e "\n${BLUE}Updating API server...${NC}"
     if [ -d "$PROJECT_DIR/api" ]; then
-        cd "$PROJECT_DIR/api" || exit 1
-
-        if [ -f "requirements.txt" ]; then
-            echo -e "${BLUE}Installing Python dependencies...${NC}"
-            pip3 install --user -r requirements.txt
-
-            echo -e "${GREEN}✓ API dependencies updated${NC}"
-
-            # Restart API service if exists
-            if systemctl is-active --quiet minecraft-api.service 2>/dev/null; then
-                echo -e "${BLUE}Restarting API service...${NC}"
-                sudo systemctl restart minecraft-api.service || true
-            fi
+        # Use venv setup script if available
+        if [ -f "$PROJECT_DIR/scripts/setup-api-venv.sh" ]; then
+            echo -e "${BLUE}Updating virtual environment and dependencies...${NC}"
+            "$PROJECT_DIR/scripts/setup-api-venv.sh" || {
+                echo -e "${YELLOW}⚠ Venv setup failed, trying manual update...${NC}"
+                cd "$PROJECT_DIR/api" || exit 1
+                if [ -d "venv" ]; then
+                    source venv/bin/activate
+                    pip install -r requirements.txt
+                    deactivate
+                else
+                    echo -e "${YELLOW}⚠ Virtual environment not found, creating...${NC}"
+                    "$PROJECT_DIR/scripts/setup-api-venv.sh"
+                fi
+            }
         else
-            echo -e "${YELLOW}⚠ requirements.txt not found, skipping API update${NC}"
+            # Fallback: manual venv update
+            cd "$PROJECT_DIR/api" || exit 1
+            if [ -d "venv" ] && [ -f "requirements.txt" ]; then
+                echo -e "${BLUE}Updating dependencies in virtual environment...${NC}"
+                source venv/bin/activate
+                pip install -r requirements.txt
+                deactivate
+            elif [ -f "requirements.txt" ]; then
+                echo -e "${YELLOW}⚠ Virtual environment not found, creating...${NC}"
+                python3 -m venv venv
+                source venv/bin/activate
+                pip install -r requirements.txt
+                deactivate
+            else
+                echo -e "${YELLOW}⚠ requirements.txt not found, skipping API update${NC}"
+            fi
+        fi
+
+        echo -e "${GREEN}✓ API dependencies updated${NC}"
+
+        # Restart API service if exists
+        if systemctl is-active --quiet minecraft-api.service 2>/dev/null; then
+            echo -e "${BLUE}Restarting API service...${NC}"
+            sudo systemctl restart minecraft-api.service || true
         fi
     else
         echo -e "${YELLOW}⚠ api/ directory not found${NC}"

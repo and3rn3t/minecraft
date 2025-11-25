@@ -113,6 +113,7 @@ cd ~/minecraft-server
 ```
 
 This script will:
+
 1. Check git status
 2. Pull latest changes
 3. Update dependencies (npm, pip)
@@ -380,4 +381,3 @@ cd ~/minecraft-server && git status
 5. ✅ Restart services: `sudo systemctl restart <service>`
 
 For automated updates, use the `update-codebase.sh` script or set up a cron job/systemd timer.
-

@@ -8,9 +8,10 @@ Type=simple
 User=pi
 Group=pi
 WorkingDirectory=/home/pi/minecraft/api
-Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PATH=/home/pi/minecraft/api/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
-ExecStart=/usr/bin/python3 /home/pi/minecraft/api/server.py
+# Use Python from virtual environment
+ExecStart=/home/pi/minecraft/api/venv/bin/python /home/pi/minecraft/api/server.py
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:/home/pi/minecraft/logs/api-server.log

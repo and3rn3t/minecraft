@@ -59,16 +59,36 @@ start_api() {
         return 1
     fi
 
-    # Install dependencies if needed
-    if ! python3 -c "import flask" 2>/dev/null; then
-        install_dependencies
+    # Check for virtual environment
+    VENV_PYTHON=""
+    if [ -d "${API_DIR}/venv" ] && [ -f "${API_DIR}/venv/bin/python" ]; then
+        VENV_PYTHON="${API_DIR}/venv/bin/python"
+        echo -e "${BLUE}Using virtual environment${NC}"
+
+        # Check if dependencies are installed in venv
+        if ! "$VENV_PYTHON" -c "import flask" 2>/dev/null; then
+            echo -e "${YELLOW}Dependencies not installed in venv, installing...${NC}"
+            "$VENV_PYTHON" -m pip install -r "${API_DIR}/requirements.txt" || {
+                echo -e "${RED}Failed to install dependencies${NC}"
+                return 1
+            }
+        fi
+    else
+        echo -e "${YELLOW}Virtual environment not found, using system Python${NC}"
+        echo -e "${YELLOW}Consider running: ./scripts/setup-api-venv.sh${NC}"
+
+        # Install dependencies if needed
+        if ! python3 -c "import flask" 2>/dev/null; then
+            install_dependencies
+        fi
+        VENV_PYTHON="python3"
     fi
 
     echo -e "${BLUE}Starting API server...${NC}"
 
     # Start API server in background
     cd "$API_DIR"
-    nohup python3 server.py > "${PROJECT_DIR}/logs/api-server.log" 2>&1 &
+    nohup "$VENV_PYTHON" server.py > "${PROJECT_DIR}/logs/api-server.log" 2>&1 &
     local pid=$!
     echo $pid > "$PID_FILE"
 

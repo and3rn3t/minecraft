@@ -54,9 +54,10 @@ cd minecraft
 # Create necessary directories
 mkdir -p logs data backups plugins config
 
-# Install Python dependencies
+# Setup Python virtual environment for API
 cd api
-pip3 install --user -r requirements.txt
+chmod +x ../scripts/setup-api-venv.sh
+../scripts/setup-api-venv.sh
 cd ..
 
 # Build web interface
@@ -230,7 +231,21 @@ sudo systemctl reload nginx
 ```bash
 cd /home/pi/minecraft/api
 git pull  # or update files
-pip3 install --user -r requirements.txt
+
+# Activate virtual environment and update dependencies
+source venv/bin/activate
+pip install -r requirements.txt
+deactivate
+
+# Restart service
+sudo systemctl restart minecraft-api.service
+```
+
+Or use the setup script:
+
+```bash
+cd /home/pi/minecraft
+./scripts/setup-api-venv.sh
 sudo systemctl restart minecraft-api.service
 ```
 
