@@ -216,13 +216,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image name
+        id: image-name
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "image=ghcr.io/${{ github.repository_owner }}/minecraft-server" >> $GITHUB_OUTPUT
+          else
+            echo "image=minecraft-server" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/minecraft-server
-            minecraft-server
+          images: ${{ steps.image-name.outputs.image }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
