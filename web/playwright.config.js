@@ -39,7 +39,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Use more workers in CI for faster execution (GitHub Actions runners have 2 cores)
+  // With 3 test files × 3 browsers = 9 test runs, 4-6 workers should complete in ~3 minutes
+  workers: process.env.CI ? 4 : undefined,
 
   // Reporter configuration
   reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],

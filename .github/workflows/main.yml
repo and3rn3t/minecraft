@@ -184,7 +184,9 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: web
-        run: npx playwright test || true
+        # Use 4 workers for parallel execution (faster than default 1 worker)
+        # With 3 test files × 3 browsers = 9 test runs, 4 workers should complete in ~3 minutes
+        run: npx playwright test --workers=4 || true
 
       - uses: actions/upload-artifact@v4
         if: always()
