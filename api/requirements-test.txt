@@ -12,7 +12,7 @@ pytest-timeout>=2.1.0
 coverage>=7.3.0
 
 # API testing
-requests>=2.31.0
+requests>=2.33.0
 
 # Schema validation
 jsonschema>=4.19.0
