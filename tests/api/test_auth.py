@@ -5,10 +5,7 @@ Tests for user authentication API endpoints
 
 import json
 import sys
-import tempfile
-from pathlib import Path
 from pathlib import Path as PathLib
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -45,9 +42,6 @@ def mock_bcrypt(monkeypatch):
     """Mock bcrypt for password hashing"""
     try:
         import bcrypt
-
-        def mock_hashpw(password, salt):
-            return f"hashed_{password.decode()}"
 
         def mock_checkpw(password, hashed):
             # Handle both bytes and strings

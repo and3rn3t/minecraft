@@ -30,8 +30,6 @@ try:
     import eventlet  # type: ignore[import-untyped]
     from flask_socketio import (
         SocketIO,  # type: ignore[import-untyped]
-        disconnect,
-        emit,
     )
 
     # Only monkey patch if not in testing environment
@@ -60,10 +58,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 try:
     from api.security import (
         is_rate_limit_exceeded,
-        sanitize_file_path,
         sanitize_minecraft_command,
         sanitize_string,
-        validate_username,
     )
 
     SECURITY_AVAILABLE = True
@@ -179,7 +175,7 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 API_PORT = 8080
 API_HOST = "127.0.0.1"  # Only listen on localhost by default
 API_ENABLED = True
-SECRET_KEY = "minecraft-server-api-secret-change-in-production"
+_DEFAULT_SECRET_KEY = "minecraft-server-api-secret-change-in-production"
 
 # Load configuration
 if API_CONFIG_FILE.exists():
@@ -192,7 +188,9 @@ if API_CONFIG_FILE.exists():
         API_PORT = int(config.get("API_PORT", API_PORT))
         API_HOST = config.get("API_HOST", API_HOST)
         API_ENABLED = config.get("API_ENABLED", "true").lower() == "true"
-        SECRET_KEY = config.get("SECRET_KEY", SECRET_KEY)
+        SECRET_KEY = config.get("SECRET_KEY", _DEFAULT_SECRET_KEY)
+else:
+    SECRET_KEY = _DEFAULT_SECRET_KEY
 
 # Set Flask secret key for sessions
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -973,6 +971,8 @@ def get_oauth_url(provider):
         auth_url = f"https://appleid.apple.com/auth/authorize?{urllib.parse.urlencode(params)}"
         return jsonify({"url": auth_url})
 
+    return jsonify({"error": "Invalid OAuth provider"}), 400  # unreachable; makes all code paths explicit
+
 
 @app.route("/api/auth/oauth/google/callback", methods=["POST"])
 def google_oauth_callback():
@@ -1202,6 +1202,9 @@ def link_oauth_account(provider):
                     "oauth_providers": USERS[username].get("oauth_providers", []),
                 }
             )
+
+        else:
+            return jsonify({"error": "Invalid provider"}), 400
 
     except Exception as e:
         return jsonify({"error": f"Failed to link OAuth account: {str(e)}"}), 500
@@ -2044,11 +2047,19 @@ def restore_backup(filename):
             with tarfile.open(current_backup, "w:gz") as tar:
                 tar.add(data_dir, arcname=".")
 
-        # Extract backup
+        # Extract backup — validate members first to prevent path traversal (tarslip)
         import tarfile
 
+        def _safe_members(tf, dest):
+            resolved_dest = Path(dest).resolve()
+            for member in tf.getmembers():
+                member_path = (resolved_dest / member.name).resolve()
+                if not member_path.is_relative_to(resolved_dest):
+                    raise ValueError(f"Unsafe path in archive member: {member.name}")
+                yield member
+
         with tarfile.open(backup_path, "r:gz") as tar:
-            tar.extractall(path=data_dir)
+            tar.extractall(path=data_dir, members=_safe_members(tar, data_dir))
 
         return jsonify(
             {
@@ -2336,19 +2347,6 @@ def set_server_property(key):
     except Exception as e:
         return jsonify({"error": f"Failed to set property: {str(e)}"}), 500
 
-    """Apply a properties preset"""
-    try:
-        data = request.get_json() or {}
-        preset = data.get("preset", "balanced")
-
-        stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
-        if code == 0:
-            return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to apply preset"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to apply preset: {str(e)}"}), 500
-
 
 # Command Scheduler Endpoints
 @app.route("/api/commands/schedules", methods=["GET"])
@@ -2358,8 +2356,6 @@ def get_command_schedules():
     try:
         stdout, stderr, code = run_script("command-scheduler.py", "list")
         if code == 0:
-            import json
-
             data = json.loads(stdout)
             return jsonify({"success": True, "schedules": data.get("schedules", [])}), 200
         else:
@@ -2387,9 +2383,6 @@ def create_command_schedule():
             return jsonify({"error": "Command required"}), 400
 
         # Use Python script to add schedule
-        import json as json_lib
-        import subprocess
-
         schedule_data = {
             "command": command,
             "type": schedule_type,
@@ -2421,7 +2414,7 @@ def create_command_schedule():
 
         result = subprocess.run(
             [sys.executable, str(script_path), "add", command, schedule_type],
-            input=json_lib.dumps(schedule_data),
+            input=json.dumps(schedule_data),
             capture_output=True,
             text=True,
             timeout=10,
@@ -2487,8 +2480,6 @@ def get_all_player_stats():
     try:
         stdout, stderr, code = run_script("player-stats-tracker.sh", "list")
         if code == 0:
-            import json
-
             stats = json.loads(stdout)
             return jsonify({"success": True, "stats": stats}), 200
         else:
@@ -2504,8 +2495,6 @@ def get_player_stats(player):
     try:
         stdout, stderr, code = run_script("player-stats-tracker.sh", "get", player)
         if code == 0:
-            import json
-
             stats = json.loads(stdout)
             return jsonify({"success": True, "player": player, "stats": stats}), 200
         else:
@@ -2524,8 +2513,6 @@ def get_player_stats_leaderboard():
 
         stdout, stderr, code = run_script("player-stats-tracker.sh", "leaderboard", metric, limit)
         if code == 0:
-            import json
-
             leaderboard = json.loads(stdout)
             return jsonify({"success": True, **leaderboard}), 200
         else:
@@ -2556,8 +2543,6 @@ def get_announcements():
     try:
         stdout, stderr, code = run_script("announcement-manager.sh", "list")
         if code == 0:
-            import json
-
             data = json.loads(stdout)
             return jsonify({"success": True, "announcements": data.get("announcements", [])}), 200
         else:
@@ -2682,7 +2667,7 @@ def get_metrics():
                 metrics["memory_usage"] = parts[1]
                 metrics["memory_percent"] = parts[2].rstrip("%")
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+        pass  # Metrics are best-effort; missing values are acceptable
 
     return jsonify({"metrics": metrics, "timestamp": datetime.now(timezone.utc).isoformat()})
 
@@ -2706,11 +2691,6 @@ def collect_analytics():
 def get_analytics_report():
     """Get analytics report"""
     try:
-        hours = int(request.args.get("hours", 24))
-        if hours not in [1, 6, 24, 168]:
-            hours = 24
-
-        # Run analytics processor
         result = subprocess.run(
             [
                 sys.executable,
@@ -3116,7 +3096,7 @@ def save_config_file(filename):
 
                 shutil.copy2(backup_path, file_path)
             except Exception:
-                pass
+                pass  # Restore attempt is best-effort
         return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
 
 
@@ -3282,8 +3262,8 @@ def list_files():
                     )
             return jsonify({"success": True, "files": roots, "path": ""}), 200
 
-        # Resolve path
-        file_path = PROJECT_ROOT / path_param
+        # Resolve path (canonicalises .., resolves symlinks — required before any FS operation)
+        file_path = (PROJECT_ROOT / path_param).resolve()
         if not is_path_allowed(file_path):
             return jsonify({"error": "Path not allowed"}), 403
 
@@ -3339,7 +3319,7 @@ def read_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = PROJECT_ROOT / path_param
+        file_path = (PROJECT_ROOT / path_param).resolve()
         if not is_path_allowed(file_path):
             return jsonify({"error": "Path not allowed"}), 403
 
@@ -3385,7 +3365,7 @@ def write_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = PROJECT_ROOT / path_param
+        file_path = (PROJECT_ROOT / path_param).resolve()
         if not is_path_allowed(file_path):
             return jsonify({"error": "Path not allowed"}), 403
 
@@ -3400,7 +3380,7 @@ def write_file():
 
                 shutil.copy2(file_path, backup_path)
             except Exception:
-                pass
+                pass  # Backup copy is optional; failure is non-fatal
 
         # Ensure parent directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3430,7 +3410,7 @@ def write_file():
 
                     shutil.copy2(backup_path, file_path)
                 except Exception:
-                    pass
+                    pass  # Restore attempt is best-effort
             return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
@@ -3445,7 +3425,7 @@ def delete_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = PROJECT_ROOT / path_param
+        file_path = (PROJECT_ROOT / path_param).resolve()
         if not is_path_allowed(file_path):
             return jsonify({"error": "Path not allowed"}), 403
 
@@ -3495,7 +3475,12 @@ def upload_file():
         if file_size > 10 * 1024 * 1024:
             return jsonify({"error": "File too large (max 10MB)"}), 400
 
-        file_path = PROJECT_ROOT / path_param / file.filename
+        from werkzeug.utils import secure_filename
+
+        safe_name = secure_filename(file.filename)
+        if not safe_name:
+            return jsonify({"error": "Invalid filename"}), 400
+        file_path = (PROJECT_ROOT / path_param / safe_name).resolve()
         if not is_path_allowed(file_path):
             return jsonify({"error": "Path not allowed"}), 403
 
@@ -3530,7 +3515,7 @@ def download_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = PROJECT_ROOT / path_param
+        file_path = (PROJECT_ROOT / path_param).resolve()
         if not is_path_allowed(file_path):
             return jsonify({"error": "Path not allowed"}), 403
 
@@ -3664,6 +3649,7 @@ if SOCKETIO_AVAILABLE:
         # Start log streaming task
         socketio.start_background_task(stream_logs_task, request.sid, api_key)
         socketio.emit("connected", {"message": "Connected to log stream"}, room=request.sid)
+        return True  # connection accepted
 
     @socketio.on("disconnect")
     def handle_disconnect():
@@ -3708,8 +3694,9 @@ if SOCKETIO_AVAILABLE:
             )
 
 else:
-    # WebSocket not available - log warning
-    print("Warning: Flask-SocketIO not available. WebSocket support disabled.")
+    # WebSocket not available
+    import warnings
+    warnings.warn("Flask-SocketIO not available. WebSocket support disabled.", stacklevel=1)
 
 
 if __name__ == "__main__":

@@ -5,8 +5,6 @@ Tests for backup management API endpoints (restore/delete)
 
 import json
 import sys
-import tempfile
-from pathlib import Path
 from pathlib import Path as PathLib
 from unittest.mock import MagicMock, patch
 
@@ -65,8 +63,6 @@ class TestBackupRestore:
 
     def test_restore_backup_not_found(self, client, mock_api_keys, temp_backup_environment):
         """Restore backup returns 404 for non-existent backup"""
-        backups_dir, data_dir, backup_file = temp_backup_environment
-
         response = client.post(
             "/api/backups/nonexistent_backup.tar.gz/restore",
             headers={"X-API-Key": mock_api_keys},
@@ -84,7 +80,7 @@ class TestBackupRestore:
     @patch("api.server.run_script")
     def test_restore_backup_stops_server(self, mock_run_script, client, mock_api_keys, temp_backup_environment):
         """Restore backup stops server before restore"""
-        backups_dir, data_dir, backup_file = temp_backup_environment
+        _, _, backup_file = temp_backup_environment
         mock_run_script.return_value = (None, None, 0)
 
         # Mock tarfile extraction
@@ -92,7 +88,7 @@ class TestBackupRestore:
             mock_tar = MagicMock()
             mock_tarfile.return_value.__enter__.return_value = mock_tar
 
-            response = client.post(
+            client.post(
                 f"/api/backups/{backup_file.name}/restore",
                 headers={"X-API-Key": mock_api_keys},
             )

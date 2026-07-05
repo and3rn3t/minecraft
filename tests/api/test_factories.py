@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""
-Tests for test data factories
-"""
-
-import pytest
+"""Tests for test data factories"""
 
 from tests.api.factories import (
     create_api_key_data,

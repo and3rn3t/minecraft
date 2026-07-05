@@ -5,10 +5,7 @@ Tests for configuration file management API endpoints
 
 import json
 import sys
-import tempfile
-from pathlib import Path
 from pathlib import Path as PathLib
-from unittest.mock import mock_open, patch
 
 import pytest
 
@@ -113,9 +110,6 @@ class TestConfigFileSave:
 
     def test_save_config_file_invalid_properties(self, client, mock_api_keys, temp_config_dir):
         """Save config file validates properties format"""
-        config_dir, data_dir = temp_config_dir
-        test_file = data_dir / "server.properties"
-
         # Invalid properties format (missing =)
         invalid_content = "invalid-line-without-equals"
         response = client.post(

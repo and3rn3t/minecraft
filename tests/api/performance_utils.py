@@ -6,7 +6,7 @@ Helpers for load testing and performance measurement
 import statistics
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 
 
 class PerformanceTimer:

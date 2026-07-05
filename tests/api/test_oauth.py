@@ -5,10 +5,7 @@ Tests for OAuth API endpoints
 
 import json
 import sys
-import tempfile
-from pathlib import Path
 from pathlib import Path as PathLib
-from unittest.mock import MagicMock, patch
 
 import pytest
 
