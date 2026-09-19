@@ -66,27 +66,34 @@ underneath it.
 ## Blockers
 
 These are defects, not features, and they sit in the path of everything below.
-Line numbers were verified against the current `main`.
+Line numbers were verified against the current `main`, and each tracked one
+links to its issue.
 
-- **Every registered user is minted as an administrator.**
+- **Every registered user is minted as an administrator**
+  ([#26](https://github.com/and3rn3t/minecraft/issues/26)).
   `api/server.py:809` hardcodes `"role": "admin"` while the comment beside it
   claims the first user is admin and everyone else defaults to `user`. Open
   registration currently hands out full control. Fix before the API is exposed
   beyond the LAN.
-- **API keys bypass the permission system entirely.** `has_permission()`
+- **API keys bypass the permission system entirely**
+  ([#27](https://github.com/and3rn3t/minecraft/issues/27)). `has_permission()`
   returns `True` unconditionally for the `__api_key__` caller
   (`api/server.py:695`). The Socket.IO stream accepts only API keys, so any key
   living in a kid's browser — or in a Siri Shortcut, per W6 — is a full admin
   credential. Scope keys before handing any out.
-- **`scripts/player-stats-tracker.sh` inflates its counts on every run.** It
-  re-parses the whole log file and adds to the existing totals, so the numbers
-  climb whether or not anything happened, and it only matches three crude
-  patterns. Superseded by F5 below.
+- **`scripts/player-stats-tracker.sh` inflates its counts on every run**
+  ([#28](https://github.com/and3rn3t/minecraft/issues/28)). It re-parses the
+  whole log file and adds to the existing totals, so the numbers climb whether
+  or not anything happened, and it only matches three crude patterns.
+  Superseded by F5 below.
 - **`apply_server_preset()` (`api/server.py:2919`) has no route decorator** and
-  is unreachable. Wire it up or delete it.
-- **Two scheduler APIs coexist.** `/api/commands/schedule*` and
-  `/api/scheduler/schedules` both front `scripts/command-scheduler.py`. Pick
-  one, redirect or remove the other, and update `api/openapi.yaml`.
+  is unreachable ([#29](https://github.com/and3rn3t/minecraft/issues/29)). Wire
+  it up or delete it.
+- **Two scheduler APIs coexist**
+  ([#30](https://github.com/and3rn3t/minecraft/issues/30)).
+  `/api/commands/schedule*` and `/api/scheduler/schedules` both front
+  `scripts/command-scheduler.py`. Pick one, redirect or remove the other, and
+  update `api/openapi.yaml`.
 - **1.20.4 → 1.20.5 replaces item NBT with components.** Every `/give` carrying
   NBT in this document — the Gazette book, mail, the time capsule — breaks on
   that upgrade. Isolate item construction in one module before building three
