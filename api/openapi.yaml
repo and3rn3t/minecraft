@@ -61,6 +61,8 @@ tags:
     description: Server metrics and monitoring
   - name: Dynamic DNS
     description: Dynamic DNS management
+  - name: Scheduler
+    description: Scheduled server commands, run by scripts/command-scheduler.py
 
 security:
   - ApiKeyAuth: []
@@ -86,6 +88,40 @@ components:
       description: Session cookie from login
 
   schemas:
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        command:
+          type: string
+        type:
+          type: string
+          enum: [interval, daily, weekly, cron, once]
+        enabled:
+          type: boolean
+        created:
+          type: string
+          format: date-time
+        last_run:
+          type: string
+          format: date-time
+          nullable: true
+        run_count:
+          type: integer
+        interval_minutes:
+          type: integer
+        run_time:
+          type: string
+        day_of_week:
+          type: integer
+        cron_expression:
+          type: string
+        run_datetime:
+          type: string
+        condition:
+          type: object
     BedtimeStatus:
       type: object
       properties:
@@ -548,6 +584,55 @@ paths:
                       output:
                         type: string
                         description: Command output
+
+  /api/server/properties/preset:
+    post:
+      tags:
+        - Server Control
+      summary: Apply a server.properties performance preset
+      description: >-
+        Applies one of the presets defined in scripts/server-properties-manager.sh,
+        which set view distance, simulation distance, max players, network
+        compression and entity broadcast range together. Requires server.manage.
+        The server must be restarted for the new values to take effect.
+      operationId: applyServerPreset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preset:
+                  type: string
+                  enum: [low-end, balanced, high-performance]
+              required:
+                - preset
+      responses:
+        '200':
+          description: Preset applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Preset missing or not one of the known names
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: The properties manager could not apply the preset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/backup:
     post:
@@ -1411,3 +1496,224 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
+
+  /api/scheduler/schedules:
+    get:
+      tags:
+        - Scheduler
+      summary: List scheduled commands
+      operationId: listSchedules
+      responses:
+        '200':
+          description: The scheduled commands
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      schedules:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Schedule'
+    post:
+      tags:
+        - Scheduler
+      summary: Create a scheduled command
+      description: >-
+        Requires server.command. The type decides which further fields are
+        required: cron needs cron_expression and once needs run_datetime; a
+        type the scheduler cannot fire is rejected rather than stored.
+      operationId: createSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                type:
+                  type: string
+                  enum: [interval, daily, weekly, cron, once]
+                  default: interval
+                enabled:
+                  type: boolean
+                  default: true
+                interval_minutes:
+                  type: integer
+                  description: interval schedules; defaults to 60
+                run_time:
+                  type: string
+                  description: daily and weekly schedules, as HH:MM; defaults to 00:00
+                day_of_week:
+                  type: integer
+                  description: weekly schedules, 0=Monday through 6=Sunday
+                cron_expression:
+                  type: string
+                  description: cron schedules; required for them
+                run_datetime:
+                  type: string
+                  description: once schedules, as an ISO 8601 datetime; required for them
+                condition:
+                  type: object
+                  description: Only run when this holds, e.g. a minimum player count
+              required:
+                - command
+      responses:
+        '201':
+          description: Schedule created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      schedule:
+                        $ref: '#/components/schemas/Schedule'
+        '400':
+          description: Command missing, unknown type, or a field the type requires is absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/scheduler/schedules/{scheduleId}:
+    parameters:
+      - name: scheduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags:
+        - Scheduler
+      summary: Update a scheduled command
+      description: >-
+        Changing the type replaces the fields belonging to the old one, so a
+        daily schedule switched to interval does not keep a stale run_time.
+      operationId: updateSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                type:
+                  type: string
+                  enum: [interval, daily, weekly, cron, once]
+                enabled:
+                  type: boolean
+                interval_minutes:
+                  type: integer
+                run_time:
+                  type: string
+                day_of_week:
+                  type: integer
+                cron_expression:
+                  type: string
+                run_datetime:
+                  type: string
+                condition:
+                  type: object
+                  nullable: true
+      responses:
+        '200':
+          description: Schedule updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      schedule:
+                        $ref: '#/components/schemas/Schedule'
+        '400':
+          description: Unknown type, or a field the new type requires is absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Scheduler
+      summary: Delete a scheduled command
+      operationId: deleteSchedule
+      responses:
+        '200':
+          description: Schedule deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/scheduler/schedules/{scheduleId}/enable:
+    put:
+      tags:
+        - Scheduler
+      summary: Enable a scheduled command
+      operationId: enableSchedule
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schedule enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/scheduler/schedules/{scheduleId}/disable:
+    put:
+      tags:
+        - Scheduler
+      summary: Disable a scheduled command
+      operationId: disableSchedule
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schedule disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

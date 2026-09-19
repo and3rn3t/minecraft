@@ -74,14 +74,6 @@ links to its issue.
   whole log file and adds to the existing totals, so the numbers climb whether
   or not anything happened, and it only matches three crude patterns.
   Superseded by F5 below.
-- **`apply_server_preset()` (`api/server.py:3147`) has no route decorator** and
-  is unreachable ([#29](https://github.com/and3rn3t/minecraft/issues/29)). Wire
-  it up or delete it.
-- **Two scheduler APIs coexist**
-  ([#30](https://github.com/and3rn3t/minecraft/issues/30)).
-  `/api/commands/schedule*` and `/api/scheduler/schedules` both front
-  `scripts/command-scheduler.py`. Pick one, redirect or remove the other, and
-  update `api/openapi.yaml`.
 - **1.20.4 → 1.20.5 replaces item NBT with components.** Every `/give` carrying
   NBT in this document — the Gazette book, mail, the time capsule — breaks on
   that upgrade. Isolate item construction in one module before building three

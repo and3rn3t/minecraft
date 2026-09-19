@@ -276,3 +276,114 @@ class TestQueryParameters:
         # Should accept parameter (may fail if no data, but not 401)
         assert response.status_code != 401
         assert response.status_code != 401
+
+
+class TestServerPropertyPresets:
+    """POST /api/server/properties/preset
+
+    The handler existed with its permission decorator but no route, so it was
+    unreachable: the only way to apply a preset was the shell script.
+    """
+
+    @patch("api.server.run_script")
+    def test_preset_is_applied(self, mock_run_script, client, mock_api_key):
+        """The named preset reaches the script that owns the values"""
+        mock_run_script.return_value = ("Balanced preset applied", "", 0)
+
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/server/properties/preset",
+                headers={"X-API-Key": mock_api_key},
+                json={"preset": "balanced"},
+            )
+
+        assert response.status_code == 200
+        assert json.loads(response.data)["success"] is True
+        mock_run_script.assert_called_once_with("server-properties-manager.sh", "preset", "balanced")
+
+    @pytest.mark.parametrize("preset", ["low-end", "balanced", "high-performance"])
+    @patch("api.server.run_script")
+    def test_every_documented_preset_is_accepted(self, mock_run_script, client, mock_api_key, preset):
+        """The three names the script's own help advertises all work"""
+        mock_run_script.return_value = ("applied", "", 0)
+
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/server/properties/preset",
+                headers={"X-API-Key": mock_api_key},
+                json={"preset": preset},
+            )
+
+        assert response.status_code == 200
+
+    @patch("api.server.run_script")
+    def test_unknown_preset_is_rejected_without_running_anything(
+        self, mock_run_script, client, mock_api_key
+    ):
+        """An unknown name is refused here rather than by the shell script"""
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/server/properties/preset",
+                headers={"X-API-Key": mock_api_key},
+                json={"preset": "ludicrous"},
+            )
+
+        assert response.status_code == 400
+        mock_run_script.assert_not_called()
+
+    @patch("api.server.run_script")
+    def test_missing_preset_is_a_bad_request(self, mock_run_script, client, mock_api_key):
+        """No preset named, nothing to do"""
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/server/properties/preset",
+                headers={"X-API-Key": mock_api_key},
+                json={},
+            )
+
+        assert response.status_code == 400
+        mock_run_script.assert_not_called()
+
+    @patch("api.server.run_script")
+    def test_a_failing_script_is_a_server_error(self, mock_run_script, client, mock_api_key):
+        """A preset the script refuses surfaces as a 500, not a false success"""
+        mock_run_script.return_value = ("", "could not write server.properties", 1)
+
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/server/properties/preset",
+                headers={"X-API-Key": mock_api_key},
+                json={"preset": "balanced"},
+            )
+
+        assert response.status_code == 500
+
+    def test_preset_requires_authentication(self, client):
+        """Unauthenticated callers cannot rewrite server.properties"""
+        response = client.post("/api/server/properties/preset", json={"preset": "balanced"})
+
+        assert response.status_code in (401, 403)
+
+    def test_a_read_only_key_is_refused(self, client, mock_api_key):
+        """Applying a preset needs server.manage, which a user-scoped key lacks"""
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "user"}}):
+            response = client.post(
+                "/api/server/properties/preset",
+                headers={"X-API-Key": mock_api_key},
+                json={"preset": "balanced"},
+            )
+
+        assert response.status_code == 403
+
+    @patch("api.server.run_script")
+    def test_reading_a_property_named_preset_still_works(self, mock_run_script, client, mock_api_key):
+        """The static POST route must not shadow GET /properties/<key>"""
+        mock_run_script.return_value = ("some-value", "", 0)
+
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.get(
+                "/api/server/properties/preset", headers={"X-API-Key": mock_api_key}
+            )
+
+        assert response.status_code == 200
+        mock_run_script.assert_called_once_with("server-properties-manager.sh", "get", "preset")

@@ -4,14 +4,18 @@ Minecraft Server REST API
 Provides HTTP API for remote server management
 """
 
+import fcntl
 import json
 import os
 import secrets
 import subprocess
 import sys
+import tempfile
 import threading
 import urllib.parse
+import uuid
 import warnings
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -2234,14 +2238,97 @@ def list_backups():
 def list_schedules():
     """List all scheduled commands"""
     try:
-        if not SCHEDULE_FILE.exists():
-            return jsonify({"success": True, "schedules": []}), 200
-
-        with open(SCHEDULE_FILE, "r") as f:
-            schedule_data = json.load(f)
-        return jsonify({"success": True, "schedules": schedule_data.get("schedules", [])}), 200
+        return jsonify({"success": True, "schedules": _load_schedules().get("schedules", [])}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to list schedules: {str(e)}"}), 500
+        app.logger.error(f"Failed to list schedules: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# The types scripts/command-scheduler.py knows how to fire. Anything else would
+# be written to the file and then silently never run.
+SCHEDULE_TYPES = ("interval", "daily", "weekly", "cron", "once")
+
+
+@contextmanager
+def _schedule_lock():
+    """Hold an exclusive lock for the length of a read-modify-write.
+
+    scripts/command-scheduler.py writes this file too, recording last_run and
+    run_count on every pass. Without a lock, a pass that started before an API
+    write lands will write the pre-edit list back over it, and a reader can
+    catch the file mid-truncate. The daemon takes the same lock on the same
+    path, so the two exclude each other.
+    """
+    SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = SCHEDULE_FILE.with_name(SCHEDULE_FILE.name + ".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _load_schedules():
+    """Read the schedule file the scheduler daemon runs from."""
+    if not SCHEDULE_FILE.exists():
+        return {"schedules": []}
+    try:
+        with open(SCHEDULE_FILE, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        # Matches the daemon, which also treats an unreadable file as empty
+        # rather than refusing to run at all.
+        app.logger.error("Schedule file is not valid JSON; treating it as empty")
+        return {"schedules": []}
+
+
+def _save_schedules(schedule_data):
+    """Write the schedule file back, atomically.
+
+    Truncating in place lets the daemon read half a document; writing a
+    sibling and renaming means it sees either the old file or the new one.
+    """
+    SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=str(SCHEDULE_FILE.parent), prefix=".schedule-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(schedule_data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, SCHEDULE_FILE)
+    except BaseException:
+        Path(tmp_path).unlink(missing_ok=True)
+        raise
+
+
+def _schedule_type_fields(schedule_type, data):
+    """Pick out the fields a given schedule type needs.
+
+    Returns (fields, error). The defaults match
+    ``scripts/command-scheduler.py``'s own reader, so a record written here
+    behaves the same as one the script wrote.
+    """
+    if schedule_type == "interval":
+        return {"interval_minutes": data.get("interval_minutes", 60)}, None
+    if schedule_type == "daily":
+        return {"run_time": data.get("run_time", "00:00")}, None
+    if schedule_type == "weekly":
+        return {
+            "day_of_week": data.get("day_of_week", 0),
+            "run_time": data.get("run_time", "00:00"),
+        }, None
+    if schedule_type == "cron":
+        expression = data.get("cron_expression")
+        if not expression:
+            return None, "cron_expression is required for cron schedules"
+        return {"cron_expression": expression}, None
+    if schedule_type == "once":
+        run_datetime = data.get("run_datetime")
+        if not run_datetime:
+            return None, "run_datetime is required for once schedules"
+        return {"run_datetime": run_datetime}, None
+    return None, f"Invalid type. Valid types: {', '.join(SCHEDULE_TYPES)}"
 
 
 @app.route("/api/scheduler/schedules", methods=["POST"])
@@ -2251,55 +2338,98 @@ def create_schedule():
     try:
         data = request.get_json() or {}
         command = data.get("command")
-        schedule_type = data.get("type", "interval")  # interval, daily, weekly
+        schedule_type = data.get("type", "interval")
         enabled = data.get("enabled", True)
 
         if not command:
             return jsonify({"error": "Command required"}), 400
 
-        # Load existing schedules
-        schedule_data = {"schedules": []}
-        if SCHEDULE_FILE.exists():
-            with open(SCHEDULE_FILE, "r") as f:
-                schedule_data = json.load(f)
+        type_fields, error = _schedule_type_fields(schedule_type, data)
+        if error:
+            return jsonify({"error": error}), 400
 
-        # Generate ID
-        import uuid
+        condition = data.get("condition")
+        if condition is not None and not isinstance(condition, dict):
+            return jsonify({"error": "condition must be an object"}), 400
 
-        schedule_id = str(uuid.uuid4())
-
-        # Create schedule entry
         schedule = {
-            "id": schedule_id,
+            "id": str(uuid.uuid4()),
             "command": command,
             "type": schedule_type,
             "enabled": enabled,
             "created": datetime.now(timezone.utc).isoformat(),
             "last_run": None,
+            # The scheduler increments this; start it where the script does so
+            # a record created here is indistinguishable from one it wrote.
+            "run_count": 0,
         }
+        schedule.update(type_fields)
 
-        # Add type-specific fields
-        if schedule_type == "interval":
-            schedule["interval_minutes"] = data.get("interval_minutes", 60)
-        elif schedule_type == "daily":
-            schedule["run_time"] = data.get("run_time", "00:00")
-        elif schedule_type == "weekly":
-            schedule["day_of_week"] = data.get("day_of_week", 0)
-            schedule["run_time"] = data.get("run_time", "00:00")
+        if condition:
+            schedule["condition"] = condition
 
-        schedule_data["schedules"].append(schedule)
-
-        # Save
-        SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(SCHEDULE_FILE, "w") as f:
-            json.dump(schedule_data, f, indent=2)
+        with _schedule_lock():
+            schedule_data = _load_schedules()
+            schedule_data.setdefault("schedules", []).append(schedule)
+            _save_schedules(schedule_data)
 
         username = get_username_from_request()
-        log_audit_event(username, "scheduler.create", {"schedule_id": schedule_id, "command": command})
+        log_audit_event(
+            username, "scheduler.create", {"schedule_id": schedule["id"], "command": command}
+        )
 
         return jsonify({"success": True, "schedule": schedule}), 201
     except Exception as e:
-        return jsonify({"error": f"Failed to create schedule: {str(e)}"}), 500
+        app.logger.error(f"Failed to create schedule: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/scheduler/schedules/<schedule_id>/enable", methods=["PUT"])
+@require_permission("server.command")
+def enable_schedule(schedule_id):
+    """Enable a scheduled command"""
+    return _set_schedule_enabled(schedule_id, True)
+
+
+@app.route("/api/scheduler/schedules/<schedule_id>/disable", methods=["PUT"])
+@require_permission("server.command")
+def disable_schedule(schedule_id):
+    """Disable a scheduled command"""
+    return _set_schedule_enabled(schedule_id, False)
+
+
+def _set_schedule_enabled(schedule_id, enabled):
+    """Shared body of the enable and disable endpoints."""
+    try:
+        with _schedule_lock():
+            schedule_data = _load_schedules()
+            target = next(
+                (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
+            )
+            if target is None:
+                return jsonify({"error": "Schedule not found"}), 404
+
+            target["enabled"] = enabled
+            _save_schedules(schedule_data)
+
+        log_audit_event(
+            get_username_from_request(),
+            "scheduler.enable" if enabled else "scheduler.disable",
+            {"schedule_id": schedule_id},
+        )
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": f"Schedule {'enabled' if enabled else 'disabled'}",
+                    "schedule": target,
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        app.logger.error(f"Failed to change schedule state: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/scheduler/schedules/<schedule_id>", methods=["PUT"])
@@ -2309,46 +2439,60 @@ def update_schedule(schedule_id):
     try:
         data = request.get_json() or {}
 
-        if not SCHEDULE_FILE.exists():
-            return jsonify({"error": "Schedule not found"}), 404
+        if "condition" in data and data["condition"] is not None and not isinstance(data["condition"], dict):
+            return jsonify({"error": "condition must be an object"}), 400
 
-        with open(SCHEDULE_FILE, "r") as f:
-            schedule_data = json.load(f)
-
-        schedules = schedule_data.get("schedules", [])
-        schedule = None
-        for s in schedules:
-            if s.get("id") == schedule_id:
-                schedule = s
-                break
-
-        if not schedule:
-            return jsonify({"error": "Schedule not found"}), 404
-
-        # Update fields
-        if "command" in data:
-            schedule["command"] = data["command"]
-        if "type" in data:
-            schedule["type"] = data["type"]
-        if "enabled" in data:
-            schedule["enabled"] = data["enabled"]
-        if "interval_minutes" in data:
-            schedule["interval_minutes"] = data["interval_minutes"]
-        if "run_time" in data:
-            schedule["run_time"] = data["run_time"]
-        if "day_of_week" in data:
-            schedule["day_of_week"] = data["day_of_week"]
-
-        # Save
-        with open(SCHEDULE_FILE, "w") as f:
-            json.dump(schedule_data, f, indent=2)
-
-        username = get_username_from_request()
-        log_audit_event(username, "scheduler.update", {"schedule_id": schedule_id})
-
-        return jsonify({"success": True, "schedule": schedule}), 200
+        with _schedule_lock():
+            return _update_schedule_locked(schedule_id, data)
     except Exception as e:
-        return jsonify({"error": f"Failed to update schedule: {str(e)}"}), 500
+        app.logger.error(f"Failed to update schedule: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def _update_schedule_locked(schedule_id, data):
+    """Body of the update endpoint, run while holding the schedule lock."""
+    schedule_data = _load_schedules()
+
+    schedule = next(
+        (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
+    )
+    if not schedule:
+        return jsonify({"error": "Schedule not found"}), 404
+
+    # A type change brings its own required fields with it, so validate the
+    # result rather than letting a schedule end up as, say, a cron with no
+    # expression — which the scheduler would skip forever without saying so.
+    new_type = data.get("type", schedule.get("type"))
+    if new_type not in SCHEDULE_TYPES:
+        return jsonify({"error": f"Invalid type. Valid types: {', '.join(SCHEDULE_TYPES)}"}), 400
+
+    merged = {**schedule, **{k: v for k, v in data.items() if k != "type"}}
+    type_fields, error = _schedule_type_fields(new_type, merged)
+    if error:
+        return jsonify({"error": error}), 400
+
+    if "command" in data:
+        schedule["command"] = data["command"]
+    if "enabled" in data:
+        schedule["enabled"] = data["enabled"]
+    if "condition" in data:
+        if data["condition"]:
+            schedule["condition"] = data["condition"]
+        else:
+            schedule.pop("condition", None)
+
+    # Drop the old type's fields so a schedule switched from daily to
+    # interval doesn't keep a stale run_time hanging off it.
+    for stale in ("interval_minutes", "run_time", "day_of_week", "cron_expression", "run_datetime"):
+        schedule.pop(stale, None)
+    schedule["type"] = new_type
+    schedule.update(type_fields)
+
+    _save_schedules(schedule_data)
+
+    log_audit_event(get_username_from_request(), "scheduler.update", {"schedule_id": schedule_id})
+
+    return jsonify({"success": True, "schedule": schedule}), 200
 
 
 @app.route("/api/scheduler/schedules/<schedule_id>", methods=["DELETE"])
@@ -2356,25 +2500,26 @@ def update_schedule(schedule_id):
 def delete_schedule(schedule_id):
     """Delete a scheduled command"""
     try:
-        if not SCHEDULE_FILE.exists():
-            return jsonify({"error": "Schedule not found"}), 404
+        with _schedule_lock():
+            schedule_data = _load_schedules()
+            schedules = schedule_data.get("schedules", [])
 
-        with open(SCHEDULE_FILE, "r") as f:
-            schedule_data = json.load(f)
+            remaining = [s for s in schedules if s.get("id") != schedule_id]
+            # Reporting success for an id that was never there hides a typo in
+            # the caller, and the old handler did exactly that.
+            if len(remaining) == len(schedules):
+                return jsonify({"error": "Schedule not found"}), 404
 
-        schedules = schedule_data.get("schedules", [])
-        schedule_data["schedules"] = [s for s in schedules if s.get("id") != schedule_id]
-
-        # Save
-        with open(SCHEDULE_FILE, "w") as f:
-            json.dump(schedule_data, f, indent=2)
+            schedule_data["schedules"] = remaining
+            _save_schedules(schedule_data)
 
         username = get_username_from_request()
         log_audit_event(username, "scheduler.delete", {"schedule_id": schedule_id})
 
         return jsonify({"success": True, "message": "Schedule deleted"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to delete schedule: {str(e)}"}), 500
+        app.logger.error(f"Failed to delete schedule: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/audit/logs", methods=["GET"])
@@ -2919,128 +3064,47 @@ def set_server_property(key):
         return jsonify({"error": f"Failed to set property: {str(e)}"}), 500
 
 
-# Command Scheduler Endpoints
-@app.route("/api/commands/schedules", methods=["GET"])
-@require_permission("server.manage")
-def get_command_schedules():
-    """Get all scheduled commands"""
-    try:
-        stdout, stderr, code = run_script("command-scheduler.py", "list")
-        if code == 0:
-            data = json.loads(stdout)
-            return jsonify({"success": True, "schedules": data.get("schedules", [])}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to get schedules"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to get schedules: {str(e)}"}), 500
+# The presets themselves live in scripts/server-properties-manager.sh; this
+# list only decides what the API passes through to it. The script also answers
+# to the aliases "performance" and "high", which its own help does not mention;
+# the API exposes the three documented names only.
+SERVER_PROPERTY_PRESETS = ("low-end", "balanced", "high-performance")
 
 
-@app.route("/api/commands/schedule", methods=["POST"])
+@app.route("/api/server/properties/preset", methods=["POST"])
 @require_permission("server.manage")
-def create_command_schedule():
-    """Create a new scheduled command"""
+def apply_server_preset():
+    """Apply a performance preset to server.properties"""
     try:
         data = request.get_json() or {}
-        command = data.get("command")
-        schedule_type = data.get("type", "daily")
-        run_time = data.get("run_time", "00:00")
-        interval_minutes = data.get("interval_minutes", 60)
-        cron_expression = data.get("cron_expression")
-        run_datetime = data.get("run_datetime")
-        condition = data.get("condition")
-        enabled = data.get("enabled", True)
+        requested = data.get("preset")
+        if not requested:
+            return jsonify({"error": "Preset name required"}), 400
 
-        if not command:
-            return jsonify({"error": "Command required"}), 400
+        # Resolve the request to the matching constant and carry that onward,
+        # so nothing downstream — the script argument, the log line, the audit
+        # entry — handles the caller's string.
+        preset = next((p for p in SERVER_PROPERTY_PRESETS if p == requested), None)
+        if preset is None:
+            return (
+                jsonify({"error": f"Invalid preset. Valid: {', '.join(SERVER_PROPERTY_PRESETS)}"}),
+                400,
+            )
 
-        # Use Python script to add schedule
-        schedule_data = {
-            "command": command,
-            "type": schedule_type,
-            "enabled": enabled,
-        }
+        stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
+        if code != 0:
+            # stderr carries filesystem paths, so it goes to the log rather
+            # than to the caller, and it is subprocess output going into a log
+            # line, so it is stripped of newlines first — otherwise it could
+            # forge entries of its own.
+            app.logger.error("Preset '%s' failed: %s", preset, sanitize_string(stderr, max_length=200))
+            return jsonify({"error": "Failed to apply preset"}), 500
 
-        if schedule_type == "interval":
-            schedule_data["interval_minutes"] = interval_minutes
-        elif schedule_type == "daily":
-            schedule_data["run_time"] = run_time
-        elif schedule_type == "weekly":
-            schedule_data["day_of_week"] = data.get("day_of_week", 0)
-            schedule_data["run_time"] = run_time
-        elif schedule_type == "cron":
-            if not cron_expression:
-                return jsonify({"error": "Cron expression required for cron type"}), 400
-            schedule_data["cron_expression"] = cron_expression
-        elif schedule_type == "once":
-            if not run_datetime:
-                return jsonify({"error": "Run datetime required for once type"}), 400
-            schedule_data["run_datetime"] = run_datetime
-
-        if condition:
-            schedule_data["condition"] = condition
-
-        # Call Python script to add schedule
-        script_path = SCRIPTS_DIR / "command-scheduler.py"
-        import sys
-
-        result = subprocess.run(
-            [sys.executable, str(script_path), "add", command, schedule_type],
-            input=json.dumps(schedule_data),
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd=str(PROJECT_ROOT),
-        )
-
-        if result.returncode == 0:
-            schedule_id = result.stdout.strip()
-            return jsonify({"success": True, "schedule_id": schedule_id}), 200
-        else:
-            return jsonify({"error": result.stderr or "Failed to create schedule"}), 500
+        log_audit_event(get_username_from_request(), "server.properties.preset", {"preset": preset})
+        return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to create schedule: {str(e)}"}), 500
-
-
-@app.route("/api/commands/schedule/<schedule_id>", methods=["DELETE"])
-@require_permission("server.manage")
-def delete_command_schedule(schedule_id):
-    """Delete a scheduled command"""
-    try:
-        stdout, stderr, code = run_script("command-scheduler.py", "remove", schedule_id)
-        if code == 0:
-            return jsonify({"success": True, "message": "Schedule deleted"}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to delete schedule"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to delete schedule: {str(e)}"}), 500
-
-
-@app.route("/api/commands/schedule/<schedule_id>/enable", methods=["PUT"])
-@require_permission("server.manage")
-def enable_command_schedule(schedule_id):
-    """Enable a scheduled command"""
-    try:
-        stdout, stderr, code = run_script("command-scheduler.py", "enable", schedule_id)
-        if code == 0:
-            return jsonify({"success": True, "message": "Schedule enabled"}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to enable schedule"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to enable schedule: {str(e)}"}), 500
-
-
-@app.route("/api/commands/schedule/<schedule_id>/disable", methods=["PUT"])
-@require_permission("server.manage")
-def disable_command_schedule(schedule_id):
-    """Disable a scheduled command"""
-    try:
-        stdout, stderr, code = run_script("command-scheduler.py", "disable", schedule_id)
-        if code == 0:
-            return jsonify({"success": True, "message": "Schedule disabled"}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to disable schedule"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to disable schedule: {str(e)}"}), 500
+        app.logger.error(f"Failed to apply server preset: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # Player Statistics Endpoints
@@ -3183,28 +3247,6 @@ def delete_announcement(announcement_id):
             return jsonify({"error": stderr or "Failed to delete announcement"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to delete announcement: {str(e)}"}), 500
-
-
-@require_permission("server.manage")
-def apply_server_preset():
-    """Apply server properties preset"""
-    try:
-        data = request.get_json() or {}
-        preset = data.get("preset")
-        if not preset:
-            return jsonify({"error": "Preset name required"}), 400
-
-        valid_presets = ["low-end", "balanced", "high-performance"]
-        if preset not in valid_presets:
-            return jsonify({"error": f"Invalid preset. Valid: {', '.join(valid_presets)}"}), 400
-
-        stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
-        if code == 0:
-            return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to apply preset"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to apply preset: {str(e)}"}), 500
 
 
 @app.route("/api/metrics", methods=["GET"])

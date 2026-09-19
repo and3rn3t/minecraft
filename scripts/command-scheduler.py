@@ -4,11 +4,15 @@ Command Scheduler - Manages scheduled server commands
 Enhanced with cron expressions, conditional execution, and event triggers
 """
 
+import fcntl
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,6 +30,25 @@ SCHEDULE_FILE = PROJECT_ROOT / "config" / "command-schedule.json"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
 
+@contextmanager
+def schedule_lock():
+    """Hold an exclusive lock for the length of a read-modify-write.
+
+    The API writes this file too. Without a lock, a timer pass that reads,
+    runs commands and writes back can overwrite a schedule created through the
+    API in between, and vice versa. The lock lives beside the file rather than
+    on it, so it survives the atomic replace in save_schedule().
+    """
+    SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = SCHEDULE_FILE.with_name(SCHEDULE_FILE.name + ".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
 def load_schedule():
     """Load scheduled commands from file"""
     if SCHEDULE_FILE.exists():
@@ -38,10 +61,23 @@ def load_schedule():
 
 
 def save_schedule(schedule_data):
-    """Save scheduled commands to file"""
+    """Save scheduled commands to file, atomically.
+
+    Truncating the file in place lets a concurrent reader see half a document;
+    writing a sibling and renaming means a reader sees either the old file or
+    the new one.
+    """
     SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(SCHEDULE_FILE, "w") as f:
-        json.dump(schedule_data, f, indent=2)
+    fd, tmp_path = tempfile.mkstemp(dir=str(SCHEDULE_FILE.parent), prefix=".schedule-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(schedule_data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, SCHEDULE_FILE)
+    except BaseException:
+        Path(tmp_path).unlink(missing_ok=True)
+        raise
     return True
 
 
@@ -71,15 +107,27 @@ def execute_command(command):
 
 def check_and_run_schedules():
     """Check scheduled commands and run those that are due"""
-    schedule_data = load_schedule()
-    schedules = schedule_data.get("schedules", [])
     current_time = datetime.now(timezone.utc)
 
-    for schedule in schedules:
-        # Check if it's time to run
-        if should_run_schedule(schedule, current_time):
-            command = schedule.get("command")
-            if command:
+    # Read and write under one lock: the pass records last_run and run_count,
+    # so without it an API write landing in between would be overwritten.
+    with schedule_lock():
+        schedule_data = load_schedule()
+        schedules = schedule_data.get("schedules", [])
+
+        for schedule in schedules:
+            # One malformed record must not stop the rest. This loop used to
+            # run bare, so a bad condition or an unparseable time took down the
+            # whole pass — including the save below, losing the last_run of
+            # commands that had already been executed.
+            try:
+                if not should_run_schedule(schedule, current_time):
+                    continue
+
+                command = schedule.get("command")
+                if not command:
+                    continue
+
                 # Handle command templates with variables
                 command = process_command_template(command, current_time)
 
@@ -93,9 +141,11 @@ def check_and_run_schedules():
                 # Handle one-time schedules
                 if schedule.get("type") == "once":
                     schedule["enabled"] = False
+            except Exception as exc:  # noqa: BLE001 - one bad schedule must not stop the others
+                print(f"Schedule {schedule.get('id')} failed: {exc}", file=sys.stderr)
 
-    # Save updated schedule data
-    save_schedule(schedule_data)
+        # Save updated schedule data
+        save_schedule(schedule_data)
 
 
 def process_command_template(command, current_time):
@@ -143,6 +193,13 @@ def check_condition(condition, current_time):
     """Check if a condition is met"""
     if not condition:
         return True
+
+    # A hand-edited file can carry anything here. A string or a list used to
+    # raise on .get() below, out through should_run_schedule() and into the
+    # timer loop, which stopped every remaining schedule for that pass.
+    if not isinstance(condition, dict):
+        print(f"Ignoring malformed condition: {condition!r}", file=sys.stderr)
+        return False
 
     condition_type = condition.get("type")
 
@@ -242,12 +299,21 @@ def should_run_schedule(schedule, current_time):
             return False
 
         try:
-            base_time = last_run_time if last_run else current_time
-            cron = croniter(cron_expr, base_time)
-            next_run = cron.get_next(datetime)
-            # Run if next scheduled time is within current minute
-            time_diff = abs((next_run - current_time).total_seconds())
-            return time_diff < 60
+            # Work backwards from now to the slot that has most recently come
+            # due. Asking croniter for the *next* slot after last_run meant a
+            # cron that missed one tick could never catch up, and last_run_time
+            # was never assigned in this branch at all, so the first run raised
+            # UnboundLocalError into the except below and the schedule was
+            # skipped silently from then on.
+            previous_due = croniter(cron_expr, current_time).get_prev(datetime)
+
+            if last_run:
+                last_run_time = datetime.fromisoformat(last_run.replace("Z", "+00:00"))
+                return previous_due > last_run_time
+
+            # Never run: only fire if that slot is the one we are standing in,
+            # rather than replaying every slot since the schedule was created.
+            return (current_time - previous_due).total_seconds() < 60
         except Exception:
             return False
 
@@ -286,6 +352,11 @@ def log_execution(schedule_id, command, success, output, timestamp):
 
 def add_schedule(command, schedule_type, **kwargs):
     """Add a new scheduled command"""
+    with schedule_lock():
+        return _add_schedule_locked(command, schedule_type, **kwargs)
+
+
+def _add_schedule_locked(command, schedule_type, **kwargs):
     schedule_data = load_schedule()
     schedules = schedule_data.get("schedules", [])
 
@@ -330,24 +401,32 @@ def list_schedules():
 
 
 def remove_schedule(schedule_id):
-    """Remove a scheduled command"""
-    schedule_data = load_schedule()
-    schedules = schedule_data.get("schedules", [])
-    schedule_data["schedules"] = [s for s in schedules if s.get("id") != schedule_id]
-    save_schedule(schedule_data)
-    return True
+    """Remove a scheduled command. Returns False if there was no such id."""
+    with schedule_lock():
+        schedule_data = load_schedule()
+        schedules = schedule_data.get("schedules", [])
+        remaining = [s for s in schedules if s.get("id") != schedule_id]
+
+        # This used to return True either way, so the caller could not tell a
+        # delete from a typo.
+        if len(remaining) == len(schedules):
+            return False
+
+        schedule_data["schedules"] = remaining
+        save_schedule(schedule_data)
+        return True
 
 
 def enable_schedule(schedule_id, enabled=True):
     """Enable or disable a scheduled command"""
-    schedule_data = load_schedule()
-    schedules = schedule_data.get("schedules", [])
-    for schedule in schedules:
-        if schedule.get("id") == schedule_id:
-            schedule["enabled"] = enabled
-            save_schedule(schedule_data)
-            return True
-    return False
+    with schedule_lock():
+        schedule_data = load_schedule()
+        for schedule in schedule_data.get("schedules", []):
+            if schedule.get("id") == schedule_id:
+                schedule["enabled"] = enabled
+                save_schedule(schedule_data)
+                return True
+        return False
 
 
 if __name__ == "__main__":

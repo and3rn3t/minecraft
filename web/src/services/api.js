@@ -535,6 +535,18 @@ export const api = {
     return response.data;
   },
 
+  async enableSchedule(scheduleId) {
+    const response = await apiClient.put(`/scheduler/schedules/${scheduleId}/enable`);
+    invalidateCache();
+    return response.data;
+  },
+
+  async disableSchedule(scheduleId) {
+    const response = await apiClient.put(`/scheduler/schedules/${scheduleId}/disable`);
+    invalidateCache();
+    return response.data;
+  },
+
   async deleteSchedule(scheduleId) {
     const response = await apiClient.delete(`/scheduler/schedules/${scheduleId}`);
     return response.data;
