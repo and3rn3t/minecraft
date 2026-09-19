@@ -20,13 +20,12 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
-from api.server import app  # noqa: E402
 
 
 @pytest.fixture
 def client():
-    app.config["TESTING"] = True
-    with app.test_client() as client:
+    api_module.app.config["TESTING"] = True
+    with api_module.app.test_client() as client:
         yield client
 
 

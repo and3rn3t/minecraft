@@ -3031,7 +3031,10 @@ def apply_server_preset():
 
         stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
         if code != 0:
-            return jsonify({"error": stderr or "Failed to apply preset"}), 500
+            # The script's stderr carries filesystem paths, so it goes to the
+            # log rather than to the caller.
+            app.logger.error(f"Preset '{preset}' failed: {stderr}")
+            return jsonify({"error": "Failed to apply preset"}), 500
 
         log_audit_event(get_username_from_request(), "server.properties.preset", {"preset": preset})
         return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
