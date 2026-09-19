@@ -78,9 +78,12 @@ docker-compose*.yml
 Dockerfile*
 .dockerignore
 
-# Scripts that aren't needed in container
+# Scripts that aren't needed in container.
+# start.sh is the entrypoint; download-server.sh resolves the jar for the
+# requested MINECRAFT_VERSION at runtime, so both must be in the image.
 scripts/*.sh
 !scripts/start.sh
+!scripts/download-server.sh
 
 # Web frontend (not needed in server container)
 web/

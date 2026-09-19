@@ -105,7 +105,8 @@ get_forge_version() {
 
     # Try to extract from version.json
     if [ -f "$version_file" ]; then
-        local version=$(grep -o '"forge"[^}]*' "$version_file" 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+        local version
+        version=$(grep -o '"forge"[^}]*' "$version_file" 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
         if [ -n "$version" ]; then
             echo "$version"
             return 0
@@ -123,7 +124,8 @@ get_forge_version() {
 # Function to get Fabric version
 get_fabric_version() {
     local mods_dir="${SERVER_DIR}/mods"
-    local fabric_jar=$(find "$mods_dir" -name "fabric-loader*.jar" 2>/dev/null | head -1)
+    local fabric_jar
+    fabric_jar=$(find "$mods_dir" -name "fabric-loader*.jar" 2>/dev/null | head -1)
 
     if [ -n "$fabric_jar" ]; then
         # Extract version from filename
@@ -136,7 +138,8 @@ get_fabric_version() {
 # Function to get Quilt version
 get_quilt_version() {
     local mods_dir="${SERVER_DIR}/mods"
-    local quilt_jar=$(find "$mods_dir" -name "quilt-loader*.jar" 2>/dev/null | head -1)
+    local quilt_jar
+    quilt_jar=$(find "$mods_dir" -name "quilt-loader*.jar" 2>/dev/null | head -1)
 
     if [ -n "$quilt_jar" ]; then
         # Extract version from filename
@@ -151,17 +154,20 @@ detect_all() {
     local loaders=()
 
     if detect_forge; then
-        local version=$(get_forge_version)
+        local version
+        version=$(get_forge_version)
         loaders+=("Forge:${version}")
     fi
 
     if detect_fabric; then
-        local version=$(get_fabric_version)
+        local version
+        version=$(get_fabric_version)
         loaders+=("Fabric:${version}")
     fi
 
     if detect_quilt; then
-        local version=$(get_quilt_version)
+        local version
+        version=$(get_quilt_version)
         loaders+=("Quilt:${version}")
     fi
 
@@ -187,7 +193,8 @@ list_mods() {
     local count=0
     for mod_file in "$mods_dir"/*.jar; do
         if [ -f "$mod_file" ]; then
-            local mod_name=$(basename "$mod_file")
+            local mod_name
+            mod_name=$(basename "$mod_file")
             echo "  - $mod_name"
             count=$((count + 1))
         fi
@@ -207,7 +214,8 @@ main() {
 
     case "$command" in
         detect)
-            local result=$(detect_all)
+            local result
+            result=$(detect_all)
             if [ "$result" = "none" ]; then
                 echo -e "${YELLOW}No mod loader detected${NC}"
                 exit 1
@@ -218,7 +226,8 @@ main() {
             ;;
         forge)
             if detect_forge; then
-                local version=$(get_forge_version)
+                local version
+                version=$(get_forge_version)
                 echo -e "${GREEN}Forge detected (version: $version)${NC}"
                 exit 0
             else
@@ -228,7 +237,8 @@ main() {
             ;;
         fabric)
             if detect_fabric; then
-                local version=$(get_fabric_version)
+                local version
+                version=$(get_fabric_version)
                 echo -e "${GREEN}Fabric detected (version: $version)${NC}"
                 exit 0
             else
@@ -238,7 +248,8 @@ main() {
             ;;
         quilt)
             if detect_quilt; then
-                local version=$(get_quilt_version)
+                local version
+                version=$(get_quilt_version)
                 echo -e "${GREEN}Quilt detected (version: $version)${NC}"
                 exit 0
             else

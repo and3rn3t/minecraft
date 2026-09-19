@@ -27,7 +27,8 @@ check_container_running() {
 # Function to check CPU usage
 check_cpu() {
     if docker ps | grep -q minecraft-server; then
-        local cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//')
+        local cpu
+        cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//')
         local cpu_int=${cpu%.*}
 
         if [ "$cpu_int" -gt "$MAX_CPU_PERCENT" ]; then
@@ -41,7 +42,8 @@ check_cpu() {
 # Function to check memory usage
 check_memory() {
     if docker ps | grep -q minecraft-server; then
-        local mem_perc=$(docker stats minecraft-server --no-stream --format "{{.MemPerc}}" | sed 's/%//')
+        local mem_perc
+        mem_perc=$(docker stats minecraft-server --no-stream --format "{{.MemPerc}}" | sed 's/%//')
         local mem_int=${mem_perc%.*}
 
         if [ "$mem_int" -gt "$MAX_MEMORY_PERCENT" ]; then

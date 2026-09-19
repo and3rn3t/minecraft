@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
 
 const AuditLogs = () => {
@@ -11,11 +11,7 @@ const AuditLogs = () => {
   const [actionFilter, setActionFilter] = useState('');
   const [usernameFilter, setUsernameFilter] = useState('');
 
-  useEffect(() => {
-    loadLogs();
-  }, [limit, offset, actionFilter, usernameFilter]);
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -34,7 +30,11 @@ const AuditLogs = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, offset, actionFilter, usernameFilter]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const formatTimestamp = timestamp => {
     try {

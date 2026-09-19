@@ -15,8 +15,6 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const mockNavigate = vi.fn();
-
 describe('OAuthButtons', () => {
   beforeEach(() => {
     vi.clearAllMocks();

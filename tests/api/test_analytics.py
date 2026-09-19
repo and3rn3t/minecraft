@@ -165,8 +165,13 @@ class TestAnalyticsReport:
         assert "report" in data
         assert data["report"]["period_hours"] == 24
 
-    def test_report_invalid_hours(self, client, mock_api_key):
+    @patch("api.server.subprocess.run")
+    def test_report_invalid_hours(self, mock_subprocess, client, mock_api_key):
         """Test report with invalid hours parameter"""
+        # subprocess is mocked so the real analytics processor does not run and
+        # rewrite the tracked files under analytics/processed/
+        mock_subprocess.return_value = MagicMock(returncode=0)
+
         with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
             response = client.get("/api/analytics/report?hours=999", headers={"X-API-Key": mock_api_key})
         # Should default to 24 hours

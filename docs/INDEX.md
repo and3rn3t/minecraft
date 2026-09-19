@@ -77,7 +77,7 @@ Complete guide to all project documentation, organized by category.
 ### Project Planning
 
 - **[ROADMAP.md](ROADMAP.md)** - Development roadmap and future plans
-- **[TASKS.md](../TASKS.md)** - Detailed task breakdown with priorities
+- **[TASKS.md](TASKS.md)** - Detailed task breakdown with priorities
 
 ### Workspace
 

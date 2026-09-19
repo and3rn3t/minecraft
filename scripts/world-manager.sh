@@ -37,15 +37,18 @@ list_worlds() {
     echo -e "${BLUE}Available Worlds:${NC}"
     echo ""
 
-    local current_world=$(get_current_world)
+    local current_world
+    current_world=$(get_current_world)
     local count=0
 
     # Find all world directories
     for world_dir in "$WORLDS_DIR"/world*; do
         if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
             count=$((count + 1))
-            local world_name=$(basename "$world_dir")
-            local world_size=$(du -sh "$world_dir" 2>/dev/null | cut -f1)
+            local world_name
+            world_name=$(basename "$world_dir")
+            local world_size
+            world_size=$(du -sh "$world_dir" 2>/dev/null | cut -f1)
             local world_type="Unknown"
 
             # Try to determine world type from level.dat or region files
@@ -105,7 +108,8 @@ create_world() {
         fi
         # Backup existing world
         if [ -d "$world_path" ]; then
-            local backup_name="${world_name}.backup.$(date +%Y%m%d_%H%M%S)"
+            local backup_name
+            backup_name="${world_name}.backup.$(date +%Y%m%d_%H%M%S)"
             mv "$world_path" "${WORLDS_DIR}/${backup_name}"
             echo -e "${BLUE}Existing world backed up to: $backup_name${NC}"
         fi
@@ -159,7 +163,8 @@ delete_world() {
         return 1
     fi
 
-    local current_world=$(get_current_world)
+    local current_world
+    current_world=$(get_current_world)
 
     if [ "$world_name" = "$current_world" ]; then
         echo -e "${RED}Error: Cannot delete the active world: $world_name${NC}"
@@ -175,7 +180,8 @@ delete_world() {
     fi
 
     # Get world size for confirmation
-    local world_size=$(du -sh "$world_path" 2>/dev/null | cut -f1)
+    local world_size
+    world_size=$(du -sh "$world_path" 2>/dev/null | cut -f1)
 
     echo -e "${YELLOW}Warning: This will permanently delete world: $world_name${NC}"
     echo -e "  Size: $world_size"
@@ -187,7 +193,8 @@ delete_world() {
     fi
 
     # Backup before deletion
-    local backup_name="${world_name}.deleted.$(date +%Y%m%d_%H%M%S)"
+    local backup_name
+    backup_name="${world_name}.deleted.$(date +%Y%m%d_%H%M%S)"
     echo -e "${BLUE}Creating backup before deletion...${NC}"
     tar -czf "${PROJECT_DIR}/backups/${backup_name}.tar.gz" -C "$WORLDS_DIR" "$world_name" 2>/dev/null || true
 
@@ -211,7 +218,8 @@ switch_world() {
         return 1
     fi
 
-    local current_world=$(get_current_world)
+    local current_world
+    current_world=$(get_current_world)
 
     if [ "$world_name" = "$current_world" ]; then
         echo -e "${GREEN}Already using world: $world_name${NC}"
@@ -284,13 +292,15 @@ world_info() {
     echo "=================="
 
     # World size
-    local world_size=$(du -sh "$world_path" 2>/dev/null | cut -f1)
+    local world_size
+    world_size=$(du -sh "$world_path" 2>/dev/null | cut -f1)
     echo "Size: $world_size"
 
     # World type
     if [ -d "${world_path}/region" ]; then
         echo "Type: Overworld"
-        local region_count=$(find "${world_path}/region" -name "*.mca" 2>/dev/null | wc -l)
+        local region_count
+        region_count=$(find "${world_path}/region" -name "*.mca" 2>/dev/null | wc -l)
         echo "Regions: $region_count"
     fi
 
@@ -315,7 +325,8 @@ world_info() {
     fi
 
     # Check if active
-    local current_world=$(get_current_world)
+    local current_world
+    current_world=$(get_current_world)
     if [ "$world_name" = "$current_world" ]; then
         echo ""
         echo -e "${GREEN}Status: ACTIVE${NC}"
@@ -343,11 +354,13 @@ backup_world() {
     cd "$PROJECT_DIR"
     if [ -f "${SCRIPT_DIR}/manage.sh" ]; then
         # Create a temporary backup focusing on this world
-        local backup_file="${PROJECT_DIR}/backups/world_${world_name}_$(date +%Y%m%d_%H%M%S).tar.gz"
+        local backup_file
+        backup_file="${PROJECT_DIR}/backups/world_${world_name}_$(date +%Y%m%d_%H%M%S).tar.gz"
         tar -czf "$backup_file" -C "$WORLDS_DIR" "$world_name"
 
         if [ $? -eq 0 ]; then
-            local backup_size=$(du -sh "$backup_file" 2>/dev/null | cut -f1)
+            local backup_size
+            backup_size=$(du -sh "$backup_file" 2>/dev/null | cut -f1)
             echo -e "${GREEN}World backed up: $backup_file ($backup_size)${NC}"
         else
             echo -e "${RED}Backup failed${NC}"
@@ -383,17 +396,23 @@ monitor_world_sizes() {
     for world_dir in "$WORLDS_DIR"/world*; do
         if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
             count=$((count + 1))
-            local world_name=$(basename "$world_dir")
-            local world_size=$(du -sh "$world_dir" 2>/dev/null | cut -f1)
-            local world_size_bytes=$(get_world_size_bytes "$world_name")
+            local world_name
+            world_name=$(basename "$world_dir")
+            local world_size
+            world_size=$(du -sh "$world_dir" 2>/dev/null | cut -f1)
+            local world_size_bytes
+            world_size_bytes=$(get_world_size_bytes "$world_name")
             total_size=$((total_size + world_size_bytes))
 
             # Format size in human-readable format
-            local size_mb=$((world_size_bytes / 1024 / 1024))
-            local size_gb=$((size_mb / 1024))
+            local size_mb
+            size_mb=$((world_size_bytes / 1024 / 1024))
+            local size_gb
+            size_gb=$((size_mb / 1024))
 
             if [ $size_gb -gt 0 ]; then
-                local size_display="${size_gb}.$((size_mb % 1024 / 100))GB"
+                local size_display
+                size_display="${size_gb}.$((size_mb % 1024 / 100))GB"
             else
                 local size_display="${size_mb}MB"
             fi
@@ -406,10 +425,13 @@ monitor_world_sizes() {
         echo -e "  ${YELLOW}No worlds found${NC}"
     else
         echo ""
-        local total_mb=$((total_size / 1024 / 1024))
-        local total_gb=$((total_mb / 1024))
+        local total_mb
+        total_mb=$((total_size / 1024 / 1024))
+        local total_gb
+        total_gb=$((total_mb / 1024))
         if [ $total_gb -gt 0 ]; then
-            local total_display="${total_gb}.$((total_mb % 1024 / 100))GB"
+            local total_display
+            total_display="${total_gb}.$((total_mb % 1024 / 100))GB"
         else
             local total_display="${total_mb}MB"
         fi

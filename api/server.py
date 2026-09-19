@@ -10,6 +10,7 @@ import secrets
 import subprocess
 import sys
 import urllib.parse
+import warnings
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -87,7 +88,7 @@ except ImportError:
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+# SECRET_KEY is resolved further down, once config/api.conf has been read.
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
 
@@ -175,9 +176,19 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 API_PORT = 8080
 API_HOST = "127.0.0.1"  # Only listen on localhost by default
 API_ENABLED = True
-_DEFAULT_SECRET_KEY = "minecraft-server-api-secret-change-in-production"
+
+# Secret keys that must never be used to sign sessions or JWTs. The first was
+# shipped as a default in earlier versions; treat it as if it were published.
+_REJECTED_SECRET_KEYS = {
+    "",
+    "minecraft-server-api-secret-change-in-production",
+    "change-me",
+    "changeme",
+    "secret",
+}
 
 # Load configuration
+_config_secret_key = None
 if API_CONFIG_FILE.exists():
     with open(API_CONFIG_FILE, "r") as f:
         config = {}
@@ -188,9 +199,39 @@ if API_CONFIG_FILE.exists():
         API_PORT = int(config.get("API_PORT", API_PORT))
         API_HOST = config.get("API_HOST", API_HOST)
         API_ENABLED = config.get("API_ENABLED", "true").lower() == "true"
-        SECRET_KEY = config.get("SECRET_KEY", _DEFAULT_SECRET_KEY)
-else:
-    SECRET_KEY = _DEFAULT_SECRET_KEY
+        _config_secret_key = config.get("SECRET_KEY")
+
+
+def _resolve_secret_key(env_value, config_value):
+    """Pick the signing key: environment first, then config file, else ephemeral.
+
+    Sessions and JWTs are signed with this value, so a known constant would let
+    anyone mint valid tokens. A placeholder from either source is refused and we
+    fall back to a random key, which invalidates tokens on restart but is safe.
+    """
+    for candidate in (env_value, config_value):
+        if candidate and candidate.strip() not in _REJECTED_SECRET_KEYS:
+            return candidate.strip()
+
+    if (env_value and env_value.strip() in _REJECTED_SECRET_KEYS) or (
+        config_value and config_value.strip() in _REJECTED_SECRET_KEYS
+    ):
+        warnings.warn(
+            "SECRET_KEY is set to a known placeholder value and was ignored. "
+            "Generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'",
+            stacklevel=2,
+        )
+    else:
+        warnings.warn(
+            "No SECRET_KEY configured; generating an ephemeral one. Sessions and "
+            "API tokens will be invalidated on every restart. Set SECRET_KEY in the "
+            "environment or in config/api.conf to make them durable.",
+            stacklevel=2,
+        )
+    return secrets.token_hex(32)
+
+
+SECRET_KEY = _resolve_secret_key(os.environ.get("SECRET_KEY"), _config_secret_key)
 
 # Set Flask secret key for sessions
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -286,8 +327,19 @@ def require_api_key(f):
     return decorated_function
 
 
-def run_script(script_name, *args):
-    """Run a management script and return output"""
+# Most management scripts answer in well under a second. Backups, restores and
+# server updates tar or download gigabytes, so they get their own budget.
+DEFAULT_SCRIPT_TIMEOUT = 30
+LONG_SCRIPT_TIMEOUT = 600
+
+
+def run_script(script_name, *args, timeout=DEFAULT_SCRIPT_TIMEOUT):
+    """Run a management script and return (stdout, stderr, returncode).
+
+    A timed-out script yields returncode 504. Callers that wrap long-running
+    operations should pass a larger timeout rather than letting a backup of a
+    real-sized world look like a failure.
+    """
     script_path = SCRIPTS_DIR / script_name
 
     if not script_path.exists():
@@ -295,11 +347,15 @@ def run_script(script_name, *args):
 
     try:
         result = subprocess.run(
-            [str(script_path)] + list(args), capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT)
+            [str(script_path)] + list(args),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(PROJECT_ROOT),
         )
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
-        return None, "Script execution timeout", 504
+        return None, f"Script execution timeout after {timeout}s", 504
     except Exception as e:
         return None, str(e), 500
 
@@ -1685,7 +1741,7 @@ def start_server():
     username = get_username_from_request()
     log_audit_event(username, "server.start", {"action": "start_server"})
 
-    stdout, stderr, code = run_script("manage.sh", "start")
+    stdout, stderr, code = run_script("manage.sh", "start", timeout=LONG_SCRIPT_TIMEOUT)
 
     if code == 0:
         output = stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else stdout
@@ -1703,7 +1759,7 @@ def start_server():
 @require_permission("server.control")
 def stop_server():
     """Stop the server"""
-    stdout, stderr, code = run_script("manage.sh", "stop")
+    stdout, stderr, code = run_script("manage.sh", "stop", timeout=LONG_SCRIPT_TIMEOUT)
 
     if code == 0:
         return jsonify({"success": True, "message": "Server stopping", "output": stdout}), 200
@@ -1715,7 +1771,7 @@ def stop_server():
 @require_permission("server.control")
 def restart_server():
     """Restart the server"""
-    stdout, stderr, code = run_script("manage.sh", "restart")
+    stdout, stderr, code = run_script("manage.sh", "restart", timeout=LONG_SCRIPT_TIMEOUT)
 
     if code == 0:
         return jsonify({"success": True, "message": "Server restarting", "output": stdout}), 200
@@ -1777,7 +1833,7 @@ def create_backup():
     username = get_username_from_request()
     log_audit_event(username, "backup.create", {"action": "create_backup"})
 
-    stdout, stderr, code = run_script("manage.sh", "backup")
+    stdout, stderr, code = run_script("manage.sh", "backup", timeout=LONG_SCRIPT_TIMEOUT)
 
     if code == 0:
         output = stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else stdout
@@ -2037,7 +2093,7 @@ def restore_backup(filename):
 
     try:
         # Stop server before restore
-        run_script("manage.sh", "stop")
+        run_script("manage.sh", "stop", timeout=LONG_SCRIPT_TIMEOUT)
 
         # Create a backup of current state before restoring
         current_backup = backups_dir / f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tar.gz"
@@ -3572,17 +3628,25 @@ def save_ddns_config():
 
 # WebSocket event handlers for real-time log streaming
 if SOCKETIO_AVAILABLE:
-    import time
-    from collections import deque
+    import threading
 
-    # Store active log stream connections
+    # Session ids currently subscribed to the log stream
     active_log_streams = set()
+    _log_streams_lock = threading.Lock()
+    # Mutable holder rather than a module-level bool, so the reader and the
+    # starter share one piece of state without `global` declarations.
+    _log_reader_state = {"running": False}
+
+    LOG_BACKLOG_LINES = 200
 
     def get_log_tail(lines=100):
         """Get last N lines of server logs"""
         try:
             result = subprocess.run(
-                ["docker", "logs", "--tail", str(lines), "minecraft-server"], capture_output=True, text=True, timeout=5
+                ["docker", "logs", "--tail", str(lines), "minecraft-server"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 return result.stdout.split("\n")
@@ -3590,37 +3654,77 @@ if SOCKETIO_AVAILABLE:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return []
 
-    def stream_logs_task(sid, api_key):
-        """Background task to stream logs to connected client"""
-        if api_key not in API_KEYS:
-            socketio.emit("error", {"message": "Invalid API key"}, room=sid)
-            return
+    def _log_reader():
+        """Follow the container log once and fan each line out to subscribers.
 
-        # Send initial logs
-        initial_logs = get_log_tail(200)
-        socketio.emit("logs", {"logs": initial_logs, "type": "initial"}, room=sid)
+        The previous implementation gave every client its own thread that ran
+        `docker logs --tail 50` every second and diffed the result against the
+        last batch, which scaled badly, missed lines that scrolled past between
+        polls, and duplicated any line that legitimately repeated. One follower
+        process streams the log instead, so lines arrive in order, exactly once.
+        """
+        while True:
+            with _log_streams_lock:
+                if not active_log_streams:
+                    _log_reader_state["running"] = False
+                    return
 
-        last_lines = deque(initial_logs[-50:] if len(initial_logs) > 50 else initial_logs, maxlen=50)
-
-        # Stream new logs
-        while sid in active_log_streams:
+            proc = None
             try:
-                current_logs = get_log_tail(50)
-                if current_logs and current_logs != list(last_lines):
-                    # Find new lines
-                    new_lines = []
-                    for log in current_logs:
-                        if log not in last_lines and log.strip():
-                            new_lines.append(log)
+                proc = subprocess.Popen(
+                    ["docker", "logs", "-f", "--tail", str(LOG_BACKLOG_LINES), "minecraft-server"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
 
-                    if new_lines:
-                        socketio.emit("logs", {"logs": new_lines, "type": "update"}, room=sid)
-                        last_lines.extend(new_lines)
+                for line in proc.stdout:
+                    with _log_streams_lock:
+                        subscribers = list(active_log_streams)
+                    if not subscribers:
+                        break
 
-                time.sleep(1)  # Check every second
-            except Exception as e:
-                socketio.emit("error", {"message": f"Log streaming error: {str(e)}"}, room=sid)
-                break
+                    line = line.rstrip("\n")
+                    if not line.strip():
+                        continue
+                    for sid in subscribers:
+                        socketio.emit("logs", {"logs": [line], "type": "update"}, room=sid)
+            except FileNotFoundError:
+                # Docker is not installed; there is nothing to stream
+                with _log_streams_lock:
+                    subscribers = list(active_log_streams)
+                for sid in subscribers:
+                    socketio.emit("error", {"message": "Docker is not available"}, room=sid)
+                with _log_streams_lock:
+                    _log_reader_state["running"] = False
+                return
+            except Exception as e:  # noqa: BLE001 - surfaced to the client below
+                with _log_streams_lock:
+                    subscribers = list(active_log_streams)
+                for sid in subscribers:
+                    socketio.emit("error", {"message": f"Log streaming error: {str(e)}"}, room=sid)
+            finally:
+                if proc is not None:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        # Best effort: the process has usually exited on its
+                        # own by this point, and failing to reap it must not
+                        # stop the reader from re-attaching.
+                        pass
+
+            # The container may have stopped or restarted. Wait a moment before
+            # re-attaching, as long as somebody is still listening.
+            socketio.sleep(2)
+
+    def _ensure_log_reader():
+        """Start the single follower thread if it is not already running"""
+        with _log_streams_lock:
+            if _log_reader_state["running"]:
+                return
+            _log_reader_state["running"] = True
+        socketio.start_background_task(_log_reader)
 
     @socketio.on("connect")
     def handle_connect(auth):
@@ -3643,19 +3747,22 @@ if SOCKETIO_AVAILABLE:
             socketio.disconnect(request.sid)
             return False
 
-        # Add to active streams
-        active_log_streams.add(request.sid)
+        with _log_streams_lock:
+            active_log_streams.add(request.sid)
 
-        # Start log streaming task
-        socketio.start_background_task(stream_logs_task, request.sid, api_key)
+        # Send the backlog to this client only, then let the shared follower
+        # deliver everything that arrives afterwards.
+        socketio.emit("logs", {"logs": get_log_tail(LOG_BACKLOG_LINES), "type": "initial"}, room=request.sid)
         socketio.emit("connected", {"message": "Connected to log stream"}, room=request.sid)
+
+        _ensure_log_reader()
         return True  # connection accepted
 
     @socketio.on("disconnect")
     def handle_disconnect():
         """Handle WebSocket disconnection"""
-        if request.sid in active_log_streams:
-            active_log_streams.remove(request.sid)
+        with _log_streams_lock:
+            active_log_streams.discard(request.sid)
 
     @socketio.on("request_logs")
     def handle_request_logs(data):
@@ -3695,7 +3802,6 @@ if SOCKETIO_AVAILABLE:
 
 else:
     # WebSocket not available
-    import warnings
     warnings.warn("Flask-SocketIO not available. WebSocket support disabled.", stacklevel=1)
 
 

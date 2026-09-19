@@ -54,7 +54,8 @@ search_in_files() {
                 break
             fi
 
-            local archive_name=$(basename "$archive_file")
+            local archive_name
+            archive_name=$(basename "$archive_file")
             zcat "$archive_file" 2>/dev/null | grep $grep_flags -E "$query" | while IFS= read -r line; do
                 if [ "$count" -lt "$max_results" ]; then
                     echo -e "${YELLOW}[$archive_name]${NC} $line"
@@ -85,8 +86,10 @@ search_by_date() {
     echo -e "${BLUE}Searching logs from $start_date to $end_date${NC}"
 
     # Convert dates to timestamps for comparison
-    local start_ts=$(date -d "$start_date" +%s 2>/dev/null || echo "0")
-    local end_ts=$(date -d "$end_date" +%s 2>/dev/null || echo "0")
+    local start_ts
+    start_ts=$(date -d "$start_date" +%s 2>/dev/null || echo "0")
+    local end_ts
+    end_ts=$(date -d "$end_date" +%s 2>/dev/null || echo "0")
 
     local count=0
 
@@ -98,10 +101,12 @@ search_by_date() {
             fi
 
             # Extract date from filename (latest_YYYYMMDD_HHMMSS.log.gz)
-            local filename=$(basename "$archive_file")
+            local filename
+            filename=$(basename "$archive_file")
             if [[ "$filename" =~ ([0-9]{8}) ]]; then
                 local file_date="${BASH_REMATCH[1]}"
-                local file_ts=$(date -d "${file_date:0:4}-${file_date:4:2}-${file_date:6:2}" +%s 2>/dev/null || echo "0")
+                local file_ts
+                file_ts=$(date -d "${file_date:0:4}-${file_date:4:2}-${file_date:6:2}" +%s 2>/dev/null || echo "0")
 
                 if [ "$file_ts" -ge "$start_ts" ] && [ "$file_ts" -le "$end_ts" ]; then
                     zcat "$archive_file" 2>/dev/null | grep -iE "$query" | while IFS= read -r line; do

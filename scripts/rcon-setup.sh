@@ -165,7 +165,8 @@ change_password() {
 
     # Update RCON config
     if [ -f "$RCON_CONFIG" ]; then
-        local port=$(grep "^RCON_PORT=" "$RCON_CONFIG" | cut -d'=' -f2 || echo "25575")
+        local port
+        port=$(grep "^RCON_PORT=" "$RCON_CONFIG" | cut -d'=' -f2 || echo "25575")
         cat > "$RCON_CONFIG" <<EOF
 # RCON Configuration
 RCON_HOST=localhost
@@ -192,9 +193,12 @@ show_status() {
         return 1
     fi
 
-    local enabled=$(grep "^enable-rcon=" "$SERVER_PROPERTIES" | cut -d'=' -f2 || echo "false")
-    local port=$(grep "^rcon.port=" "$SERVER_PROPERTIES" | cut -d'=' -f2 || echo "25575")
-    local has_password=$(grep "^rcon.password=" "$SERVER_PROPERTIES" | cut -d'=' -f2 || echo "")
+    local enabled
+    enabled=$(grep "^enable-rcon=" "$SERVER_PROPERTIES" | cut -d'=' -f2 || echo "false")
+    local port
+    port=$(grep "^rcon.port=" "$SERVER_PROPERTIES" | cut -d'=' -f2 || echo "25575")
+    local has_password
+    has_password=$(grep "^rcon.password=" "$SERVER_PROPERTIES" | cut -d'=' -f2 || echo "")
 
     echo "Enabled: $enabled"
     echo "Port: $port"

@@ -58,9 +58,11 @@ generate_aikar_flags() {
     fi
 
     # Calculate heap sizes (Aikar's recommendations)
-    local heap_min=$((mem_gb / 2))
+    local heap_min
+    heap_min=$((mem_gb / 2))
     [ $heap_min -lt 1 ] && heap_min=1
-    local heap_max=$((mem_gb - 1))
+    local heap_max
+    heap_max=$((mem_gb - 1))
     [ $heap_max -lt 1 ] && heap_max=1
 
     # Generate flags
@@ -106,9 +108,11 @@ generate_basic_flags() {
         mem_gb=2
     fi
 
-    local heap_min=$((mem_gb / 2))
+    local heap_min
+    heap_min=$((mem_gb / 2))
     [ $heap_min -lt 1 ] && heap_min=1
-    local heap_max=$((mem_gb - 1))
+    local heap_max
+    heap_max=$((mem_gb - 1))
     [ $heap_max -lt 1 ] && heap_max=1
 
     local flags="-Xms${heap_min}G -Xmx${heap_max}G"
@@ -135,9 +139,11 @@ generate_rpi_flags() {
         mem_gb=2
     fi
 
-    local heap_min=$((mem_gb / 2))
+    local heap_min
+    heap_min=$((mem_gb / 2))
     [ $heap_min -lt 1 ] && heap_min=1
-    local heap_max=$((mem_gb - 1))
+    local heap_max
+    heap_max=$((mem_gb - 1))
     [ $heap_max -lt 1 ] && heap_max=1
 
     local flags="-Xms${heap_min}G -Xmx${heap_max}G"
@@ -164,8 +170,10 @@ generate_rpi_flags() {
 # Function to apply preset
 apply_preset() {
     local preset="$1"
-    local memory="${2:-$(detect_memory)}"
-    local cores="${3:-$(detect_cores)}"
+    local memory
+    memory="${2:-$(detect_memory)}"
+    local cores
+    cores="${3:-$(detect_cores)}"
     local server_type="${4:-vanilla}"
 
     case "$preset" in
@@ -229,8 +237,10 @@ main() {
 
     case "$command" in
         generate)
-            local memory="${2:-$(detect_memory)}"
-            local cores="${3:-$(detect_cores)}"
+            local memory
+            memory="${2:-$(detect_memory)}"
+            local cores
+            cores="${3:-$(detect_cores)}"
             local preset="${4:-aikar}"
 
             echo -e "${BLUE}Generating JVM arguments...${NC}"
@@ -239,7 +249,8 @@ main() {
             echo "  Preset: $preset"
             echo ""
 
-            local flags=$(apply_preset "$preset" "$memory" "$cores")
+            local flags
+            flags=$(apply_preset "$preset" "$memory" "$cores")
 
             if validate_flags "$flags"; then
                 echo -e "${GREEN}Generated JVM Arguments:${NC}"
@@ -257,17 +268,22 @@ main() {
                 echo -e "${RED}Error: Preset name required${NC}"
                 exit 1
             fi
-            local memory="${3:-$(detect_memory)}"
-            local cores="${4:-$(detect_cores)}"
+            local memory
+            memory="${3:-$(detect_memory)}"
+            local cores
+            cores="${4:-$(detect_cores)}"
             apply_preset "$2" "$memory" "$cores"
             ;;
         save)
-            local memory="${2:-$(detect_memory)}"
-            local cores="${3:-$(detect_cores)}"
+            local memory
+            memory="${2:-$(detect_memory)}"
+            local cores
+            cores="${3:-$(detect_cores)}"
             local preset="${4:-aikar}"
             local output_file="${5:-${PROJECT_DIR}/.jvm-args}"
 
-            local flags=$(apply_preset "$preset" "$memory" "$cores")
+            local flags
+            flags=$(apply_preset "$preset" "$memory" "$cores")
             if validate_flags "$flags"; then
                 save_flags "$flags" "$output_file"
             else

@@ -2,25 +2,27 @@
 # Unit Tests: analytics-collector.sh
 # Tests for the analytics data collector script
 
-load 'helpers/bats-support/load'
-load 'helpers/bats-assert/load'
+load '../helpers/bats-support/load'
+load '../helpers/bats-assert/load'
 
 setup() {
-    # Get script directory
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-    cd "$PROJECT_DIR" || exit 1
+    # bats copies the test file into a temp location, so BASH_SOURCE is not a
+    # reliable way to find the repo; BATS_TEST_DIRNAME points at the real file.
+    REPO_DIR="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
-    # Create test directories
+    # analytics-collector.sh and analytics-processor.py resolve their output
+    # directory from their own location, so running a copy of scripts/ inside a
+    # temp directory keeps every write out of the working tree.
+    TEST_DIR="$(mktemp -d)"
+    cp -R "$REPO_DIR/scripts" "$TEST_DIR/scripts"
+    cd "$TEST_DIR" || exit 1
+
     mkdir -p analytics
-
-    # Clean up any existing test data
-    rm -f analytics/*.jsonl
 }
 
 teardown() {
-    # Cleanup test data
-    rm -f analytics/*.jsonl
+    cd /
+    rm -rf "$TEST_DIR"
 }
 
 @test "analytics-collector.sh creates analytics directory" {

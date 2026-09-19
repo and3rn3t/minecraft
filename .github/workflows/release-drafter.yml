@@ -9,8 +9,12 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
 
+# release-drafter creates and updates a draft release, so the reusable
+# workflow's job asks for contents: write. A called workflow cannot escalate
+# beyond what the caller grants, so granting only contents: read here made
+# every run fail at startup.
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:

@@ -97,7 +97,8 @@ upload_backup() {
         exit 1
     fi
 
-    local backup_name=$(basename "$backup_file")
+    local backup_name
+    backup_name=$(basename "$backup_file")
     local s3_key="${S3_PREFIX}/${backup_name}"
     local storage_class="${S3_STORAGE_CLASS:-STANDARD}"
 

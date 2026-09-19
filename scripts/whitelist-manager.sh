@@ -297,7 +297,8 @@ import_whitelist() {
 
 # Function to export whitelist to file
 export_whitelist() {
-    local export_file="${1:-whitelist_export_$(date +%Y%m%d_%H%M%S).txt}"
+    local export_file
+    export_file="${1:-whitelist_export_$(date +%Y%m%d_%H%M%S).txt}"
 
     if [ ! -f "$WHITELIST_FILE" ]; then
         echo -e "${YELLOW}Whitelist file not found${NC}"

@@ -59,7 +59,8 @@ lint_bash() {
 
         # Run shellcheck
         if ! shellcheck -f gcc "$script" 2>&1 | tee /tmp/shellcheck_output.txt; then
-            local script_issues=$(grep -c "error:" /tmp/shellcheck_output.txt 2>/dev/null || echo "0")
+            local script_issues
+            script_issues=$(grep -c "error:" /tmp/shellcheck_output.txt 2>/dev/null || echo "0")
             issues=$((issues + script_issues))
         fi
     done < <(find "$PROJECT_DIR" -type f -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" -print0)

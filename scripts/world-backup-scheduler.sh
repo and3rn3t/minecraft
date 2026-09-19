@@ -39,7 +39,8 @@ get_world_backup_config() {
 
     # Check for world-specific setting
     local world_setting="WORLD_${world_name}_${setting}"
-    local value=$(eval echo \$${world_setting})
+    local value
+    value=$(eval echo \$${world_setting})
 
     if [ -n "$value" ]; then
         echo "$value"
@@ -54,14 +55,18 @@ get_world_backup_config() {
 should_backup_world() {
     local world_name="$1"
 
-    local enabled=$(get_world_backup_config "$world_name" "ENABLED")
+    local enabled
+    enabled=$(get_world_backup_config "$world_name" "ENABLED")
     if [ "$enabled" != "true" ]; then
         return 1
     fi
 
-    local frequency=$(get_world_backup_config "$world_name" "FREQUENCY")
-    local current_time=$(date +"%H:%M")
-    local scheduled_time=$(get_world_backup_config "$world_name" "TIME")
+    local frequency
+    frequency=$(get_world_backup_config "$world_name" "FREQUENCY")
+    local current_time
+    current_time=$(date +"%H:%M")
+    local scheduled_time
+    scheduled_time=$(get_world_backup_config "$world_name" "TIME")
 
     case "$frequency" in
         daily)
@@ -72,14 +77,16 @@ should_backup_world() {
             ;;
         weekly)
             # Run on Sunday
-            local day=$(date +%w)
+            local day
+            day=$(date +%w)
             if [ "$day" -eq "0" ] && [ "$current_time" = "$scheduled_time" ]; then
                 return 0
             fi
             ;;
         monthly)
             # Run on 1st of month
-            local day=$(date +%d)
+            local day
+            day=$(date +%d)
             if [ "$day" -eq "01" ] && [ "$current_time" = "$scheduled_time" ]; then
                 return 0
             fi
@@ -104,11 +111,13 @@ backup_world_scheduled() {
     echo -e "${BLUE}Backing up world: $world_name${NC}"
 
     # Create backup
-    local backup_file="${BACKUP_DIR}/world_${world_name}_$(date +%Y%m%d_%H%M%S).tar.gz"
+    local backup_file
+    backup_file="${BACKUP_DIR}/world_${world_name}_$(date +%Y%m%d_%H%M%S).tar.gz"
     tar -czf "$backup_file" -C "$WORLDS_DIR" "$world_name" 2>/dev/null
 
     if [ $? -eq 0 ]; then
-        local backup_size=$(du -sh "$backup_file" 2>/dev/null | cut -f1)
+        local backup_size
+        backup_size=$(du -sh "$backup_file" 2>/dev/null | cut -f1)
         echo -e "${GREEN}World backed up: $backup_file ($backup_size)${NC}"
 
         # Clean up old backups
@@ -123,7 +132,8 @@ backup_world_scheduled() {
 # Function to cleanup old backups
 cleanup_old_backups() {
     local world_name="$1"
-    local retention_days=$(get_world_backup_config "$world_name" "RETENTION_DAYS")
+    local retention_days
+    retention_days=$(get_world_backup_config "$world_name" "RETENTION_DAYS")
     retention_days=${retention_days:-$DEFAULT_BACKUP_RETENTION_DAYS}
 
     if [ -d "$BACKUP_DIR" ]; then
@@ -142,7 +152,8 @@ run_scheduled_backups() {
     # Find all worlds
     for world_dir in "$WORLDS_DIR"/world*; do
         if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
-            local world_name=$(basename "$world_dir")
+            local world_name
+            world_name=$(basename "$world_dir")
 
             if should_backup_world "$world_name"; then
                 if backup_world_scheduled "$world_name"; then
@@ -167,8 +178,10 @@ backup_all_worlds() {
 
     for world_dir in "$WORLDS_DIR"/world*; do
         if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
-            local world_name=$(basename "$world_dir")
-            local enabled=$(get_world_backup_config "$world_name" "ENABLED")
+            local world_name
+            world_name=$(basename "$world_dir")
+            local enabled
+            enabled=$(get_world_backup_config "$world_name" "ENABLED")
 
             if [ "$enabled" = "true" ]; then
                 if backup_world_scheduled "$world_name"; then
@@ -195,7 +208,8 @@ main() {
             # Cleanup old backups for all worlds
             for world_dir in "$WORLDS_DIR"/world*; do
                 if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
-                    local world_name=$(basename "$world_dir")
+                    local world_name
+                    world_name=$(basename "$world_dir")
                     cleanup_old_backups "$world_name"
                 fi
             done

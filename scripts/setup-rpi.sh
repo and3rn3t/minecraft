@@ -39,8 +39,9 @@ fi
 
 # Install Docker Compose
 echo -e "${GREEN}[3/6] Installing Docker Compose...${NC}"
-if ! command -v docker-compose &> /dev/null; then
-    sudo apt-get install -y docker-compose
+if ! docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
+    # Compose v1 reached end of life in July 2023; install the v2 plugin
+    sudo apt-get install -y docker-compose-plugin
     echo -e "${GREEN}Docker Compose installed successfully${NC}"
 else
     echo -e "${YELLOW}Docker Compose is already installed${NC}"
@@ -116,9 +117,9 @@ echo -e ""
 echo -e "${YELLOW}Next Steps:${NC}"
 echo -e "1. Copy the Minecraft server files to: ${MINECRAFT_DIR}"
 echo -e "2. Navigate to the directory: cd ${MINECRAFT_DIR}"
-echo -e "3. Start the server: docker-compose up -d"
-echo -e "4. View logs: docker-compose logs -f"
-echo -e "5. Stop the server: docker-compose down"
+echo -e "3. Start the server: docker compose up -d"
+echo -e "4. View logs: docker compose logs -f"
+echo -e "5. Stop the server: docker compose down"
 echo -e ""
 echo -e "${YELLOW}Note: You may need to log out and back in for Docker permissions to take effect${NC}"
 echo -e "${BLUE}========================================${NC}"

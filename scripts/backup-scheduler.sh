@@ -31,7 +31,8 @@ log_message() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     echo "[$timestamp] [$level] $message" | tee -a "${PROJECT_DIR}/logs/backup-scheduler.log"
 }
 
@@ -43,13 +44,15 @@ should_run_backup() {
             ;;
         weekly)
             # Run on Sunday (0) or configured day
-            local day=$(date +%w)
+            local day
+            day=$(date +%w)
             local target_day=${BACKUP_WEEKLY_DAY:-0}
             [ "$day" -eq "$target_day" ] && return 0 || return 1
             ;;
         monthly)
             # Run on first day of month
-            local day=$(date +%d)
+            local day
+            day=$(date +%d)
             [ "$day" -eq "01" ] && return 0 || return 1
             ;;
         *)

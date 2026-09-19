@@ -24,8 +24,10 @@ mkdir -p "$METRICS_DIR" "$LOGS_DIR"
 log_metric() {
     local metric_name="$1"
     local value="$2"
-    local timestamp=$(date +%s)
-    local date_str=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +%s)
+    local date_str
+    date_str=$(date +"%Y-%m-%d %H:%M:%S")
 
     # Append to metrics file (CSV format)
     echo "$timestamp,$date_str,$metric_name,$value" >> "${METRICS_DIR}/${metric_name}.csv"
@@ -43,7 +45,8 @@ get_container_stats() {
 # Function to get memory usage
 get_memory_usage() {
     if docker ps | grep -q minecraft-server; then
-        local stats=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}")
+        local stats
+        stats=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}")
         echo "$stats"
     else
         echo "0B / 0B"
@@ -53,7 +56,8 @@ get_memory_usage() {
 # Function to get CPU usage
 get_cpu_usage() {
     if docker ps | grep -q minecraft-server; then
-        local cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//')
+        local cpu
+        cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//')
         echo "$cpu"
     else
         echo "0"
@@ -64,7 +68,8 @@ get_cpu_usage() {
 get_player_count() {
     if docker ps | grep -q minecraft-server; then
         # Try to get player count from server logs or RCON
-        local players=$(docker logs minecraft-server --tail 100 2>/dev/null | grep -oP 'There are \K\d+' | tail -1 || echo "0")
+        local players
+        players=$(docker logs minecraft-server --tail 100 2>/dev/null | grep -oP 'There are \K\d+' | tail -1 || echo "0")
         echo "${players:-0}"
     else
         echo "0"
@@ -75,7 +80,8 @@ get_player_count() {
 get_server_status() {
     if docker ps | grep -q minecraft-server; then
         # Check if container is healthy
-        local health=$(docker inspect --format='{{.State.Health.Status}}' minecraft-server 2>/dev/null || echo "unknown")
+        local health
+        health=$(docker inspect --format='{{.State.Health.Status}}' minecraft-server 2>/dev/null || echo "unknown")
         if [ "$health" = "healthy" ] || [ "$health" = "starting" ]; then
             echo "running"
         else
@@ -89,11 +95,15 @@ get_server_status() {
 # Function to get server uptime
 get_server_uptime() {
     if docker ps | grep -q minecraft-server; then
-        local started=$(docker inspect --format='{{.State.StartedAt}}' minecraft-server 2>/dev/null)
+        local started
+        started=$(docker inspect --format='{{.State.StartedAt}}' minecraft-server 2>/dev/null)
         if [ -n "$started" ]; then
-            local start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
-            local now_epoch=$(date +%s)
-            local uptime=$((now_epoch - start_epoch))
+            local start_epoch
+            start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
+            local now_epoch
+            now_epoch=$(date +%s)
+            local uptime
+            uptime=$((now_epoch - start_epoch))
             echo "$uptime"
         else
             echo "0"
@@ -108,7 +118,8 @@ get_tps() {
     if docker ps | grep -q minecraft-server; then
         # Try to extract TPS from recent logs
         # Minecraft servers often log TPS in format like "TPS: 20.0"
-        local tps=$(docker logs minecraft-server --tail 500 2>/dev/null | \
+        local tps
+        tps=$(docker logs minecraft-server --tail 500 2>/dev/null | \
             grep -iE '(tps|ticks per second)' | \
             tail -1 | \
             grep -oE '[0-9]+\.[0-9]+' | \
@@ -121,16 +132,23 @@ get_tps() {
 
 # Main monitoring function
 main() {
-    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     echo "[$timestamp] Collecting metrics..."
 
     # Collect metrics
-    local status=$(get_server_status)
-    local cpu=$(get_cpu_usage)
-    local memory=$(get_memory_usage)
-    local players=$(get_player_count)
-    local uptime=$(get_server_uptime)
-    local tps=$(get_tps)
+    local status
+    status=$(get_server_status)
+    local cpu
+    cpu=$(get_cpu_usage)
+    local memory
+    memory=$(get_memory_usage)
+    local players
+    players=$(get_player_count)
+    local uptime
+    uptime=$(get_server_uptime)
+    local tps
+    tps=$(get_tps)
 
     # Log metrics
     log_metric "server_status" "$status"

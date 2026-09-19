@@ -57,11 +57,14 @@ create_key() {
         return 1
     fi
 
-    local api_key=$(generate_api_key)
-    local keys_json=$(load_keys)
+    local api_key
+    api_key=$(generate_api_key)
+    local keys_json
+    keys_json=$(load_keys)
 
     # Create new key entry
-    local new_key=$(cat <<EOF
+    local new_key
+    new_key=$(cat <<EOF
 {
     "name": "$name",
     "description": "$description",
@@ -72,7 +75,8 @@ EOF
 )
 
     # Add to keys JSON (using Python for JSON manipulation)
-    local updated_json=$(python3 <<PYTHON
+    local updated_json
+    updated_json=$(python3 <<PYTHON
 import json
 import sys
 
@@ -94,7 +98,8 @@ PYTHON
 
 # Function to list API keys
 list_keys() {
-    local keys_json=$(load_keys)
+    local keys_json
+    keys_json=$(load_keys)
 
     if [ "$keys_json" = "{}" ]; then
         echo -e "${YELLOW}No API keys found${NC}"
@@ -132,10 +137,12 @@ disable_key() {
         return 1
     fi
 
-    local keys_json=$(load_keys)
+    local keys_json
+    keys_json=$(load_keys)
 
     # Find and disable key
-    local updated_json=$(python3 <<PYTHON
+    local updated_json
+    updated_json=$(python3 <<PYTHON
 import json
 import sys
 
@@ -174,10 +181,12 @@ enable_key() {
         return 1
     fi
 
-    local keys_json=$(load_keys)
+    local keys_json
+    keys_json=$(load_keys)
 
     # Find and enable key
-    local updated_json=$(python3 <<PYTHON
+    local updated_json
+    updated_json=$(python3 <<PYTHON
 import json
 import sys
 
@@ -216,10 +225,12 @@ delete_key() {
         return 1
     fi
 
-    local keys_json=$(load_keys)
+    local keys_json
+    keys_json=$(load_keys)
 
     # Find and delete key
-    local updated_json=$(python3 <<PYTHON
+    local updated_json
+    updated_json=$(python3 <<PYTHON
 import json
 import sys
 

@@ -33,7 +33,8 @@ log_message() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     echo "[$timestamp] [$level] $message"
 }
 
@@ -41,7 +42,8 @@ log_message() {
 get_backup_date() {
     local filename="$1"
     # Extract date from filename: minecraft_backup_YYYYMMDD_HHMMSS.tar.gz
-    local date_part=$(echo "$filename" | grep -oP 'minecraft_backup_\K\d{8}' || echo "")
+    local date_part
+    date_part=$(echo "$filename" | grep -oP 'minecraft_backup_\K\d{8}' || echo "")
     if [ -n "$date_part" ]; then
         echo "${date_part:0:4}-${date_part:4:2}-${date_part:6:2}"
     fi
@@ -50,15 +52,18 @@ get_backup_date() {
 # Function to check if backup is daily/weekly/monthly
 classify_backup() {
     local filename="$1"
-    local date_str=$(get_backup_date "$filename")
+    local date_str
+    date_str=$(get_backup_date "$filename")
 
     if [ -z "$date_str" ]; then
         echo "unknown"
         return
     fi
 
-    local day_of_month=$(date -d "$date_str" +%d 2>/dev/null || echo "")
-    local day_of_week=$(date -d "$date_str" +%w 2>/dev/null || echo "")
+    local day_of_month
+    day_of_month=$(date -d "$date_str" +%d 2>/dev/null || echo "")
+    local day_of_week
+    day_of_week=$(date -d "$date_str" +%w 2>/dev/null || echo "")
 
     # Monthly backup: first day of month
     if [ "$day_of_month" = "01" ]; then
@@ -99,9 +104,12 @@ main() {
     local index=0
 
     for backup_file in "${backups[@]}"; do
-        local filename=$(basename "$backup_file")
-        local backup_type=$(classify_backup "$filename")
-        local file_age_days=$(( ($(date +%s) - $(stat -c %Y "$backup_file")) / 86400 ))
+        local filename
+        filename=$(basename "$backup_file")
+        local backup_type
+        backup_type=$(classify_backup "$filename")
+        local file_age_days
+        file_age_days=$(( ($(date +%s) - $(stat -c %Y "$backup_file")) / 86400 ))
         local should_keep=false
 
         # Always keep the last N backups
@@ -123,7 +131,8 @@ main() {
         if [ "$should_keep" = true ]; then
             kept_count=$((kept_count + 1))
         else
-            local file_size=$(stat -c %s "$backup_file" 2>/dev/null || echo "0")
+            local file_size
+            file_size=$(stat -c %s "$backup_file" 2>/dev/null || echo "0")
             total_size_freed=$((total_size_freed + file_size))
             rm -f "$backup_file"
             deleted_count=$((deleted_count + 1))
@@ -134,7 +143,8 @@ main() {
     done
 
     # Format size
-    local size_freed_mb=$((total_size_freed / 1024 / 1024))
+    local size_freed_mb
+    size_freed_mb=$((total_size_freed / 1024 / 1024))
 
     log_message "INFO" "Cleanup complete: kept $kept_count, deleted $deleted_count backup(s), freed ${size_freed_mb}MB"
 }

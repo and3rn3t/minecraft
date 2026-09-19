@@ -15,7 +15,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.server import app  # noqa: E402
+from api.server import LONG_SCRIPT_TIMEOUT, app  # noqa: E402
 
 
 @pytest.fixture
@@ -46,7 +46,9 @@ class TestServerControlComprehensive:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data["success"] is True
-        mock_run_script.assert_called_once_with("manage.sh", "start")
+        # Server start waits on Docker pulling images and the JVM booting, so
+        # it runs with the long timeout rather than the 30s default
+        mock_run_script.assert_called_once_with("manage.sh", "start", timeout=LONG_SCRIPT_TIMEOUT)
 
     @patch("api.server.run_script")
     def test_stop_server_success(self, mock_run_script, client, mock_api_key):
@@ -261,8 +263,13 @@ class TestQueryParameters:
         # Should accept parameter without error
         assert response.status_code != 401
 
-    def test_analytics_report_with_hours_parameter(self, client, mock_api_key):
+    @patch("api.server.subprocess.run")
+    def test_analytics_report_with_hours_parameter(self, mock_subprocess, client, mock_api_key):
         """Test analytics report with hours parameter"""
+        # subprocess is mocked so the real analytics processor does not run and
+        # rewrite the tracked files under analytics/processed/
+        mock_subprocess.return_value = MagicMock(returncode=0)
+
         with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
             response = client.get("/api/analytics/report?hours=6", headers={"X-API-Key": mock_api_key})
 

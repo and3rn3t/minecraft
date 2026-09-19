@@ -48,7 +48,8 @@ check_coverage() {
     fi
 
     # Extract coverage percentage
-    local coverage=$(python3 << EOF
+    local coverage
+    coverage=$(python3 << EOF
 import json
 try:
     with open("$COVERAGE_FILE", 'r') as f:
@@ -70,7 +71,8 @@ EOF
         return 0
     else
         echo -e "${RED}✗ Coverage below threshold!${NC}"
-        local diff=$(echo "$COVERAGE_THRESHOLD - $coverage" | bc)
+        local diff
+        diff=$(echo "$COVERAGE_THRESHOLD - $coverage" | bc)
         echo -e "${YELLOW}Need ${diff}% more coverage${NC}"
         return 1
     fi

@@ -84,7 +84,8 @@ upload_backup() {
         exit 1
     fi
 
-    local backup_name=$(basename "$backup_file")
+    local backup_name
+    backup_name=$(basename "$backup_file")
     local r2_key="${R2_PREFIX}/${backup_name}"
 
     echo -e "${BLUE}Uploading backup to R2...${NC}"

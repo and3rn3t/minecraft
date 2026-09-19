@@ -28,7 +28,8 @@ fi
 
 # Function to get current version from docker-compose.yml
 get_current_version() {
-    local version=$(grep -E "MINECRAFT_VERSION=" "${PROJECT_DIR}/docker-compose.yml" | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'")
+    local version
+    version=$(grep -E "MINECRAFT_VERSION=" "${PROJECT_DIR}/docker-compose.yml" | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'")
     if [ -z "$version" ]; then
         # Try environment variable
         version=${MINECRAFT_VERSION:-1.20.4}
@@ -39,7 +40,8 @@ get_current_version() {
 # Function to get latest release version from Mojang API
 get_latest_release() {
     local api_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
-    local manifest=$(curl -s "$api_url" 2>/dev/null)
+    local manifest
+    manifest=$(curl -s "$api_url" 2>/dev/null)
 
     if [ -z "$manifest" ]; then
         echo "ERROR: Failed to fetch version manifest" >&2
@@ -47,14 +49,16 @@ get_latest_release() {
     fi
 
     # Extract latest release version
-    local latest=$(echo "$manifest" | grep -oP '"latest"\s*:\s*\{[^}]*"release"\s*:\s*"\K[^"]+' | head -1)
+    local latest
+    latest=$(echo "$manifest" | grep -oP '"latest"\s*:\s*\{[^}]*"release"\s*:\s*"\K[^"]+' | head -1)
     echo "$latest"
 }
 
 # Function to get latest snapshot version
 get_latest_snapshot() {
     local api_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
-    local manifest=$(curl -s "$api_url" 2>/dev/null)
+    local manifest
+    manifest=$(curl -s "$api_url" 2>/dev/null)
 
     if [ -z "$manifest" ]; then
         echo "ERROR: Failed to fetch version manifest" >&2
@@ -62,7 +66,8 @@ get_latest_snapshot() {
     fi
 
     # Extract latest snapshot version
-    local latest=$(echo "$manifest" | grep -oP '"latest"\s*:\s*\{[^}]*"snapshot"\s*:\s*"\K[^"]+' | head -1)
+    local latest
+    latest=$(echo "$manifest" | grep -oP '"latest"\s*:\s*\{[^}]*"snapshot"\s*:\s*"\K[^"]+' | head -1)
     echo "$latest"
 }
 
@@ -70,7 +75,8 @@ get_latest_snapshot() {
 get_version_download_url() {
     local version="$1"
     local api_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
-    local manifest=$(curl -s "$api_url" 2>/dev/null)
+    local manifest
+    manifest=$(curl -s "$api_url" 2>/dev/null)
 
     if [ -z "$manifest" ]; then
         echo "ERROR: Failed to fetch version manifest" >&2
@@ -78,7 +84,8 @@ get_version_download_url() {
     fi
 
     # Find version entry
-    local version_url=$(echo "$manifest" | grep -oP "\"id\"\s*:\s*\"$version\"[^}]*\"url\"\s*:\s*\"\K[^\"]+" | head -1)
+    local version_url
+    version_url=$(echo "$manifest" | grep -oP "\"id\"\s*:\s*\"$version\"[^}]*\"url\"\s*:\s*\"\K[^\"]+" | head -1)
 
     if [ -z "$version_url" ]; then
         echo "ERROR: Version $version not found" >&2
@@ -86,7 +93,8 @@ get_version_download_url() {
     fi
 
     # Get version details
-    local version_details=$(curl -s "$version_url" 2>/dev/null)
+    local version_details
+    version_details=$(curl -s "$version_url" 2>/dev/null)
 
     if [ -z "$version_details" ]; then
         echo "ERROR: Failed to fetch version details" >&2
@@ -94,7 +102,8 @@ get_version_download_url() {
     fi
 
     # Extract server jar URL
-    local server_url=$(echo "$version_details" | grep -oP '"server"\s*:\s*\{[^}]*"url"\s*:\s*"\K[^"]+' | head -1)
+    local server_url
+    server_url=$(echo "$version_details" | grep -oP '"server"\s*:\s*\{[^}]*"url"\s*:\s*"\K[^"]+' | head -1)
     echo "$server_url"
 }
 
@@ -105,8 +114,10 @@ compare_versions() {
 
     # Simple version comparison (assumes semantic versioning)
     # Convert to comparable format: 1.20.4 -> 1002004
-    local current_num=$(echo "$current" | sed 's/\./0/g' | sed 's/[^0-9]//g')
-    local latest_num=$(echo "$latest" | sed 's/\./0/g' | sed 's/[^0-9]//g')
+    local current_num
+    current_num=$(echo "$current" | sed 's/\./0/g' | sed 's/[^0-9]//g')
+    local latest_num
+    latest_num=$(echo "$latest" | sed 's/\./0/g' | sed 's/[^0-9]//g')
 
     # Pad to same length
     local max_len=${#current_num}
@@ -135,10 +146,12 @@ main() {
 
     echo -e "${BLUE}Checking Minecraft server versions...${NC}"
 
-    local current=$(get_current_version)
+    local current
+    current=$(get_current_version)
     echo -e "Current version: ${GREEN}$current${NC}"
 
-    local latest_release=$(get_latest_release)
+    local latest_release
+    latest_release=$(get_latest_release)
     if [ $? -ne 0 ] || [ -z "$latest_release" ]; then
         echo -e "${RED}Failed to get latest release version${NC}"
         exit 1

@@ -211,7 +211,7 @@ describe('Backups', () => {
     });
 
     const user = userEvent.setup({ delay: null });
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     renderWithRouter(<Backups />);
 
     await waitFor(() => {

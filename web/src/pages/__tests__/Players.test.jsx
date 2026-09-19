@@ -14,7 +14,7 @@ vi.mock('../../services/api', () => ({
 describe('Players', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {

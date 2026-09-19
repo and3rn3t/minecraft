@@ -127,12 +127,12 @@ class TestConfigFileSave:
         test_file = data_dir / "server.properties"
         test_file.write_text("# Original content\n")
 
-        backup_dir = Path(temp_config_dir[0]) / "backups" / "config"
+        backup_dir = PathLib(temp_config_dir[0]) / "backups" / "config"
         backup_dir.mkdir(parents=True, exist_ok=True)
 
         import api.server as api_module
 
-        monkeypatch.setattr(api_module, "PROJECT_ROOT", Path(temp_config_dir[0]))
+        monkeypatch.setattr(api_module, "PROJECT_ROOT", PathLib(temp_config_dir[0]))
 
         valid_content = "# Valid config\nkey=value\n"
         response = client.post(

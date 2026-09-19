@@ -44,10 +44,14 @@ check_version_compatibility() {
     local target_version="$2"
 
     # Extract major and minor version numbers
-    local current_major=$(echo "$current_version" | cut -d'.' -f1)
-    local current_minor=$(echo "$current_version" | cut -d'.' -f2)
-    local target_major=$(echo "$target_version" | cut -d'.' -f1)
-    local target_minor=$(echo "$target_version" | cut -d'.' -f2)
+    local current_major
+    current_major=$(echo "$current_version" | cut -d'.' -f1)
+    local current_minor
+    current_minor=$(echo "$current_version" | cut -d'.' -f2)
+    local target_major
+    target_major=$(echo "$target_version" | cut -d'.' -f1)
+    local target_minor
+    target_minor=$(echo "$target_version" | cut -d'.' -f2)
 
     # Major version changes usually require world conversion
     if [ "$current_major" -ne "$target_major" ]; then
@@ -57,7 +61,8 @@ check_version_compatibility() {
 
     # Minor version changes within same major are usually compatible
     if [ "$current_minor" -ne "$target_minor" ]; then
-        local diff=$((target_minor - current_minor))
+        local diff
+        diff=$((target_minor - current_minor))
         if [ $diff -gt 2 ]; then
             echo "LARGE_MINOR_VERSION_CHANGE"
             return 1
@@ -80,7 +85,8 @@ check_world_compatibility() {
 
     # Check main world
     if [ -d "${DATA_DIR}/world" ]; then
-        local world_version=$(get_world_version "${DATA_DIR}/world")
+        local world_version
+        world_version=$(get_world_version "${DATA_DIR}/world")
         if [ -z "$world_version" ]; then
             echo -e "${YELLOW}Warning: Could not determine world version${NC}"
             issues=$((issues + 1))
@@ -133,7 +139,8 @@ check_plugin_compatibility() {
     for plugin in "$plugin_dir"/*.jar; do
         if [ -f "$plugin" ]; then
             plugin_count=$((plugin_count + 1))
-            local plugin_name=$(basename "$plugin")
+            local plugin_name
+            plugin_name=$(basename "$plugin")
             echo -e "${YELLOW}Plugin found: $plugin_name${NC}"
             echo -e "${YELLOW}  Note: Manual verification recommended for version $target_version${NC}"
             issues=$((issues + 1))
@@ -157,7 +164,8 @@ check_mod_compatibility() {
 
     # Check for mods directory (Fabric/Forge)
     if [ -d "${DATA_DIR}/mods" ]; then
-        local mod_count=$(find "${DATA_DIR}/mods" -name "*.jar" | wc -l)
+        local mod_count
+        mod_count=$(find "${DATA_DIR}/mods" -name "*.jar" | wc -l)
         if [ $mod_count -gt 0 ]; then
             echo -e "${YELLOW}Found $mod_count mod(s) - manual compatibility check required${NC}"
             echo -e "${YELLOW}  Mods are version-specific and may not work with $target_version${NC}"
@@ -230,7 +238,8 @@ main() {
     local overall_issues=0
 
     # Check version compatibility
-    local version_check=$(check_version_compatibility "$current_version" "$target_version")
+    local version_check
+    version_check=$(check_version_compatibility "$current_version" "$target_version")
     case "$version_check" in
         MAJOR_VERSION_CHANGE)
             echo -e "${RED}WARNING: Major version change detected${NC}"

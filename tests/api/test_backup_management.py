@@ -130,7 +130,7 @@ class TestBackupDelete:
 
         import api.server as api_module
 
-        monkeypatch.setattr(api_module, "PROJECT_ROOT", Path(temp_backup_environment[0].parent))
+        monkeypatch.setattr(api_module, "PROJECT_ROOT", PathLib(temp_backup_environment[0].parent))
 
         assert backup_file.exists()
 

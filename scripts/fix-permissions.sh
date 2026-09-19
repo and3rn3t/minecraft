@@ -67,7 +67,7 @@ fi
 
 echo -e "${GREEN}Permissions fixed!${NC}"
 echo -e "${GREEN}You can now restart the server:${NC}"
-echo -e "  docker-compose restart"
+echo -e "  docker compose restart"
 echo -e "  or"
 echo -e "  ./manage.sh restart"
 
