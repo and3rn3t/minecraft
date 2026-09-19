@@ -160,6 +160,27 @@ export const api = {
     return cachedGet('/events/types', {}, 300000);
   },
 
+  // Bedtime mode: the countdown and its controls
+  async getBedtime() {
+    const response = await apiClient.get('/bedtime');
+    return response.data;
+  },
+
+  async extendBedtime() {
+    const response = await apiClient.post('/bedtime/extend');
+    return response.data;
+  },
+
+  async skipBedtime() {
+    const response = await apiClient.post('/bedtime/skip');
+    return response.data;
+  },
+
+  async startBedtimeNow() {
+    const response = await apiClient.post('/bedtime/now');
+    return response.data;
+  },
+
   // Hall of Deaths: epitaphs, stats and the leaderboard
   async getDeaths({ limit = 50, player = null, category = null } = {}) {
     const params = { limit };

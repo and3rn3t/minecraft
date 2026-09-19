@@ -13,6 +13,7 @@ const Players = lazy(() => import('./pages/Players'));
 const Backups = lazy(() => import('./pages/Backups'));
 const Worlds = lazy(() => import('./pages/Worlds'));
 const HallOfDeaths = lazy(() => import('./pages/HallOfDeaths'));
+const Bedtime = lazy(() => import('./pages/Bedtime'));
 const Plugins = lazy(() => import('./pages/Plugins'));
 const ConfigFiles = lazy(() => import('./pages/ConfigFiles'));
 const FileBrowser = lazy(() => import('./pages/FileBrowser'));
@@ -132,6 +133,18 @@ function App() {
                 <Layout>
                   <Suspense fallback={<PageLoading />}>
                     <Backups />
+                  </Suspense>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bedtime"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Suspense fallback={<PageLoading />}>
+                    <Bedtime />
                   </Suspense>
                 </Layout>
               </ProtectedRoute>

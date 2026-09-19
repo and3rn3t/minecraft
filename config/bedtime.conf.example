@@ -1,0 +1,38 @@
+# Bedtime mode configuration
+#
+# Copy to config/bedtime.conf and edit. The real file is gitignored.
+# See docs/BEDTIME.md.
+
+# Bedtime is off unless this says otherwise. A feature that can stop the server
+# and turn players away should never switch itself on because a default said so.
+ENABLED=false
+
+# When the evening ends, in 24-hour local time.
+WEEKNIGHT_BEDTIME=20:30
+WEEKEND_BEDTIME=21:30
+
+# When the server opens again. Between bedtime and this time, anyone who joins
+# is sent back out with a message saying when they can return.
+WAKE_TIME=07:00
+
+# Which nights get the later bedtime. It is the night before a non-school
+# morning that matters, so this defaults to Friday and Saturday evenings.
+WEEKEND_NIGHTS=friday,saturday
+
+# Warnings before bedtime, in minutes. The largest also sets how early the
+# bossbar countdown appears.
+WARN_MINUTES=30,15,10,5,1
+
+# "Five more minutes", granted from the dashboard.
+EXTEND_MINUTES=15
+MAX_EXTENSIONS=1
+
+# What happens at bedtime:
+#   stop     - save and shut the server down
+#   kick     - remove everyone, leave the server running
+#   announce - say goodnight and nothing else
+# The closed window is enforced either way: joins are turned away until WAKE_TIME.
+ACTION=stop
+
+# Show a bossbar countdown during the warning window.
+BOSSBAR=true
