@@ -188,7 +188,7 @@ make coverage # coverage report
 | Multiple worlds | [docs/MULTI_WORLD.md](docs/MULTI_WORLD.md) |
 | REST API | [docs/API.md](docs/API.md) |
 | Pi tuning | [docs/RASPBERRY_PI_OPTIMIZATIONS.md](docs/RASPBERRY_PI_OPTIMIZATIONS.md) |
-| Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
+| What is planned next | [docs/ROADMAP.md](docs/ROADMAP.md) |
 | Version history | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Troubleshooting
