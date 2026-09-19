@@ -2,6 +2,8 @@
 
 import json
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -387,14 +389,12 @@ class TestEventsEndpoints:
     @pytest.fixture(autouse=True)
     def bus_with_events(self, tmp_path, monkeypatch):
         """Point the shared bus at a temp directory holding known events."""
-        import api.events as events_module
-
         temp_bus = EventBus(events_dir=tmp_path / "events", flush_every_events=1)
         temp_bus.handle_line(line("Jonah joined the game"))
         temp_bus.handle_line(line("Silas was slain by Zombie"))
         temp_bus.handle_line(line("<Jonah> gg"))
 
-        monkeypatch.setattr(events_module, "get_bus", lambda: temp_bus)
+        monkeypatch.setattr("api.events.get_bus", lambda: temp_bus)
         return temp_bus
 
     def test_requires_authentication(self, client):
@@ -431,10 +431,14 @@ class TestEventsEndpoints:
         response = client.get("/api/events?limit=lots", headers={"X-API-Key": mock_api_keys})
         assert response.status_code == 400
 
-    def test_limit_is_capped(self, client, mock_api_keys):
+    def test_limit_is_capped_at_500(self, client, mock_api_keys, bus_with_events):
         """An unbounded limit would let one request read every stored event."""
+        for _ in range(600):
+            bus_with_events.handle_line(line("Jonah joined the game"))
+
         response = client.get("/api/events?limit=99999", headers={"X-API-Key": mock_api_keys})
         assert response.status_code == 200
+        assert response.get_json()["count"] == 500
 
     def test_types_endpoint_lists_every_type(self, client, mock_api_keys):
         response = client.get("/api/events/types", headers={"X-API-Key": mock_api_keys})
@@ -450,3 +454,77 @@ class TestEventsEndpoints:
             EVENT_SERVER_READY,
             EVENT_SERVER_STOPPING,
         }
+
+
+@pytest.mark.unit
+class TestFlushSafety:
+    """Concurrency and quiet-period behaviour of the buffered writer."""
+
+    def test_concurrent_flushes_do_not_interleave(self, tmp_path):
+        """Two flushes racing must not write half a line inside another."""
+        bus = EventBus(events_dir=tmp_path / "events", flush_every_events=10000, flush_every_seconds=3600)
+        for index in range(200):
+            bus.publish(GameEvent(type=EVENT_JOIN, timestamp="t", player=f"p{index}"))
+
+        barrier = threading.Barrier(4)
+
+        def flush_now():
+            barrier.wait()
+            bus.flush()
+
+        threads = [threading.Thread(target=flush_now) for _ in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        written = (tmp_path / "events").glob("*.jsonl")
+        lines = [ln for path in written for ln in path.read_text().splitlines() if ln.strip()]
+
+        assert len(lines) == 200
+        # Every line must be a complete, parseable record.
+        players = {json.loads(ln)["player"] for ln in lines}
+        assert players == {f"p{index}" for index in range(200)}
+
+    def test_periodic_flush_writes_without_further_events(self, tmp_path):
+        """A quiet server previously left the last events buffered forever."""
+        bus = EventBus(
+            events_dir=tmp_path / "events",
+            flush_every_events=10000,
+            flush_every_seconds=0.1,
+        )
+        bus.handle_line(line("Jonah joined the game"))
+        assert not list((tmp_path / "events").glob("*.jsonl"))
+
+        bus.start_periodic_flush()
+        try:
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                if list((tmp_path / "events").glob("*.jsonl")):
+                    break
+                time.sleep(0.05)
+            assert list((tmp_path / "events").glob("*.jsonl"))
+        finally:
+            bus.stop_periodic_flush()
+
+    def test_starting_the_timer_twice_arms_only_one(self, tmp_path):
+        bus = EventBus(events_dir=tmp_path / "events", flush_every_seconds=3600)
+        bus.start_periodic_flush()
+        first = bus._flush_timer
+        bus.start_periodic_flush()
+        try:
+            assert bus._flush_timer is first
+        finally:
+            bus.stop_periodic_flush()
+
+    def test_stopping_the_timer_flushes_what_is_left(self, tmp_path):
+        bus = EventBus(events_dir=tmp_path / "events", flush_every_events=10000, flush_every_seconds=3600)
+        bus.start_periodic_flush()
+        bus.handle_line(line("Jonah joined the game"))
+        bus.stop_periodic_flush()
+
+        assert len(bus.read()) == 1
+        assert bus._flush_timer is None
+
+    def test_stopping_without_starting_is_safe(self, tmp_path):
+        EventBus(events_dir=tmp_path / "events").stop_periodic_flush()

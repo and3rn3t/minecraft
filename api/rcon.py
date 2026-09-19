@@ -69,6 +69,23 @@ class RconConnectionError(RconError):
     """Raised when the socket cannot be established or is lost mid-command."""
 
 
+class RconNotSentError(RconConnectionError):
+    """Raised when a command failed before any of it reached the server.
+
+    Safe to retry: the server never saw it. This is the ordinary case of a
+    pooled connection that went stale while idle, where the first write fails
+    with a broken pipe or a reset.
+    """
+
+
+class RconUnknownOutcomeError(RconError):
+    """Raised when a command reached the server but its result was not read.
+
+    Must not be retried. The server may well have run it, so repeating a
+    ``give``, ``summon``, ``kill`` or ``stop`` would apply the effect twice.
+    """
+
+
 def load_rcon_config(config_file: Optional[Path] = None) -> dict:
     """Read ``config/rcon.conf`` into a dict of connection settings.
 
@@ -240,10 +257,19 @@ class RconClient:
     def command(self, command: str) -> str:
         """Run one command and return the server's response text.
 
-        Reconnects and retries once if the connection was dropped while idle,
-        which is the normal case after a server restart.
+        Retries exactly once, and only when the command provably never left
+        this process. Minecraft commands are not idempotent: re-sending a
+        ``give`` or a ``summon`` after a lost response would apply it twice, so
+        a failure that happens after the command reached the server is reported
+        as :class:`RconUnknownOutcomeError` rather than retried.
+
+        The retry therefore covers the one case that is both common and safe: a
+        pooled connection that went stale while idle, where the first write
+        fails before any bytes reach the server.
         """
-        command = (command or "").strip()
+        if not isinstance(command, str):
+            raise RconError("Command must be a string")
+        command = command.strip()
         if not command:
             raise RconError("Command must not be empty")
         if len(command.encode("utf-8")) > MAX_COMMAND_LENGTH:
@@ -253,9 +279,9 @@ class RconClient:
             self.connect()
             try:
                 return self._send_command(command)
-            except (RconConnectionError, OSError):
-                # The socket was probably closed by a server restart. Drop it
-                # and try once more on a fresh connection.
+            except RconNotSentError:
+                # Nothing reached the server, so a fresh connection can safely
+                # carry the same command.
                 self.close()
                 self.connect()
                 return self._send_command(command)
@@ -280,13 +306,24 @@ class RconClient:
         """
         sock = self._sock
         if sock is None:
-            raise RconConnectionError("Not connected")
+            raise RconNotSentError("Not connected")
 
         request_id = self._next_request_id()
         sentinel_id = self._next_request_id()
 
-        sock.sendall(_encode_packet(request_id, PACKET_TYPE_COMMAND, command))
-        sock.sendall(_encode_packet(sentinel_id, PACKET_TYPE_RESPONSE, ""))
+        try:
+            sock.sendall(_encode_packet(request_id, PACKET_TYPE_COMMAND, command))
+        except OSError as exc:
+            # A command packet is well under one segment, so a stale socket
+            # fails here with nothing delivered. This is the retryable case.
+            raise RconNotSentError(f"Could not send command: {exc}") from exc
+
+        # Past this point the server has the command. Every failure below leaves
+        # the outcome unknown and must not be retried.
+        try:
+            sock.sendall(_encode_packet(sentinel_id, PACKET_TYPE_RESPONSE, ""))
+        except OSError as exc:
+            raise RconUnknownOutcomeError(f"Command was sent but the connection failed: {exc}") from exc
 
         parts: list[str] = []
         while True:
@@ -298,7 +335,9 @@ class RconClient:
                 # failing the command.
                 if parts:
                     break
-                raise RconConnectionError("Timed out waiting for RCON response") from None
+                raise RconUnknownOutcomeError("Command was sent but no response arrived") from None
+            except (OSError, RconConnectionError) as exc:
+                raise RconUnknownOutcomeError(f"Command was sent but the response was lost: {exc}") from exc
 
             if response_id == sentinel_id:
                 break
@@ -320,19 +359,41 @@ def _close_quietly(sock: socket.socket) -> None:
     try:
         sock.close()
     except OSError:
+        # The connection is being discarded either way. A socket that is
+        # already closed, reset, or whose fd is gone raises here, and there is
+        # nothing useful left to do about it.
         pass
 
 
 # Module-level shared client. Built lazily so importing this module never
 # touches the network or the config file.
 _client: Optional[RconClient] = None
+_client_config_mtime: Optional[float] = None
 _client_lock = threading.Lock()
 
 
+def _config_mtime() -> Optional[float]:
+    """Last-modified time of the RCON config, or None if it is absent."""
+    try:
+        return RCON_CONFIG_FILE.stat().st_mtime
+    except OSError:
+        return None
+
+
 def get_client(timeout: float = DEFAULT_TIMEOUT) -> RconClient:
-    """Return the shared client, creating it from config on first use."""
-    global _client
+    """Return the shared client, creating it from config on first use.
+
+    The config file is re-read when it changes on disk, so rotating the RCON
+    password with ``scripts/rcon-setup.sh`` takes effect without restarting the
+    API.
+    """
+    global _client, _client_config_mtime
     with _client_lock:
+        mtime = _config_mtime()
+        if _client is not None and mtime != _client_config_mtime:
+            _client.close()
+            _client = None
+
         if _client is None:
             settings = load_rcon_config()
             _client = RconClient(
@@ -341,28 +402,38 @@ def get_client(timeout: float = DEFAULT_TIMEOUT) -> RconClient:
                 password=settings["password"],
                 timeout=timeout,
             )
+            _client_config_mtime = mtime
         return _client
 
 
 def reset_client() -> None:
     """Drop the shared client so the next call re-reads config.
 
-    Used by tests and after the RCON password is rotated.
+    Used by tests, and available for forcing a reconnect.
     """
-    global _client
+    global _client, _client_config_mtime
     with _client_lock:
         if _client is not None:
             _client.close()
         _client = None
+        _client_config_mtime = None
 
 
 def execute(command: str) -> tuple[Optional[str], Optional[str], int]:
     """Run a command, returning ``(stdout, stderr, returncode)``.
 
     Matches the shape of ``run_script`` in ``api/server.py`` so call sites can
-    use either path. A return code of ``503`` means RCON is not configured and
-    the caller should fall back to ``scripts/rcon-client.sh``, which can also
-    reach ``rcon-cli`` inside the container.
+    use either path.
+
+    The code tells the caller whether retrying elsewhere is safe:
+
+    * ``503`` — not configured, nothing was sent. Falling back to
+      ``scripts/rcon-client.sh`` is safe, and worthwhile because that script can
+      also reach ``rcon-cli`` inside the container.
+    * ``502`` — could not reach the server, nothing was sent. Fallback is safe.
+    * ``500`` — the command reached the server but its result was lost. The
+      outcome is unknown, so it must **not** be run again by any other path.
+    * ``401`` / ``400`` — rejected. Retrying repeats the same failure.
     """
     try:
         return get_client().command(command), None, 0
@@ -370,6 +441,8 @@ def execute(command: str) -> tuple[Optional[str], Optional[str], int]:
         return None, str(exc), 503
     except RconAuthError as exc:
         return None, str(exc), 401
+    except RconUnknownOutcomeError as exc:
+        return None, str(exc), 500
     except RconConnectionError as exc:
         return None, str(exc), 502
     except RconError as exc:

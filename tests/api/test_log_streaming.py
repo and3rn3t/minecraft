@@ -220,3 +220,153 @@ class TestDisconnect:
             api_module.handle_disconnect()
 
         assert api_module.active_log_streams == {"sid-b"}
+
+
+class TestBacklogIsNotReplayed:
+    """The follower persists what it reads, so a replayed tail duplicates events.
+
+    Attaching with `--tail 200` meant every API restart and every re-attach
+    recorded the same chat, join and death lines again, and the counts climbed
+    with each one. New clients still get scrollback from `get_log_tail()` at
+    connect time, which does not touch the bus.
+    """
+
+    def test_follower_attaches_with_no_backlog(self):
+        api_module._log_reader_state["running"] = True
+
+        proc = MagicMock()
+        proc.stdout = iter([])
+
+        with patch("api.server.subprocess.Popen", return_value=proc) as popen, patch.object(
+            api_module.socketio, "emit"
+        ), patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
+            api_module._log_reader()
+
+        command = popen.call_args.args[0]
+        assert "--tail" in command
+        assert command[command.index("--tail") + 1] == "0"
+
+    def test_reattaching_does_not_republish_old_lines(self):
+        """Two attaches in a row must publish each line exactly once."""
+        api_module._log_reader_state["running"] = True
+
+        attaches = []
+
+        def make_proc(*_args, **_kwargs):
+            proc = MagicMock()
+            # A replaying tail would hand back the same line on every attach.
+            proc.stdout = iter(["[16:04:23] [Server thread/INFO]: Jonah joined the game\n"])
+            attaches.append(proc)
+            return proc
+
+        def stop_on_second_attach(*_args, **_kwargs):
+            if len(attaches) >= 2:
+                api_module._log_reader_state["stop"] = True
+
+        with patch("api.server.subprocess.Popen", side_effect=make_proc), patch.object(
+            api_module, "_publish_log_line"
+        ) as publish, patch.object(api_module.socketio, "emit"), patch.object(
+            api_module.socketio, "sleep", side_effect=stop_on_second_attach
+        ):
+            api_module._log_reader()
+
+        # Two attaches, one line each, because neither replays a backlog.
+        assert publish.call_count == len(attaches)
+
+    def test_connecting_client_still_receives_scrollback(self):
+        """Dropping the follower's tail must not cost the UI its history."""
+        api_module.API_KEYS["scrollback-key"] = {"enabled": True}
+        request = MagicMock()
+        request.sid = "sid-scrollback"
+
+        try:
+            with patch("api.server.request", request), patch.object(
+                api_module, "get_log_tail", return_value=["old line"]
+            ) as tail, patch.object(api_module.socketio, "emit") as emit, patch.object(
+                api_module, "_ensure_log_reader"
+            ):
+                api_module.handle_connect({"api_key": "scrollback-key"})
+
+            tail.assert_called_once()
+            initial = [c.args[1] for c in emit.call_args_list if c.args[0] == "logs"]
+            assert initial and initial[0]["type"] == "initial"
+            assert initial[0]["logs"] == ["old line"]
+        finally:
+            api_module.API_KEYS.pop("scrollback-key", None)
+            api_module.active_log_streams.discard("sid-scrollback")
+
+
+class TestStoppingTheReader:
+    def test_stop_kills_the_running_process(self):
+        """A quiet server blocks in the read, so the flag alone cannot stop it."""
+        proc = MagicMock()
+        api_module._log_reader_state["proc"] = proc
+
+        try:
+            api_module.stop_log_reader()
+            assert api_module._log_reader_state["stop"] is True
+            proc.kill.assert_called_once()
+        finally:
+            api_module._log_reader_state["proc"] = None
+
+    def test_stop_is_safe_when_no_process_is_running(self):
+        api_module._log_reader_state["proc"] = None
+        api_module.stop_log_reader()
+        assert api_module._log_reader_state["stop"] is True
+
+    def test_stop_survives_a_process_that_already_exited(self):
+        proc = MagicMock()
+        proc.kill.side_effect = ProcessLookupError
+        api_module._log_reader_state["proc"] = proc
+
+        try:
+            api_module.stop_log_reader()
+            assert api_module._log_reader_state["stop"] is True
+        finally:
+            api_module._log_reader_state["proc"] = None
+
+    def test_process_reference_is_cleared_when_the_reader_exits(self):
+        api_module._log_reader_state["running"] = True
+
+        proc = MagicMock()
+        proc.stdout = iter([])
+
+        with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
+            api_module.socketio, "emit"
+        ), patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
+            api_module._log_reader()
+
+        assert api_module._log_reader_state["proc"] is None
+
+
+class TestCommandInputValidation:
+    """A truthy non-string command raised inside the sanitizer, which sits
+    outside the handler's try block, so the client got no error at all."""
+
+    def _emit_for(self, payload):
+        request = MagicMock()
+        request.sid = "sid-a"
+        with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
+            api_module, "run_rcon_command"
+        ) as run:
+            api_module.handle_execute_command(payload)
+        return emit, run
+
+    def test_numeric_command_returns_an_error(self):
+        emit, run = self._emit_for({"command": 1})
+
+        errors = [c.args[1]["message"] for c in emit.call_args_list if c.args[0] == "command_error"]
+        assert errors and "string" in errors[0].lower()
+        run.assert_not_called()
+
+    def test_list_command_returns_an_error(self):
+        emit, run = self._emit_for({"command": ["say", "hi"]})
+
+        assert any(c.args[0] == "command_error" for c in emit.call_args_list)
+        run.assert_not_called()
+
+    def test_missing_command_still_returns_an_error(self):
+        emit, run = self._emit_for({})
+
+        assert any(c.args[0] == "command_error" for c in emit.call_args_list)
+        run.assert_not_called()

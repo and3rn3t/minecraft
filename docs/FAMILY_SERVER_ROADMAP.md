@@ -56,8 +56,9 @@ Socket.IO. Two changes turn it into an event bus:
    `data/events/YYYY-MM-DD.jsonl`, then emit both the raw line (back-compat with
    the Logs page) and the typed event on a new Socket.IO channel.
 
-Event types to start with: `chat`, `join`, `leave`, `death`, `advancement`,
-`command`, `server_start`, `server_stop`. Vanilla log lines carry all of these.
+Shipped event types: `chat`, `connect`, `join`, `leave`, `death`,
+`advancement`, `command`, `server_ready`, `server_stopping`. Vanilla log lines
+carry all of these.
 
 Shipped as [`api/events.py`](../api/events.py) with the always-on follower in
 `api/server.py`, the `GET /api/events` endpoints and a `game_event` WebSocket

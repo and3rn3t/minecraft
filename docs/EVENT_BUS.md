@@ -141,13 +141,23 @@ Raw `logs` messages continue unchanged, so the existing Logs page is unaffected.
 
 ## Operational notes
 
+- **The follower attaches with `--tail 0`, on purpose.** Every line it reads is
+  persisted as an event, so replaying a backlog would record the same deaths and
+  advancements again on every API restart and every re-attach, and the counts
+  would climb with each one. New clients still get their scrollback: the
+  WebSocket sends it separately on connect, and that path does not touch the bus.
+  The trade is that events occurring while the API is down are not captured,
+  which is far better than recording some of them repeatedly.
 - The follower re-attaches by itself. `docker logs -f` exits when the container
   stops, and the reader waits two seconds and tries again, so a server restart
   resumes streaming without intervention.
 - If Docker is not installed the reader reports it once and stops, rather than
   retrying forever.
 - `stop_log_reader()` in [`api/server.py`](../api/server.py) brings the follower
-  down deliberately. It exits after the line it is currently handling.
+  down deliberately. It kills the `docker logs` process to break the blocking
+  read, because a quiet server would otherwise leave the reader parked in it.
+- Buffered events are also flushed on a timer, so the last few on a quiet server
+  are not left in memory waiting for the next one.
 
 ## Related
 

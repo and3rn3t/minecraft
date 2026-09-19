@@ -385,11 +385,15 @@ def run_rcon_command(command):
     """Execute a Minecraft command over RCON, returning (stdout, stderr, code).
 
     Prefers the pooled in-process client in ``api/rcon.py``, which reuses one
-    authenticated connection. Falls back to ``scripts/rcon-client.sh`` when RCON
-    is unconfigured or unreachable from here, because that script can also reach
+    authenticated connection. Falls back to ``scripts/rcon-client.sh`` only when
+    the command provably never reached the server, because that script can reach
     ``rcon-cli`` inside the container when the port is not published to the host.
-    An auth failure or a rejected command is returned as-is; retrying those
-    through the script would only repeat the same failure more slowly.
+
+    Minecraft commands are not idempotent. ``502`` and ``503`` mean nothing was
+    sent, so running the command by another route is safe. Every other code is
+    returned as-is: an auth failure or a rejected command would fail the same
+    way again, and ``500`` means the command reached the server but its result
+    was lost, so repeating it could apply a ``give`` or a ``kill`` twice.
     """
     if RCON_AVAILABLE:
         stdout, stderr, code = rcon.execute(command)
@@ -1830,6 +1834,10 @@ def send_command():
     command = data.get("command")
     if not command:
         return jsonify({"error": "Command required"}), 400
+    if not isinstance(command, str):
+        # The sanitizer calls string methods, so a JSON number or object would
+        # raise inside it and surface as a 500 rather than a bad request.
+        return jsonify({"error": "Command must be a string"}), 400
 
     # Validate and sanitize command to prevent command injection
     if SECURITY_AVAILABLE:
@@ -3718,7 +3726,7 @@ if SOCKETIO_AVAILABLE:
     # starter share one piece of state without `global` declarations. The
     # follower no longer stops when the last client disconnects, so `stop` is
     # what shutdown and the tests use to bring it down deliberately.
-    _log_reader_state = {"running": False, "stop": False}
+    _log_reader_state = {"running": False, "stop": False, "proc": None}
 
     LOG_BACKLOG_LINES = 200
 
@@ -3766,17 +3774,28 @@ if SOCKETIO_AVAILABLE:
         meant every death, advancement and chat message that happened with the
         dashboard closed was lost. Events are parsed and recorded continuously;
         the WebSocket fanout is just one consumer of them.
+
+        It attaches with `--tail 0` deliberately. Because every line read here
+        is persisted as an event, replaying a backlog would record the same
+        deaths and advancements again on every API restart and every re-attach,
+        and the counts would climb with each one. New clients still get their
+        scrollback: `handle_connect` sends `get_log_tail()` separately, and that
+        path does not touch the bus. The trade is that events occurring while
+        the API is down are not captured, which is far better than recording
+        some of them repeatedly.
         """
         while not _log_reader_state["stop"]:
             proc = None
             try:
                 proc = subprocess.Popen(
-                    ["docker", "logs", "-f", "--tail", str(LOG_BACKLOG_LINES), "minecraft-server"],
+                    ["docker", "logs", "-f", "--tail", "0", "minecraft-server"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,
                 )
+                with _log_streams_lock:
+                    _log_reader_state["proc"] = proc
 
                 for line in proc.stdout:
                     if _log_reader_state["stop"]:
@@ -3811,6 +3830,8 @@ if SOCKETIO_AVAILABLE:
                 for sid in subscribers:
                     socketio.emit("error", {"message": f"Log streaming error: {str(e)}"}, room=sid)
             finally:
+                with _log_streams_lock:
+                    _log_reader_state["proc"] = None
                 if proc is not None:
                     try:
                         proc.kill()
@@ -3841,9 +3862,23 @@ if SOCKETIO_AVAILABLE:
         socketio.start_background_task(_log_reader)
 
     def stop_log_reader():
-        """Ask the follower to finish. It exits after its current line."""
+        """Stop the follower.
+
+        Setting the flag alone is not enough. A quiet server leaves the reader
+        blocked in `for line in proc.stdout`, where it never gets to check the
+        flag, so `docker logs -f` is killed to break the read. The reader then
+        unblocks, sees the flag and exits.
+        """
         with _log_streams_lock:
             _log_reader_state["stop"] = True
+            proc = _log_reader_state["proc"]
+
+        if proc is not None:
+            try:
+                proc.kill()
+            except Exception:
+                # Already exited, which is the outcome we wanted anyway.
+                pass
 
     @socketio.on("connect")
     def handle_connect(auth):
@@ -3896,6 +3931,11 @@ if SOCKETIO_AVAILABLE:
         command = data.get("command") if data else None
         if not command:
             socketio.emit("command_error", {"message": "Command required"}, room=request.sid)
+            return
+        if not isinstance(command, str):
+            # Raising inside the sanitizer happens before the try block below,
+            # which would leave the client waiting with no error at all.
+            socketio.emit("command_error", {"message": "Command must be a string"}, room=request.sid)
             return
 
         # Sanitise exactly as POST /api/server/command does. This path reached
@@ -3951,8 +3991,11 @@ def start_event_capture():
     if not (SOCKETIO_AVAILABLE and socketio and EVENTS_AVAILABLE):
         return False
 
-    if EVENTS_AVAILABLE:
-        game_events.get_bus().set_error_logger(app.logger.error)
+    bus = game_events.get_bus()
+    bus.set_error_logger(app.logger.error)
+    # Without this, the last few events on a quiet server stay buffered until
+    # something else happens.
+    bus.start_periodic_flush()
 
     _ensure_log_reader()
     return True

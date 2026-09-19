@@ -27,6 +27,8 @@ from api.rcon import (  # noqa: E402
     RconConnectionError,
     RconError,
     RconNotConfiguredError,
+    RconNotSentError,
+    RconUnknownOutcomeError,
     _encode_packet,
     execute,
     get_client,
@@ -72,10 +74,13 @@ class FakeRconServer:
     packet types get an "Unknown request" reply so the sentinel works.
     """
 
-    def __init__(self, password=TEST_PASSWORD, responses=None, answer_sentinel=True):
+    def __init__(self, password=TEST_PASSWORD, responses=None, answer_sentinel=True, drop_after_command=False):
         self.password = password
         self.responses = responses or {}
         self.answer_sentinel = answer_sentinel
+        # Simulates a server that receives a command, may well act on it, then
+        # dies before the response is read.
+        self.drop_after_command = drop_after_command
         self.received_commands = []
         self.connection_count = 0
         self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,6 +100,8 @@ class FakeRconServer:
         try:
             self._server.close()
         except OSError:
+            # Already closed, or the accept loop closed it first. Either way
+            # the listener is gone, which is what stop() is for.
             pass
 
     def _serve(self):
@@ -125,6 +132,8 @@ class FakeRconServer:
                         conn.sendall(_encode(-1, PACKET_TYPE_AUTH_RESPONSE, ""))
                 elif packet_type == PACKET_TYPE_COMMAND and authenticated:
                     self.received_commands.append(body)
+                    if self.drop_after_command:
+                        return
                     self._send_response(conn, request_id, self.responses.get(body, f"ran: {body}"))
                 elif self.answer_sentinel:
                     conn.sendall(_encode(request_id, PACKET_TYPE_RESPONSE, "Unknown request 0"))
@@ -134,6 +143,7 @@ class FakeRconServer:
             try:
                 conn.close()
             except OSError:
+                # The peer has usually closed first; nothing left to clean up.
                 pass
 
     def _send_response(self, conn, request_id, message):
@@ -364,3 +374,182 @@ class TestSharedClient:
         )
         stdout, stderr, code = execute("list")
         assert (stdout, stderr, code) == ("ran: list", None, 0)
+
+
+@pytest.mark.integration
+class TestRetrySafety:
+    """Minecraft commands are not idempotent, so a retry must be provably safe.
+
+    Re-sending a `give`, `summon` or `kill` after a lost response would apply
+    the effect twice, so only failures that happened before the command reached
+    the server may be retried.
+    """
+
+    def test_stale_connection_is_retried(self):
+        """Nothing was sent, so the same command on a fresh socket is correct."""
+        server = FakeRconServer().start()
+        try:
+            client = RconClient(server.host, server.port, TEST_PASSWORD)
+            client.command("say first")
+            client._sock.close()
+
+            assert client.command("give Jonah diamond 1") == "ran: give Jonah diamond 1"
+            assert server.received_commands == ["say first", "give Jonah diamond 1"]
+            client.close()
+        finally:
+            server.stop()
+
+    def test_lost_response_is_not_retried(self):
+        """The server may already have run it, so it must not run again."""
+        server = FakeRconServer(drop_after_command=True).start()
+        try:
+            client = RconClient(server.host, server.port, TEST_PASSWORD, timeout=1.0)
+            with pytest.raises(RconUnknownOutcomeError):
+                client.command("give Jonah diamond 64")
+
+            assert server.received_commands == ["give Jonah diamond 64"]
+            client.close()
+        finally:
+            server.stop()
+
+    def test_not_sent_error_is_a_connection_error(self):
+        """Existing callers that catch RconConnectionError keep working."""
+        assert issubclass(RconNotSentError, RconConnectionError)
+
+    def test_unknown_outcome_is_not_a_connection_error(self):
+        """It must not be swept up by handlers that retry connection errors."""
+        assert not issubclass(RconUnknownOutcomeError, RconConnectionError)
+
+    def test_execute_maps_lost_response_to_500(self, monkeypatch):
+        """500 tells run_rcon_command not to re-run it through the shell."""
+        server = FakeRconServer(drop_after_command=True).start()
+        try:
+            monkeypatch.setattr(
+                "api.rcon.load_rcon_config",
+                lambda *_: {"host": server.host, "port": server.port, "password": TEST_PASSWORD},
+            )
+            stdout, stderr, code = execute("kill @e")
+            assert (stdout, code) == (None, 500)
+            assert "sent" in stderr.lower()
+        finally:
+            server.stop()
+
+
+@pytest.mark.unit
+class TestCredentialReload:
+    def test_changed_config_rebuilds_the_client(self, tmp_path, monkeypatch):
+        """Rotating the RCON password should not require an API restart."""
+        config = tmp_path / "rcon.conf"
+        config.write_text("RCON_HOST=localhost\nRCON_PORT=25575\nRCON_PASSWORD=first\n")
+        monkeypatch.setattr("api.rcon.RCON_CONFIG_FILE", config)
+
+        first = get_client()
+        assert first.password == "first"
+
+        # Timestamps have coarse resolution on some filesystems, so move the
+        # mtime explicitly rather than relying on the write being "later".
+        config.write_text("RCON_HOST=localhost\nRCON_PORT=25575\nRCON_PASSWORD=second\n")
+        import os
+
+        stat = config.stat()
+        os.utime(config, (stat.st_atime + 10, stat.st_mtime + 10))
+
+        second = get_client()
+        assert second is not first
+        assert second.password == "second"
+
+    def test_unchanged_config_keeps_the_same_client(self, tmp_path, monkeypatch):
+        config = tmp_path / "rcon.conf"
+        config.write_text("RCON_PASSWORD=stable\n")
+        monkeypatch.setattr("api.rcon.RCON_CONFIG_FILE", config)
+
+        assert get_client() is get_client()
+
+
+@pytest.mark.unit
+class TestCommandTypeValidation:
+    def test_non_string_command_is_rejected(self, rcon_server):
+        """The length check calls str methods, so this must fail cleanly."""
+        client = RconClient(rcon_server.host, rcon_server.port, TEST_PASSWORD)
+        with pytest.raises(RconError, match="string"):
+            client.command(42)
+        assert rcon_server.received_commands == []
+
+    def test_none_command_is_rejected(self, rcon_server):
+        client = RconClient(rcon_server.host, rcon_server.port, TEST_PASSWORD)
+        with pytest.raises(RconError):
+            client.command(None)
+
+
+@pytest.mark.api
+class TestRunRconCommandFallback:
+    """api/server.py falls back to the shell script only when that is safe.
+
+    Minecraft commands are not idempotent, so the fallback must run only when
+    the pooled client proved the command never reached the server.
+    """
+
+    @pytest.fixture
+    def server_module(self):
+        import api.server as module
+
+        return module
+
+    def _execute_returning(self, server_module, monkeypatch, code):
+        calls = {"script": 0}
+
+        def fake_execute(_command):
+            return (None, "failed", code) if code else ("ok", None, 0)
+
+        def fake_run_script(*_args, **_kwargs):
+            calls["script"] += 1
+            return "from script", None, 0
+
+        monkeypatch.setattr(server_module.rcon, "execute", fake_execute)
+        monkeypatch.setattr(server_module, "run_script", fake_run_script)
+        result = server_module.run_rcon_command("give Jonah diamond 1")
+        return result, calls["script"]
+
+    @pytest.mark.parametrize("code", [502, 503])
+    def test_falls_back_when_nothing_was_sent(self, server_module, monkeypatch, code):
+        result, script_calls = self._execute_returning(server_module, monkeypatch, code)
+        assert script_calls == 1
+        assert result[0] == "from script"
+
+    def test_does_not_fall_back_when_the_outcome_is_unknown(self, server_module, monkeypatch):
+        """The server may already have run it; running it again would duplicate."""
+        result, script_calls = self._execute_returning(server_module, monkeypatch, 500)
+        assert script_calls == 0
+        assert result[2] == 500
+
+    @pytest.mark.parametrize("code", [400, 401])
+    def test_does_not_fall_back_on_rejection(self, server_module, monkeypatch, code):
+        result, script_calls = self._execute_returning(server_module, monkeypatch, code)
+        assert script_calls == 0
+        assert result[2] == code
+
+    def test_success_never_touches_the_script(self, server_module, monkeypatch):
+        result, script_calls = self._execute_returning(server_module, monkeypatch, 0)
+        assert script_calls == 0
+        assert result == ("ok", None, 0)
+
+
+@pytest.mark.api
+class TestCommandEndpointTypeValidation:
+    def test_numeric_command_is_a_bad_request_not_a_crash(self, client, mock_api_keys):
+        """The sanitizer calls string methods, which raised a 500 before."""
+        response = client.post(
+            "/api/server/command",
+            headers={"X-API-Key": mock_api_keys},
+            json={"command": 1},
+        )
+        assert response.status_code == 400
+        assert "string" in response.get_json()["error"].lower()
+
+    def test_object_command_is_a_bad_request(self, client, mock_api_keys):
+        response = client.post(
+            "/api/server/command",
+            headers={"X-API-Key": mock_api_keys},
+            json={"command": {"say": "hi"}},
+        )
+        assert response.status_code == 400

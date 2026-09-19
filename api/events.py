@@ -284,9 +284,14 @@ class EventBus:
         self._handlers: list[Callable[[GameEvent], None]] = []
         self._buffer: list[GameEvent] = []
         self._lock = threading.RLock()
+        # Separate from _lock: the buffer swap is quick, but the file append
+        # must not interleave with another flush, and holding _lock across the
+        # write would block every publish for the duration of the I/O.
+        self._write_lock = threading.Lock()
         self._last_flush = datetime.now(timezone.utc)
         self._last_pruned_date: Optional[str] = None
         self._error_logger: Optional[Callable[[str], None]] = None
+        self._flush_timer: Optional[threading.Timer] = None
 
     def set_error_logger(self, logger: Callable[[str], None]) -> None:
         """Route handler errors somewhere visible, normally ``app.logger``."""
@@ -297,6 +302,10 @@ class EventBus:
             try:
                 self._error_logger(message)
             except Exception:  # noqa: BLE001 - logging must never raise
+                # The error logger is supplied by the caller and may itself be
+                # broken or closed. Swallowing it here is deliberate: a failure
+                # to report a problem must not become a second problem on the
+                # thread that feeds the bus.
                 pass
 
     def subscribe(self, handler: Callable[[GameEvent], None]) -> Callable[[GameEvent], None]:
@@ -352,11 +361,12 @@ class EventBus:
 
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         try:
-            self.events_dir.mkdir(parents=True, exist_ok=True)
-            target = self.events_dir / f"{today}.jsonl"
-            with open(target, "a", encoding="utf-8") as handle:
-                for event in pending:
-                    handle.write(event.to_json() + "\n")
+            with self._write_lock:
+                self.events_dir.mkdir(parents=True, exist_ok=True)
+                target = self.events_dir / f"{today}.jsonl"
+                with open(target, "a", encoding="utf-8") as handle:
+                    for event in pending:
+                        handle.write(event.to_json() + "\n")
         except OSError as exc:
             # Losing an event to a full or read-only disk must not stop the
             # server from running, so this is reported and dropped.
@@ -368,6 +378,44 @@ class EventBus:
             self.prune()
 
         return len(pending)
+
+    def start_periodic_flush(self) -> None:
+        """Flush on a timer as well as on publish.
+
+        The size and age thresholds are only evaluated when something is
+        published, so on a quiet server the last few events would sit in memory
+        until the next one arrived, and be lost if the process stopped first.
+        A daemon timer bounds that window to ``flush_every_seconds``.
+        """
+        with self._lock:
+            if self._flush_timer is not None:
+                return
+            self._schedule_flush_locked()
+
+    def stop_periodic_flush(self) -> None:
+        """Cancel the flush timer and write out anything still buffered."""
+        with self._lock:
+            timer, self._flush_timer = self._flush_timer, None
+        if timer is not None:
+            timer.cancel()
+        self.flush()
+
+    def _schedule_flush_locked(self) -> None:
+        """Arm the next timer tick. Caller holds ``_lock``."""
+        timer = threading.Timer(self.flush_every_seconds, self._periodic_flush)
+        timer.daemon = True
+        self._flush_timer = timer
+        timer.start()
+
+    def _periodic_flush(self) -> None:
+        try:
+            self.flush()
+        except Exception as exc:  # noqa: BLE001 - a timer thread must not die
+            self._log_error(f"Periodic flush failed: {exc}")
+        finally:
+            with self._lock:
+                if self._flush_timer is not None:
+                    self._schedule_flush_locked()
 
     def prune(self) -> int:
         """Delete daily files older than the retention window."""
@@ -450,5 +498,5 @@ def reset_bus() -> None:
     global _bus
     with _bus_lock:
         if _bus is not None:
-            _bus.flush()
+            _bus.stop_periodic_flush()
         _bus = None

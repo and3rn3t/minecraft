@@ -44,13 +44,31 @@ All notable changes to this project will be documented in this file.
 - **The WebSocket `execute_command` handler reached RCON without sanitising its
   input**, so it bypassed the command allowlist that `POST /api/server/command`
   enforces. It now runs the same validation and writes the same audit entries.
+- **A non-string `command` value crashed inside the sanitiser** on both the REST
+  and WebSocket paths. The REST endpoint returned a 500 instead of a 400, and the
+  WebSocket raised before its error handler, leaving the client with no response
+  at all. Both now reject the value explicitly.
 
 ### Changed
 
 - **The log follower now runs from API startup rather than from the first browser
   connection**, and no longer stops when the last client disconnects. Events that
   occur while the dashboard is closed were previously lost entirely. The follower
-  can be brought down deliberately with `stop_log_reader()`.
+  can be brought down deliberately with `stop_log_reader()`, which kills the
+  `docker logs` process so a quiet server cannot leave the reader parked in a
+  blocking read.
+- **The follower attaches with `--tail 0`.** Because every line it reads is now
+  persisted as an event, replaying a backlog recorded the same events again on
+  every restart and re-attach. Connecting clients still receive scrollback, which
+  is sent separately and does not reach the bus.
+- **RCON retries are limited to commands that provably never reached the
+  server.** Minecraft commands are not idempotent, so a lost response is now
+  reported as an unknown outcome rather than retried or re-run through the shell
+  fallback, which could otherwise apply a `give` or a `kill` twice.
+- **The RCON config is re-read when it changes on disk**, so rotating the
+  password with `scripts/rcon-setup.sh` no longer needs an API restart.
+- **Buffered events are flushed on a timer as well as on publish**, so the last
+  few events on a quiet server are not left in memory indefinitely.
 
 - **Repository and documentation cleanup**
 
