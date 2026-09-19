@@ -4,15 +4,18 @@ Minecraft Server REST API
 Provides HTTP API for remote server management
 """
 
+import fcntl
 import json
 import os
 import secrets
 import subprocess
 import sys
+import tempfile
 import threading
 import urllib.parse
 import uuid
 import warnings
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -2246,19 +2249,57 @@ def list_schedules():
 SCHEDULE_TYPES = ("interval", "daily", "weekly", "cron", "once")
 
 
+@contextmanager
+def _schedule_lock():
+    """Hold an exclusive lock for the length of a read-modify-write.
+
+    scripts/command-scheduler.py writes this file too, recording last_run and
+    run_count on every pass. Without a lock, a pass that started before an API
+    write lands will write the pre-edit list back over it, and a reader can
+    catch the file mid-truncate. The daemon takes the same lock on the same
+    path, so the two exclude each other.
+    """
+    SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = SCHEDULE_FILE.with_name(SCHEDULE_FILE.name + ".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
 def _load_schedules():
     """Read the schedule file the scheduler daemon runs from."""
     if not SCHEDULE_FILE.exists():
         return {"schedules": []}
-    with open(SCHEDULE_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(SCHEDULE_FILE, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        # Matches the daemon, which also treats an unreadable file as empty
+        # rather than refusing to run at all.
+        app.logger.error("Schedule file is not valid JSON; treating it as empty")
+        return {"schedules": []}
 
 
 def _save_schedules(schedule_data):
-    """Write the schedule file back."""
+    """Write the schedule file back, atomically.
+
+    Truncating in place lets the daemon read half a document; writing a
+    sibling and renaming means it sees either the old file or the new one.
+    """
     SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(SCHEDULE_FILE, "w") as f:
-        json.dump(schedule_data, f, indent=2)
+    fd, tmp_path = tempfile.mkstemp(dir=str(SCHEDULE_FILE.parent), prefix=".schedule-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(schedule_data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, SCHEDULE_FILE)
+    except BaseException:
+        Path(tmp_path).unlink(missing_ok=True)
+        raise
 
 
 def _schedule_type_fields(schedule_type, data):
@@ -2307,7 +2348,9 @@ def create_schedule():
         if error:
             return jsonify({"error": error}), 400
 
-        schedule_data = _load_schedules()
+        condition = data.get("condition")
+        if condition is not None and not isinstance(condition, dict):
+            return jsonify({"error": "condition must be an object"}), 400
 
         schedule = {
             "id": str(uuid.uuid4()),
@@ -2322,12 +2365,13 @@ def create_schedule():
         }
         schedule.update(type_fields)
 
-        condition = data.get("condition")
         if condition:
             schedule["condition"] = condition
 
-        schedule_data.setdefault("schedules", []).append(schedule)
-        _save_schedules(schedule_data)
+        with _schedule_lock():
+            schedule_data = _load_schedules()
+            schedule_data.setdefault("schedules", []).append(schedule)
+            _save_schedules(schedule_data)
 
         username = get_username_from_request()
         log_audit_event(
@@ -2357,28 +2401,32 @@ def disable_schedule(schedule_id):
 def _set_schedule_enabled(schedule_id, enabled):
     """Shared body of the enable and disable endpoints."""
     try:
-        schedule_data = _load_schedules()
-        for schedule in schedule_data.get("schedules", []):
-            if schedule.get("id") == schedule_id:
-                schedule["enabled"] = enabled
-                _save_schedules(schedule_data)
-                log_audit_event(
-                    get_username_from_request(),
-                    "scheduler.enable" if enabled else "scheduler.disable",
-                    {"schedule_id": schedule_id},
-                )
-                return (
-                    jsonify(
-                        {
-                            "success": True,
-                            "message": f"Schedule {'enabled' if enabled else 'disabled'}",
-                            "schedule": schedule,
-                        }
-                    ),
-                    200,
-                )
+        with _schedule_lock():
+            schedule_data = _load_schedules()
+            target = next(
+                (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
+            )
+            if target is None:
+                return jsonify({"error": "Schedule not found"}), 404
 
-        return jsonify({"error": "Schedule not found"}), 404
+            target["enabled"] = enabled
+            _save_schedules(schedule_data)
+
+        log_audit_event(
+            get_username_from_request(),
+            "scheduler.enable" if enabled else "scheduler.disable",
+            {"schedule_id": schedule_id},
+        )
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": f"Schedule {'enabled' if enabled else 'disabled'}",
+                    "schedule": target,
+                }
+            ),
+            200,
+        )
     except Exception as e:
         app.logger.error(f"Failed to change schedule state: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -2390,52 +2438,61 @@ def update_schedule(schedule_id):
     """Update a scheduled command"""
     try:
         data = request.get_json() or {}
-        schedule_data = _load_schedules()
 
-        schedule = next(
-            (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
-        )
-        if not schedule:
-            return jsonify({"error": "Schedule not found"}), 404
+        if "condition" in data and data["condition"] is not None and not isinstance(data["condition"], dict):
+            return jsonify({"error": "condition must be an object"}), 400
 
-        # A type change brings its own required fields with it, so validate the
-        # result rather than letting a schedule end up as, say, a cron with no
-        # expression — which the scheduler would skip forever without saying so.
-        new_type = data.get("type", schedule.get("type"))
-        if new_type not in SCHEDULE_TYPES:
-            return jsonify({"error": f"Invalid type. Valid types: {', '.join(SCHEDULE_TYPES)}"}), 400
-
-        merged = {**schedule, **{k: v for k, v in data.items() if k != "type"}}
-        type_fields, error = _schedule_type_fields(new_type, merged)
-        if error:
-            return jsonify({"error": error}), 400
-
-        if "command" in data:
-            schedule["command"] = data["command"]
-        if "enabled" in data:
-            schedule["enabled"] = data["enabled"]
-        if "condition" in data:
-            if data["condition"]:
-                schedule["condition"] = data["condition"]
-            else:
-                schedule.pop("condition", None)
-
-        # Drop the old type's fields so a schedule switched from daily to
-        # interval doesn't keep a stale run_time hanging off it.
-        for stale in ("interval_minutes", "run_time", "day_of_week", "cron_expression", "run_datetime"):
-            schedule.pop(stale, None)
-        schedule["type"] = new_type
-        schedule.update(type_fields)
-
-        _save_schedules(schedule_data)
-
-        username = get_username_from_request()
-        log_audit_event(username, "scheduler.update", {"schedule_id": schedule_id})
-
-        return jsonify({"success": True, "schedule": schedule}), 200
+        with _schedule_lock():
+            return _update_schedule_locked(schedule_id, data)
     except Exception as e:
         app.logger.error(f"Failed to update schedule: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+def _update_schedule_locked(schedule_id, data):
+    """Body of the update endpoint, run while holding the schedule lock."""
+    schedule_data = _load_schedules()
+
+    schedule = next(
+        (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
+    )
+    if not schedule:
+        return jsonify({"error": "Schedule not found"}), 404
+
+    # A type change brings its own required fields with it, so validate the
+    # result rather than letting a schedule end up as, say, a cron with no
+    # expression — which the scheduler would skip forever without saying so.
+    new_type = data.get("type", schedule.get("type"))
+    if new_type not in SCHEDULE_TYPES:
+        return jsonify({"error": f"Invalid type. Valid types: {', '.join(SCHEDULE_TYPES)}"}), 400
+
+    merged = {**schedule, **{k: v for k, v in data.items() if k != "type"}}
+    type_fields, error = _schedule_type_fields(new_type, merged)
+    if error:
+        return jsonify({"error": error}), 400
+
+    if "command" in data:
+        schedule["command"] = data["command"]
+    if "enabled" in data:
+        schedule["enabled"] = data["enabled"]
+    if "condition" in data:
+        if data["condition"]:
+            schedule["condition"] = data["condition"]
+        else:
+            schedule.pop("condition", None)
+
+    # Drop the old type's fields so a schedule switched from daily to
+    # interval doesn't keep a stale run_time hanging off it.
+    for stale in ("interval_minutes", "run_time", "day_of_week", "cron_expression", "run_datetime"):
+        schedule.pop(stale, None)
+    schedule["type"] = new_type
+    schedule.update(type_fields)
+
+    _save_schedules(schedule_data)
+
+    log_audit_event(get_username_from_request(), "scheduler.update", {"schedule_id": schedule_id})
+
+    return jsonify({"success": True, "schedule": schedule}), 200
 
 
 @app.route("/api/scheduler/schedules/<schedule_id>", methods=["DELETE"])
@@ -2443,17 +2500,18 @@ def update_schedule(schedule_id):
 def delete_schedule(schedule_id):
     """Delete a scheduled command"""
     try:
-        schedule_data = _load_schedules()
-        schedules = schedule_data.get("schedules", [])
+        with _schedule_lock():
+            schedule_data = _load_schedules()
+            schedules = schedule_data.get("schedules", [])
 
-        remaining = [s for s in schedules if s.get("id") != schedule_id]
-        # Reporting success for an id that was never there hides a typo in the
-        # caller, and the old handler did exactly that.
-        if len(remaining) == len(schedules):
-            return jsonify({"error": "Schedule not found"}), 404
+            remaining = [s for s in schedules if s.get("id") != schedule_id]
+            # Reporting success for an id that was never there hides a typo in
+            # the caller, and the old handler did exactly that.
+            if len(remaining) == len(schedules):
+                return jsonify({"error": "Schedule not found"}), 404
 
-        schedule_data["schedules"] = remaining
-        _save_schedules(schedule_data)
+            schedule_data["schedules"] = remaining
+            _save_schedules(schedule_data)
 
         username = get_username_from_request()
         log_audit_event(username, "scheduler.delete", {"schedule_id": schedule_id})

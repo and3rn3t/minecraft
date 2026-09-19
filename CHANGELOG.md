@@ -28,6 +28,23 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **A cron schedule ran once and was then skipped forever.** The cron branch of
+  `should_run_schedule()` read a `last_run_time` that only the other branches
+  assign, so once `last_run` was set it raised `UnboundLocalError` into its own
+  `except Exception`, which returned False. It now works back from the present
+  to the slot that most recently came due, which also lets a cron catch up
+  after a missed tick instead of stalling permanently.
+- **One malformed schedule stopped every other one.** A `condition` that was
+  not an object raised on `.get()`, out of `should_run_schedule()` and through
+  the timer loop, so no later schedule was evaluated and the save at the end of
+  the pass never ran — losing the `last_run` of commands that had already been
+  executed. Each schedule is now evaluated in isolation, a non-object condition
+  is ignored with a warning, and the API rejects one outright.
+- **The API and the scheduler could overwrite each other.** Both do a
+  read-modify-write of `config/command-schedule.json`, and the daemon rewrites
+  it on every pass to record `last_run`. They now take the same exclusive lock
+  and write by renaming a sibling file into place, so a concurrent reader sees
+  either the old file or the new one rather than a half-written document.
 - **Scheduled commands silently ignored every option they were given.**
   `POST /api/commands/schedule` passed its options as JSON on standard input to
   `scripts/command-scheduler.py`, which never reads standard input, so a

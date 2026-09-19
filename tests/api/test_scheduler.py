@@ -254,6 +254,78 @@ class TestSchedulerDaemonAgreement:
 
         assert decision in (True, False)
 
+    def test_a_cron_schedule_runs_more_than_once(self, client, auth, schedule_file):
+        """The cron branch read a last_run_time it never assigned, so the
+        first run raised into its own except and the schedule was skipped
+        silently from then on."""
+        from datetime import timedelta
+
+        scheduler = self._scheduler_module()
+        if not scheduler.CRONITER_AVAILABLE:
+            pytest.skip("croniter not installed")
+
+        _create(client, auth, type="cron", cron_expression="* * * * *")
+        stored = json.loads(schedule_file.read_text())["schedules"][0]
+        now = datetime.now(timezone.utc)
+
+        # Having already run five minutes ago, a per-minute cron is due again.
+        stored["last_run"] = (now - timedelta(minutes=5)).isoformat()
+
+        assert scheduler.should_run_schedule(stored, now) is True
+
+    def test_a_cron_that_just_ran_is_not_due_again(self, client, auth, schedule_file):
+        """The other half: it must not fire on every pass either"""
+        from datetime import timedelta
+
+        scheduler = self._scheduler_module()
+        if not scheduler.CRONITER_AVAILABLE:
+            pytest.skip("croniter not installed")
+
+        _create(client, auth, type="cron", cron_expression="0 3 * * *")
+        stored = json.loads(schedule_file.read_text())["schedules"][0]
+        now = datetime.now(timezone.utc)
+        stored["last_run"] = (now - timedelta(seconds=30)).isoformat()
+
+        assert scheduler.should_run_schedule(stored, now) is False
+
+    def test_one_bad_record_does_not_stop_the_others(self, client, auth, schedule_file, monkeypatch):
+        """A malformed condition used to raise out of the loop, skipping every
+        remaining schedule and losing the last_run of ones already run."""
+        scheduler = self._scheduler_module()
+        monkeypatch.setattr(scheduler, "SCHEDULE_FILE", schedule_file)
+        monkeypatch.setattr(scheduler, "execute_command", lambda command: (True, "ok"))
+        monkeypatch.setattr(scheduler, "log_execution", lambda *a, **k: None)
+
+        schedule_file.write_text(
+            json.dumps(
+                {
+                    "schedules": [
+                        {
+                            "id": "bad",
+                            "type": "interval",
+                            "enabled": True,
+                            "interval_minutes": 1,
+                            "condition": "whenever",
+                            "command": "list",
+                        },
+                        {
+                            "id": "good",
+                            "type": "interval",
+                            "enabled": True,
+                            "interval_minutes": 1,
+                            "command": "list",
+                        },
+                    ]
+                }
+            )
+        )
+
+        scheduler.check_and_run_schedules()
+
+        after = {s["id"]: s for s in json.loads(schedule_file.read_text())["schedules"]}
+        assert after["good"]["run_count"] == 1, "the healthy schedule still ran"
+        assert after["good"]["last_run"] is not None, "and the pass still saved its result"
+
     def test_a_disabled_schedule_is_never_run(self, client, auth, schedule_file):
         """The enable/disable endpoints are only meaningful if the daemon
         honours the flag they write."""
@@ -264,6 +336,101 @@ class TestSchedulerDaemonAgreement:
         stored = json.loads(schedule_file.read_text())["schedules"][0]
 
         assert scheduler.should_run_schedule(stored, datetime.now(timezone.utc)) is False
+
+
+class TestConditionValidation:
+    """A condition that is not an object reaches check_condition() and raises
+    on .get(), out through should_run_schedule() and into the timer loop."""
+
+    @pytest.mark.parametrize("condition", ["whenever", 42, ["a", "b"], True])
+    def test_a_non_object_condition_is_refused(self, client, auth, schedule_file, condition):
+        response = _create(client, auth, type="interval", condition=condition)
+
+        assert response.status_code == 400
+        assert not schedule_file.exists()
+
+    def test_update_refuses_a_non_object_condition(self, client, auth, schedule_file):
+        schedule_id = _create(client, auth, type="interval").get_json()["schedule"]["id"]
+
+        response = client.put(
+            f"/api/scheduler/schedules/{schedule_id}", headers=auth, json={"condition": "whenever"}
+        )
+
+        assert response.status_code == 400
+        assert "condition" not in json.loads(schedule_file.read_text())["schedules"][0]
+
+    def test_an_object_condition_is_still_accepted(self, client, auth, schedule_file):
+        response = _create(client, auth, type="interval", condition={"type": "player_count", "value": 1})
+
+        assert response.status_code == 201
+
+
+class TestAtomicWrites:
+    """The daemon writes this file too, on every pass."""
+
+    def test_concurrent_writers_do_not_lose_entries(self, schedule_file):
+        """Read-modify-write without a lock drops entries when two writers
+        interleave, and Flask serves requests on threads.
+
+        This drives the store helpers rather than the HTTP client, because a
+        Flask test client cannot be shared across threads — the failure would
+        be the harness, not the thing under test.
+        """
+        import threading
+
+        errors = []
+
+        def add(i):
+            try:
+                with api_module._schedule_lock():
+                    data = api_module._load_schedules()
+                    data.setdefault("schedules", []).append({"id": str(i), "command": f"say {i}"})
+                    api_module._save_schedules(data)
+            except Exception as exc:  # noqa: BLE001 - surfaced by the assert below
+                errors.append(exc)
+
+        threads = [threading.Thread(target=add, args=(i,)) for i in range(25)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert errors == []
+        stored = json.loads(schedule_file.read_text())["schedules"]
+        assert len(stored) == 25, "an unlocked read-modify-write loses entries here"
+        assert len({s["id"] for s in stored}) == 25
+
+    def test_the_daemon_and_the_api_take_the_same_lock(self, schedule_file, monkeypatch):
+        """The two processes only exclude each other if they agree on the path"""
+        spec = importlib.util.spec_from_file_location(
+            "command_scheduler_lock", PROJECT_ROOT / "scripts" / "command-scheduler.py"
+        )
+        scheduler = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(scheduler)
+        monkeypatch.setattr(scheduler, "SCHEDULE_FILE", schedule_file)
+
+        with api_module._schedule_lock():
+            pass
+        with scheduler.schedule_lock():
+            pass
+
+        locks = list(schedule_file.parent.glob("*.lock"))
+        assert len(locks) == 1, f"expected one shared lock file, found {locks}"
+
+    def test_no_temp_files_are_left_behind(self, client, auth, schedule_file):
+        """The atomic write renames a sibling into place"""
+        _create(client, auth, type="interval")
+
+        assert list(schedule_file.parent.glob(".schedule-*.tmp")) == []
+
+    def test_an_unreadable_file_does_not_take_the_api_down(self, client, auth, schedule_file):
+        """A truncated file should read as empty, the way the daemon treats it"""
+        schedule_file.write_text("{ not json")
+
+        response = client.get("/api/scheduler/schedules", headers=auth)
+
+        assert response.status_code == 200
+        assert response.get_json()["schedules"] == []
 
 
 class TestSchedulerPermissions:
