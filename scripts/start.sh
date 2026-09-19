@@ -1,8 +1,10 @@
 #!/bin/bash
 # Minecraft Server Startup Script for Raspberry Pi 5
+#
+# Runs as PID 1 inside the container. Java is exec'd at the end so it receives
+# SIGTERM directly and can shut the world down cleanly on `docker stop`.
 
-# Don't exit on error - let Java handle crashes
-# set -e
+set -uo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,97 +21,94 @@ MEMORY_MIN=${MEMORY_MIN:-1G}
 MEMORY_MAX=${MEMORY_MAX:-2G}
 SERVER_PORT=${SERVER_PORT:-25565}
 
-# Determine jar filename based on server type
+SERVER_DIR="/minecraft/server"
+DOWNLOADER="/minecraft/scripts/download-server.sh"
+
+# Determine jar filename based on server type. These names match the output
+# filenames that download-server.sh writes.
 case "$SERVER_TYPE" in
     paper)
         MINECRAFT_JAR="paper-${MINECRAFT_VERSION}.jar"
-        # Fallback to server.jar if paper jar doesn't exist
-        if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
-            MINECRAFT_JAR="server.jar"
-        fi
         ;;
     fabric)
         MINECRAFT_JAR="fabric-server.jar"
-        # Fallback to server.jar if fabric jar doesn't exist
-        if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
-            MINECRAFT_JAR="server.jar"
-        fi
         ;;
     spigot)
         MINECRAFT_JAR="spigot.jar"
-        # Fallback to server.jar if spigot jar doesn't exist
-        if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
-            MINECRAFT_JAR="server.jar"
-        fi
         ;;
-    vanilla|*)
+    vanilla | *)
         MINECRAFT_JAR="server.jar"
         ;;
 esac
 
-# Check if EULA is accepted
-if [ ! -f "/minecraft/server/eula.txt" ] || ! grep -q "eula=true" "/minecraft/server/eula.txt"; then
-    echo -e "${YELLOW}EULA not accepted. Creating eula.txt...${NC}"
-    echo "eula=true" > /minecraft/server/eula.txt
+# Fall back to a plain server.jar if the type-specific jar was never placed
+if [ ! -f "${SERVER_DIR}/${MINECRAFT_JAR}" ] && [ -f "${SERVER_DIR}/server.jar" ]; then
+    echo -e "${YELLOW}${MINECRAFT_JAR} not found, falling back to server.jar${NC}"
+    MINECRAFT_JAR="server.jar"
 fi
 
-# Download server jar if it doesn't exist
-if [ ! -f "/minecraft/server/${MINECRAFT_JAR}" ]; then
-    echo -e "${YELLOW}Downloading Minecraft Server ${MINECRAFT_VERSION}...${NC}"
-    DOWNLOAD_URL="https://piston-data.mojang.com/v1/objects/8dd1a28015f51b1803213892b50b7b4fc76e594d/server.jar"
+# Create the directories the server writes to. Ownership is handled by the
+# image (and by scripts/fix-permissions.sh on the host for bind mounts); this
+# script deliberately does not widen permissions on the world data.
+mkdir -p "${SERVER_DIR}/logs" "${SERVER_DIR}/world" /minecraft/backups
 
-    # For version 1.20.4 - update this URL for different versions
-    # You can find the correct URL at https://www.minecraft.net/en-us/download/server
+if [ ! -w "$SERVER_DIR" ]; then
+    echo -e "${RED}${SERVER_DIR} is not writable by $(id -un).${NC}"
+    echo -e "${YELLOW}On the host, run: ./scripts/fix-permissions.sh${NC}"
+    exit 1
+fi
 
-    wget -O "/minecraft/server/${MINECRAFT_JAR}" "${DOWNLOAD_URL}" || {
-        echo -e "${RED}Failed to download Minecraft server jar${NC}"
+# Check if EULA is accepted
+if [ ! -f "${SERVER_DIR}/eula.txt" ] || ! grep -q "eula=true" "${SERVER_DIR}/eula.txt"; then
+    echo -e "${YELLOW}EULA not accepted. Creating eula.txt...${NC}"
+    echo "eula=true" > "${SERVER_DIR}/eula.txt"
+fi
+
+# Download the server jar for the requested version if it is not present.
+# download-server.sh resolves the real download URL from Mojang's version
+# manifest (and the Paper/Fabric APIs), so MINECRAFT_VERSION is honoured.
+if [ ! -f "${SERVER_DIR}/${MINECRAFT_JAR}" ]; then
+    echo -e "${YELLOW}Downloading ${SERVER_TYPE} server ${MINECRAFT_VERSION}...${NC}"
+
+    if [ ! -x "$DOWNLOADER" ]; then
+        echo -e "${RED}Downloader not found at ${DOWNLOADER}${NC}"
+        echo -e "${YELLOW}Place a server jar at ${SERVER_DIR}/${MINECRAFT_JAR} and restart.${NC}"
         exit 1
-    }
+    fi
+
+    if ! "$DOWNLOADER" --type "$SERVER_TYPE" --version "$MINECRAFT_VERSION" --output "$SERVER_DIR"; then
+        echo -e "${RED}Failed to download ${SERVER_TYPE} server ${MINECRAFT_VERSION}${NC}"
+        exit 1
+    fi
 
     echo -e "${GREEN}Download complete!${NC}"
 fi
 
-# Create necessary directories with proper permissions
-mkdir -p /minecraft/server/logs
-mkdir -p /minecraft/server/world
-mkdir -p /minecraft/backups
+if [ ! -f "${SERVER_DIR}/${MINECRAFT_JAR}" ]; then
+    echo -e "${RED}Server jar ${MINECRAFT_JAR} is missing after download${NC}"
+    exit 1
+fi
 
-# Fix permissions for directories (in case they were created by root on host)
-# This ensures the minecraft user can write to these directories
-# Use chmod with +w to add write permissions for all
-chmod -R u+w /minecraft/server/logs 2>/dev/null || true
-chmod -R u+w /minecraft/server/world 2>/dev/null || true
-chmod -R u+w /minecraft/backups 2>/dev/null || true
-chmod -R u+w /minecraft/server 2>/dev/null || true
-
-# Make directories world-writable if chmod u+w didn't work (for mounted volumes)
-# This is a workaround for permission issues with Docker volume mounts
-chmod -R 777 /minecraft/server/logs 2>/dev/null || true
-chmod -R 777 /minecraft/server/world 2>/dev/null || true
-chmod -R 777 /minecraft/backups 2>/dev/null || true
-chmod 666 /minecraft/server/server.properties 2>/dev/null || true
-chmod 666 /minecraft/server/eula.txt 2>/dev/null || true
-
-# Remove any existing session.lock files that might be blocking
-rm -f /minecraft/server/world/session.lock 2>/dev/null || true
+# A stale session.lock from an unclean shutdown stops the world from loading
+rm -f "${SERVER_DIR}/world/session.lock" 2>/dev/null || true
 
 # Display server information
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Minecraft Server Configuration${NC}"
 echo -e "${GREEN}========================================${NC}"
+echo -e "Type:    ${SERVER_TYPE}"
 echo -e "Version: ${MINECRAFT_VERSION}"
-echo -e "Memory: ${MEMORY_MIN} - ${MEMORY_MAX}"
-echo -e "Port: ${SERVER_PORT}"
+echo -e "Jar:     ${MINECRAFT_JAR}"
+echo -e "Memory:  ${MEMORY_MIN} - ${MEMORY_MAX}"
+echo -e "Port:    ${SERVER_PORT}"
 echo -e "${GREEN}========================================${NC}"
 
 # Start the server
 echo -e "${GREEN}Starting Minecraft Server...${NC}"
-cd /minecraft/server || exit 1
+cd "$SERVER_DIR" || exit 1
 
-# Add error handling - log crashes but don't exit immediately
-trap 'echo -e "${RED}Server process exited with code $?${NC}"' EXIT
-
-exec java -Xms${MEMORY_MIN} -Xmx${MEMORY_MAX} \
+# Aikar's flags, tuned for G1GC on a small heap
+exec java -Xms"${MEMORY_MIN}" -Xmx"${MEMORY_MAX}" \
     -XX:+UseG1GC \
     -XX:+ParallelRefProcEnabled \
     -XX:MaxGCPauseMillis=200 \
@@ -136,5 +135,5 @@ exec java -Xms${MEMORY_MIN} -Xmx${MEMORY_MAX} \
     -Djava.security.egd=file:/dev/urandom \
     -Dusing.aikars.flags=https://mcflags.emc.gs \
     -Daikars.new.flags=true \
-    -jar ${MINECRAFT_JAR} \
+    -jar "${MINECRAFT_JAR}" \
     --nogui
