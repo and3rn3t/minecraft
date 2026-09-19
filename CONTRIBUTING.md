@@ -114,15 +114,15 @@ Before submitting changes:
    bash -n script.sh
    
    # Docker Compose
-   docker-compose config
+   docker compose config
    
    # Dockerfile
    docker build -t test .
    ```
 
 2. **Functional tests**:
-   - Start server: `./manage.sh start`
-   - Check logs: `./manage.sh logs`
+   - Start server: `./scripts/manage.sh start`
+   - Check logs: `./scripts/manage.sh logs`
    - Connect with Minecraft client
    - Test all management commands
    - Verify backup/restore

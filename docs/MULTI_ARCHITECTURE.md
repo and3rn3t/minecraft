@@ -161,8 +161,8 @@ The `openjdk:21-jdk-slim` image is multi-architecture and Docker will pull the c
 
 ```bash
 # Standard setup (already ARM64)
-./setup-rpi.sh
-./manage.sh start
+./scripts/setup-rpi.sh
+./scripts/manage.sh start
 ```
 
 ### Raspberry Pi 4 (ARM32)
@@ -174,7 +174,7 @@ docker tag minecraft-server:latest-arm32 minecraft-server:latest
 
 # Or build locally
 ./scripts/build-multiarch.sh arch arm32
-./manage.sh start
+./scripts/manage.sh start
 ```
 
 ### x86_64 Systems
@@ -186,7 +186,7 @@ docker tag minecraft-server:latest-amd64 minecraft-server:latest
 
 # Or build locally
 ./scripts/build-multiarch.sh arch amd64
-./manage.sh start
+./scripts/manage.sh start
 ```
 
 ## Docker Compose Configuration
@@ -215,10 +215,10 @@ services:
 
 ```bash
 # ARM64
-docker-compose -f docker-compose.yml -f docker-compose.arm64.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.arm64.yml up -d
 
 # AMD64
-docker-compose -f docker-compose.yml -f docker-compose.amd64.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.amd64.yml up -d
 ```
 
 ## Registry Setup

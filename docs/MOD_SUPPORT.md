@@ -177,10 +177,10 @@ Install the mod pack:
 # In your startup script
 if ./scripts/mod-loader-detector.sh detect; then
     echo "Mod loader detected, starting modded server..."
-    ./manage.sh start
+    ./scripts/manage.sh start
 else
     echo "No mod loader detected, starting vanilla server..."
-    ./manage.sh start
+    ./scripts/manage.sh start
 fi
 ```
 
@@ -199,7 +199,7 @@ fi
 
 ```bash
 # Always backup before installing mods
-./manage.sh backup
+./scripts/manage.sh backup
 ./scripts/mod-pack-installer.sh install-url https://example.com/mod.jar
 ```
 

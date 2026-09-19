@@ -1,189 +1,50 @@
-# Testing Guide
+# Tests
 
-This directory contains automated tests for the Minecraft Server project.
+The full testing guide lives in [docs/TESTING.md](../docs/TESTING.md); web-specific
+details are in [docs/WEB_UI_TESTING.md](../docs/WEB_UI_TESTING.md). This file just
+maps the directory.
 
-## Test Structure
+## Layout
 
 ```
 tests/
-├── unit/           # Unit tests for individual scripts
-├── integration/    # Integration tests
-├── api/            # API endpoint tests
-├── e2e/            # End-to-end tests for complete workflows
-├── helpers/        # Test utilities and helpers
-│   ├── test-utils.sh    # Common test functions
-│   ├── mock-server.sh   # Mock server for testing
-│   ├── bats-support/    # BATS support library
-│   └── bats-assert/     # BATS assertion library
-└── fixtures/       # Test data and fixtures
+├── api/            pytest suite for the Flask API — run from THIS directory
+│                   (tests/api/pytest.ini holds the coverage flags and markers)
+├── unit/           BATS unit tests for individual shell scripts
+├── integration/    BATS integration tests across scripts
+├── e2e/            BATS end-to-end workflows (need a running server)
+└── helpers/        Shared test utilities, mock server, BATS support libraries
 ```
 
-## Running Tests
+Playwright browser tests live in [`web/tests/e2e/`](../web/tests/e2e/), and React
+unit tests sit beside their components in `web/src/**/__tests__/`.
 
-### Run All Tests
+## Running
 
 ```bash
-./scripts/run-tests.sh
+make test              # syntax checks + pytest + vitest
+make test-api          # pytest only
+make test-web          # vitest only
+make test-playwright   # Playwright browser tests
+make test-e2e          # BATS end-to-end
+make coverage          # pytest with a coverage report
 ```
 
-### Run Specific Test Suite
+Or directly:
 
 ```bash
-# Unit tests only
-./scripts/run-tests.sh unit
-
-# Integration tests only
-./scripts/run-tests.sh integration
-
-# API tests only
-./scripts/run-tests.sh api
-
-# E2E tests only
-./scripts/run-tests.sh e2e
+./scripts/run-tests.sh [unit|integration|api|e2e]
+cd tests/api && pytest -v
+cd tests/api && pytest -v -m performance     # markers: unit, integration, api,
+                                             # slow, performance, contract, e2e
+bats tests/unit/test-manage.sh
 ```
 
-### Run Individual Test
+## Requirements
 
-```bash
-# Bash test
-bash tests/unit/test-manage.sh
+- `bats` plus `bats-support` / `bats-assert` (vendored in `helpers/`) for shell tests
+- Python dependencies from `api/requirements-test.txt`
+- `cd web && npm install` for Vitest and Playwright
 
-# Python test
-python3 -m pytest tests/api/test_api.py
-```
-
-## Test Requirements
-
-### Bash Tests
-
-- `bats` (Bash Automated Testing System) - for bash script tests
-- Standard bash utilities
-
-### Python Tests
-
-- `pytest` - Python testing framework
-- `requests` - For API testing
-
-Install dependencies:
-
-```bash
-./scripts/run-tests.sh install-deps
-```
-
-## Writing Tests
-
-### Bash Script Tests
-
-Create test file: `tests/unit/test-<script-name>.sh`
-
-```bash
-#!/usr/bin/env bats
-
-load 'helpers/bats-support/load'
-load 'helpers/bats-assert/load'
-
-@test "script does something" {
-    run ./scripts/script.sh command
-    assert_success
-    assert_output --partial "expected output"
-}
-```
-
-### End-to-End Tests
-
-Create E2E test file: `tests/e2e/test-<workflow>.sh`
-
-```bash
-#!/usr/bin/env bats
-
-load 'helpers/bats-support/load'
-load 'helpers/bats-assert/load'
-load 'helpers/test-utils.sh'
-
-@test "complete workflow test" {
-    # Test complete workflow
-    run some_command
-    assert_success
-}
-```
-
-### Python Tests
-
-Create test file: `tests/api/test_<module>.py`
-
-```python
-import pytest
-from api.server import app
-
-def test_endpoint(client):
-    response = client.get('/api/health')
-    assert response.status_code == 200
-```
-
-## Test Utilities
-
-### test-utils.sh
-
-Common test functions:
-
-- `create_test_dir()` - Create temporary test directory
-- `wait_for_server()` - Wait for server to be ready
-- `create_test_backup()` - Create test backup file
-- `api_request()` - Make authenticated API request
-- `assert_file_exists()` - Assert file exists
-- `assert_file_contains()` - Assert file contains text
-
-### mock-server.sh
-
-Mock Minecraft server for testing:
-
-- `start_mock_server` - Start mock server
-- `stop_mock_server` - Stop mock server
-- `status_mock_server` - Check server status
-
-Usage:
-
-```bash
-source tests/helpers/mock-server.sh
-start_mock_server
-# Run tests
-stop_mock_server
-```
-
-## CI/CD Integration
-
-Tests run automatically on:
-
-- Pull requests
-- Pushes to main branch
-- Manual workflow dispatch
-
-See `.github/workflows/tests.yml` for configuration.
-
-## Test Coverage
-
-Run tests with coverage:
-
-```bash
-# Python tests with coverage
-pytest tests/api/ --cov=api --cov-report=html
-
-# View coverage report
-open htmlcov/index.html
-
-# Web UI tests with coverage
-cd web
-npm run test:coverage
-
-# Check coverage threshold
-./scripts/check-coverage.sh check
-```
-
-## Current Coverage Status
-
-- **API Tests**: ~65% coverage
-- **Web UI Component Tests**: ~50% coverage
-- **E2E Workflows**: ~40% coverage
-- **Overall Coverage**: ~65%+ (target: 70%)
-
-See [TEST_COVERAGE.md](../docs/TEST_COVERAGE.md) for detailed coverage information.
+`--strict-markers` is enabled, so a new pytest marker must be registered in
+`tests/api/pytest.ini` and `pyproject.toml` before it can be used.

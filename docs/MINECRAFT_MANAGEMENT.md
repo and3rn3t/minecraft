@@ -306,6 +306,6 @@ The server properties manager validates all property values:
 
 - [Server Properties Guide](https://minecraft.fandom.com/wiki/Server.properties)
 - [Performance Tuning](RASPBERRY_PI_OPTIMIZATIONS.md)
-- [API Documentation](API_DOCUMENTATION.md)
+- [API Documentation](API.md)
 - [Quick Reference](QUICK_REFERENCE.md)
 

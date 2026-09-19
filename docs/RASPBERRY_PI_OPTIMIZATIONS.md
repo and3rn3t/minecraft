@@ -356,10 +356,10 @@ Use Docker build cache effectively:
 
 ```bash
 # Build with cache
-docker-compose build --parallel
+docker compose build --parallel
 
 # Or use BuildKit
-DOCKER_BUILDKIT=1 docker-compose build
+DOCKER_BUILDKIT=1 docker compose build
 ```
 
 ### Parallel Builds

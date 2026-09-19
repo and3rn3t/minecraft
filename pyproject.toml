@@ -30,31 +30,20 @@ addopts = [
     "--strict-markers",
     "--tb=short",
 ]
+# Keep in sync with tests/api/pytest.ini, which is the config actually used
+# when the suite runs from tests/api (--strict-markers is enabled in both).
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "api: API endpoint tests",
     "slow: Slow running tests",
+    "performance: Performance tests",
+    "contract: API contract tests",
+    "e2e: End-to-end tests",
 ]
 
-[tool.coverage.run]
-source = ["api"]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "*/__pycache__/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-    "@abstractmethod",
-]
+# Coverage settings live in .coverage-config.ini (a single source of truth,
+# referenced explicitly by the Makefile and scripts/check-coverage.sh).
 
 [tool.flake8]
 max-line-length = 120

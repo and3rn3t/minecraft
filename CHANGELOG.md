@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Repository and documentation cleanup**
+
+  - Consolidated AI assistant configuration on `AGENTS.md` as the single source of
+    truth, following the `ai-template-repo` convention. `AGENT_INSTRUCTIONS.md` and
+    the 317-line `.cursorrules` (which duplicated each other) were merged into it.
+    `CLAUDE.md`, `.cursorrules`, `.cursor/rules/project.mdc`, `.clinerules`,
+    `.windsurfrules` and `.github/copilot-instructions.md` are now thin pointers.
+  - Rewrote `README.md`: fixed broken links, corrected every `./manage.sh` and
+    `./setup-rpi.sh` path to `./scripts/...`, replaced the hand-written systemd unit
+    with the one shipped in `systemd/`, and documented `.env` configuration.
+  - Rewrote `docs/INDEX.md` as a task-oriented index of all 48 guides;
+    `docs/README.md` and `tests/README.md` are now short pointers to it.
+  - Merged `RESTART_LOOP_TROUBLESHOOTING.md` and `DOCKER_COMPOSE_FIX.md` into
+    `docs/TROUBLESHOOTING.md`, and `TEST_COVERAGE.md` into `docs/TESTING.md`.
+  - Replaced `docker-compose` with `docker compose` throughout the documentation to
+    match the Compose v2 plugin the `Makefile` and systemd units actually use.
+  - Added `.env.example` (referenced by the `Makefile` but previously missing).
+  - Synced the pytest markers in `pyproject.toml` with `tests/api/pytest.ini`, and
+    removed the duplicate `[tool.coverage]` block so `.coverage-config.ini` is the
+    only coverage config. Added the matching `--cov-config` to
+    `tests/api/pytest.ini`, since that filename is not auto-discovered by
+    coverage.py — `make test-api` and a bare `cd tests/api && pytest` had been
+    running with no exclusions and no `fail_under` at all.
+  - Tightened `.gitignore`: added `.mypy_cache/`, `playwright-report/`,
+    `test-results/`; fixed an inline comment that made a negation pattern literal.
+
+### Removed
+
+- **Dead configuration and build artifacts**
+
+  - Root `.eslintrc.json` and `.eslintignore` — unused; linting runs inside `web/`,
+    whose `.eslintrc.cjs` sets `root: true`.
+  - Root `playwright.config.js` and `tests/e2e/browser/` — stale duplicates of the
+    live `web/playwright.config.js` and `web/tests/e2e/`.
+  - `web/playwright-report/index.html` — a 520 KB generated report that had been
+    committed.
+
+- **Historical process documentation** (preserved in git history)
+
+  - `docs/archive/` (17 files), plus `ADVANCED_OPTIMIZATIONS.md`,
+    `CLEANUP_OPTIMIZATIONS_SUMMARY.md`, `CONSOLIDATION_SUMMARY.md`,
+    `DOCUMENTATION_CONSOLIDATION_PLAN.md`, `OPTIMIZATION_COMPLETE.md`,
+    `OPTIMIZATION_SUMMARY.md`, `WORKSPACE_ENHANCEMENTS.md`, `SETUP_CHECKLIST.md`.
+  - `tests/ANALYTICS_TESTS.md`, `tests/COMPLETE_TEST_SUMMARY.md`,
+    `tests/TEST_SUMMARY.md`.
+
 ### Added
 
 - **Comprehensive Test Suite - Complete Implementation**

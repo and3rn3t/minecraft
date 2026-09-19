@@ -19,19 +19,19 @@ The log management system provides:
 **View recent logs**:
 
 ```bash
-./manage.sh logs
+./scripts/manage.sh logs
 ```
 
 **Search logs**:
 
 ```bash
-./manage.sh logs-search "player joined"
+./scripts/manage.sh logs-search "player joined"
 ```
 
 **Manage logs**:
 
 ```bash
-./manage.sh logs-manage all
+./scripts/manage.sh logs-manage all
 ```
 
 ## Log Management Commands
@@ -41,7 +41,7 @@ The log management system provides:
 Index logs for faster searching:
 
 ```bash
-./manage.sh logs-manage index
+./scripts/manage.sh logs-manage index
 ```
 
 This will:
@@ -62,7 +62,7 @@ This will:
 Automatically detect errors and warnings:
 
 ```bash
-./manage.sh logs-manage errors
+./scripts/manage.sh logs-manage errors
 ```
 
 This will:
@@ -84,7 +84,7 @@ This will:
 Rotate and archive log files:
 
 ```bash
-./manage.sh logs-manage rotate
+./scripts/manage.sh logs-manage rotate
 ```
 
 This will:
@@ -104,7 +104,7 @@ This will:
 View log statistics:
 
 ```bash
-./manage.sh logs-manage stats
+./scripts/manage.sh logs-manage stats
 ```
 
 Shows:
@@ -122,9 +122,9 @@ Shows:
 Search for any term in logs:
 
 ```bash
-./manage.sh logs-search "error"
-./manage.sh logs-search "player joined"
-./manage.sh logs-search "crash"
+./scripts/manage.sh logs-search "error"
+./scripts/manage.sh logs-search "player joined"
+./scripts/manage.sh logs-search "crash"
 ```
 
 ### Advanced Search Options
@@ -132,35 +132,35 @@ Search for any term in logs:
 **Case-sensitive search**:
 
 ```bash
-./manage.sh logs-search -c "Error"
+./scripts/manage.sh logs-search -c "Error"
 ```
 
 **Limit results**:
 
 ```bash
-./manage.sh logs-search -n 20 "error"
+./scripts/manage.sh logs-search -n 20 "error"
 # Show maximum 20 results
 ```
 
 **Search by log level**:
 
 ```bash
-./manage.sh logs-search -l ERROR
-./manage.sh logs-search -l WARN
-./manage.sh logs-search -l INFO
+./scripts/manage.sh logs-search -l ERROR
+./scripts/manage.sh logs-search -l WARN
+./scripts/manage.sh logs-search -l INFO
 ```
 
 **Search by date**:
 
 ```bash
-./manage.sh logs-search -d 2025-01-15 "crash"
+./scripts/manage.sh logs-search -d 2025-01-15 "crash"
 # Search on specific date
 ```
 
 **Search date range**:
 
 ```bash
-./manage.sh logs-search -r 2025-01-01 2025-01-31 "player"
+./scripts/manage.sh logs-search -r 2025-01-01 2025-01-31 "player"
 # Search entire month
 ```
 
@@ -169,25 +169,25 @@ Search for any term in logs:
 **Find all player connections**:
 
 ```bash
-./manage.sh logs-search "joined the game"
+./scripts/manage.sh logs-search "joined the game"
 ```
 
 **Find all errors in last week**:
 
 ```bash
-./manage.sh logs-search -r $(date -d "7 days ago" +%Y-%m-%d) $(date +%Y-%m-%d) -l ERROR
+./scripts/manage.sh logs-search -r $(date -d "7 days ago" +%Y-%m-%d) $(date +%Y-%m-%d) -l ERROR
 ```
 
 **Find specific player activity**:
 
 ```bash
-./manage.sh logs-search "PlayerName"
+./scripts/manage.sh logs-search "PlayerName"
 ```
 
 **Find server crashes**:
 
 ```bash
-./manage.sh logs-search "crash\|exception\|fatal"
+./scripts/manage.sh logs-search "crash\|exception\|fatal"
 ```
 
 ## Configuration
@@ -321,7 +321,7 @@ cat config/log-management.conf | grep LOG_ROTATION
 **Manual rotation**:
 
 ```bash
-./manage.sh logs-manage rotate
+./scripts/manage.sh logs-manage rotate
 ```
 
 ### Search Returns No Results
@@ -329,7 +329,7 @@ cat config/log-management.conf | grep LOG_ROTATION
 **Re-index logs**:
 
 ```bash
-./manage.sh logs-manage index
+./scripts/manage.sh logs-manage index
 ```
 
 **Check log files exist**:
@@ -344,7 +344,7 @@ ls -lh logs/archive/
 **Check log sizes**:
 
 ```bash
-./manage.sh logs-manage stats
+./scripts/manage.sh logs-manage stats
 du -sh logs/
 du -sh data/logs/
 ```
@@ -400,11 +400,11 @@ local error_patterns=(
 
 ```bash
 # Export all errors
-./manage.sh logs-manage errors
+./scripts/manage.sh logs-manage errors
 cat logs/errors_*.txt > all_errors.txt
 
 # Export specific date range
-./manage.sh logs-search -r 2025-01-01 2025-01-31 "error" > january_errors.txt
+./scripts/manage.sh logs-search -r 2025-01-01 2025-01-31 "error" > january_errors.txt
 ```
 
 ### Log Analysis Scripts

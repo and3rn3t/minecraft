@@ -350,4 +350,4 @@ if status.get('running'):
 
 - [RBAC Documentation](RBAC.md) - Role-based access control
 - [API Documentation](API.md) - Complete API reference
-- [Security Guide](SECURITY.md) - Security best practices
+- [Security Hardening](SECURITY_HARDENING.md) - Security best practices

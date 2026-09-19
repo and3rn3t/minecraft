@@ -313,8 +313,8 @@ services:
 
 Start both:
 ```bash
-docker-compose up -d
-docker-compose -f docker-compose-creative.yml up -d
+docker compose up -d
+docker compose -f docker-compose-creative.yml up -d
 ```
 
 ## Backup Configurations
@@ -325,7 +325,7 @@ Create backup script `backup-cron.sh`:
 ```bash
 #!/bin/bash
 cd /home/pi/minecraft-server
-./manage.sh backup
+./scripts/manage.sh backup
 
 # Keep only last 7 days of backups
 find ./backups -name "minecraft_backup_*.tar.gz" -mtime +7 -delete
@@ -403,10 +403,10 @@ environment:
 
 After changing configuration:
 
-1. Stop server: `./manage.sh stop`
+1. Stop server: `./scripts/manage.sh stop`
 2. Edit configuration files
-3. Start server: `./manage.sh start`
-4. Monitor logs: `./manage.sh logs`
+3. Start server: `./scripts/manage.sh start`
+4. Monitor logs: `./scripts/manage.sh logs`
 5. Test in-game
 6. Check resources: `htop` and `docker stats`
 

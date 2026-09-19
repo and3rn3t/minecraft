@@ -149,7 +149,7 @@ cd ~/minecraft-server
 docker compose logs -f
 
 # Or use the management script
-./manage.sh logs
+./scripts/manage.sh logs
 ```
 
 Wait for "Done!" in the logs, which means the server is ready.
@@ -250,22 +250,22 @@ docker compose restart
 cd ~/minecraft-server
 
 # Make executable (if not already)
-chmod +x manage.sh
+chmod +x scripts/manage.sh
 
 # Start
-./manage.sh start
+./scripts/manage.sh start
 
 # Stop
-./manage.sh stop
+./scripts/manage.sh stop
 
 # Status
-./manage.sh status
+./scripts/manage.sh status
 
 # Logs
-./manage.sh logs
+./scripts/manage.sh logs
 
 # Console (attach to server)
-./manage.sh console
+./scripts/manage.sh console
 ```
 
 ## Troubleshooting

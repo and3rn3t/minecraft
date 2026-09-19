@@ -5,14 +5,14 @@
 ### Server Management
 
 ```bash
-./manage.sh start      # Start server
-./manage.sh stop       # Stop server
-./manage.sh restart    # Restart server
-./manage.sh status     # Check status
-./manage.sh logs       # View logs
-./manage.sh backup     # Create backup (with world save & verification)
-./manage.sh console    # Attach to server console
-./manage.sh update     # Update configuration from git
+./scripts/manage.sh start      # Start server
+./scripts/manage.sh stop       # Stop server
+./scripts/manage.sh restart    # Restart server
+./scripts/manage.sh status     # Check status
+./scripts/manage.sh logs       # View logs
+./scripts/manage.sh backup     # Create backup (with world save & verification)
+./scripts/manage.sh console    # Attach to server console
+./scripts/manage.sh update     # Update configuration from git
 ```
 
 ### Backup Management
@@ -35,11 +35,11 @@
 ### Docker Commands
 
 ```bash
-docker-compose up -d              # Start in background
-docker-compose down               # Stop and remove
-docker-compose ps                 # List containers
-docker-compose logs -f            # Follow logs
-docker-compose restart            # Restart services
+docker compose up -d              # Start in background
+docker compose down               # Stop and remove
+docker compose ps                 # List containers
+docker compose logs -f            # Follow logs
+docker compose restart            # Restart services
 docker attach minecraft-server    # Attach to console
 ```
 
@@ -173,16 +173,16 @@ nmap -p 25565 localhost
 ### Create Backup
 
 ```bash
-./manage.sh backup
+./scripts/manage.sh backup
 # Stored in: ./backups/minecraft_backup_TIMESTAMP.tar.gz
 ```
 
 ### Restore Backup
 
 ```bash
-./manage.sh stop
+./scripts/manage.sh stop
 tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
-./manage.sh start
+./scripts/manage.sh start
 ```
 
 ### Automated Backups (Cron)
@@ -190,7 +190,7 @@ tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
 ```bash
 crontab -e
 # Add line for daily backup at 3 AM:
-0 3 * * * cd ~/minecraft-server && ./manage.sh backup
+0 3 * * * cd ~/minecraft-server && ./scripts/manage.sh backup
 ```
 
 ## Troubleshooting Quick Fixes
@@ -199,8 +199,8 @@ crontab -e
 
 ```bash
 sudo systemctl restart docker
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 ### High Memory Usage
@@ -209,14 +209,14 @@ docker-compose up -d
 # Reduce memory in docker-compose.yml
 # Reduce view-distance in server.properties
 # Restart server
-./manage.sh restart
+./scripts/manage.sh restart
 ```
 
 ### Connection Refused
 
 ```bash
 # Check if server is running
-./manage.sh status
+./scripts/manage.sh status
 
 # Check if port is open
 sudo ufw allow 25565/tcp
@@ -245,7 +245,7 @@ docker system prune -a
 ```bash
 cd ~/minecraft-server
 git pull
-./manage.sh restart
+./scripts/manage.sh restart
 ```
 
 ### Update Minecraft Version
@@ -256,9 +256,9 @@ nano docker-compose.yml
 # Change MINECRAFT_VERSION
 
 # Rebuild and restart
-docker-compose down
+docker compose down
 rm -rf data/*.jar  # Remove old jar
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### Update Raspberry Pi OS
@@ -297,7 +297,7 @@ sudo ufw enable
 htop
 
 # Terminal 2: Server logs
-cd ~/minecraft-server && ./manage.sh logs
+cd ~/minecraft-server && ./scripts/manage.sh logs
 
 # Terminal 3: Docker stats
 docker stats minecraft-server
@@ -317,11 +317,11 @@ docker ps --filter "name=minecraft-server" --format "{{.Status}}"
 
 | Problem                     | Solution                                            |
 | --------------------------- | --------------------------------------------------- |
-| Can't connect locally       | Check if server is running: `./manage.sh status`    |
+| Can't connect locally       | Check if server is running: `./scripts/manage.sh status`    |
 | Can't connect from internet | Configure port forwarding on router                 |
 | Low FPS/lag                 | Reduce view-distance and max-players                |
 | Out of memory               | Lower MEMORY_MAX in docker-compose.yml              |
-| Server crash on startup     | Check logs: `./manage.sh logs`                      |
+| Server crash on startup     | Check logs: `./scripts/manage.sh logs`                      |
 | Permission denied           | Run: `sudo chown -R $USER:$USER ~/minecraft-server` |
 
 ## Contact & Support
@@ -337,9 +337,9 @@ docker ps --filter "name=minecraft-server" --format "{{.Status}}"
 1. Flash Raspberry Pi OS with Imager
 2. SSH to Pi: `ssh pi@minecraft-server.local`
 3. Clone repo: `git clone https://github.com/and3rn3t/minecraft.git minecraft-server`
-4. Run setup: `cd minecraft-server && ./setup-rpi.sh`
+4. Run setup: `cd minecraft-server && ./scripts/setup-rpi.sh`
 5. Log out and back in
-6. Start server: `./manage.sh start`
+6. Start server: `./scripts/manage.sh start`
 7. Connect: `minecraft-server.local:25565`
 
-**Emergency Stop:** `./manage.sh stop` or `docker-compose down`
+**Emergency Stop:** `./scripts/manage.sh stop` or `docker compose down`

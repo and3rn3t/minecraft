@@ -1,225 +1,122 @@
 # Documentation Index
 
-Complete guide to all project documentation, organized by category.
+Every guide in this project, grouped by what you are trying to do.
 
-## 📚 Quick Navigation
-
-- **[Getting Started](#getting-started)** - Installation and setup
-- **[User Guides](#user-guides)** - How to use features
-- **[Developer Guides](#developer-guides)** - Contributing and development
-- **[Reference](#reference)** - Quick references and examples
-- **[Configuration](#configuration)** - Configuration guides
-- **[Troubleshooting](#troubleshooting)** - Problem solving
+- [Getting Started](#getting-started)
+- [Deployment & Operations](#deployment--operations)
+- [Server Features](#server-features)
+- [API & Web Panel](#api--web-panel)
+- [Performance & Raspberry Pi](#performance--raspberry-pi)
+- [Development](#development)
+- [Reference & Troubleshooting](#reference--troubleshooting)
 
 ---
 
 ## Getting Started
 
-### Installation & Setup
+| Guide | What it covers |
+| --- | --- |
+| [INSTALL.md](INSTALL.md) | Full installation on a Raspberry Pi 5, start to finish |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | One-page command cheat sheet |
+| [CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md) | Worked examples for every config file |
+| [MINECRAFT_SERVER_SETUP.md](MINECRAFT_SERVER_SETUP.md) | Getting the Minecraft server itself running with auto-start |
 
-- **[RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md)** - Complete guide for deploying all components (Minecraft, API, Web) on Raspberry Pi 5
-- **[DOCKER_DEPLOYMENT_FLOW.md](DOCKER_DEPLOYMENT_FLOW.md)** - How Docker images are deployed from CI to Raspberry Pi
-- **[AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md)** - Step-by-step guide for automatic deployment setup
-- **[UPDATE_DOCKER_IMAGE.md](UPDATE_DOCKER_IMAGE.md)** - How to check, pull, and update to the latest Docker image
-- **[UPDATE_CODEBASE.md](UPDATE_CODEBASE.md)** - How to update the GitHub repository code on Raspberry Pi 5
-- **[API_VENV_SETUP.md](API_VENV_SETUP.md)** - How to set up and use Python virtual environment for API server
-- **[SYSTEM_OPTIMIZATIONS.md](SYSTEM_OPTIMIZATIONS.md)** - Comprehensive system and filesystem optimizations for Raspberry Pi 5
-- **[RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md)** - Raspberry Pi 5 compatibility guide and verification steps
-- **[RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md)** - Performance optimizations and enhancements for Raspberry Pi 5
-- **[DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md)** - Configure Raspberry Pi 5 to boot and automatically pull/run Docker images
-- **[INSTALL.md](INSTALL.md)** - Complete installation guide for Raspberry Pi 5
-- **[README.md](../README.md)** - Project overview and quick start
-
-### First Steps
-
-1. Read [INSTALL.md](INSTALL.md) for installation
-2. Review [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common commands
-3. Check [CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md) for configuration
+New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 
 ---
 
-## User Guides
+## Deployment & Operations
 
-### Core Features
-
-- **[BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md)** - Backup scheduling, retention, and monitoring
-- **[CLOUD_BACKUP.md](CLOUD_BACKUP.md)** - Cloud backup integration (R2, S3, B2)
-- **[UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md)** - Server updates and version management
-- **[PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
-- **[MOD_SUPPORT.md](MOD_SUPPORT.md)** - Mod loader detection and mod pack installation
-- **[MINECRAFT_ENHANCEMENTS.md](MINECRAFT_ENHANCEMENTS.md)** - Minecraft-specific enhancements and configurations
-- **[MINECRAFT_GAMEPLAY_ENHANCEMENTS.md](MINECRAFT_GAMEPLAY_ENHANCEMENTS.md)** - Gameplay enhancement roadmap (includes implemented P1 features)
-- **[MINECRAFT_MANAGEMENT.md](MINECRAFT_MANAGEMENT.md)** - Minecraft server management tools and scripts
-- **[MULTI_WORLD.md](MULTI_WORLD.md)** - Managing multiple worlds
-- **[LOG_MANAGEMENT.md](LOG_MANAGEMENT.md)** - Log rotation, search, and analysis
-
-### Advanced Features
-
-- **[RCON.md](RCON.md)** - Remote Console (RCON) setup and usage
-- **[API.md](API.md)** - Complete REST API documentation (includes OpenAPI spec)
-- **[WEB_INTERFACE.md](WEB_INTERFACE.md)** - Web admin panel guide
-- **[RBAC.md](RBAC.md)** - Role-Based Access Control (RBAC) system
-- **[API_KEYS.md](API_KEYS.md)** - API key management and usage
-- **[DYNAMIC_DNS.md](DYNAMIC_DNS.md)** - Dynamic DNS integration (DuckDNS, No-IP, Cloudflare)
-- **[ANALYTICS.md](ANALYTICS.md)** - Analytics and monitoring capabilities
+| Guide | What it covers |
+| --- | --- |
+| [RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md) | Deploying all components (server, API, web) together |
+| [DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md) | Pulling and running Docker images automatically at boot |
+| [DOCKER_DEPLOYMENT_FLOW.md](DOCKER_DEPLOYMENT_FLOW.md) | How an image gets from CI to the Pi |
+| [AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md) | Wiring up automatic deployment |
+| [UPDATE_DOCKER_IMAGE.md](UPDATE_DOCKER_IMAGE.md) | Checking for and pulling a newer image |
+| [UPDATE_CODEBASE.md](UPDATE_CODEBASE.md) | Updating the repository checkout on the Pi |
+| [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) | Minecraft version updates and compatibility checks |
+| [MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md) | Building images for arm64 and amd64 |
+| [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) | Backup scheduling, retention, health checks, metrics |
+| [CLOUD_BACKUP.md](CLOUD_BACKUP.md) | Offsite backups to Cloudflare R2, S3 or Backblaze B2 |
+| [LOG_MANAGEMENT.md](LOG_MANAGEMENT.md) | Log rotation, search and analysis |
+| [DYNAMIC_DNS.md](DYNAMIC_DNS.md) | Keeping a hostname pointed at a changing home IP |
+| [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) | Cloudflare DDNS configuration specifics |
 
 ---
 
-## Developer Guides
+## Server Features
 
-### Development Setup
-
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development environment setup and workflow
-- **[CURSOR_CONFIGURATION.md](CURSOR_CONFIGURATION.md)** - Cursor IDE configuration guide
-- **[LINTING.md](LINTING.md)** - Code linting and static analysis
-- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
-
-### Project Planning
-
-- **[ROADMAP.md](ROADMAP.md)** - Development roadmap and future plans
-- **[TASKS.md](TASKS.md)** - Detailed task breakdown with priorities
-
-### Workspace
-
-- **[WORKSPACE_ENHANCEMENTS.md](WORKSPACE_ENHANCEMENTS.md)** - Workspace optimizations summary
-- **[AGENT_INSTRUCTIONS.md](../AGENT_INSTRUCTIONS.md)** - AI agent instructions for consistency
+| Guide | What it covers |
+| --- | --- |
+| [MINECRAFT_MANAGEMENT.md](MINECRAFT_MANAGEMENT.md) | Whitelist, bans, ops, server properties, announcements |
+| [MINECRAFT_ENHANCEMENTS.md](MINECRAFT_ENHANCEMENTS.md) | Minecraft-specific tuning and configuration |
+| [MINECRAFT_GAMEPLAY_ENHANCEMENTS.md](MINECRAFT_GAMEPLAY_ENHANCEMENTS.md) | Gameplay feature set and roadmap |
+| [MULTI_WORLD.md](MULTI_WORLD.md) | Creating, switching and backing up multiple worlds |
+| [PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md) | Installing and configuring Bukkit/Spigot/Paper plugins |
+| [MOD_SUPPORT.md](MOD_SUPPORT.md) | Mod loader detection and mod pack installation |
+| [RCON.md](RCON.md) | Remote console setup and usage |
+| [ANALYTICS.md](ANALYTICS.md) | Player and server analytics collection and reports |
 
 ---
 
-## Reference
+## API & Web Panel
 
-### Quick References
-
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Command reference and cheat sheet
-- **[CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md)** - Configuration file examples
-
-### Testing & Code Quality
-
-- **[TESTING.md](TESTING.md)** - Complete testing guide with framework enhancements
-- **[TEST_COVERAGE.md](TEST_COVERAGE.md)** - Test coverage analysis and gap identification
-- **[WEB_UI_TESTING.md](WEB_UI_TESTING.md)** - Frontend testing guide
-- **[LINTING.md](LINTING.md)** - Code linting and static analysis guide
-- **[DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md)** - Docker image optimization guide
-- **[DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md)** - Configure Raspberry Pi 5 to boot and automatically pull/run Docker images
-- **[PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md)** - Performance benchmarking and regression testing
-- **[MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md)** - Multi-architecture build and deployment guide
-- **[CI_CD.md](CI_CD.md)** - Complete CI/CD pipeline guide (consolidated)
+| Guide | What it covers |
+| --- | --- |
+| [API.md](API.md) | Complete REST API reference (mirrors `api/openapi.yaml`) |
+| [API_VENV_SETUP.md](API_VENV_SETUP.md) | Python virtual environment for the API server |
+| [API_KEYS.md](API_KEYS.md) | Creating, scoping and rotating API keys |
+| [RBAC.md](RBAC.md) | Roles and permissions |
+| [OAUTH_SETUP.md](OAUTH_SETUP.md) | Google / Apple sign-in |
+| [WEB_INTERFACE.md](WEB_INTERFACE.md) | Using the React admin panel |
+| [SECURITY_HARDENING.md](SECURITY_HARDENING.md) | Hardening the API and the host |
 
 ---
 
-## Configuration
+## Performance & Raspberry Pi
 
-### Configuration Files
-
-- **[config/README.md](../config/README.md)** - Configuration directory structure
-- **[CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md)** - Example configurations
-
-### Environment Variables
-
-See [INSTALL.md](INSTALL.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for environment variable setup.
-
----
-
-## Troubleshooting
-
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common problems and solutions
-- **[LOG_MANAGEMENT.md](LOG_MANAGEMENT.md)** - Log analysis and debugging
+| Guide | What it covers |
+| --- | --- |
+| [RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md) | What works on which Pi, and how to verify |
+| [RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md) | Pi-specific tuning (memory, JVM, thermals) |
+| [SYSTEM_OPTIMIZATIONS.md](SYSTEM_OPTIMIZATIONS.md) | OS and filesystem tuning |
+| [DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md) | Image size, build caching, layer strategy |
+| [PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md) | Measuring and comparing performance |
 
 ---
 
-## Project Information
+## Development
 
-- **[CHANGELOG.md](../CHANGELOG.md)** - Version history and changes
-- **[LICENSE](../LICENSE)** - Project license
-- **[README.md](../README.md)** - Main project documentation
+| Guide | What it covers |
+| --- | --- |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup and day-to-day workflow |
+| [TESTING.md](TESTING.md) | Test layout, how to run each suite, coverage |
+| [WEB_UI_TESTING.md](WEB_UI_TESTING.md) | Vitest, MSW and Playwright specifics for `web/` |
+| [LINTING.md](LINTING.md) | ShellCheck, ESLint, flake8, yamllint |
+| [CI_CD.md](CI_CD.md) | GitHub Actions pipeline and release process |
+| [CURSOR_CONFIGURATION.md](CURSOR_CONFIGURATION.md) | Cursor IDE setup |
+| [ROADMAP.md](ROADMAP.md) | Planned work, by phase |
+| [TASKS.md](TASKS.md) | Detailed task backlog |
 
----
-
-## Documentation by Topic
-
-### Server Management
-
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Commands
-- [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) - Updates
-- [RCON.md](RCON.md) - Remote control
-
-### Data Management
-
-- [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) - Backups
-- [MULTI_WORLD.md](MULTI_WORLD.md) - Worlds
-- [LOG_MANAGEMENT.md](LOG_MANAGEMENT.md) - Logs
-
-### Extensions
-
-- [PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md) - Plugins
-- [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) - Server types
-
-### Development
-
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Setup
-- [TESTING.md](TESTING.md) - Testing
-- [API.md](API.md) - API development
-
-### Integration
-
-- [API.md](API.md) - REST API
-- [WEB_INTERFACE.md](WEB_INTERFACE.md) - Web panel
-- [RCON.md](RCON.md) - RCON protocol
-- [RBAC.md](RBAC.md) - Role-based access control
-- [API_KEYS.md](API_KEYS.md) - API key management
+AI assistants read [`../AGENTS.md`](../AGENTS.md) — the single source of truth for
+conventions. See also [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ---
 
-## Documentation Structure
+## Reference & Troubleshooting
 
-```
-docs/
-├── INDEX.md                    # This file - navigation hub
-├── INSTALL.md                  # Installation guide
-├── QUICK_REFERENCE.md          # Command reference
-├── CONFIGURATION_EXAMPLES.md   # Config examples
-├── TROUBLESHOOTING.md          # Problem solving
-│
-├── User Guides/
-│   ├── BACKUP_AND_MONITORING.md
-│   ├── UPDATE_MANAGEMENT.md
-│   ├── PLUGIN_MANAGEMENT.md
-│   ├── MULTI_WORLD.md
-│   ├── LOG_MANAGEMENT.md
-│   ├── RCON.md
-│   ├── API.md
-│   ├── WEB_INTERFACE.md
-│   ├── RBAC.md
-│   └── API_KEYS.md
-│
-└── Developer Guides/
-    ├── DEVELOPMENT.md
-    ├── TESTING.md
-    ├── ROADMAP.md
-    ├── CURSOR_CONFIGURATION.md
-    └── WORKSPACE_ENHANCEMENTS.md
-```
+| Guide | What it covers |
+| --- | --- |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Installation, startup, restart loops, connectivity, Docker, system issues |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Command cheat sheet |
+| [CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md) | Config file examples |
+| [../CHANGELOG.md](../CHANGELOG.md) | Version history |
 
 ---
 
-## Getting Help
+## Adding a Document
 
-1. **Check the documentation** - Start with [QUICK_REFERENCE.md](QUICK_REFERENCE.md) or [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-2. **Search existing issues** - Check GitHub issues for similar problems
-3. **Ask for help** - Open a GitHub issue with:
-   - What you're trying to do
-   - What happened vs what you expected
-   - Relevant log output
-   - Your configuration
-
----
-
-## Archived Documentation
-
-Some documentation files have been consolidated and archived. See [archive/README.md](archive/README.md) for details.
-
-**Note**: All information from archived files has been integrated into the current documentation structure.
-
----
-
-**Last Updated**: 2025-01-27
+Add the file to `docs/`, then add a row to the right table above — an unlisted
+document will not be found. Historical "summary" or "implementation complete"
+write-ups do not belong here; that record lives in `CHANGELOG.md` and git history.

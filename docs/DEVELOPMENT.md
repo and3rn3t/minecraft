@@ -75,7 +75,7 @@ bash -n manage.sh
 bash -n start.sh
 
 # Test docker-compose
-docker-compose config
+docker compose config
 
 # Test server startup (requires Docker)
 make build
@@ -102,7 +102,7 @@ make logs
 - 2-space indentation
 - Use environment variables
 - Keep lines under 120 characters
-- Validate with `docker-compose config`
+- Validate with `docker compose config`
 
 ### Documentation
 - Markdown format

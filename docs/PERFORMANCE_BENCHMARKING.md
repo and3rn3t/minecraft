@@ -53,7 +53,7 @@ Measures the time from server start command to server ready state.
 
 **Measurement**:
 
-- Time from `docker-compose up` to server logs showing "Done"
+- Time from `docker compose up` to server logs showing "Done"
 - Includes container startup, JVM initialization, and world loading
 
 ### TPS (Ticks Per Second)
