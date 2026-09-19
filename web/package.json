@@ -1,6 +1,6 @@
 {
   "name": "minecraft-server-admin",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Web Admin Panel for Minecraft Server",
   "type": "module",
   "private": true,

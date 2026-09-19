@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-19
+
 ### Added
 
 - **Bedtime mode** (`api/bedtime.py`) — see [docs/BEDTIME.md](docs/BEDTIME.md)

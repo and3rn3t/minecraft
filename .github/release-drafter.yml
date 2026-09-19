@@ -13,6 +13,18 @@ categories:
   - title: '📝 Documentation'
     labels: ['documentation', 'docs']
 
+autolabeler:
+  - label: 'breaking'
+    title:
+      - '/^\w+(\(.+\))?!:/'
+      - '/^BREAKING CHANGE:/'
+  - label: 'feature'
+    title:
+      - '/^feat(\(.+\))?:/'
+  - label: 'bug'
+    title:
+      - '/^fix(\(.+\))?:/'
+
 version-resolver:
   major:
     labels: ['breaking']
