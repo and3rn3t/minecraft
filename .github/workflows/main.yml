@@ -119,20 +119,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache BATS
-        id: cache-bats
-        uses: actions/cache@v6
-        with:
-          path: /usr/local/bin/bats
-          key: bats-${{ runner.os }}-v1
-          restore-keys: |
-            bats-${{ runner.os }}-
-
+      # Not cached: the previous cache saved only /usr/local/bin/bats, which is
+      # a symlink into /usr/local/libexec/bats-core/. On a cache hit the
+      # symlink was restored with nothing to point at, the install step was
+      # skipped, and every bats invocation failed instantly. Installing takes
+      # about two seconds, so the cache bought nothing and broke every run
+      # after the first.
       - name: Install BATS
-        if: steps.cache-bats.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
+          git clone --depth 1 --branch v1.14.0 \
+            https://github.com/bats-core/bats-core.git /tmp/bats
           sudo /tmp/bats/install.sh /usr/local
+          bats --version
 
       - name: Run bash tests
         run: |
