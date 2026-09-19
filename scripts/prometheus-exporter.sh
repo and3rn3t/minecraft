@@ -38,7 +38,8 @@ format_metric() {
 
 # Function to generate metrics output
 generate_metrics() {
-    local timestamp=$(date +%s)
+    local timestamp
+    timestamp=$(date +%s)
 
     echo "# HELP minecraft_server_up Server is running (1) or stopped (0)"
     echo "# TYPE minecraft_server_up gauge"
@@ -54,42 +55,52 @@ generate_metrics() {
     echo "# HELP minecraft_server_cpu_usage_percent CPU usage percentage"
     echo "# TYPE minecraft_server_cpu_usage_percent gauge"
 
-    local cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//' 2>/dev/null || echo "0")
+    local cpu
+    cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//' 2>/dev/null || echo "0")
     echo "minecraft_server_cpu_usage_percent ${cpu}"
 
     echo ""
     echo "# HELP minecraft_server_memory_usage_bytes Memory usage in bytes"
     echo "# TYPE minecraft_server_memory_usage_bytes gauge"
 
-    local mem_usage=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null | cut -d'/' -f1 | sed 's/[^0-9]//g' || echo "0")
+    local mem_usage
+    mem_usage=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null | cut -d'/' -f1 | sed 's/[^0-9]//g' || echo "0")
     # Convert to bytes (assuming MB input)
-    local mem_bytes=$((mem_usage * 1024 * 1024))
+    local mem_bytes
+    mem_bytes=$((mem_usage * 1024 * 1024))
     echo "minecraft_server_memory_usage_bytes ${mem_bytes}"
 
     echo ""
     echo "# HELP minecraft_server_memory_limit_bytes Memory limit in bytes"
     echo "# TYPE minecraft_server_memory_limit_bytes gauge"
 
-    local mem_limit=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null | cut -d'/' -f2 | sed 's/[^0-9]//g' || echo "0")
-    local mem_limit_bytes=$((mem_limit * 1024 * 1024))
+    local mem_limit
+    mem_limit=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null | cut -d'/' -f2 | sed 's/[^0-9]//g' || echo "0")
+    local mem_limit_bytes
+    mem_limit_bytes=$((mem_limit * 1024 * 1024))
     echo "minecraft_server_memory_limit_bytes ${mem_limit_bytes}"
 
     echo ""
     echo "# HELP minecraft_server_player_count Current number of players"
     echo "# TYPE minecraft_server_player_count gauge"
 
-    local players=$(docker logs minecraft-server --tail 100 2>/dev/null | grep -oP 'There are \K\d+' | tail -1 || echo "0")
+    local players
+    players=$(docker logs minecraft-server --tail 100 2>/dev/null | grep -oP 'There are \K\d+' | tail -1 || echo "0")
     echo "minecraft_server_player_count ${players:-0}"
 
     echo ""
     echo "# HELP minecraft_server_uptime_seconds Server uptime in seconds"
     echo "# TYPE minecraft_server_uptime_seconds gauge"
 
-    local started=$(docker inspect --format='{{.State.StartedAt}}' minecraft-server 2>/dev/null)
+    local started
+    started=$(docker inspect --format='{{.State.StartedAt}}' minecraft-server 2>/dev/null)
     if [ -n "$started" ]; then
-        local start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
-        local now_epoch=$(date +%s)
-        local uptime=$((now_epoch - start_epoch))
+        local start_epoch
+        start_epoch=$(date -d "$started" +%s 2>/dev/null || echo "0")
+        local now_epoch
+        now_epoch=$(date +%s)
+        local uptime
+        uptime=$((now_epoch - start_epoch))
         echo "minecraft_server_uptime_seconds ${uptime}"
     else
         echo "minecraft_server_uptime_seconds 0"
@@ -99,7 +110,8 @@ generate_metrics() {
     echo "# HELP minecraft_server_tps Ticks per second"
     echo "# TYPE minecraft_server_tps gauge"
 
-    local tps=$(get_metric "tps" "0")
+    local tps
+    tps=$(get_metric "tps" "0")
     echo "minecraft_server_tps ${tps}"
 }
 

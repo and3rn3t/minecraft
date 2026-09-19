@@ -47,7 +47,8 @@ install_dependencies() {
 # Function to start API server
 start_api() {
     if [ -f "$PID_FILE" ]; then
-        local pid=$(cat "$PID_FILE" 2>/dev/null)
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null)
         if ps -p "$pid" > /dev/null 2>&1; then
             echo -e "${YELLOW}API server is already running (PID: $pid)${NC}"
             return 0
@@ -119,7 +120,8 @@ stop_api() {
         return 0
     fi
 
-    local pid=$(cat "$PID_FILE" 2>/dev/null)
+    local pid
+    pid=$(cat "$PID_FILE" 2>/dev/null)
 
     if [ -z "$pid" ] || ! ps -p "$pid" > /dev/null 2>&1; then
         echo -e "${YELLOW}API server is not running${NC}"
@@ -151,7 +153,8 @@ restart_api() {
 # Function to check API status
 status_api() {
     if [ -f "$PID_FILE" ]; then
-        local pid=$(cat "$PID_FILE" 2>/dev/null)
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null)
         if ps -p "$pid" > /dev/null 2>&1; then
             echo -e "${GREEN}API server is running (PID: $pid)${NC}"
 

@@ -4,16 +4,13 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Colors, PROJECT_DIR and the compose() wrapper that prefers Docker Compose v2
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 BENCHMARK_DIR="${PROJECT_DIR}/benchmarks"
 RESULTS_DIR="${BENCHMARK_DIR}/results"
 BASELINE_DIR="${BENCHMARK_DIR}/baselines"
@@ -73,19 +70,22 @@ wait_for_server_ready() {
 benchmark_startup_time() {
     print_header "Benchmark: Server Startup Time"
 
-    local start_time=$(date +%s.%N)
+    local start_time
+    start_time=$(date +%s.%N)
 
     echo -e "${BLUE}Stopping server...${NC}"
-    docker-compose stop minecraft >/dev/null 2>&1 || true
+    compose stop minecraft >/dev/null 2>&1 || true
     sleep 5
 
     echo -e "${BLUE}Starting server...${NC}"
-    docker-compose up -d minecraft
+    compose up -d minecraft
 
     wait_for_server_ready 180
 
-    local end_time=$(date +%s.%N)
-    local startup_time=$(echo "$end_time - $start_time" | bc)
+    local end_time
+    end_time=$(date +%s.%N)
+    local startup_time
+    startup_time=$(echo "$end_time - $start_time" | bc)
 
     echo -e "${GREEN}Startup time: ${startup_time}s${NC}"
     echo ""
@@ -99,7 +99,8 @@ benchmark_tps() {
     print_header "Benchmark: TPS (Ticks Per Second)"
 
     local samples=()
-    local sample_count=$((BENCHMARK_DURATION / SAMPLING_INTERVAL))
+    local sample_count
+    sample_count=$((BENCHMARK_DURATION / SAMPLING_INTERVAL))
 
     echo -e "${BLUE}Collecting TPS samples for ${BENCHMARK_DURATION} seconds...${NC}"
     echo -e "${BLUE}Sampling every ${SAMPLING_INTERVAL} seconds (${sample_count} samples)${NC}"
@@ -107,7 +108,8 @@ benchmark_tps() {
 
     for ((i=0; i<sample_count; i++)); do
         # Try to get TPS from logs (Paper/Spigot)
-        local tps=$(docker logs minecraft-server --tail 200 2>/dev/null | \
+        local tps
+        tps=$(docker logs minecraft-server --tail 200 2>/dev/null | \
             grep -oP 'TPS from last 1m, 5m, 15m: \K[\d.]+' | tail -1 || echo "20.0")
 
         # If not found, try alternative patterns
@@ -136,7 +138,8 @@ benchmark_tps() {
         fi
     done
 
-    local avg=$(echo "scale=2; $sum / ${#samples[@]}" | bc)
+    local avg
+    avg=$(echo "scale=2; $sum / ${#samples[@]}" | bc)
 
     echo ""
     echo -e "${GREEN}TPS Statistics:${NC}"
@@ -154,17 +157,20 @@ benchmark_memory() {
     print_header "Benchmark: Memory Usage"
 
     local samples=()
-    local sample_count=$((BENCHMARK_DURATION / SAMPLING_INTERVAL))
+    local sample_count
+    sample_count=$((BENCHMARK_DURATION / SAMPLING_INTERVAL))
 
     echo -e "${BLUE}Collecting memory samples for ${BENCHMARK_DURATION} seconds...${NC}"
     echo ""
 
     for ((i=0; i<sample_count; i++)); do
-        local mem_usage=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null | \
+        local mem_usage
+        mem_usage=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null | \
             awk '{print $1}' | sed 's/[^0-9.]//g' || echo "0")
 
         # Convert to MB if needed
-        local mem_mb=$(echo "$mem_usage" | awk '{if ($1 ~ /[0-9]+Gi/) print $1*1024; else if ($1 ~ /[0-9]+Mi/) print $1; else print $1/1024/1024}')
+        local mem_mb
+        mem_mb=$(echo "$mem_usage" | awk '{if ($1 ~ /[0-9]+Gi/) print $1*1024; else if ($1 ~ /[0-9]+Mi/) print $1; else print $1/1024/1024}')
 
         samples+=("$mem_mb")
         echo -e "Sample $((i+1))/$sample_count: Memory = ${mem_mb}MB"
@@ -186,7 +192,8 @@ benchmark_memory() {
         fi
     done
 
-    local avg=$(echo "scale=2; $sum / ${#samples[@]}" | bc)
+    local avg
+    avg=$(echo "scale=2; $sum / ${#samples[@]}" | bc)
 
     echo ""
     echo -e "${GREEN}Memory Statistics:${NC}"
@@ -204,13 +211,15 @@ benchmark_cpu() {
     print_header "Benchmark: CPU Usage"
 
     local samples=()
-    local sample_count=$((BENCHMARK_DURATION / SAMPLING_INTERVAL))
+    local sample_count
+    sample_count=$((BENCHMARK_DURATION / SAMPLING_INTERVAL))
 
     echo -e "${BLUE}Collecting CPU samples for ${BENCHMARK_DURATION} seconds...${NC}"
     echo ""
 
     for ((i=0; i<sample_count; i++)); do
-        local cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" 2>/dev/null | \
+        local cpu
+        cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" 2>/dev/null | \
             sed 's/%//' || echo "0")
 
         samples+=("$cpu")
@@ -233,7 +242,8 @@ benchmark_cpu() {
         fi
     done
 
-    local avg=$(echo "scale=2; $sum / ${#samples[@]}" | bc)
+    local avg
+    avg=$(echo "scale=2; $sum / ${#samples[@]}" | bc)
 
     echo ""
     echo -e "${GREEN}CPU Statistics:${NC}"
@@ -261,15 +271,19 @@ create_baseline() {
     echo ""
 
     # Run benchmarks
-    local startup_time=$(benchmark_startup_time)
+    local startup_time
+    startup_time=$(benchmark_startup_time)
     sleep 10  # Let server stabilize
 
     wait_for_server_ready
     sleep "$WARMUP_TIME"  # Warmup after restart
 
-    local tps_avg=$(benchmark_tps)
-    local memory_avg=$(benchmark_memory)
-    local cpu_avg=$(benchmark_cpu)
+    local tps_avg
+    tps_avg=$(benchmark_tps)
+    local memory_avg
+    memory_avg=$(benchmark_memory)
+    local cpu_avg
+    cpu_avg=$(benchmark_cpu)
 
     # Create baseline JSON
     cat > "$BASELINE_FILE" <<EOF
@@ -316,22 +330,30 @@ compare_baseline() {
     wait_for_server_ready
     sleep "$WARMUP_TIME"
 
-    local tps_avg=$(benchmark_tps)
-    local memory_avg=$(benchmark_memory)
-    local cpu_avg=$(benchmark_cpu)
+    local tps_avg
+    tps_avg=$(benchmark_tps)
+    local memory_avg
+    memory_avg=$(benchmark_memory)
+    local cpu_avg
+    cpu_avg=$(benchmark_cpu)
 
     # Load baseline
-    local baseline_tps=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE'))['metrics']['tps_avg'])" 2>/dev/null || echo "20.0")
-    local baseline_memory=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE'))['metrics']['memory_avg'])" 2>/dev/null || echo "0")
-    local baseline_cpu=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE'))['metrics']['cpu_avg'])" 2>/dev/null || echo "0")
+    local baseline_tps
+    baseline_tps=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE'))['metrics']['tps_avg'])" 2>/dev/null || echo "20.0")
+    local baseline_memory
+    baseline_memory=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE'))['metrics']['memory_avg'])" 2>/dev/null || echo "0")
+    local baseline_cpu
+    baseline_cpu=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE'))['metrics']['cpu_avg'])" 2>/dev/null || echo "0")
 
     # Compare
     echo -e "${BLUE}Comparison Results:${NC}"
     echo ""
 
     # TPS comparison
-    local tps_diff=$(echo "$tps_avg - $baseline_tps" | bc)
-    local tps_pct=$(echo "scale=1; ($tps_diff / $baseline_tps) * 100" | bc)
+    local tps_diff
+    tps_diff=$(echo "$tps_avg - $baseline_tps" | bc)
+    local tps_pct
+    tps_pct=$(echo "scale=1; ($tps_diff / $baseline_tps) * 100" | bc)
     if (( $(echo "$tps_avg < 18.0" | bc -l) )); then
         echo -e "${RED}TPS: ${tps_avg} (baseline: ${baseline_tps}) - ${tps_pct}% change - ⚠️  BELOW THRESHOLD${NC}"
     elif (( $(echo "$tps_diff < 0" | bc -l) )); then
@@ -341,8 +363,10 @@ compare_baseline() {
     fi
 
     # Memory comparison
-    local mem_diff=$(echo "$memory_avg - $baseline_memory" | bc)
-    local mem_pct=$(echo "scale=1; ($mem_diff / $baseline_memory) * 100" | bc)
+    local mem_diff
+    mem_diff=$(echo "$memory_avg - $baseline_memory" | bc)
+    local mem_pct
+    mem_pct=$(echo "scale=1; ($mem_diff / $baseline_memory) * 100" | bc)
     if (( $(echo "$mem_diff > 0" | bc -l) )); then
         echo -e "${YELLOW}Memory: ${memory_avg}MB (baseline: ${baseline_memory}MB) - +${mem_pct}% change - ⚠️  INCREASE${NC}"
     else
@@ -350,8 +374,10 @@ compare_baseline() {
     fi
 
     # CPU comparison
-    local cpu_diff=$(echo "$cpu_avg - $baseline_cpu" | bc)
-    local cpu_pct=$(echo "scale=1; ($cpu_diff / $baseline_cpu) * 100" | bc)
+    local cpu_diff
+    cpu_diff=$(echo "$cpu_avg - $baseline_cpu" | bc)
+    local cpu_pct
+    cpu_pct=$(echo "scale=1; ($cpu_diff / $baseline_cpu) * 100" | bc)
     if (( $(echo "$cpu_avg > 80" | bc -l) )); then
         echo -e "${RED}CPU: ${cpu_avg}% (baseline: ${baseline_cpu}%) - ${cpu_pct}% change - ⚠️  HIGH USAGE${NC}"
     elif (( $(echo "$cpu_diff > 0" | bc -l) )); then

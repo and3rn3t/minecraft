@@ -57,7 +57,8 @@ resolve_dependencies() {
 # Function to install mod from URL
 install_mod_from_url() {
     local mod_url="$1"
-    local mod_name=$(basename "$mod_url")
+    local mod_name
+    mod_name=$(basename "$mod_url")
     local mod_file="${MODS_DIR}/${mod_name}"
 
     echo -e "${BLUE}Downloading mod: $mod_name${NC}"
@@ -80,7 +81,8 @@ install_mod_from_file() {
         return 1
     fi
 
-    local mod_name=$(basename "$mod_file")
+    local mod_name
+    mod_name=$(basename "$mod_file")
     local dest_file="${MODS_DIR}/${mod_name}"
 
     echo -e "${BLUE}Installing mod: $mod_name${NC}"
@@ -115,7 +117,8 @@ install_mod_pack() {
     # Extract mod URLs from manifest (simplified)
     while IFS= read -r line; do
         if echo "$line" | grep -q '"url"'; then
-            local url=$(echo "$line" | grep -oE 'https?://[^"]+' | head -1)
+            local url
+            url=$(echo "$line" | grep -oE 'https?://[^"]+' | head -1)
             if [ -n "$url" ]; then
                 if install_mod_from_url "$url"; then
                     count=$((count + 1))

@@ -25,7 +25,8 @@ TEMP_DIR="${PROJECT_DIR}/.tmp"
 get_vanilla_url() {
     local version="$1"
     local api_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
-    local manifest=$(curl -s "$api_url" 2>/dev/null)
+    local manifest
+    manifest=$(curl -s "$api_url" 2>/dev/null)
 
     if [ -z "$manifest" ]; then
         echo "ERROR: Failed to fetch version manifest" >&2
@@ -33,7 +34,8 @@ get_vanilla_url() {
     fi
 
     # Find version entry
-    local version_url=$(echo "$manifest" | grep -oP "\"id\"\s*:\s*\"$version\"[^}]*\"url\"\s*:\s*\"\K[^\"]+" | head -1)
+    local version_url
+    version_url=$(echo "$manifest" | grep -oP "\"id\"\s*:\s*\"$version\"[^}]*\"url\"\s*:\s*\"\K[^\"]+" | head -1)
 
     if [ -z "$version_url" ]; then
         echo "ERROR: Version $version not found" >&2
@@ -41,7 +43,8 @@ get_vanilla_url() {
     fi
 
     # Get version details
-    local version_details=$(curl -s "$version_url" 2>/dev/null)
+    local version_details
+    version_details=$(curl -s "$version_url" 2>/dev/null)
 
     if [ -z "$version_details" ]; then
         echo "ERROR: Failed to fetch version details" >&2
@@ -49,7 +52,8 @@ get_vanilla_url() {
     fi
 
     # Extract server jar URL
-    local server_url=$(echo "$version_details" | grep -oP '"server"\s*:\s*\{[^}]*"url"\s*:\s*"\K[^"]+' | head -1)
+    local server_url
+    server_url=$(echo "$version_details" | grep -oP '"server"\s*:\s*\{[^}]*"url"\s*:\s*"\K[^"]+' | head -1)
     echo "$server_url"
 }
 
@@ -59,7 +63,8 @@ get_paper_url() {
     # Paper API: https://api.papermc.io/v2/projects/paper/versions/{version}/builds/{build}/downloads/paper-{version}-{build}.jar
     # First, get latest build for version
     local api_url="https://api.papermc.io/v2/projects/paper/versions/$version"
-    local version_info=$(curl -s "$api_url" 2>/dev/null)
+    local version_info
+    version_info=$(curl -s "$api_url" 2>/dev/null)
 
     if [ -z "$version_info" ]; then
         echo "ERROR: Failed to fetch Paper version info" >&2
@@ -67,7 +72,8 @@ get_paper_url() {
     fi
 
     # Get latest build number
-    local build=$(echo "$version_info" | grep -oP '"builds"\s*:\s*\[[^\]]*' | grep -oP '\d+' | tail -1)
+    local build
+    build=$(echo "$version_info" | grep -oP '"builds"\s*:\s*\[[^\]]*' | grep -oP '\d+' | tail -1)
 
     if [ -z "$build" ]; then
         echo "ERROR: No builds found for Paper version $version" >&2
@@ -93,7 +99,8 @@ get_fabric_url() {
     # Fabric uses an installer that downloads the server
     # Get installer version
     local installer_api="https://meta.fabricmc.net/v2/versions/installer"
-    local installer_info=$(curl -s "$installer_api" 2>/dev/null)
+    local installer_info
+    installer_info=$(curl -s "$installer_api" 2>/dev/null)
 
     if [ -z "$installer_info" ]; then
         echo "ERROR: Failed to fetch Fabric installer info" >&2
@@ -101,7 +108,8 @@ get_fabric_url() {
     fi
 
     # Get latest installer version
-    local installer_version=$(echo "$installer_info" | grep -oP '"version"\s*:\s*"\K[^"]+' | head -1)
+    local installer_version
+    installer_version=$(echo "$installer_info" | grep -oP '"version"\s*:\s*"\K[^"]+' | head -1)
 
     # Fabric installer URL
     local installer_url="https://maven.fabricmc.net/net/fabricmc/fabric-installer/$installer_version/fabric-installer-$installer_version.jar"
@@ -152,7 +160,8 @@ download_vanilla() {
 
     echo -e "${BLUE}Downloading Vanilla Minecraft server $version...${NC}"
 
-    local url=$(get_vanilla_url "$version")
+    local url
+    url=$(get_vanilla_url "$version")
     if [ $? -ne 0 ] || [ -z "$url" ]; then
         echo -e "${RED}Failed to get download URL for version $version${NC}"
         return 1
@@ -168,7 +177,8 @@ download_paper() {
 
     echo -e "${BLUE}Downloading Paper server $version...${NC}"
 
-    local url=$(get_paper_url "$version")
+    local url
+    url=$(get_paper_url "$version")
     if [ $? -ne 0 ] || [ -z "$url" ]; then
         echo -e "${RED}Failed to get download URL for Paper version $version${NC}"
         return 1
@@ -184,14 +194,17 @@ download_fabric() {
 
     echo -e "${BLUE}Downloading Fabric server $version...${NC}"
 
-    local fabric_info=$(get_fabric_url "$version")
+    local fabric_info
+    fabric_info=$(get_fabric_url "$version")
     if [ $? -ne 0 ] || [ -z "$fabric_info" ]; then
         echo -e "${RED}Failed to get Fabric installer URL${NC}"
         return 1
     fi
 
-    local installer_url=$(echo "$fabric_info" | cut -d'|' -f1)
-    local mc_version=$(echo "$fabric_info" | cut -d'|' -f2)
+    local installer_url
+    installer_url=$(echo "$fabric_info" | cut -d'|' -f1)
+    local mc_version
+    mc_version=$(echo "$fabric_info" | cut -d'|' -f2)
 
     # Download installer
     local installer_jar="${TEMP_DIR}/fabric-installer.jar"
@@ -212,7 +225,8 @@ download_fabric() {
     }
 
     # Find the generated server jar
-    local fabric_jar=$(find "$DOWNLOAD_DIR" -name "fabric-server-launch.jar" -o -name "server.jar" | head -1)
+    local fabric_jar
+    fabric_jar=$(find "$DOWNLOAD_DIR" -name "fabric-server-launch.jar" -o -name "server.jar" | head -1)
     if [ -n "$fabric_jar" ] && [ "$fabric_jar" != "$output_file" ]; then
         mv "$fabric_jar" "$output_file"
     fi

@@ -34,8 +34,10 @@ validate_yaml() {
     local errors=0
 
     # Check for unmatched brackets
-    local open_braces=$(grep -o '{' "$file" | wc -l)
-    local close_braces=$(grep -o '}' "$file" | wc -l)
+    local open_braces
+    open_braces=$(grep -o '{' "$file" | wc -l)
+    local close_braces
+    close_braces=$(grep -o '}' "$file" | wc -l)
 
     if [ "$open_braces" -ne "$close_braces" ]; then
         echo "  Unmatched braces"
@@ -77,7 +79,8 @@ validate_plugin_config() {
 
     # Check file extension
     if [[ "$config_file" =~ \.(yml|yaml)$ ]]; then
-        local validation_errors=$(validate_yaml "$config_file")
+        local validation_errors
+        validation_errors=$(validate_yaml "$config_file")
         if [ $? -ne 0 ]; then
             echo -e "${RED}YAML validation errors:${NC}"
             echo "$validation_errors"
@@ -120,8 +123,10 @@ list_plugin_configs() {
     for plugin_dir in "$PLUGIN_CONFIG_DIR"/*; do
         if [ -d "$plugin_dir" ]; then
             count=$((count + 1))
-            local plugin_name=$(basename "$plugin_dir")
-            local config_count=$(find "$plugin_dir" -name "*.yml" -o -name "*.yaml" -o -name "*.properties" -o -name "*.conf" | wc -l)
+            local plugin_name
+            plugin_name=$(basename "$plugin_dir")
+            local config_count
+            config_count=$(find "$plugin_dir" -name "*.yml" -o -name "*.yaml" -o -name "*.properties" -o -name "*.conf" | wc -l)
             echo -e "  ${GREEN}✓${NC} $plugin_name ($config_count config file(s))"
         fi
     done
@@ -148,7 +153,8 @@ backup_plugin_config() {
     fi
 
     mkdir -p "$backup_dir"
-    local backup_file="${backup_dir}/${plugin_name}.$(date +%Y%m%d_%H%M%S).tar.gz"
+    local backup_file
+    backup_file="${backup_dir}/${plugin_name}.$(date +%Y%m%d_%H%M%S).tar.gz"
 
     echo -e "${BLUE}Backing up configuration for: $plugin_name${NC}"
     tar -czf "$backup_file" -C "$PLUGIN_CONFIG_DIR" "$plugin_name"

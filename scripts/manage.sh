@@ -3,15 +3,13 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors, PROJECT_DIR and the compose() wrapper that prefers Docker Compose v2
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 
 # Function to display usage
 usage() {
@@ -42,34 +40,34 @@ usage() {
 # Function to start server
 start_server() {
     echo -e "${GREEN}Starting Minecraft server...${NC}"
-    docker-compose up -d
+    compose up -d
     echo -e "${GREEN}Server started! Use '$0 logs' to view logs${NC}"
 }
 
 # Function to stop server
 stop_server() {
     echo -e "${YELLOW}Stopping Minecraft server...${NC}"
-    docker-compose down
+    compose down
     echo -e "${GREEN}Server stopped${NC}"
 }
 
 # Function to restart server
 restart_server() {
     echo -e "${YELLOW}Restarting Minecraft server...${NC}"
-    docker-compose restart
+    compose restart
     echo -e "${GREEN}Server restarted${NC}"
 }
 
 # Function to check status
 check_status() {
     echo -e "${BLUE}Checking server status...${NC}"
-    docker-compose ps
+    compose ps
 }
 
 # Function to view logs
 view_logs() {
     echo -e "${BLUE}Viewing server logs (Press Ctrl+C to exit)...${NC}"
-    docker-compose logs -f
+    compose logs -f
 }
 
 # Function to send command to server
@@ -86,7 +84,8 @@ send_server_command() {
 
     # Fallback: send command directly to Java process stdin
     # This works for vanilla servers without RCON
-    local java_pid=$(docker exec minecraft-server pgrep -f java 2>/dev/null | head -1)
+    local java_pid
+    java_pid=$(docker exec minecraft-server pgrep -f java 2>/dev/null | head -1)
     if [ -n "$java_pid" ]; then
         echo "$command" | docker exec -i minecraft-server tee "/proc/$java_pid/fd/0" >/dev/null 2>&1 && return 0
     fi
@@ -159,13 +158,15 @@ update_server() {
     echo -e "${BLUE}Checking for server updates...${NC}"
 
     # Check current version
-    local current_version=$(grep -E "MINECRAFT_VERSION=" docker-compose.yml | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
+    local current_version
+    current_version=$(grep -E "MINECRAFT_VERSION=" docker-compose.yml | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
     current_version=${current_version:-${MINECRAFT_VERSION:-1.20.4}}
 
     echo -e "Current version: ${GREEN}$current_version${NC}"
 
     # Check for updates
-    local latest_version=$("${SCRIPT_DIR}/check-version.sh" 2>/dev/null | grep "Latest release:" | awk '{print $3}' || echo "")
+    local latest_version
+    latest_version=$("${SCRIPT_DIR}/check-version.sh" 2>/dev/null | grep "Latest release:" | awk '{print $3}' || echo "")
 
     if [ -z "$latest_version" ]; then
         # Try to get latest version directly
@@ -241,7 +242,7 @@ update_server() {
 
     # Rebuild and start
     echo -e "${BLUE}Rebuilding container...${NC}"
-    docker-compose build --no-cache
+    compose build --no-cache
 
     echo -e "${GREEN}Starting server with new version...${NC}"
     start_server
@@ -276,7 +277,8 @@ case "${1}" in
     update)
         # Check compatibility before updating
         if [ -f "${SCRIPT_DIR}/check-compatibility.sh" ]; then
-            local current_version=$(grep -E "MINECRAFT_VERSION=" docker-compose.yml | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
+            local current_version
+            current_version=$(grep -E "MINECRAFT_VERSION=" docker-compose.yml | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
             current_version=${current_version:-${MINECRAFT_VERSION:-1.20.4}}
             local target_version="${2:-}"
 

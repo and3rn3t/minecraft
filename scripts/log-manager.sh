@@ -41,7 +41,8 @@ log_message() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     echo "[$timestamp] [$level] $message" | tee -a "${LOGS_DIR}/log-manager.log"
 }
 
@@ -117,8 +118,10 @@ index_logs() {
 
     log_message "INFO" "Starting log indexing..."
 
-    local index_file="${INDEX_DIR}/log_index_$(date +%Y%m%d).txt"
-    local temp_index=$(mktemp)
+    local index_file
+    index_file="${INDEX_DIR}/log_index_$(date +%Y%m%d).txt"
+    local temp_index
+    temp_index=$(mktemp)
     local line_count=0
 
     # Index server log files
@@ -164,7 +167,8 @@ detect_errors() {
 
     log_message "INFO" "Detecting error patterns..."
 
-    local error_file="${LOGS_DIR}/errors_$(date +%Y%m%d).txt"
+    local error_file
+    error_file="${LOGS_DIR}/errors_$(date +%Y%m%d).txt"
     local error_patterns=(
         "ERROR"
         "FATAL"
@@ -202,7 +206,8 @@ detect_errors() {
     get_server_logs 10000 | grep -iE "$(IFS='|'; echo "${error_patterns[*]}")" >> "$error_file" || true
 
     # Count errors
-    local error_count=$(wc -l < "$error_file" 2>/dev/null || echo "0")
+    local error_count
+    error_count=$(wc -l < "$error_file" 2>/dev/null || echo "0")
 
     if [ "$error_count" -gt 0 ]; then
         log_message "WARNING" "Found $error_count error(s) - see $error_file"
@@ -225,14 +230,17 @@ rotate_logs() {
 
     # Rotate server log files
     if [ -f "${SERVER_LOG_DIR}/latest.log" ]; then
-        local log_size=$(stat -f%z "${SERVER_LOG_DIR}/latest.log" 2>/dev/null || stat -c%s "${SERVER_LOG_DIR}/latest.log" 2>/dev/null || echo "0")
-        local max_size=$((MAX_LOG_SIZE_MB * 1024 * 1024))
+        local log_size
+        log_size=$(stat -f%z "${SERVER_LOG_DIR}/latest.log" 2>/dev/null || stat -c%s "${SERVER_LOG_DIR}/latest.log" 2>/dev/null || echo "0")
+        local max_size
+        max_size=$((MAX_LOG_SIZE_MB * 1024 * 1024))
 
         if [ "$log_size" -gt "$max_size" ]; then
             log_message "INFO" "Rotating latest.log (size: $((log_size / 1024 / 1024))MB)"
 
             # Compress and archive
-            local archive_name="latest_$(date +%Y%m%d_%H%M%S).log.gz"
+            local archive_name
+            archive_name="latest_$(date +%Y%m%d_%H%M%S).log.gz"
             gzip -c "${SERVER_LOG_DIR}/latest.log" > "${ARCHIVE_DIR}/${archive_name}"
 
             # Clear latest.log (server will create new one)
@@ -310,14 +318,16 @@ show_statistics() {
     echo "=============="
 
     # Count log files
-    local log_file_count=$(get_server_log_files | wc -l)
+    local log_file_count
+    log_file_count=$(get_server_log_files | wc -l)
     echo "Log files: $log_file_count"
 
     # Total log size
     local total_size=0
     while IFS= read -r log_file; do
         if [ -f "$log_file" ]; then
-            local size=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo "0")
+            local size
+            size=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo "0")
             total_size=$((total_size + size))
         fi
     done < <(get_server_log_files)
@@ -325,17 +335,21 @@ show_statistics() {
     echo "Total log size: $((total_size / 1024 / 1024))MB"
 
     # Archive count
-    local archive_count=$(find "$ARCHIVE_DIR" -name "*.log.gz" -type f 2>/dev/null | wc -l)
+    local archive_count
+    archive_count=$(find "$ARCHIVE_DIR" -name "*.log.gz" -type f 2>/dev/null | wc -l)
     echo "Archived logs: $archive_count"
 
     # Index count
-    local index_count=$(find "$INDEX_DIR" -name "log_index_*.txt" -type f 2>/dev/null | wc -l)
+    local index_count
+    index_count=$(find "$INDEX_DIR" -name "log_index_*.txt" -type f 2>/dev/null | wc -l)
     echo "Index files: $index_count"
 
     # Error count (today)
-    local error_file="${LOGS_DIR}/errors_$(date +%Y%m%d).txt"
+    local error_file
+    error_file="${LOGS_DIR}/errors_$(date +%Y%m%d).txt"
     if [ -f "$error_file" ]; then
-        local error_count=$(wc -l < "$error_file")
+        local error_count
+        error_count=$(wc -l < "$error_file")
         echo "Errors today: $error_count"
     else
         echo "Errors today: 0"

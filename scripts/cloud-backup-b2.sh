@@ -90,7 +90,8 @@ get_bucket_id() {
     fi
 
     # Look up bucket ID
-    local bucket_id=$(b2 list-buckets | grep "$B2_BUCKET_NAME" | awk '{print $1}' | head -1)
+    local bucket_id
+    bucket_id=$(b2 list-buckets | grep "$B2_BUCKET_NAME" | awk '{print $1}' | head -1)
     echo "$bucket_id"
 }
 
@@ -110,9 +111,11 @@ upload_backup() {
 
     authorize_b2
 
-    local backup_name=$(basename "$backup_file")
+    local backup_name
+    backup_name=$(basename "$backup_file")
     local b2_key="${B2_PREFIX}/${backup_name}"
-    local bucket_id=$(get_bucket_id)
+    local bucket_id
+    bucket_id=$(get_bucket_id)
 
     if [ -z "$bucket_id" ]; then
         echo -e "${RED}Error: Could not find bucket ID for $B2_BUCKET_NAME${NC}"
@@ -141,7 +144,8 @@ upload_backup() {
 list_backups() {
     authorize_b2
 
-    local bucket_id=$(get_bucket_id)
+    local bucket_id
+    bucket_id=$(get_bucket_id)
 
     if [ -z "$bucket_id" ]; then
         echo -e "${RED}Error: Could not find bucket ID for $B2_BUCKET_NAME${NC}"
@@ -169,7 +173,8 @@ download_backup() {
 
     authorize_b2
 
-    local bucket_id=$(get_bucket_id)
+    local bucket_id
+    bucket_id=$(get_bucket_id)
 
     if [ -z "$bucket_id" ]; then
         echo -e "${RED}Error: Could not find bucket ID for $B2_BUCKET_NAME${NC}"
@@ -208,7 +213,8 @@ delete_backup() {
 
     authorize_b2
 
-    local bucket_id=$(get_bucket_id)
+    local bucket_id
+    bucket_id=$(get_bucket_id)
 
     if [ -z "$bucket_id" ]; then
         echo -e "${RED}Error: Could not find bucket ID for $B2_BUCKET_NAME${NC}"
@@ -218,7 +224,8 @@ delete_backup() {
     local b2_key="${B2_PREFIX}/${backup_name}"
 
     # Get file ID first
-    local file_id=$(b2 list-file-names "$bucket_id" "$b2_key" | awk '{print $1}' | head -1)
+    local file_id
+    file_id=$(b2 list-file-names "$bucket_id" "$b2_key" | awk '{print $1}' | head -1)
 
     if [ -z "$file_id" ]; then
         echo -e "${RED}Error: Backup not found: $b2_key${NC}"
@@ -276,7 +283,8 @@ test_connection() {
 
     authorize_b2
 
-    local bucket_id=$(get_bucket_id)
+    local bucket_id
+    bucket_id=$(get_bucket_id)
 
     if [ -n "$bucket_id" ]; then
         echo -e "${GREEN}✓ B2 connection successful!${NC}"

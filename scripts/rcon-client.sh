@@ -61,7 +61,8 @@ send_rcon_command() {
     # Try to use rcon-cli from container first
     if docker ps | grep -q minecraft-server; then
         if docker exec minecraft-server command -v rcon-cli >/dev/null 2>&1; then
-            local result=$(docker exec minecraft-server rcon-cli -H "$RCON_HOST" -p "$RCON_PORT" -P "$RCON_PASSWORD" "$command" 2>&1)
+            local result
+            result=$(docker exec minecraft-server rcon-cli -H "$RCON_HOST" -p "$RCON_PORT" -P "$RCON_PASSWORD" "$command" 2>&1)
             if [ $? -eq 0 ]; then
                 echo "$result"
                 return 0
@@ -71,7 +72,8 @@ send_rcon_command() {
 
     # Try local rcon-cli
     if command -v rcon-cli >/dev/null 2>&1; then
-        local result=$(rcon-cli -H "$RCON_HOST" -p "$RCON_PORT" -P "$RCON_PASSWORD" "$command" 2>&1)
+        local result
+        result=$(rcon-cli -H "$RCON_HOST" -p "$RCON_PORT" -P "$RCON_PASSWORD" "$command" 2>&1)
         if [ $? -eq 0 ]; then
             echo "$result"
             return 0
@@ -140,7 +142,8 @@ test_rcon() {
     fi
 
     # Test with list command
-    local result=$(send_rcon_command "list" 2>&1)
+    local result
+    result=$(send_rcon_command "list" 2>&1)
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}RCON connection successful${NC}"
         echo "Response: $result"
@@ -170,7 +173,8 @@ interactive_rcon() {
                 break
                 ;;
             *)
-                local result=$(send_rcon_command "$command" 2>&1)
+                local result
+                result=$(send_rcon_command "$command" 2>&1)
                 if [ $? -eq 0 ]; then
                     echo "$result"
                 else

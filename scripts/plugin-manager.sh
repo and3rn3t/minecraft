@@ -47,7 +47,8 @@ get_plugin_info() {
     fi
 
     # Try to extract plugin.yml or paper-plugin.yml
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     unzip -q -o "$plugin_file" -d "$temp_dir" 2>/dev/null || return 1
 
     local plugin_yml=""
@@ -61,9 +62,12 @@ get_plugin_info() {
     fi
 
     # Extract plugin name and version
-    local name=$(grep -E "^name:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | head -1)
-    local version=$(grep -E "^version:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | head -1)
-    local api_version=$(grep -E "^api-version:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | head -1)
+    local name
+    name=$(grep -E "^name:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | head -1)
+    local version
+    version=$(grep -E "^version:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | head -1)
+    local api_version
+    api_version=$(grep -E "^api-version:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | head -1)
 
     # Extract dependencies
     local dependencies=""
@@ -93,8 +97,10 @@ check_plugin_compatibility() {
         return 1
     fi
 
-    local plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown||")
-    local api_version=$(echo "$plugin_info" | cut -d'|' -f3)
+    local plugin_info
+    plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown||")
+    local api_version
+    api_version=$(echo "$plugin_info" | cut -d'|' -f3)
 
     # Check if server type supports plugins
     if [ "$server_type" = "vanilla" ]; then
@@ -106,14 +112,19 @@ check_plugin_compatibility() {
     # Check API version compatibility (basic check)
     if [ "$api_version" != "Unknown" ] && [ -n "$api_version" ]; then
         # Get current server version
-        local current_version=$(grep -E "MINECRAFT_VERSION=" "${PROJECT_DIR}/docker-compose.yml" | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
+        local current_version
+        current_version=$(grep -E "MINECRAFT_VERSION=" "${PROJECT_DIR}/docker-compose.yml" | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
         current_version=${current_version:-${MINECRAFT_VERSION:-1.20.4}}
 
         # Extract major.minor from versions
-        local api_major=$(echo "$api_version" | cut -d'.' -f1)
-        local api_minor=$(echo "$api_version" | cut -d'.' -f2)
-        local server_major=$(echo "$current_version" | cut -d'.' -f1)
-        local server_minor=$(echo "$current_version" | cut -d'.' -f2)
+        local api_major
+        api_major=$(echo "$api_version" | cut -d'.' -f1)
+        local api_minor
+        api_minor=$(echo "$api_version" | cut -d'.' -f2)
+        local server_major
+        server_major=$(echo "$current_version" | cut -d'.' -f1)
+        local server_minor
+        server_minor=$(echo "$current_version" | cut -d'.' -f2)
 
         # Basic compatibility check (same major version)
         if [ "$api_major" != "$server_major" ]; then
@@ -129,14 +140,17 @@ check_plugin_compatibility() {
 # Function to check plugin dependencies
 check_plugin_dependencies() {
     local plugin_file="$1"
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
 
     if [ ! -f "$plugin_file" ]; then
         return 1
     fi
 
-    local plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown||")
-    local dependencies=$(echo "$plugin_info" | cut -d'|' -f4)
+    local plugin_info
+    plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown||")
+    local dependencies
+    dependencies=$(echo "$plugin_info" | cut -d'|' -f4)
 
     if [ -z "$dependencies" ] || [ "$dependencies" = "Unknown" ]; then
         return 0  # No dependencies
@@ -151,8 +165,10 @@ check_plugin_dependencies() {
             local found=false
             for plugin in "$plugin_dir"/*.jar; do
                 if [ -f "$plugin" ]; then
-                    local dep_info=$(get_plugin_info "$plugin" 2>/dev/null || echo "Unknown|Unknown|Unknown||")
-                    local dep_name=$(echo "$dep_info" | cut -d'|' -f1)
+                    local dep_info
+                    dep_info=$(get_plugin_info "$plugin" 2>/dev/null || echo "Unknown|Unknown|Unknown||")
+                    local dep_name
+                    dep_name=$(echo "$dep_info" | cut -d'|' -f1)
                     if [ "$dep_name" = "$dep" ]; then
                         found=true
                         break
@@ -181,7 +197,8 @@ check_plugin_dependencies() {
 # Function to install plugin
 install_plugin() {
     local plugin_file="$1"
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
 
     if [ ! -f "$plugin_file" ]; then
         echo -e "${RED}Error: Plugin file not found: $plugin_file${NC}"
@@ -215,7 +232,8 @@ install_plugin() {
         fi
     fi
 
-    local plugin_name=$(basename "$plugin_file")
+    local plugin_name
+    plugin_name=$(basename "$plugin_file")
     local dest_file="${plugin_dir}/${plugin_name}"
 
     # Check if plugin already exists
@@ -232,9 +250,12 @@ install_plugin() {
     fi
 
     # Get plugin info
-    local plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
-    local name=$(echo "$plugin_info" | cut -d'|' -f1)
-    local version=$(echo "$plugin_info" | cut -d'|' -f2)
+    local plugin_info
+    plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+    local name
+    name=$(echo "$plugin_info" | cut -d'|' -f1)
+    local version
+    version=$(echo "$plugin_info" | cut -d'|' -f2)
 
     echo -e "${BLUE}Installing plugin: $name (v$version)${NC}"
 
@@ -254,7 +275,8 @@ install_plugin() {
 
 # Function to list plugins
 list_plugins() {
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
     local disabled_dir="$PLUGIN_DISABLED_DIR"
 
     echo -e "${BLUE}Installed Plugins:${NC}"
@@ -264,10 +286,14 @@ list_plugins() {
     for plugin in "$plugin_dir"/*.jar; do
         if [ -f "$plugin" ]; then
             count=$((count + 1))
-            local plugin_name=$(basename "$plugin")
-            local plugin_info=$(get_plugin_info "$plugin" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
-            local name=$(echo "$plugin_info" | cut -d'|' -f1)
-            local version=$(echo "$plugin_info" | cut -d'|' -f2)
+            local plugin_name
+            plugin_name=$(basename "$plugin")
+            local plugin_info
+            plugin_info=$(get_plugin_info "$plugin" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+            local name
+            name=$(echo "$plugin_info" | cut -d'|' -f1)
+            local version
+            version=$(echo "$plugin_info" | cut -d'|' -f2)
 
             if [ "$name" = "Unknown" ]; then
                 name="$plugin_name"
@@ -303,7 +329,8 @@ list_plugins() {
 # Function to enable plugin
 enable_plugin() {
     local plugin_name="$1"
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
     local disabled_dir="$PLUGIN_DISABLED_DIR"
 
     # Try to find in disabled directory
@@ -318,7 +345,8 @@ enable_plugin() {
         return 1
     fi
 
-    local enabled_file="${plugin_dir}/$(basename "$disabled_file")"
+    local enabled_file
+    enabled_file="${plugin_dir}/$(basename "$disabled_file")"
 
     if [ -f "$enabled_file" ]; then
         echo -e "${YELLOW}Plugin already enabled: $(basename "$enabled_file")${NC}"
@@ -333,7 +361,8 @@ enable_plugin() {
 # Function to disable plugin
 disable_plugin() {
     local plugin_name="$1"
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
     local disabled_dir="$PLUGIN_DISABLED_DIR"
 
     # Try to find plugin
@@ -348,7 +377,8 @@ disable_plugin() {
         return 1
     fi
 
-    local disabled_file="${disabled_dir}/$(basename "$plugin_file")"
+    local disabled_file
+    disabled_file="${disabled_dir}/$(basename "$plugin_file")"
 
     if [ -f "$disabled_file" ]; then
         echo -e "${YELLOW}Plugin already disabled${NC}"
@@ -363,7 +393,8 @@ disable_plugin() {
 # Function to remove plugin
 remove_plugin() {
     local plugin_name="$1"
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
 
     # Try to find plugin
     local plugin_file="${plugin_dir}/${plugin_name}"
@@ -384,8 +415,10 @@ remove_plugin() {
         return 1
     fi
 
-    local plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
-    local name=$(echo "$plugin_info" | cut -d'|' -f1)
+    local plugin_info
+    plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+    local name
+    name=$(echo "$plugin_info" | cut -d'|' -f1)
 
     echo -e "${YELLOW}Removing plugin: $name${NC}"
     read -p "Are you sure? This will also remove plugin configuration. (y/N): " -n 1 -r
@@ -396,7 +429,8 @@ remove_plugin() {
     fi
 
     # Backup before removal
-    local backup_file="${PLUGIN_BACKUP_DIR}/$(basename "$plugin_file").removed.$(date +%Y%m%d_%H%M%S)"
+    local backup_file
+    backup_file="${PLUGIN_BACKUP_DIR}/$(basename "$plugin_file").removed.$(date +%Y%m%d_%H%M%S)"
     cp "$plugin_file" "$backup_file"
 
     # Remove plugin
@@ -413,7 +447,8 @@ remove_plugin() {
 
 # Function to check for plugin updates
 check_plugin_updates() {
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
 
     echo -e "${BLUE}Checking for plugin updates...${NC}"
     echo ""
@@ -424,9 +459,12 @@ check_plugin_updates() {
     for plugin_file in "$plugin_dir"/*.jar; do
         if [ -f "$plugin_file" ]; then
             checked_count=$((checked_count + 1))
-            local plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
-            local name=$(echo "$plugin_info" | cut -d'|' -f1)
-            local version=$(echo "$plugin_info" | cut -d'|' -f2)
+            local plugin_info
+            plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+            local name
+            name=$(echo "$plugin_info" | cut -d'|' -f1)
+            local version
+            version=$(echo "$plugin_info" | cut -d'|' -f2)
 
             if [ "$name" = "Unknown" ]; then
                 name=$(basename "$plugin_file" .jar)
@@ -453,7 +491,8 @@ check_plugin_updates() {
 update_plugin() {
     local plugin_name="$1"
     local new_plugin_file="$2"
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
 
     if [ -z "$new_plugin_file" ]; then
         echo -e "${RED}Error: New plugin file not specified${NC}"
@@ -488,13 +527,19 @@ update_plugin() {
         return 1
     fi
 
-    local old_info=$(get_plugin_info "$old_plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
-    local new_info=$(get_plugin_info "$new_plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+    local old_info
+    old_info=$(get_plugin_info "$old_plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+    local new_info
+    new_info=$(get_plugin_info "$new_plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
 
-    local old_name=$(echo "$old_info" | cut -d'|' -f1)
-    local old_version=$(echo "$old_info" | cut -d'|' -f2)
-    local new_name=$(echo "$new_info" | cut -d'|' -f1)
-    local new_version=$(echo "$new_info" | cut -d'|' -f2)
+    local old_name
+    old_name=$(echo "$old_info" | cut -d'|' -f1)
+    local old_version
+    old_version=$(echo "$old_info" | cut -d'|' -f2)
+    local new_name
+    new_name=$(echo "$new_info" | cut -d'|' -f1)
+    local new_version
+    new_version=$(echo "$new_info" | cut -d'|' -f2)
 
     echo -e "${BLUE}Updating plugin: $old_name${NC}"
     echo -e "  Old version: $old_version"
@@ -519,11 +564,13 @@ update_plugin() {
 
 # Function to backup plugin configs
 backup_plugin_configs() {
-    local plugin_dir=$(find_plugin_dir)
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
 
     echo -e "${BLUE}Backing up plugin configurations...${NC}"
 
-    local backup_timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_timestamp
+    backup_timestamp=$(date +%Y%m%d_%H%M%S)
     local backup_path="${PLUGIN_BACKUP_DIR}/configs.${backup_timestamp}"
 
     if [ -d "$PLUGIN_CONFIG_DIR" ] && [ -n "$(ls -A "$PLUGIN_CONFIG_DIR" 2>/dev/null)" ]; then

@@ -20,7 +20,8 @@ SUPPORTED_TYPES="vanilla paper spigot fabric"
 
 # Function to get current server type
 get_current_type() {
-    local type=$(grep -E "SERVER_TYPE=" "${PROJECT_DIR}/docker-compose.yml" | head -1 | sed 's/.*SERVER_TYPE:-\([^}]*\).*/\1/' | sed 's/.*SERVER_TYPE=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "vanilla")
+    local type
+    type=$(grep -E "SERVER_TYPE=" "${PROJECT_DIR}/docker-compose.yml" | head -1 | sed 's/.*SERVER_TYPE:-\([^}]*\).*/\1/' | sed 's/.*SERVER_TYPE=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "vanilla")
     type=${type:-${SERVER_TYPE:-vanilla}}
     echo "$type"
 }
@@ -36,7 +37,8 @@ set_server_type() {
         exit 1
     fi
 
-    local current_type=$(get_current_type)
+    local current_type
+    current_type=$(get_current_type)
 
     if [ "$current_type" = "$new_type" ]; then
         echo -e "${GREEN}Server is already set to $new_type${NC}"
@@ -113,7 +115,8 @@ set_server_type() {
 list_types() {
     echo -e "${BLUE}Available server types:${NC}"
     for type in $SUPPORTED_TYPES; do
-        local current=$(get_current_type)
+        local current
+        current=$(get_current_type)
         if [ "$type" = "$current" ]; then
             echo -e "  ${GREEN}* $type (current)${NC}"
         else

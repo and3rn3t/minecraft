@@ -25,8 +25,10 @@ mkdir -p "$ANALYTICS_DIR" "$METRICS_DIR" "$LOGS_DIR"
 log_analytics() {
     local data_type="$1"
     local data="$2"
-    local timestamp=$(date +%s)
-    local date_str=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +%s)
+    local date_str
+    date_str=$(date +"%Y-%m-%d %H:%M:%S")
     local file="${ANALYTICS_DIR}/${data_type}.jsonl"
 
     # Append JSON line to file
@@ -45,14 +47,18 @@ get_player_analytics() {
 
     # Check if RCON is available
     if [ -f "${PROJECT_DIR}/config/rcon.conf" ]; then
-        local rcon_password=$(grep "^password=" "${PROJECT_DIR}/config/rcon.conf" | cut -d= -f2)
+        local rcon_password
+        rcon_password=$(grep "^password=" "${PROJECT_DIR}/config/rcon.conf" | cut -d= -f2)
         if [ -n "$rcon_password" ]; then
             # Get player list via RCON
-            local list_output=$(docker exec minecraft-server rcon-cli list 2>/dev/null || echo "")
+            local list_output
+            list_output=$(docker exec minecraft-server rcon-cli list 2>/dev/null || echo "")
             if [ -n "$list_output" ]; then
                 # Parse player list (format: "There are X of a max of Y players online: player1, player2")
-                local player_count=$(echo "$list_output" | grep -oP 'There are \K\d+' || echo "0")
-                local players=$(echo "$list_output" | grep -oP 'online: \K.*' || echo "")
+                local player_count
+                player_count=$(echo "$list_output" | grep -oP 'There are \K\d+' || echo "0")
+                local players
+                players=$(echo "$list_output" | grep -oP 'online: \K.*' || echo "")
 
                 if [ -n "$players" ] && [ "$players" != " " ]; then
                     # Convert comma-separated list to JSON array
@@ -79,15 +85,18 @@ get_player_events() {
 
     # Get recent log entries (last 100 lines)
     if [ -f "$log_file" ]; then
-        local recent_logs=$(tail -100 "$log_file" 2>/dev/null || echo "")
+        local recent_logs
+        recent_logs=$(tail -100 "$log_file" 2>/dev/null || echo "")
     else
         # Try to get from Docker logs
         recent_logs=$(docker logs minecraft-server --tail 100 2>/dev/null || echo "")
     fi
 
     # Parse join/leave events
-    local join_events=$(echo "$recent_logs" | grep -i "joined the game" | tail -10 || echo "")
-    local leave_events=$(echo "$recent_logs" | grep -iE "(left the game|disconnected)" | tail -10 || echo "")
+    local join_events
+    join_events=$(echo "$recent_logs" | grep -i "joined the game" | tail -10 || echo "")
+    local leave_events
+    leave_events=$(echo "$recent_logs" | grep -iE "(left the game|disconnected)" | tail -10 || echo "")
 
     # Build events array (simplified - would need more parsing in production)
     if [ -n "$join_events" ] || [ -n "$leave_events" ]; then
@@ -124,17 +133,20 @@ get_performance_metrics() {
     fi
 
     # Get memory usage (in MB)
-    local mem_stats=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null || echo "0B / 0B")
+    local mem_stats
+    mem_stats=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null || echo "0B / 0B")
     if echo "$mem_stats" | grep -q "MiB"; then
         memory=$(echo "$mem_stats" | grep -oP '\d+\.\d+MiB' | head -1 | sed 's/MiB//' || echo "0")
     elif echo "$mem_stats" | grep -q "GiB"; then
-        local mem_gb=$(echo "$mem_stats" | grep -oP '\d+\.\d+GiB' | head -1 | sed 's/GiB//' || echo "0")
+        local mem_gb
+        mem_gb=$(echo "$mem_stats" | grep -oP '\d+\.\d+GiB' | head -1 | sed 's/GiB//' || echo "0")
         memory=$(echo "$mem_gb * 1024" | bc 2>/dev/null || echo "0")
     fi
 
     # Try to get chunks loaded (from logs or RCON)
     if [ -f "${PROJECT_DIR}/config/rcon.conf" ]; then
-        local rcon_password=$(grep "^password=" "${PROJECT_DIR}/config/rcon.conf" | cut -d= -f2)
+        local rcon_password
+        rcon_password=$(grep "^password=" "${PROJECT_DIR}/config/rcon.conf" | cut -d= -f2)
         if [ -n "$rcon_password" ]; then
             # Try to get chunk info (this would need server-specific commands)
             chunks_loaded=0  # Placeholder - would need mod/plugin support
@@ -151,7 +163,8 @@ get_network_metrics() {
         return
     fi
 
-    local net_io=$(docker stats minecraft-server --no-stream --format "{{.NetIO}}" 2>/dev/null || echo "0B / 0B")
+    local net_io
+    net_io=$(docker stats minecraft-server --no-stream --format "{{.NetIO}}" 2>/dev/null || echo "0B / 0B")
     local bytes_sent=0
     local bytes_recv=0
 
@@ -183,7 +196,8 @@ get_world_stats() {
 
     # Try to get entity count via RCON
     if [ -f "${PROJECT_DIR}/config/rcon.conf" ]; then
-        local rcon_password=$(grep "^password=" "${PROJECT_DIR}/config/rcon.conf" | cut -d= -f2)
+        local rcon_password
+        rcon_password=$(grep "^password=" "${PROJECT_DIR}/config/rcon.conf" | cut -d= -f2)
         if [ -n "$rcon_password" ]; then
             # Entity count would need server command support
             entities=0  # Placeholder
@@ -195,34 +209,43 @@ get_world_stats() {
 
 # Main collection function
 main() {
-    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     echo -e "${BLUE}[$timestamp]${NC} Collecting analytics data..."
 
     # Collect player analytics
-    local players=$(get_player_analytics)
+    local players
+    players=$(get_player_analytics)
     log_analytics "players" "$players"
 
     # Collect player events
-    local events=$(get_player_events)
+    local events
+    events=$(get_player_events)
     log_analytics "player_events" "$events"
 
     # Collect performance metrics
-    local performance=$(get_performance_metrics)
+    local performance
+    performance=$(get_performance_metrics)
     log_analytics "performance" "$performance"
 
     # Collect network metrics
-    local network=$(get_network_metrics)
+    local network
+    network=$(get_network_metrics)
     log_analytics "network" "$network"
 
     # Collect world statistics
-    local world_stats=$(get_world_stats)
+    local world_stats
+    world_stats=$(get_world_stats)
     log_analytics "world_stats" "$world_stats"
 
     # Collect system metrics (CPU temp, etc. for RPi)
     if command -v vcgencmd &> /dev/null; then
-        local temp=$(vcgencmd measure_temp | cut -d= -f2 | cut -d\' -f1 || echo "0")
-        local freq=$(vcgencmd measure_clock arm | awk -F= '{print $2/1000000}' || echo "0")
-        local throttled=$(vcgencmd get_throttled | cut -d= -f2 || echo "0x0")
+        local temp
+        temp=$(vcgencmd measure_temp | cut -d= -f2 | cut -d\' -f1 || echo "0")
+        local freq
+        freq=$(vcgencmd measure_clock arm | awk -F= '{print $2/1000000}' || echo "0")
+        local throttled
+        throttled=$(vcgencmd get_throttled | cut -d= -f2 || echo "0x0")
         local system_metrics="{\"cpu_temp\":$temp,\"cpu_freq_mhz\":$freq,\"throttled\":\"$throttled\"}"
         log_analytics "system" "$system_metrics"
     fi

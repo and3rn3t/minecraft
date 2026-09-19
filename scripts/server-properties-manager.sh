@@ -59,7 +59,8 @@ PROPERTY_VALUES[enable-query]="true,false"
 
 # Function to backup server.properties
 backup_properties() {
-    local backup_file="${SERVER_PROPERTIES}.backup.$(date +%Y%m%d_%H%M%S)"
+    local backup_file
+    backup_file="${SERVER_PROPERTIES}.backup.$(date +%Y%m%d_%H%M%S)"
     if [ -f "$SERVER_PROPERTIES" ]; then
         cp "$SERVER_PROPERTIES" "$backup_file"
         echo -e "${GREEN}Backup created: $(basename "$backup_file")${NC}"
@@ -75,7 +76,8 @@ get_property() {
     fi
 
     # Get value, handling comments and empty lines
-    local value=$(grep -E "^${key}=" "$SERVER_PROPERTIES" 2>/dev/null | cut -d'=' -f2- | head -1)
+    local value
+    value=$(grep -E "^${key}=" "$SERVER_PROPERTIES" 2>/dev/null | cut -d'=' -f2- | head -1)
 
     if [ -z "$value" ]; then
         echo -e "${YELLOW}Property not found: $key${NC}"
@@ -224,7 +226,8 @@ show_property_info() {
     echo ""
 
     # Get current value
-    local current=$(get_property "$key" 2>/dev/null || echo "not set")
+    local current
+    current=$(get_property "$key" 2>/dev/null || echo "not set")
     echo "  Current value: $current"
 
     # Show validation rules

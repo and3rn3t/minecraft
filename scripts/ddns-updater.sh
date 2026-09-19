@@ -26,7 +26,8 @@ log() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
 
     case "$level" in
@@ -111,7 +112,8 @@ get_public_ip() {
         curl_opts=""
     fi
 
-    local ip=$(curl -s $curl_opts "$ip_check_url" 2>/dev/null || echo "")
+    local ip
+    ip=$(curl -s $curl_opts "$ip_check_url" 2>/dev/null || echo "")
 
     if [ -z "$ip" ]; then
         # Fallback to alternative service
@@ -139,7 +141,8 @@ update_duckdns() {
         return 1
     fi
 
-    local current_ip=$(get_public_ip)
+    local current_ip
+    current_ip=$(get_public_ip)
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -149,7 +152,8 @@ update_duckdns() {
 
     local url="https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=$current_ip"
 
-    local response=$(curl -s "$url" 2>/dev/null)
+    local response
+    response=$(curl -s "$url" 2>/dev/null)
 
     if [ "$response" = "OK" ]; then
         log SUCCESS "DuckDNS updated successfully: $DUCKDNS_DOMAIN -> $current_ip"
@@ -167,7 +171,8 @@ update_noip() {
         return 1
     fi
 
-    local current_ip=$(get_public_ip)
+    local current_ip
+    current_ip=$(get_public_ip)
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -179,7 +184,8 @@ update_noip() {
 
     local url="https://$NOIP_USERNAME:$NOIP_PASSWORD@dynupdate.no-ip.com/nic/update?hostname=$hostname&myip=$current_ip"
 
-    local response=$(curl -s "$url" 2>/dev/null)
+    local response
+    response=$(curl -s "$url" 2>/dev/null)
 
     if [[ "$response" =~ ^(good|nochg) ]]; then
         log SUCCESS "No-IP updated successfully: $hostname -> $current_ip"
@@ -197,7 +203,8 @@ update_cloudflare() {
         return 1
     fi
 
-    local current_ip=$(get_public_ip)
+    local current_ip
+    current_ip=$(get_public_ip)
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -208,12 +215,14 @@ update_cloudflare() {
     log INFO "Current public IP: $current_ip"
 
     # Get existing record ID
-    local record_response=$(curl -s -X GET \
+    local record_response
+    record_response=$(curl -s -X GET \
         "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?type=A&name=$record_name" \
         -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null)
 
-    local record_id=$(echo "$record_response" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+    local record_id
+    record_id=$(echo "$record_response" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
     if [ -z "$record_id" ]; then
         log ERROR "DNS record not found: $record_name"
@@ -221,13 +230,15 @@ update_cloudflare() {
     fi
 
     # Update the record
-    local update_response=$(curl -s -X PUT \
+    local update_response
+    update_response=$(curl -s -X PUT \
         "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records/$record_id" \
         -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" \
         --data "{\"type\":\"A\",\"name\":\"$record_name\",\"content\":\"$current_ip\",\"ttl\":300}" 2>/dev/null)
 
-    local success=$(echo "$update_response" | grep -o '"success":true' || echo "")
+    local success
+    success=$(echo "$update_response" | grep -o '"success":true' || echo "")
 
     if [ -n "$success" ]; then
         log SUCCESS "Cloudflare DNS updated successfully: $record_name -> $current_ip"
