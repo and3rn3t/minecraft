@@ -1,0 +1,16 @@
+[Unit]
+Description=Run Due Minecraft Scheduled Commands
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/minecraft-server
+# One pass over config/command-schedule.json, running whatever is due.
+# Without this nothing ever executed the schedules created in the web UI.
+ExecStart=/usr/bin/python3 /home/pi/minecraft-server/scripts/command-scheduler.py run
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target

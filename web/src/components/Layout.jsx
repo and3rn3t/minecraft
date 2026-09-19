@@ -19,6 +19,7 @@ const Layout = ({ children }) => {
     { path: '/logs', label: 'Logs', icon: '📝', category: 'main' },
     { path: '/console', label: 'Console', icon: '💻', category: 'main' },
     { path: '/scheduler', label: 'Scheduler', icon: '⏰', category: 'main' },
+    { path: '/bedtime', label: 'Bedtime', icon: '🌙', category: 'main' },
     { path: '/players', label: 'Players', icon: '👥', category: 'server' },
     { path: '/deaths', label: 'Hall of Deaths', icon: '💀', category: 'server' },
     { path: '/backups', label: 'Backups', icon: '💾', category: 'server' },

@@ -86,6 +86,53 @@ components:
       description: Session cookie from login
 
   schemas:
+    BedtimeStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        closed:
+          type: boolean
+          description: Whether the server is inside a bedtime window right now
+        skipped_tonight:
+          type: boolean
+        next_bedtime:
+          type: string
+          description: Local time of the next bedtime that will be enforced
+        seconds_until_bedtime:
+          type: integer
+          nullable: true
+          description: Null while the window is already closed
+        opens_at:
+          type: string
+          nullable: true
+          description: When the server opens again, while closed
+        extensions_used:
+          type: integer
+        extensions_allowed:
+          type: integer
+        extend_minutes:
+          type: integer
+        action:
+          type: string
+          enum: [stop, kick, announce]
+        weeknight_bedtime:
+          type: string
+        weekend_bedtime:
+          type: string
+        wake_time:
+          type: string
+
+    BedtimeControlResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        status:
+          $ref: '#/components/schemas/BedtimeStatus'
+
     DeathRecord:
       type: object
       properties:
@@ -697,6 +744,85 @@ paths:
                       type: string
                   total_lines:
                     type: integer
+
+  /api/bedtime:
+    get:
+      tags:
+        - Bedtime
+      summary: Get bedtime status
+      description: |
+        The countdown, the closed window and the extension budget.
+        Requires the `server.view` permission, so a read-only account can watch
+        the countdown.
+      operationId: getBedtime
+      responses:
+        '200':
+          description: Current bedtime status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BedtimeStatus'
+        '503':
+          description: Bedtime mode is unavailable
+
+  /api/bedtime/extend:
+    post:
+      tags:
+        - Bedtime
+      summary: Grant more time tonight
+      description: Pushes tonight's bedtime back. Requires `server.control`.
+      operationId: extendBedtime
+      responses:
+        '200':
+          description: Extension granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BedtimeControlResult'
+        '409':
+          description: >-
+            Refused, with a reason. The request was well-formed; the server will
+            not do it, because the budget is spent or bedtime already happened.
+        '503':
+          description: Bedtime mode is unavailable
+
+  /api/bedtime/skip:
+    post:
+      tags:
+        - Bedtime
+      summary: Skip bedtime tonight
+      description: Cancels bedtime for this evening only. Requires `server.control`.
+      operationId: skipBedtime
+      responses:
+        '200':
+          description: Bedtime skipped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BedtimeControlResult'
+        '409':
+          description: Refused, with a reason
+        '503':
+          description: Bedtime mode is unavailable
+
+  /api/bedtime/now:
+    post:
+      tags:
+        - Bedtime
+      summary: Start bedtime immediately
+      description: Brings bedtime forward to right now. Requires `server.control`.
+      operationId: startBedtimeNow
+      responses:
+        '200':
+          description: Bedtime started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BedtimeControlResult'
+        '409':
+          description: Refused, with a reason
+        '503':
+          description: Bedtime mode is unavailable
 
   /api/deaths:
     get:

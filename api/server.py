@@ -117,6 +117,15 @@ except ImportError:
     DEATHS_AVAILABLE = False
     hall_of_deaths = None
 
+# Bedtime mode. Warns, counts down, then closes the server for the night.
+try:
+    from api import bedtime as bedtime_mode
+
+    BEDTIME_AVAILABLE = True
+except ImportError:
+    BEDTIME_AVAILABLE = False
+    bedtime_mode = None
+
 
 app = Flask(__name__)
 # SECRET_KEY is resolved further down, once config/api.conf has been read.
@@ -411,6 +420,20 @@ def run_rcon_command(command):
             return stdout, stderr, code
 
     return run_script("rcon-client.sh", "command", command)
+
+
+def _stop_server_for_bedtime():
+    """Stop the server the way the rest of the project does."""
+    _, stderr, code = run_script("manage.sh", "stop", timeout=600)
+    if code != 0:
+        raise RuntimeError(stderr or f"manage.sh stop returned {code}")
+
+
+def _run_game_command(command):
+    """Run a command for a feature that needs the server to see it."""
+    _, stderr, code = run_rcon_command(command)
+    if code != 0:
+        raise RuntimeError(stderr or f"RCON returned {code}")
 
 
 def _announce_in_game(command):
@@ -2340,6 +2363,62 @@ def get_deaths_leaderboard():
         return jsonify({"error": "Internal server error"}), 500
 
 
+@app.route("/api/bedtime", methods=["GET"])
+@require_permission("server.view")
+def get_bedtime_status():
+    """Current bedtime status: when it is, how long is left, whether it holds."""
+    if not BEDTIME_AVAILABLE:
+        return jsonify({"error": "Bedtime mode is unavailable"}), 503
+
+    try:
+        return jsonify(bedtime_mode.get_bedtime().status())
+    except Exception as e:
+        app.logger.error(f"Error reading bedtime status: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def _bedtime_control(operation):
+    """Shared plumbing for the three bedtime controls.
+
+    Each returns (ok, message); a refusal is a 409 because the request was
+    well-formed and the server simply will not do it right now.
+    """
+    if not BEDTIME_AVAILABLE:
+        return jsonify({"error": "Bedtime mode is unavailable"}), 503
+
+    try:
+        ok, message = operation(bedtime_mode.get_bedtime())
+    except Exception as e:
+        app.logger.error(f"Bedtime control failed: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    log_audit_event(get_username_from_request(), "bedtime.control", {"result": sanitize_string(message[:100])})
+    if not ok:
+        return jsonify({"success": False, "error": message}), 409
+    return jsonify({"success": True, "message": message, "status": bedtime_mode.get_bedtime().status()})
+
+
+@app.route("/api/bedtime/extend", methods=["POST"])
+@require_permission("server.control")
+def extend_bedtime():
+    """Grant "five more minutes", within the configured limit."""
+    return _bedtime_control(lambda bed: bed.extend())
+
+
+@app.route("/api/bedtime/skip", methods=["POST"])
+@require_permission("server.control")
+def skip_bedtime():
+    """Cancel bedtime for tonight only."""
+    return _bedtime_control(lambda bed: bed.skip_tonight())
+
+
+@app.route("/api/bedtime/now", methods=["POST"])
+@require_permission("server.control")
+def start_bedtime_now():
+    """Bring bedtime forward to right now."""
+    return _bedtime_control(lambda bed: bed.start_now())
+
+
 @app.route("/api/players", methods=["GET"])
 @require_permission("players.view")
 def get_players():
@@ -4084,6 +4163,15 @@ def start_event_capture():
         # event processing behind each death.
         hall.start_worker()
         bus.subscribe(hall.handle_event)
+
+    if BEDTIME_AVAILABLE:
+        bed = bedtime_mode.get_bedtime(runner=_run_game_command, stopper=_stop_server_for_bedtime)
+        bed.set_error_logger(app.logger.error)
+        # Stopping the server is not enough on its own: a restart policy or the
+        # update timer can bring it back and reopen the evening. Turning joins
+        # away during the closed window is what actually holds the line.
+        bus.subscribe(bed.on_player_join)
+        bed.start()
 
     _ensure_log_reader()
     return True

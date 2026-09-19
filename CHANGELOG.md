@@ -6,6 +6,50 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Bedtime mode** (`api/bedtime.py`) — see [docs/BEDTIME.md](docs/BEDTIME.md)
+
+  - A scheduled, warned end to the evening: a bossbar countdown, titles at the
+    configured marks, a goodnight message, then save and stop, remove everyone,
+    or just announce.
+  - Bedtime is a window rather than a moment. Between bedtime and the wake time,
+    anyone who joins is sent back out with a message saying when the server
+    opens again. Stopping the server is not enough on its own, because a restart
+    policy or an update timer reopens the evening.
+  - Separate weeknight and weekend bedtimes, chosen by the evening rather than
+    the day, so Friday and Saturday nights get the later one. The window spans
+    midnight correctly.
+  - New page at `/bedtime` with the countdown and three controls: extend by a
+    configured amount, skip tonight, or start bedtime now. A refused control
+    returns `409` with the reason, since the request was well-formed.
+  - New endpoints `GET /api/bedtime` (`server.view`) and `POST /api/bedtime/extend`,
+    `/skip` and `/now` (`server.control`), with matching OpenAPI paths and schemas.
+  - Configured through `config/bedtime.conf`; see `config/bedtime.conf.example`.
+    Disabled unless the config says otherwise.
+  - Enforcement is idempotent. The bedtime thread and an API request can both
+    reach it, so closing the evening twice would mean two goodnights, two kicks
+    and two attempts to stop the server.
+
+- **`systemd/minecraft-scheduler.{service,timer}`** — nothing executed the
+  scheduled commands the web UI creates. The Scheduler page wrote entries to
+  `config/command-schedule.json` and `scripts/command-scheduler.py run` was never
+  invoked by any timer, cron entry or loop, so every schedule was stored and
+  silently ignored. The timer runs it once a minute.
+
+- **`scripts/auto-update.sh`** — pulls and restarts only when the image actually
+  changed, and leaves a stopped server stopped.
+
+### Fixed
+
+- **The hourly update timer restarted the server every hour regardless of
+  whether a new image existed.** `systemd/minecraft-update.service` ran
+  `docker compose up -d --force-recreate` unconditionally, which recreates
+  containers even when nothing has changed, so everyone online was kicked on the
+  hour. It also restarted servers that had been stopped deliberately, which would
+  have reopened the server after bedtime closed it. It now calls
+  `scripts/auto-update.sh run`.
+
+### Added
+
 - **Hall of Deaths** (`api/hall_of_deaths.py`, `api/epitaphs.py`) — see
   [docs/HALL_OF_DEATHS.md](docs/HALL_OF_DEATHS.md)
 

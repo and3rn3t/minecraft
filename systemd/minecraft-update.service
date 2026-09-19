@@ -1,5 +1,5 @@
 [Unit]
-Description=Pull Latest Minecraft Server Image and Restart
+Description=Update the Minecraft Server Image if a New One Exists
 After=network-online.target docker.service
 Requires=docker.service
 Wants=network-online.target
@@ -7,15 +7,14 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/home/pi/minecraft-server
-# Pull latest image
-ExecStart=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose pull'
-# Restart container if image changed
-ExecStart=/bin/sh -c 'cd /home/pi/minecraft-server && /usr/bin/docker compose up -d --force-recreate'
-# Log the update
-ExecStartPost=/bin/sh -c 'echo "$(date): Minecraft server image updated" >> /var/log/minecraft-update.log'
+# Pull, and restart only when the image actually changed. This used to run
+# `docker compose up -d --force-recreate` unconditionally, which restarted the
+# server every hour whether or not there was anything new, and restarted servers
+# that had been stopped on purpose.
+ExecStart=/home/pi/minecraft-server/scripts/auto-update.sh run
+ExecStartPost=/bin/sh -c 'echo "$(date): Minecraft update check finished" >> /var/log/minecraft-update.log'
 User=pi
 Group=pi
 
 [Install]
 WantedBy=multi-user.target
-
