@@ -69,24 +69,12 @@ These are defects, not features, and they sit in the path of everything below.
 Line numbers were verified against the current `main`, and each tracked one
 links to its issue.
 
-- **Every registered user is minted as an administrator**
-  ([#26](https://github.com/and3rn3t/minecraft/issues/26)).
-  `api/server.py:809` hardcodes `"role": "admin"` while the comment beside it
-  claims the first user is admin and everyone else defaults to `user`. Open
-  registration currently hands out full control. Fix before the API is exposed
-  beyond the LAN.
-- **API keys bypass the permission system entirely**
-  ([#27](https://github.com/and3rn3t/minecraft/issues/27)). `has_permission()`
-  returns `True` unconditionally for the `__api_key__` caller
-  (`api/server.py:695`). The Socket.IO stream accepts only API keys, so any key
-  living in a kid's browser — or in a Siri Shortcut, per W6 — is a full admin
-  credential. Scope keys before handing any out.
 - **`scripts/player-stats-tracker.sh` inflates its counts on every run**
   ([#28](https://github.com/and3rn3t/minecraft/issues/28)). It re-parses the
   whole log file and adds to the existing totals, so the numbers climb whether
   or not anything happened, and it only matches three crude patterns.
   Superseded by F5 below.
-- **`apply_server_preset()` (`api/server.py:2919`) has no route decorator** and
+- **`apply_server_preset()` (`api/server.py:3147`) has no route decorator** and
   is unreachable ([#29](https://github.com/and3rn3t/minecraft/issues/29)). Wire
   it up or delete it.
 - **Two scheduler APIs coexist**
@@ -111,7 +99,7 @@ cheaper.
 
 | Order | Items | Why here |
 | --- | --- | --- |
-| 1 | Blockers | The auth defects gate anything leaving the LAN, including W6 |
+| 1 | Blockers | What is left of them; the auth defects that gated W6 are fixed |
 | 2 | W6, F5 | Days of work each, immediate payoff, no new infrastructure |
 | 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
 | 4 | F3, P2 | Datapack pipeline plus family advancements, visible in the game's own UI |
@@ -262,8 +250,10 @@ Almost no new server code: ship a documented Shortcuts bundle and a few
 convenience endpoints. Hours of work, not days. The `homekit-automator` repo can
 take it further and expose the server as a real HomeKit accessory.
 
-**Do the API-key scoping blocker first.** A Shortcut on a phone carries a key
-that currently grants full admin.
+**Give the Shortcut its own narrowly scoped key.** Keys carry a role now, so a
+Shortcut that starts the server and reads status wants `server.control` and
+`server.view` and nothing else — not the `admin` role, and not a key shared with
+the dashboard.
 
 ---
 
