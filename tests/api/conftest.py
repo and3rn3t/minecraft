@@ -36,6 +36,10 @@ def test_api_keys_file(tmp_path):
             "description": "Test API key",
             "enabled": True,
             "created": "2025-01-15T00:00:00Z",
+            # Keys are scoped, and most tests using this fixture are exercising
+            # an endpoint rather than the scoping, so this one reaches all of
+            # them. Scope-specific cases build their own keys.
+            "role": "admin",
         }
     }
     keys_file.write_text(json.dumps(keys_data))

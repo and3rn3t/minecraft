@@ -30,7 +30,9 @@ def mock_api_keys(monkeypatch):
     test_key = "test-api-key-123456789012345678901234567890"
     import api.server as api_module
 
-    api_module.API_KEYS = {test_key: {"name": "test-key", "enabled": True, "created": "2025-01-15T00:00:00Z"}}
+    api_module.API_KEYS = {
+        test_key: {"name": "test-key", "enabled": True, "created": "2025-01-15T00:00:00Z", "role": "admin"}
+    }
     return test_key
 
 

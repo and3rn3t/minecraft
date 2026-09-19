@@ -121,6 +121,10 @@ class TestUserRegistration:
 
         import api.server as api_module
 
+        # Open registration, so this exercises duplicate detection rather than
+        # the closed-registration gate.
+        monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
+
         # Create existing user
         api_module.USERS["testuser"] = {
             "username": "testuser",
@@ -151,6 +155,73 @@ class TestUserRegistration:
         import api.server as api_module
 
         assert "newuser" in api_module.USERS
+
+    def test_first_user_is_admin(self, client, temp_users_file, mock_bcrypt, mock_jwt):
+        """The very first account bootstraps the server and is an admin"""
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        assert api_module.USERS == {}
+
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "firstuser", "password": "password123"},
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data.get("user", {}).get("role") == "admin"
+        assert api_module.USERS["firstuser"]["role"] == "admin"
+
+    def test_later_users_are_not_admin(self, client, temp_users_file, mock_bcrypt, mock_jwt, monkeypatch):
+        """Registering behind an existing account must not mint another admin"""
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
+        api_module.USERS["firstuser"] = {
+            "username": "firstuser",
+            "password_hash": "hashed_password123",
+            "role": "admin",
+            "enabled": True,
+        }
+
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "seconduser", "password": "password123"},
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data.get("user", {}).get("role") == "user"
+        assert api_module.USERS["seconduser"]["role"] == "user"
+
+    def test_registration_closed_once_a_user_exists(self, client, temp_users_file, mock_bcrypt, monkeypatch):
+        """With REGISTRATION_ENABLED unset, only the bootstrap account may register"""
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", False)
+        api_module.USERS["firstuser"] = {
+            "username": "firstuser",
+            "password_hash": "hashed_password123",
+            "role": "admin",
+            "enabled": True,
+        }
+
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "seconduser", "password": "password123"},
+        )
+
+        assert response.status_code == 403
+        assert "seconduser" not in api_module.USERS
 
 
 class TestUserLogin:

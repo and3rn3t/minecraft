@@ -40,7 +40,7 @@ class TestServerControlComprehensive:
         """Test successful server start"""
         mock_run_script.return_value = ("Server started", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/server/start", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -55,7 +55,7 @@ class TestServerControlComprehensive:
         """Test successful server stop"""
         mock_run_script.return_value = ("Server stopped", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/server/stop", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -67,7 +67,7 @@ class TestServerControlComprehensive:
         """Test successful server restart"""
         mock_run_script.return_value = ("Server restarted", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/server/restart", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -83,7 +83,7 @@ class TestBackupComprehensive:
         """Test successful backup creation"""
         mock_run_script.return_value = ("Backup created: backup_20240127_120000.tar.gz", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/backup", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -95,7 +95,7 @@ class TestBackupComprehensive:
         """Test successful backup listing"""
         mock_run_script.return_value = ("backup_20240127_120000.tar.gz\nbackup_20240126_120000.tar.gz", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/backups", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -113,7 +113,7 @@ class TestMetricsComprehensive:
         mock_run_script.return_value = ("", "", 0)
         mock_subprocess.return_value = MagicMock(returncode=0, stdout="50.0%,1.5GiB / 2.0GiB,75.0%")
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/metrics", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -148,7 +148,7 @@ class TestConfigFilesComprehensive:
         mock_file = mock_file_open(read_data=mock_file_content)
         mock_open.return_value = mock_file.return_value
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             with patch("api.server.CONFIG_ALLOWED_PATHS", {"server.properties": mock_path}):
                 # Mock PROJECT_ROOT to avoid path issues
                 mock_project_root = MagicMock(spec=Path)
@@ -170,7 +170,7 @@ class TestConfigFilesComprehensive:
         mock_file = MagicMock()
         mock_open.return_value.__enter__.return_value = mock_file
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post(
                 "/api/config/files/server.properties",
                 headers={"X-API-Key": mock_api_key},
@@ -189,7 +189,7 @@ class TestPlayersComprehensive:
         """Test successful player list retrieval"""
         mock_run_script.return_value = ("There are 2 of a max of 10 players online: player1, player2", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/players", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -205,7 +205,7 @@ class TestWorldsComprehensive:
         """Test successful world listing"""
         mock_run_script.return_value = ("world (ACTIVE)\nworld_nether\nworld_the_end", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/worlds", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -218,7 +218,7 @@ class TestErrorHandlingComprehensive:
 
     def test_invalid_json_returns_400(self, client, mock_api_key):
         """Test invalid JSON returns 400"""
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post(
                 "/api/server/command",
                 headers={"X-API-Key": mock_api_key, "Content-Type": "application/json"},
@@ -229,7 +229,7 @@ class TestErrorHandlingComprehensive:
 
     def test_missing_required_field_returns_400(self, client, mock_api_key):
         """Test missing required field returns 400"""
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post(
                 "/api/server/command", headers={"X-API-Key": mock_api_key}, json={}  # Missing 'command' field
             )
@@ -241,7 +241,7 @@ class TestErrorHandlingComprehensive:
         """Test script failure returns 500"""
         mock_run_script.return_value = ("", "Error occurred", 1)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/server/start", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 500
@@ -257,7 +257,7 @@ class TestQueryParameters:
         """Test logs endpoint with lines parameter"""
         mock_run_script.return_value = ("log line 1\nlog line 2", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/logs?lines=50", headers={"X-API-Key": mock_api_key})
 
         # Should accept parameter without error
@@ -270,7 +270,7 @@ class TestQueryParameters:
         # rewrite the tracked files under analytics/processed/
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/report?hours=6", headers={"X-API-Key": mock_api_key})
 
         # Should accept parameter (may fail if no data, but not 401)

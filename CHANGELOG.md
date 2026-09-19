@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- **Registration no longer mints every user as an administrator** (#26).
+  `POST /api/auth/register` hardcoded `"role": "admin"` beneath a comment
+  claiming the first user was admin and everyone else defaulted to `user`, so
+  open registration handed full control to anyone who could reach the endpoint.
+  The first account still bootstraps the server as an admin; every later one
+  starts as `user`. Registration also closes once that first account exists —
+  set `REGISTRATION_ENABLED=true` to keep it open — and the new
+  `POST /api/users` (`users.manage`) is how an admin adds everyone else.
+
+- **API keys are scoped instead of being universal admin credentials** (#27).
+  `has_permission()` returned `True` unconditionally for the `__api_key__`
+  caller, so every key could do everything regardless of what it was created
+  for. Keys now carry a `role` from the same ladder users use, or an explicit
+  `permissions` allowlist, and are checked the same way; new keys default to
+  `user`. The WebSocket log stream is scoped too — connecting requires
+  `logs.view` and `execute_command` requires `server.command`, which it
+  previously never checked despite a comment saying otherwise. Keys created
+  before this are kept as `admin` with a startup warning, and can be narrowed
+  from the API Keys page or with the new `PUT /api/keys/<key_id>`.
+
 ### Changed
 
 - **Consolidated every roadmap and feature-planning document into a single

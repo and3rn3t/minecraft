@@ -12,13 +12,28 @@ API keys provide a secure way to authenticate programmatic requests to the API w
 - CI/CD pipelines
 - Monitoring tools
 
-## Important Security Note
+## Scopes
 
-**API keys have full admin-level permissions** for backward compatibility. This means API keys can:
+**API keys are scoped.** A key carries a role from the same ladder users use, and
+`has_permission()` checks it exactly as it checks a user's:
 
-- Access all endpoints
-- Perform all operations (server control, user management, etc.)
-- Bypass permission checks
+| Role | What the key can do |
+| --- | --- |
+| `user` | Read-only: status, players, logs, metrics, backup and world listings |
+| `operator` | The above plus starting, stopping and commanding the server, and creating or restoring backups |
+| `admin` | Everything, including user management and creating more API keys |
+
+New keys default to `user`. Pick the smallest role that does the job, especially
+for a key that lives somewhere you don't control — a Siri Shortcut on a phone, a
+browser, a script on another machine.
+
+A key can also carry an explicit `permissions` list instead of leaning on a
+role, for when even `operator` is more than it needs. See [RBAC.md](RBAC.md) for
+the full list of permission names.
+
+**Keys created before scoping** are treated as `admin`, so nothing that holds one
+breaks, and the API server warns about them on startup. Narrow them from the API
+Keys page or with `PUT /api/keys/<key_id>`.
 
 **Treat API keys as sensitive credentials** and store them securely.
 
@@ -43,9 +58,13 @@ API keys provide a secure way to authenticate programmatic requests to the API w
 ```json
 {
   "name": "Webhook Integration",
-  "description": "API key for webhook notifications"
+  "description": "API key for webhook notifications",
+  "role": "user"
 }
 ```
+
+`role` is optional and defaults to `user`. An explicit `permissions` array may be
+given instead, and takes precedence over the role.
 
 **Response:**
 
@@ -109,7 +128,9 @@ response = requests.get('http://localhost:8080/api/status', headers=headers)
       "name": "Webhook Integration",
       "description": "API key for webhook notifications",
       "enabled": true,
-      "created": "2025-01-15T10:30:00Z"
+      "created": "2025-01-15T10:30:00Z",
+      "role": "user",
+      "permissions": ["server.view", "backup.view", "..."]
     }
   ]
 }
@@ -118,6 +139,34 @@ response = requests.get('http://localhost:8080/api/status', headers=headers)
 **Note:** Only the key ID (preview) is shown, not the full key. This is for security.
 
 ## Managing API Keys
+
+### Changing a Key's Scope
+
+**Endpoint:** `PUT /api/keys/<key_id>`
+
+**Permission Required:** `api_keys.manage` (admin only)
+
+**Request Body:** at least one of `role` or `permissions`.
+
+```json
+{
+  "role": "user"
+}
+```
+
+Sending `"permissions": null` drops an explicit allowlist and falls back to the
+key's role.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "API key scope updated",
+  "role": "user",
+  "permissions": ["server.view", "backup.view", "..."]
+}
+```
 
 ### Enable/Disable API Key
 

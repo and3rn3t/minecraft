@@ -275,7 +275,7 @@ class TestBacklogIsNotReplayed:
 
     def test_connecting_client_still_receives_scrollback(self):
         """Dropping the follower's tail must not cost the UI its history."""
-        api_module.API_KEYS["scrollback-key"] = {"enabled": True}
+        api_module.API_KEYS["scrollback-key"] = {"enabled": True, "role": "admin"}
         request = MagicMock()
         request.sid = "sid-scrollback"
 
@@ -343,14 +343,59 @@ class TestCommandInputValidation:
     """A truthy non-string command raised inside the sanitizer, which sits
     outside the handler's try block, so the client got no error at all."""
 
-    def _emit_for(self, payload):
+    def _emit_for(self, payload, permissions=("server.command",), enabled=True):
         request = MagicMock()
         request.sid = "sid-a"
-        with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
-            api_module, "run_rcon_command"
-        ) as run:
-            api_module.handle_execute_command(payload)
+        # The handler re-reads the scope of the key that opened the connection,
+        # so register one with the command permission; these cases are about
+        # what the sanitizer does with a bad payload, not about authorisation.
+        stream_key = "stream-test-key"
+        api_module.API_KEYS[stream_key] = {
+            "name": "stream",
+            "enabled": enabled,
+            "permissions": list(permissions),
+        }
+        api_module._stream_keys["sid-a"] = stream_key
+        try:
+            with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
+                api_module, "run_rcon_command"
+            ) as run:
+                api_module.handle_execute_command(payload)
+        finally:
+            api_module._stream_keys.pop("sid-a", None)
+            api_module.API_KEYS.pop(stream_key, None)
         return emit, run
+
+    def test_a_disabled_key_cannot_run_commands_on_an_open_socket(self):
+        """Disabling a key has to reach the sockets it already opened"""
+        emit, run = self._emit_for({"command": "say hi"}, enabled=False)
+
+        errors = [c.args[1]["message"] for c in emit.call_args_list if c.args[0] == "command_error"]
+        assert errors and "server.command" in errors[0]
+        run.assert_not_called()
+
+    def test_a_revoked_key_cannot_run_commands_on_an_open_socket(self):
+        """A key deleted mid-connection loses the socket it was holding"""
+        request = MagicMock()
+        request.sid = "sid-gone"
+        api_module._stream_keys["sid-gone"] = "deleted-key"
+        try:
+            with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
+                api_module, "run_rcon_command"
+            ) as run:
+                api_module.handle_execute_command({"command": "say hi"})
+        finally:
+            api_module._stream_keys.pop("sid-gone", None)
+
+        assert any(c.args[0] == "command_error" for c in emit.call_args_list)
+        run.assert_not_called()
+
+    def test_a_key_without_server_command_cannot_run_commands(self):
+        emit, run = self._emit_for({"command": "say hi"}, permissions=("logs.view",))
+
+        errors = [c.args[1]["message"] for c in emit.call_args_list if c.args[0] == "command_error"]
+        assert errors and "server.command" in errors[0]
+        run.assert_not_called()
 
     def test_numeric_command_returns_an_error(self):
         emit, run = self._emit_for({"command": 1})

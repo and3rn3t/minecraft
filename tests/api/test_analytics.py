@@ -119,7 +119,7 @@ class TestAnalyticsCollect:
         mock_run_script.return_value = ("", "", 0)
 
         # Mock API key authentication
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/analytics/collect", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -132,7 +132,7 @@ class TestAnalyticsCollect:
         """Test analytics collection failure"""
         mock_run_script.return_value = ("", "Error message", 1)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/analytics/collect", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 500
@@ -157,7 +157,7 @@ class TestAnalyticsReport:
         mock_subprocess.return_value = MagicMock(returncode=0)
         mock_open.return_value.__enter__.return_value.read.return_value = json.dumps(mock_analytics_report)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/report?hours=24", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -172,7 +172,7 @@ class TestAnalyticsReport:
         # rewrite the tracked files under analytics/processed/
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/report?hours=999", headers={"X-API-Key": mock_api_key})
         # Should default to 24 hours
         assert response.status_code in [200, 404, 500]  # Depends on file existence
@@ -182,7 +182,7 @@ class TestAnalyticsReport:
         """Test report when not available"""
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             with patch("pathlib.Path.exists", return_value=False):
                 response = client.get("/api/analytics/report", headers={"X-API-Key": mock_api_key})
 
@@ -206,7 +206,7 @@ class TestAnalyticsTrends:
         mock_processor.analyze_performance_trends.return_value = {"tps": {"current": 20.0}}
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get(
                 "/api/analytics/trends?hours=24&type=performance", headers={"X-API-Key": mock_api_key}
             )
@@ -223,7 +223,7 @@ class TestAnalyticsTrends:
         mock_processor.analyze_player_behavior.return_value = {"unique_players": 5}
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/trends?hours=24&type=players", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -232,7 +232,7 @@ class TestAnalyticsTrends:
 
     def test_trends_import_error(self, client, mock_api_key):
         """Test trends when processor not available"""
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             with patch("analytics_processor.AnalyticsProcessor", side_effect=ImportError):
                 response = client.get("/api/analytics/trends", headers={"X-API-Key": mock_api_key})
 
@@ -262,7 +262,7 @@ class TestAnalyticsAnomalies:
         ]
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/anomalies?hours=24&metric=tps", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -277,7 +277,7 @@ class TestAnalyticsAnomalies:
         mock_processor.load_analytics_data.return_value = []
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/anomalies", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -308,7 +308,7 @@ class TestAnalyticsPredictions:
         }
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get(
                 "/api/analytics/predictions?hours_ahead=1&metric=memory", headers={"X-API-Key": mock_api_key}
             )
@@ -326,7 +326,7 @@ class TestAnalyticsPredictions:
         mock_processor.load_analytics_data.return_value = []
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/predictions", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -353,7 +353,7 @@ class TestPlayerBehavior:
         }
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.get("/api/analytics/player-behavior?hours=24", headers={"X-API-Key": mock_api_key})
 
         assert response.status_code == 200
@@ -379,7 +379,7 @@ class TestCustomReport:
         mock_processor.save_report.return_value = "/path/to/report.json"
         mock_processor_class.return_value = mock_processor
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post(
                 "/api/analytics/custom-report",
                 headers={"X-API-Key": mock_api_key},
@@ -393,7 +393,7 @@ class TestCustomReport:
 
     def test_custom_report_missing_fields(self, client, mock_api_key):
         """Test custom report with missing fields"""
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True}}):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
             response = client.post("/api/analytics/custom-report", headers={"X-API-Key": mock_api_key}, json={})
 
         # Should handle missing fields gracefully

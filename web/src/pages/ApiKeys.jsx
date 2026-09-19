@@ -8,8 +8,10 @@ const ApiKeys = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyDescription, setNewKeyDescription] = useState('');
+  const [newKeyRole, setNewKeyRole] = useState('user');
   const [newKeyValue, setNewKeyValue] = useState(null);
   const [toggling, setToggling] = useState(null);
+  const [rescoping, setRescoping] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -59,11 +61,16 @@ const ApiKeys = () => {
     setSuccess(null);
 
     try {
-      const result = await api.createApiKey(newKeyName.trim(), newKeyDescription.trim());
+      const result = await api.createApiKey(
+        newKeyName.trim(),
+        newKeyDescription.trim(),
+        newKeyRole
+      );
       setNewKeyValue(result.key);
       setSuccess(result.message || 'API key created successfully!');
       setNewKeyName('');
       setNewKeyDescription('');
+      setNewKeyRole('user');
       // Reload keys after creation
       setTimeout(loadKeys, 1000);
     } catch (err) {
@@ -122,6 +129,23 @@ const ApiKeys = () => {
     }
   };
 
+  const handleRescope = async (keyId, role) => {
+    setRescoping(keyId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const result = await api.updateApiKeyScope(keyId, role);
+      setSuccess(result.message || 'API key scope updated');
+      loadKeys();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to update API key scope');
+      console.error('Failed to update API key scope:', err);
+    } finally {
+      setRescoping(null);
+    }
+  };
+
   const formatDate = dateString => {
     if (!dateString) return 'Unknown';
     try {
@@ -147,6 +171,7 @@ const ApiKeys = () => {
     setShowCreateForm(false);
     setNewKeyName('');
     setNewKeyDescription('');
+    setNewKeyRole('user');
     setNewKeyValue(null);
   };
 
@@ -244,6 +269,27 @@ const ApiKeys = () => {
                 placeholder="Describe what this API key will be used for"
               />
             </div>
+            <div>
+              <label
+                htmlFor="key-role"
+                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
+              >
+                ACCESS LEVEL
+              </label>
+              <select
+                id="key-role"
+                value={newKeyRole}
+                onChange={e => setNewKeyRole(e.target.value)}
+                className="input-minecraft w-full"
+              >
+                <option value="user">USER — READ ONLY</option>
+                <option value="operator">OPERATOR — CONTROL THE SERVER</option>
+                <option value="admin">ADMIN — EVERYTHING, INCLUDING USERS AND KEYS</option>
+              </select>
+              <p className="mt-2 text-[8px] font-minecraft text-minecraft-text-dark">
+                A KEY ON A PHONE OR IN A BROWSER SHOULD BE THE SMALLEST LEVEL THAT WORKS.
+              </p>
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -291,6 +337,9 @@ const ApiKeys = () => {
                     DESCRIPTION
                   </th>
                   <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
+                    ACCESS
+                  </th>
+                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
                     STATUS
                   </th>
                   <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
@@ -317,6 +366,19 @@ const ApiKeys = () => {
                     </td>
                     <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
                       {key.description || <span className="italic">NO DESCRIPTION</span>}
+                    </td>
+                    <td className="py-3 px-4">
+                      <select
+                        value={key.role || 'user'}
+                        onChange={e => handleRescope(key.id, e.target.value)}
+                        disabled={rescoping === key.id || deleting === key.id}
+                        aria-label={`Access level for ${key.name}`}
+                        className="input-minecraft text-[8px] disabled:opacity-50"
+                      >
+                        <option value="user">USER</option>
+                        <option value="operator">OPERATOR</option>
+                        <option value="admin">ADMIN</option>
+                      </select>
                     </td>
                     <td className="py-3 px-4">
                       <span

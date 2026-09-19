@@ -368,12 +368,19 @@ export const api = {
     return cachedGet('/keys', {}, 15000); // Cache for 15 seconds
   },
 
-  async createApiKey(name, description = '') {
+  async createApiKey(name, description = '', role = 'user') {
     const response = await apiClient.post('/keys', {
       name,
       description,
+      role,
     });
     invalidateCache(); // Clear cache after creating key
+    return response.data;
+  },
+
+  async updateApiKeyScope(keyId, role) {
+    const response = await apiClient.put(`/keys/${keyId}`, { role });
+    invalidateCache(); // Clear cache after re-scoping a key
     return response.data;
   },
 
