@@ -10,6 +10,7 @@ import secrets
 import subprocess
 import sys
 import urllib.parse
+import warnings
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -87,7 +88,7 @@ except ImportError:
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+# SECRET_KEY is resolved further down, once config/api.conf has been read.
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
 
@@ -175,9 +176,19 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 API_PORT = 8080
 API_HOST = "127.0.0.1"  # Only listen on localhost by default
 API_ENABLED = True
-_DEFAULT_SECRET_KEY = "minecraft-server-api-secret-change-in-production"
+
+# Secret keys that must never be used to sign sessions or JWTs. The first was
+# shipped as a default in earlier versions; treat it as if it were published.
+_REJECTED_SECRET_KEYS = {
+    "",
+    "minecraft-server-api-secret-change-in-production",
+    "change-me",
+    "changeme",
+    "secret",
+}
 
 # Load configuration
+_config_secret_key = None
 if API_CONFIG_FILE.exists():
     with open(API_CONFIG_FILE, "r") as f:
         config = {}
@@ -188,9 +199,39 @@ if API_CONFIG_FILE.exists():
         API_PORT = int(config.get("API_PORT", API_PORT))
         API_HOST = config.get("API_HOST", API_HOST)
         API_ENABLED = config.get("API_ENABLED", "true").lower() == "true"
-        SECRET_KEY = config.get("SECRET_KEY", _DEFAULT_SECRET_KEY)
-else:
-    SECRET_KEY = _DEFAULT_SECRET_KEY
+        _config_secret_key = config.get("SECRET_KEY")
+
+
+def _resolve_secret_key(env_value, config_value):
+    """Pick the signing key: environment first, then config file, else ephemeral.
+
+    Sessions and JWTs are signed with this value, so a known constant would let
+    anyone mint valid tokens. A placeholder from either source is refused and we
+    fall back to a random key, which invalidates tokens on restart but is safe.
+    """
+    for candidate in (env_value, config_value):
+        if candidate and candidate.strip() not in _REJECTED_SECRET_KEYS:
+            return candidate.strip()
+
+    if (env_value and env_value.strip() in _REJECTED_SECRET_KEYS) or (
+        config_value and config_value.strip() in _REJECTED_SECRET_KEYS
+    ):
+        warnings.warn(
+            "SECRET_KEY is set to a known placeholder value and was ignored. "
+            "Generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))'",
+            stacklevel=2,
+        )
+    else:
+        warnings.warn(
+            "No SECRET_KEY configured; generating an ephemeral one. Sessions and "
+            "API tokens will be invalidated on every restart. Set SECRET_KEY in the "
+            "environment or in config/api.conf to make them durable.",
+            stacklevel=2,
+        )
+    return secrets.token_hex(32)
+
+
+SECRET_KEY = _resolve_secret_key(os.environ.get("SECRET_KEY"), _config_secret_key)
 
 # Set Flask secret key for sessions
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -3695,7 +3736,6 @@ if SOCKETIO_AVAILABLE:
 
 else:
     # WebSocket not available
-    import warnings
     warnings.warn("Flask-SocketIO not available. WebSocket support disabled.", stacklevel=1)
 
 

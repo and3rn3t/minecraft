@@ -290,3 +290,66 @@ class TestGetCurrentUser:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data.get("username") == "testuser"
+
+
+class TestSecretKeyResolution:
+    """The signing key for sessions and JWTs must never fall back to a constant.
+
+    A predictable key lets anyone mint a valid token for any user, so the
+    resolver prefers the environment, then config/api.conf, and otherwise
+    generates a random key rather than using a shipped placeholder.
+    """
+
+    def test_environment_wins_over_config_file(self):
+        from api.server import _resolve_secret_key
+
+        assert _resolve_secret_key("from-env", "from-config") == "from-env"
+
+    def test_config_file_used_when_environment_unset(self):
+        from api.server import _resolve_secret_key
+
+        assert _resolve_secret_key(None, "from-config") == "from-config"
+
+    def test_values_are_stripped(self):
+        from api.server import _resolve_secret_key
+
+        assert _resolve_secret_key("  spaced-key  ", None) == "spaced-key"
+
+    @pytest.mark.parametrize(
+        "placeholder",
+        [
+            "minecraft-server-api-secret-change-in-production",
+            "changeme",
+            "secret",
+            "",
+            "   ",
+        ],
+    )
+    def test_placeholder_is_rejected_and_replaced(self, placeholder):
+        from api.server import _resolve_secret_key
+
+        resolved = _resolve_secret_key(placeholder, placeholder)
+
+        assert resolved != placeholder.strip()
+        assert len(resolved) == 64
+
+    def test_falls_back_to_random_key_when_nothing_configured(self):
+        from api.server import _resolve_secret_key
+
+        first = _resolve_secret_key(None, None)
+        second = _resolve_secret_key(None, None)
+
+        assert len(first) == 64
+        assert first != second
+
+    def test_module_key_is_not_a_known_placeholder(self):
+        import api.server as api_module
+
+        assert api_module.SECRET_KEY not in api_module._REJECTED_SECRET_KEYS
+
+    def test_flask_config_matches_signing_key(self):
+        """generate_token/verify_token sign with the module-level SECRET_KEY,
+        so Flask's session key must be the same value."""
+        import api.server as api_module
+
+        assert api_module.app.config["SECRET_KEY"] == api_module.SECRET_KEY
