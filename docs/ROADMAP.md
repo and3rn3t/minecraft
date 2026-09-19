@@ -6,9 +6,11 @@ ruled out. It replaces the four documents this repo used to keep in parallel
 `MINECRAFT_GAMEPLAY_ENHANCEMENTS.md`), which duplicated and contradicted each
 other.
 
-**What shipped is not listed here.** That record lives in
-[`../CHANGELOG.md`](../CHANGELOG.md) and in git history. This document only
-holds work that is not done.
+**What shipped is not described here.** That record lives in
+[`../CHANGELOG.md`](../CHANGELOG.md) and in git history. The table under
+[Where this stands](#where-this-stands) names the finished areas so the
+unfinished work has context, and points at each area's guide; everything after
+it is work that is not done.
 
 Audience: Matt, planning what to build next on the Pi 5 server for Jonah and
 Silas.
@@ -111,7 +113,7 @@ cheaper.
 | 7 | W2 | The Invention Forge, once the datapack validator can be trusted |
 | 8 | H1, H2, H3 | House and game wired to each other |
 | 9 | R1 | Geyser, if tablets matter — consider pulling this much earlier |
-| 10 | M3, T1, H4, T4 | The big physical projects |
+| 10 | F4, M3, T1, H4, T4 | The big physical projects. F4 comes first in this row: T1 serves its pack through it |
 
 **R1 (cross-play) is the one to reconsider first.** If the kids have iPads it
 changes when and where they can play at all, which outranks anything else on
@@ -177,6 +179,13 @@ calls the Claude API, the reply goes back via `tellraw` with coloured JSON text.
 Use `claude-haiku-4-5` for banter (fast and cheap) and `claude-sonnet-5` for
 anything that generates structure, like quests. Round trip lands around 2–4
 seconds, which reads as "the wizard is thinking" rather than as lag.
+
+**Do not call the model from the handler.** `EventBus.publish()` runs every
+handler synchronously, in registration order, on the log follower thread
+(`api/events.py:347`). A 2–4 second round trip inline would stall the bus for
+that long on every message, and with it the Hall of Deaths, bedtime enforcement
+and anything else subscribed. Push the chat event onto a queue and answer from a
+worker, the way `api/hall_of_deaths.py` already announces from a worker thread.
 
 Give it a personality and a job: it knows the server's history from the event
 log, it remembers what each kid was building last week, it hands out a daily
