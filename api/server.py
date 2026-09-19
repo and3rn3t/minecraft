@@ -9,6 +9,7 @@ import os
 import secrets
 import subprocess
 import sys
+import threading
 import urllib.parse
 import warnings
 from datetime import datetime, timedelta, timezone
@@ -318,6 +319,11 @@ if USERS_FILE.exists():
             USERS = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         USERS = {}
+
+# Guards the check-and-insert in registration and user creation. Flask serves
+# requests on threads, so two registrations arriving together could otherwise
+# both see an empty USERS and both be granted the bootstrap admin role.
+_users_lock = threading.Lock()
 
 # Open registration. The default lets the very first account be created to
 # bootstrap the server and closes the endpoint afterwards; admins add everyone
@@ -881,27 +887,41 @@ def register():
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    # Check if user already exists
-    if username in USERS:
-        return jsonify({"error": "Username already exists"}), 400
-
-    # Create user. The first account bootstraps the server and has to be an
-    # admin; every later one starts with no privileges and is promoted by an
-    # admin through /api/users/<username>/role.
-    role = "admin" if not USERS else "user"
-
     hashed_password = hash_password(password)
-    USERS[username] = {
-        "username": username,
-        "password_hash": hashed_password,
-        "email": email,
-        "role": role,
-        "enabled": True,
-        "created": datetime.now(timezone.utc).isoformat(),
-    }
 
-    if not save_users():
-        return jsonify({"error": "Failed to save user"}), 500
+    # Held across the whole decide-role-and-insert sequence: two registrations
+    # arriving together could otherwise both find USERS empty and both be
+    # granted the bootstrap admin role, which is the defect this guards.
+    with _users_lock:
+        # Re-checked under the lock, in the same order as the fast path above:
+        # the check there is only there to avoid hashing a password for a
+        # request that is going to be refused anyway.
+        if USERS and not REGISTRATION_ENABLED:
+            return (
+                jsonify({"error": "Registration is closed. Ask an administrator to create your account."}),
+                403,
+            )
+
+        if username in USERS:
+            return jsonify({"error": "Username already exists"}), 400
+
+        # The first account bootstraps the server and has to be an admin; every
+        # later one starts with no privileges and is promoted by an admin
+        # through /api/users/<username>/role.
+        role = "admin" if not USERS else "user"
+
+        USERS[username] = {
+            "username": username,
+            "password_hash": hashed_password,
+            "email": email,
+            "role": role,
+            "enabled": True,
+            "created": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if not save_users():
+            del USERS[username]
+            return jsonify({"error": "Failed to save user"}), 500
 
     # Create session or token
     session["username"] = username
@@ -1639,11 +1659,26 @@ def create_api_key():
 
 
 def _find_api_key(key_id):
-    """Resolve the id preview shown by GET /api/keys back to the full key."""
-    for key in API_KEYS:
-        if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
-            return key
-    return None
+    """Resolve the id shown by GET /api/keys back to the full key.
+
+    The listing and the web UI use a preview — the first 8 characters, an
+    ellipsis, then the last 4 — so that form has to resolve or every action
+    taken from the API Keys page fails. Matching only a raw prefix or suffix
+    meant it never did.
+
+    An id that matches more than one key resolves to nothing rather than to
+    whichever happened to come first in the dict.
+    """
+    if key_id in API_KEYS:
+        return key_id
+
+    if "..." in key_id:
+        prefix, _, suffix = key_id.partition("...")
+        matches = [k for k in API_KEYS if k.startswith(prefix) and k.endswith(suffix)]
+    else:
+        matches = [k for k in API_KEYS if k.startswith(key_id) or k.endswith(key_id)]
+
+    return matches[0] if len(matches) == 1 else None
 
 
 @app.route("/api/keys/<key_id>", methods=["PUT"])
@@ -1667,6 +1702,11 @@ def update_api_key_scope(key_id):
         if scope_error:
             return jsonify({"error": scope_error}), 400
 
+        # Keep the old scope so a failed write can be undone. Otherwise the
+        # request reports failure while this process keeps serving the new
+        # scope, until a restart reloads the old one from disk.
+        previous = dict(entry)
+
         entry["role"] = role
         if permissions is None:
             entry.pop("permissions", None)
@@ -1674,6 +1714,7 @@ def update_api_key_scope(key_id):
             entry["permissions"] = permissions
 
         if not save_api_keys():
+            API_KEYS[key] = previous
             return jsonify({"error": "Failed to save changes"}), 500
 
         log_audit_event(
@@ -1705,12 +1746,7 @@ def update_api_key_scope(key_id):
 def delete_api_key(key_id):
     """Delete an API key"""
     try:
-        # Find the full key by preview
-        key_to_delete = None
-        for key in API_KEYS:
-            if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
-                key_to_delete = key
-                break
+        key_to_delete = _find_api_key(key_id)
 
         if not key_to_delete:
             return jsonify({"error": "API key not found"}), 404
@@ -1732,12 +1768,7 @@ def delete_api_key(key_id):
 def enable_api_key(key_id):
     """Enable an API key"""
     try:
-        # Find the full key by preview
-        key_to_enable = None
-        for key in API_KEYS:
-            if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
-                key_to_enable = key
-                break
+        key_to_enable = _find_api_key(key_id)
 
         if not key_to_enable:
             return jsonify({"error": "API key not found"}), 404
@@ -1757,12 +1788,7 @@ def enable_api_key(key_id):
 def disable_api_key(key_id):
     """Disable an API key"""
     try:
-        # Find the full key by preview
-        key_to_disable = None
-        for key in API_KEYS:
-            if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
-                key_to_disable = key
-                break
+        key_to_disable = _find_api_key(key_id)
 
         if not key_to_disable:
             return jsonify({"error": "API key not found"}), 404
@@ -1822,27 +1848,30 @@ def create_user():
         if len(password) < 8:
             return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-        if username in USERS:
-            return jsonify({"error": "Username already exists"}), 400
-
         if role not in ROLE_PERMISSIONS:
             return (
                 jsonify({"error": f"Invalid role. Valid roles: {', '.join(ROLE_PERMISSIONS.keys())}"}),
                 400,
             )
 
-        USERS[username] = {
-            "username": username,
-            "password_hash": hash_password(password),
-            "email": email,
-            "role": role,
-            "enabled": True,
-            "created": datetime.now(timezone.utc).isoformat(),
-        }
+        hashed_password = hash_password(password)
 
-        if not save_users():
-            del USERS[username]
-            return jsonify({"error": "Failed to save user"}), 500
+        with _users_lock:
+            if username in USERS:
+                return jsonify({"error": "Username already exists"}), 400
+
+            USERS[username] = {
+                "username": username,
+                "password_hash": hashed_password,
+                "email": email,
+                "role": role,
+                "enabled": True,
+                "created": datetime.now(timezone.utc).isoformat(),
+            }
+
+            if not save_users():
+                del USERS[username]
+                return jsonify({"error": "Failed to save user"}), 500
 
         log_audit_event(get_username_from_request(), "users.create", {"username": username, "role": role})
 
@@ -4105,14 +4134,14 @@ def save_ddns_config():
 
 # WebSocket event handlers for real-time log streaming
 if SOCKETIO_AVAILABLE:
-    import threading
-
     # Session ids currently subscribed to the log stream
     active_log_streams = set()
-    # sid -> the permissions of the API key that opened that connection. The
-    # socket authenticates once at connect, so later messages on the same
-    # connection have to be checked against what was stored here.
-    _stream_permissions = {}
+    # sid -> the API key that opened that connection. The socket authenticates
+    # once at connect, so later messages on the same connection are checked
+    # against the key recorded here. The key itself is stored rather than its
+    # permissions, so narrowing, disabling or deleting a key takes effect on
+    # sockets it already opened instead of only on the next connection.
+    _stream_keys = {}
     _log_streams_lock = threading.Lock()
     # Mutable holder rather than a module-level bool, so the reader and the
     # starter share one piece of state without `global` declarations. The
@@ -4303,7 +4332,7 @@ if SOCKETIO_AVAILABLE:
 
         with _log_streams_lock:
             active_log_streams.add(request.sid)
-            _stream_permissions[request.sid] = key_permissions
+            _stream_keys[request.sid] = api_key
 
         # Send the backlog to this client only, then let the shared follower
         # deliver everything that arrives afterwards.
@@ -4318,12 +4347,22 @@ if SOCKETIO_AVAILABLE:
         """Handle WebSocket disconnection"""
         with _log_streams_lock:
             active_log_streams.discard(request.sid)
-            _stream_permissions.pop(request.sid, None)
+            _stream_keys.pop(request.sid, None)
 
     def _stream_may(permission):
-        """Check the stored scope of the key that opened this connection."""
+        """Check the live scope of the key that opened this connection.
+
+        Re-read rather than trusting what the key could do at connect time: a
+        key revoked or narrowed through the management API would otherwise keep
+        its old rights on an open socket for as long as it stayed connected.
+        """
         with _log_streams_lock:
-            return permission in _stream_permissions.get(request.sid, ())
+            api_key = _stream_keys.get(request.sid)
+
+        key_info = API_KEYS.get(api_key) if api_key else None
+        if not key_info or not key_info.get("enabled", True):
+            return False
+        return permission in get_api_key_permissions(key_info)
 
     @socketio.on("request_logs")
     def handle_request_logs(data):
