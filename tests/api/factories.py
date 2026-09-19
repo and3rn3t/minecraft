@@ -34,9 +34,13 @@ def create_user_data(
 
 
 def create_api_key_data(
-    name: Optional[str] = None, description: Optional[str] = None, enabled: bool = True, key: Optional[str] = None
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    enabled: bool = True,
+    key: Optional[str] = None,
+    role: str = "admin",
 ) -> Dict:
-    """Create test API key data."""
+    """Create test API key data. Defaults to an admin-scoped key."""
     if name is None:
         name = f"test-key-{secrets.token_hex(4)}"
     if description is None:
@@ -50,6 +54,7 @@ def create_api_key_data(
         "description": description,
         "enabled": enabled,
         "created": datetime.now(timezone.utc).isoformat() + "Z",
+        "role": role,
     }
 
 

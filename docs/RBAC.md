@@ -318,20 +318,27 @@ anyway. Accounts created that way get the `user` role, never `admin`.
 
 ## API Key Permissions
 
-API keys are granted **admin-level permissions** for backward compatibility. This means:
+API keys carry a role from the same ladder users do, and are checked by the same
+`has_permission()`. A key's role is set when it is created — defaulting to `user`
+— and changed later with `PUT /api/keys/<key_id>`.
 
-- API keys can access all endpoints
-- API keys bypass permission checks
-- API keys are treated as admin users
+A key may also carry an explicit `permissions` array, which takes precedence over
+its role. That is the right shape for a key that does exactly one thing: a Siri
+Shortcut that only starts the server needs `server.control`, nothing more.
 
-**Note:** This is intentional for programmatic access. If you need restricted API key access, use user authentication instead.
+Keys created before scoping existed have no role recorded. They are treated as
+`admin` so nothing breaks, and the API server warns about them on startup.
+Narrow them from the API Keys page. See [API_KEYS.md](API_KEYS.md).
+
+The WebSocket log stream is scoped too: connecting needs `logs.view`, and running
+a command over that socket needs `server.command`.
 
 ## Best Practices
 
 1. **Principle of Least Privilege**: Assign users the minimum role necessary for their tasks
 2. **Regular Audits**: Periodically review user roles and permissions
 3. **Separate Accounts**: Use different accounts for different purposes (admin vs. operator)
-4. **API Keys**: Use API keys for automation, but be aware they have full admin access
+4. **API Keys**: Scope each key to the smallest role that does its job, especially keys that live on a phone or in a browser
 5. **User Management**: Keep at least one admin account enabled at all times
 
 ## Security Considerations

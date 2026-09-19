@@ -285,6 +285,31 @@ if API_KEYS_FILE.exists():
     except (FileNotFoundError, json.JSONDecodeError):
         API_KEYS = {}
 
+
+def _migrate_api_key_roles(keys):
+    """Give pre-scoping keys an explicit role.
+
+    Keys created before API keys were scoped carried no role and were treated
+    as admins by ``has_permission()``. Silently demoting them would break
+    whatever is holding them, so they keep admin rights — but explicitly, where
+    they show up in ``GET /api/keys`` and can be narrowed with
+    ``PUT /api/keys/<id>``. Written back on the next save.
+    """
+    unscoped = [info for info in keys.values() if "role" not in info and "permissions" not in info]
+    for info in unscoped:
+        info["role"] = "admin"
+    if unscoped:
+        warnings.warn(
+            f"{len(unscoped)} API key(s) had no role and were kept as admin. "
+            "Narrow them with PUT /api/keys/<id> or in the API Keys page; a key "
+            "that only reads logs should not be able to manage users.",
+            stacklevel=2,
+        )
+    return keys
+
+
+_migrate_api_key_roles(API_KEYS)
+
 # Load users
 USERS = {}
 if USERS_FILE.exists():
@@ -362,11 +387,15 @@ def require_api_key(f):
         if not key_info.get("enabled", True):
             return jsonify({"error": "API key disabled"}), 401
 
-        # Store key info in request context
+        # Store key info in request context. has_permission() reads it to scope
+        # the key; without it the key would fall back to no permissions.
         request.api_key_info = key_info
-        # Set virtual admin user for permission checks (API keys have admin access)
         request.user = "__api_key__"
-        request.user_info = {"role": "admin", "username": "__api_key__"}
+        request.user_info = {
+            "username": "__api_key__",
+            "role": key_info.get("role", DEFAULT_API_KEY_ROLE),
+            "key_name": key_info.get("name", "unknown"),
+        }
         return f(*args, **kwargs)
 
     return decorated_function
@@ -686,8 +715,43 @@ ROLE_PERMISSIONS = {
 }
 
 
+# New API keys start here rather than at "admin": a key lives in a Shortcut, a
+# browser or a script, so it is the credential most likely to leak.
+DEFAULT_API_KEY_ROLE = "user"
+
+
+def get_api_key_permissions(key_info):
+    """Get the list of permissions an API key record grants.
+
+    A key carries either an explicit ``permissions`` allowlist or a ``role``
+    from the same ladder users use. Unknown permission names are dropped so a
+    typo in the config file cannot widen a key's reach.
+    """
+    explicit = key_info.get("permissions")
+    if isinstance(explicit, list):
+        return [p for p in explicit if p in PERMISSIONS]
+    key_role = key_info.get("role", DEFAULT_API_KEY_ROLE)
+    return ROLE_PERMISSIONS.get(key_role, ROLE_PERMISSIONS[DEFAULT_API_KEY_ROLE])
+
+
+def validate_api_key_scope(role, permissions):
+    """Return an error string if a requested key scope is not usable, else None."""
+    if role not in ROLE_PERMISSIONS:
+        return f"Invalid role. Valid roles: {', '.join(ROLE_PERMISSIONS.keys())}"
+    if permissions is None:
+        return None
+    if not isinstance(permissions, list) or not all(isinstance(p, str) for p in permissions):
+        return "permissions must be a list of permission names"
+    unknown = [p for p in permissions if p not in PERMISSIONS]
+    if unknown:
+        return f"Unknown permissions: {', '.join(sorted(unknown))}"
+    return None
+
+
 def get_user_permissions(username):
     """Get list of permissions for a user based on their role"""
+    if username == "__api_key__":
+        return get_api_key_permissions(getattr(request, "api_key_info", {}))
     if username not in USERS:
         return []
     user_role = USERS[username].get("role", "user")
@@ -696,9 +760,11 @@ def get_user_permissions(username):
 
 def has_permission(username, permission):
     """Check if user has a specific permission"""
-    # API keys have admin access
+    # API keys are scoped by their own role, not by the caller's. This used to
+    # return True unconditionally, which made every key a full admin
+    # credential regardless of what it was created for.
     if username == "__api_key__":
-        return True
+        return permission in get_api_key_permissions(getattr(request, "api_key_info", {}))
     if username not in USERS:
         return False
     user_role = USERS[username].get("role", "user")
@@ -754,8 +820,14 @@ def require_auth(f):
         api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
         if api_key:
             if api_key in API_KEYS and API_KEYS[api_key].get("enabled", True):
+                key_info = API_KEYS[api_key]
+                request.api_key_info = key_info
                 request.user = "__api_key__"
-                request.user_info = {"role": "admin", "username": "__api_key__"}
+                request.user_info = {
+                    "username": "__api_key__",
+                    "role": key_info.get("role", DEFAULT_API_KEY_ROLE),
+                    "key_name": key_info.get("name", "unknown"),
+                }
                 return f(*args, **kwargs)
             else:
                 return jsonify({"error": "Invalid API key"}), 401
@@ -1495,6 +1567,8 @@ def list_api_keys():
                     "description": info.get("description", ""),
                     "enabled": info.get("enabled", True),
                     "created": info.get("created", ""),
+                    "role": info.get("role", DEFAULT_API_KEY_ROLE),
+                    "permissions": get_api_key_permissions(info),
                 }
             )
         return jsonify({"success": True, "keys": keys_list}), 200
@@ -1510,23 +1584,40 @@ def create_api_key():
         data = request.get_json() or {}
         name = data.get("name")
         description = data.get("description", "")
+        role = data.get("role", DEFAULT_API_KEY_ROLE)
+        permissions = data.get("permissions")
 
         if not name:
             return jsonify({"error": "Key name is required"}), 400
+
+        scope_error = validate_api_key_scope(role, permissions)
+        if scope_error:
+            return jsonify({"error": scope_error}), 400
 
         # Generate new API key
         api_key = generate_api_key()
 
         # Create key entry
-        API_KEYS[api_key] = {
+        entry = {
             "name": name,
             "description": description,
             "enabled": True,
             "created": datetime.now(timezone.utc).isoformat(),
+            "role": role,
         }
+        if permissions is not None:
+            entry["permissions"] = permissions
+        API_KEYS[api_key] = entry
 
         if not save_api_keys():
+            del API_KEYS[api_key]
             return jsonify({"error": "Failed to save API key"}), 500
+
+        log_audit_event(
+            get_username_from_request(),
+            "api_keys.create",
+            {"name": name, "role": role, "permissions": permissions},
+        )
 
         return (
             jsonify(
@@ -1536,6 +1627,8 @@ def create_api_key():
                     "id": api_key[:8] + "..." + api_key[-4:],
                     "name": name,
                     "description": description,
+                    "role": role,
+                    "permissions": get_api_key_permissions(entry),
                     "message": "API key created. Save this key securely - it will not be shown again.",
                 }
             ),
@@ -1543,6 +1636,65 @@ def create_api_key():
         )
     except Exception as e:
         return jsonify({"error": f"Failed to create API key: {str(e)}"}), 500
+
+
+def _find_api_key(key_id):
+    """Resolve the id preview shown by GET /api/keys back to the full key."""
+    for key in API_KEYS:
+        if key.startswith(key_id) or key.endswith(key_id) or key == key_id:
+            return key
+    return None
+
+
+@app.route("/api/keys/<key_id>", methods=["PUT"])
+@require_permission("api_keys.manage")
+def update_api_key_scope(key_id):
+    """Narrow or widen what an API key may do."""
+    try:
+        key = _find_api_key(key_id)
+        if not key:
+            return jsonify({"error": "API key not found"}), 404
+
+        data = request.get_json() or {}
+        if "role" not in data and "permissions" not in data:
+            return jsonify({"error": "role or permissions required"}), 400
+
+        entry = API_KEYS[key]
+        role = data.get("role", entry.get("role", DEFAULT_API_KEY_ROLE))
+        permissions = data["permissions"] if "permissions" in data else entry.get("permissions")
+
+        scope_error = validate_api_key_scope(role, permissions)
+        if scope_error:
+            return jsonify({"error": scope_error}), 400
+
+        entry["role"] = role
+        if permissions is None:
+            entry.pop("permissions", None)
+        else:
+            entry["permissions"] = permissions
+
+        if not save_api_keys():
+            return jsonify({"error": "Failed to save changes"}), 500
+
+        log_audit_event(
+            get_username_from_request(),
+            "api_keys.scope",
+            {"name": entry.get("name", "Unknown"), "role": role, "permissions": permissions},
+        )
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "API key scope updated",
+                    "role": role,
+                    "permissions": get_api_key_permissions(entry),
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to update API key: {str(e)}"}), 500
 
 
 @app.route("/api/keys/<key_id>", methods=["DELETE"])
@@ -3953,6 +4105,10 @@ if SOCKETIO_AVAILABLE:
 
     # Session ids currently subscribed to the log stream
     active_log_streams = set()
+    # sid -> the permissions of the API key that opened that connection. The
+    # socket authenticates once at connect, so later messages on the same
+    # connection have to be checked against what was stored here.
+    _stream_permissions = {}
     _log_streams_lock = threading.Lock()
     # Mutable holder rather than a module-level bool, so the reader and the
     # starter share one piece of state without `global` declarations. The
@@ -4133,8 +4289,17 @@ if SOCKETIO_AVAILABLE:
             socketio.disconnect(request.sid)
             return False
 
+        # The log stream is server output, so it needs the same permission the
+        # REST log endpoints require. Any enabled key used to be enough.
+        key_permissions = get_api_key_permissions(key_info)
+        if "logs.view" not in key_permissions:
+            socketio.emit("error", {"message": "Permission denied: logs.view"}, room=request.sid)
+            socketio.disconnect(request.sid)
+            return False
+
         with _log_streams_lock:
             active_log_streams.add(request.sid)
+            _stream_permissions[request.sid] = key_permissions
 
         # Send the backlog to this client only, then let the shared follower
         # deliver everything that arrives afterwards.
@@ -4149,10 +4314,19 @@ if SOCKETIO_AVAILABLE:
         """Handle WebSocket disconnection"""
         with _log_streams_lock:
             active_log_streams.discard(request.sid)
+            _stream_permissions.pop(request.sid, None)
+
+    def _stream_may(permission):
+        """Check the stored scope of the key that opened this connection."""
+        with _log_streams_lock:
+            return permission in _stream_permissions.get(request.sid, ())
 
     @socketio.on("request_logs")
     def handle_request_logs(data):
         """Handle log request from client"""
+        if not _stream_may("logs.view"):
+            socketio.emit("error", {"message": "Permission denied: logs.view"}, room=request.sid)
+            return
         lines = data.get("lines", 100) if data else 100
         logs = get_log_tail(lines)
         socketio.emit("logs", {"logs": logs, "type": "request"}, room=request.sid)
@@ -4160,6 +4334,12 @@ if SOCKETIO_AVAILABLE:
     @socketio.on("execute_command")
     def handle_execute_command(data):
         """Handle command execution from client"""
+        # The connect handler only proved the key was valid, never that it was
+        # allowed to run commands, so a read-only key could drive the console.
+        if not _stream_may("server.command"):
+            socketio.emit("command_error", {"message": "Permission denied: server.command"}, room=request.sid)
+            return
+
         command = data.get("command") if data else None
         if not command:
             socketio.emit("command_error", {"message": "Command required"}, room=request.sid)
@@ -4187,7 +4367,6 @@ if SOCKETIO_AVAILABLE:
 
         log_audit_event("__api_key__", "server.command", {"command": sanitize_string(command[:100])})
 
-        # Check if user has permission (api_key already validated in connect)
         # Execute command via RCON
         try:
             stdout, stderr, code = run_rcon_command(command)
