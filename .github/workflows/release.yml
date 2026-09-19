@@ -33,15 +33,17 @@ jobs:
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 
       - name: Generate release notes
         id: release_notes
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="${{ steps.version.outputs.tag }}"
+          # Exported so the heredoc below and any child process can read
+          # them, and so the assignment is not reported as unused.
+          export VERSION="${{ steps.version.outputs.version }}"
+          export TAG="${{ steps.version.outputs.tag }}"
 
           # Generate release notes from CHANGELOG.md
           python3 << EOF
@@ -121,8 +123,8 @@ jobs:
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
