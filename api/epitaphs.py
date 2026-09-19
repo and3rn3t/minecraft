@@ -52,6 +52,11 @@ _CULPRIT_RE = re.compile(
     r"|got finished off) by (?:the )?(?P<culprit>[^,]+?)(?: using .+)?$"
 )
 
+# "was shot by a skull from Wither" names the projectile before the mob. Without
+# this the generic capture above would record "a skull from Wither" as the
+# culprit, and the epitaph would name the projectile rather than what fired it.
+_INDIRECT_CULPRIT_RE = re.compile(r"^(?:a|an|the)\s+.+?\s+from\s+(?:the\s+)?(?P<culprit>.+)$")
+
 # One line each, with {player} and sometimes {culprit} substituted. Several per
 # category so the same death does not read the same way twice in an evening.
 _EPITAPHS: dict[str, tuple[str, ...]] = {
@@ -201,7 +206,15 @@ def extract_culprit(cause: str) -> Optional[str]:
     match = _CULPRIT_RE.search(cause.strip())
     if not match:
         return None
+
     culprit = match.group("culprit").strip()
+    if not culprit:
+        return None
+
+    indirect = _INDIRECT_CULPRIT_RE.match(culprit)
+    if indirect:
+        culprit = indirect.group("culprit").strip()
+
     return culprit or None
 
 

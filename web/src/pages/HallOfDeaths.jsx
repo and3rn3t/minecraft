@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../services/api';
 
 // Death categories, with an icon for each. Anything the backend classifies as
@@ -78,29 +79,45 @@ const HallOfDeaths = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Typing a name should not fire a request per keystroke, and a slow response
+  // for 'S' must not land on top of a newer one for 'Si'. The debounce cuts the
+  // request count; the request id discards anything that arrives out of order.
+  const debouncedFilter = useDebounce(playerFilter, 300);
+  const requestId = useRef(0);
+
   const load = useCallback(async () => {
+    const thisRequest = requestId.current + 1;
+    requestId.current = thisRequest;
+
     try {
-      setError(null);
       const [recent, board] = await Promise.all([
-        api.getDeaths({ limit: 50, player: playerFilter || null }),
+        api.getDeaths({ limit: 50, player: debouncedFilter || null }),
         api.getDeathsLeaderboard(),
       ]);
+
+      if (requestId.current !== thisRequest) return;
+
+      setError(null);
       setDeaths(recent.deaths || []);
       setStats(recent.stats || null);
       setLeaderboard(board.leaderboard || []);
     } catch (err) {
+      if (requestId.current !== thisRequest) return;
       console.error('Failed to load the Hall of Deaths:', err);
       setError('Could not load the Hall of Deaths.');
     } finally {
-      setLoading(false);
+      if (requestId.current === thisRequest) setLoading(false);
     }
-  }, [playerFilter]);
+  }, [debouncedFilter]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const noDeathsYet = !loading && deaths.length === 0 && !playerFilter;
+  // A failed request leaves deaths empty, which is not the same thing as an
+  // empty hall. Showing 'nobody has died yet' under an error would report a
+  // backend failure as good news.
+  const noDeathsYet = !loading && !error && deaths.length === 0 && !debouncedFilter;
 
   return (
     <div>
@@ -145,10 +162,12 @@ const HallOfDeaths = () => {
               </h2>
               <div className="flex gap-2">
                 <input
+                  id="death-player-filter"
                   type="text"
                   value={playerFilter}
                   onChange={event => setPlayerFilter(event.target.value)}
                   placeholder="FILTER BY PLAYER"
+                  aria-label="Filter obituaries by player name"
                   className="bg-minecraft-background-dark border-2 border-[#5D4037] px-3 py-2 text-[8px] font-minecraft text-minecraft-text-light placeholder:text-minecraft-text-dark"
                 />
                 <button onClick={load} className="btn-minecraft text-[8px]">
@@ -173,7 +192,7 @@ const HallOfDeaths = () => {
               </div>
             ) : deaths.length === 0 ? (
               <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-dark">
-                NO DEATHS FOR THAT PLAYER
+                {error ? 'COULD NOT REACH THE RECORDS' : 'NO DEATHS FOR THAT PLAYER'}
               </div>
             ) : (
               <ul className="space-y-3">

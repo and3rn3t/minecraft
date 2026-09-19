@@ -87,6 +87,20 @@ class TestCulpritExtraction:
     def test_definite_article_is_dropped(self):
         assert extract_culprit("was slain by the Warden") == "Warden"
 
+    def test_projectile_form_names_the_mob_not_the_projectile(self):
+        """'a skull from Wither' must credit the Wither, not the skull."""
+        assert extract_culprit("was shot by a skull from Wither") == "Wither"
+
+    def test_other_indirect_forms_also_name_the_source(self):
+        assert extract_culprit("was killed by a fireball from Blaze") == "Blaze"
+
+    def test_indirect_form_drops_a_definite_article_too(self):
+        assert extract_culprit("was shot by a skull from the Wither") == "Wither"
+
+    def test_a_direct_culprit_is_left_alone(self):
+        """The indirect pattern must not chew up ordinary names."""
+        assert extract_culprit("was slain by Zombie") == "Zombie"
+
     def test_causeless_death_has_no_culprit(self):
         assert extract_culprit("fell from a high place") is None
         assert extract_culprit("drowned") is None

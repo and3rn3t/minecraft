@@ -24,6 +24,8 @@ All notable changes to this project will be documented in this file.
     `web/src/services/api.js`.
   - Configured through `config/deaths.conf`; see `config/deaths.conf.example`.
     In-game announcements can be turned off while keeping the dashboard.
+  - Announcing runs on a worker thread rather than on the log follower, so an
+    unreachable game server cannot stall event processing behind each death.
 
 ### Added
 

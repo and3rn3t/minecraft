@@ -436,3 +436,138 @@ class TestDeathsEndpoints:
     def test_leaderboard_rejects_a_non_numeric_limit(self, client, mock_api_keys):
         response = client.get("/api/deaths/leaderboard?limit=lots", headers={"X-API-Key": mock_api_keys})
         assert response.status_code == 400
+
+
+@pytest.mark.unit
+class TestAnnouncedIsPersisted:
+    """`announced` has to survive the write, or the field is decorative.
+
+    The record used to be written before the announcement was attempted, so the
+    stored value was always false even when players had seen the epitaph.
+    """
+
+    def test_successful_announcement_is_stored_as_true(self, hall):
+        hall.handle_event(death_event())
+        assert hall.read()[0]["announced"] is True
+
+    def test_failed_announcement_is_stored_as_false(self, tmp_path):
+        def broken(_command):
+            raise RuntimeError("server is stopped")
+
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=broken)
+        hall.set_error_logger(lambda _message: None)
+        hall.handle_event(death_event())
+
+        assert hall.read()[0]["announced"] is False
+
+    def test_disabled_announcement_is_stored_as_false(self, tmp_path, announcements):
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=announcements.append, announce=False)
+        hall.handle_event(death_event())
+        assert hall.read()[0]["announced"] is False
+
+    def test_a_death_is_written_exactly_once(self, hall, tmp_path):
+        """Patching the record afterwards must not append a second copy."""
+        hall.handle_event(death_event())
+        lines = [
+            line
+            for path in (tmp_path / "deaths").glob("*.jsonl")
+            for line in path.read_text().splitlines()
+            if line.strip()
+        ]
+        assert len(lines) == 1
+
+
+@pytest.mark.unit
+class TestBackgroundWorker:
+    """Announcing must not run on the thread that follows the server log.
+
+    In production the announcer goes through RCON with a connection timeout and
+    then a shell fallback with its own, so an unreachable server could stall the
+    follower for tens of seconds per death and hold up every later event.
+    """
+
+    def test_handler_returns_immediately_when_a_worker_is_running(self, tmp_path):
+        import threading
+
+        released = threading.Event()
+
+        def slow(_command):
+            released.wait(5)
+
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=slow)
+        hall.start_worker()
+        try:
+            # Would block for the announcer's duration without the worker.
+            assert hall.handle_event(death_event()) is None
+        finally:
+            released.set()
+            hall.stop_worker()
+
+    def test_queued_death_is_eventually_recorded(self, tmp_path, announcements):
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=announcements.append)
+        hall.start_worker()
+        try:
+            hall.handle_event(death_event())
+            assert hall.drain(timeout=5) is True
+            assert len(hall.read()) == 1
+            assert len(announcements) == 1
+        finally:
+            hall.stop_worker()
+
+    def test_several_deaths_are_all_recorded(self, tmp_path, announcements):
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=announcements.append)
+        hall.start_worker()
+        try:
+            for index in range(5):
+                hall.handle_event(death_event(timestamp=f"2026-09-19T10:0{index}:00+00:00"))
+            assert hall.drain(timeout=5) is True
+            assert len(hall.read()) == 5
+        finally:
+            hall.stop_worker()
+
+    def test_a_failing_announcement_does_not_kill_the_worker(self, tmp_path):
+        calls = {"count": 0}
+
+        def sometimes_broken(_command):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("first one fails")
+
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=sometimes_broken)
+        hall.set_error_logger(lambda _message: None)
+        hall.start_worker()
+        try:
+            hall.handle_event(death_event(timestamp="2026-09-19T10:00:00+00:00"))
+            hall.handle_event(death_event(timestamp="2026-09-19T10:01:00+00:00"))
+            assert hall.drain(timeout=5) is True
+            assert len(hall.read()) == 2
+        finally:
+            hall.stop_worker()
+
+    def test_work_is_processed_inline_without_a_worker(self, hall):
+        """Nothing starts a worker by default, so the handler stays synchronous."""
+        assert hall.handle_event(death_event()) is not None
+
+    def test_starting_twice_runs_one_worker(self, tmp_path, announcements):
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=announcements.append)
+        hall.start_worker()
+        first = hall._worker
+        hall.start_worker()
+        try:
+            assert hall._worker is first
+        finally:
+            hall.stop_worker()
+
+    def test_stopping_without_starting_is_safe(self, tmp_path):
+        HallOfDeaths(deaths_dir=tmp_path / "deaths").stop_worker()
+
+    def test_drain_without_a_worker_returns_immediately(self, hall):
+        assert hall.drain(timeout=0.1) is True
+
+    def test_stopping_lets_queued_deaths_finish(self, tmp_path, announcements):
+        hall = HallOfDeaths(deaths_dir=tmp_path / "deaths", announcer=announcements.append)
+        hall.start_worker()
+        hall.handle_event(death_event())
+        hall.stop_worker(timeout=5)
+
+        assert len(hall.read()) == 1

@@ -14,6 +14,7 @@ same shape.
 from __future__ import annotations
 
 import json
+import queue
 import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -136,6 +137,14 @@ class HallOfDeaths:
         self._error_logger: Optional[Callable[[str], None]] = None
         self._last_pruned_date: Optional[str] = None
 
+        # Announcing talks to the game server over the network, and handlers run
+        # on the log follower thread. A worker keeps that work off it; see
+        # start_worker().
+        self._queue: Optional[queue.Queue] = None
+        self._worker: Optional[threading.Thread] = None
+        self._pending = 0
+        self._pending_cv = threading.Condition()
+
     def set_error_logger(self, logger: Callable[[str], None]) -> None:
         self._error_logger = logger
 
@@ -150,7 +159,11 @@ class HallOfDeaths:
                 pass
 
     def handle_event(self, event) -> Optional[DeathRecord]:
-        """Event bus handler. Ignores everything that is not a death."""
+        """Event bus handler. Ignores everything that is not a death.
+
+        Returns the stored record when the death is handled inline, and ``None``
+        when it has been queued for the worker, which stores it shortly after.
+        """
         if getattr(event, "type", None) != "death":
             return None
         if not event.player:
@@ -162,16 +175,36 @@ class HallOfDeaths:
             message=event.data.get("message", ""),
             timestamp=event.timestamp,
         )
+
+        if self._queue is not None:
+            with self._pending_cv:
+                self._pending += 1
+            self._queue.put(death)
+            return None
+
         return self.record(death)
 
     def record(self, death: Death) -> DeathRecord:
-        """Write the epitaph, persist the record, then announce it.
+        """Write the epitaph, announce it, then store the result.
 
-        Persisting comes first on purpose. Announcing needs the game server to
-        be reachable, and a death is worth keeping even when the announcement
-        cannot be delivered.
+        The announcement is attempted before the record is written so that
+        ``announced`` reflects what actually happened. Writing first and
+        patching afterwards would mean either rewriting the file or leaving
+        every stored record saying ``false``, which makes the field useless.
+
+        Nothing is lost by waiting: the death is already in the event log by the
+        time this runs, and the announcer is expected to have a bounded timeout.
         """
         epitaph = write_epitaph(death, self.writer)
+        announced = False
+
+        if self.announce and self.announcer is not None:
+            try:
+                self.announcer(build_tellraw(epitaph, self.color))
+                announced = True
+            except Exception as exc:  # noqa: BLE001 - the game may be down
+                self._log_error(f"Could not announce a death in game: {exc}")
+
         record = DeathRecord(
             player=death.player,
             cause=death.cause,
@@ -180,19 +213,66 @@ class HallOfDeaths:
             timestamp=death.timestamp or datetime.now(timezone.utc).isoformat(),
             culprit=death.culprit,
             message=death.message,
-            announced=False,
+            announced=announced,
         )
 
         self._append(record)
-
-        if self.announce and self.announcer is not None:
-            try:
-                self.announcer(build_tellraw(epitaph, self.color))
-                record = DeathRecord(**{**record.to_dict(), "announced": True})
-            except Exception as exc:  # noqa: BLE001 - the game may be down
-                self._log_error(f"Could not announce a death in game: {exc}")
-
         return record
+
+    def start_worker(self) -> None:
+        """Handle deaths on a background thread instead of inline.
+
+        Event bus handlers run on the thread that follows the server log, and
+        announcing a death makes a network call. In production that call goes
+        through RCON with a connection timeout and then a shell fallback with
+        its own, so an unreachable server could stall the follower for tens of
+        seconds per death and hold up every other event behind it.
+
+        With a worker, the handler only enqueues and returns.
+        """
+        with self._lock:
+            if self._worker is not None:
+                return
+            self._queue = queue.Queue()
+            self._worker = threading.Thread(target=self._work, daemon=True, name="hall-of-deaths")
+            self._worker.start()
+
+    def stop_worker(self, timeout: float = 5.0) -> None:
+        """Stop the worker, giving queued deaths a chance to be written."""
+        with self._lock:
+            worker, self._worker = self._worker, None
+            work_queue, self._queue = self._queue, None
+
+        if worker is None or work_queue is None:
+            return
+
+        work_queue.put(None)
+        worker.join(timeout)
+
+    def drain(self, timeout: float = 5.0) -> bool:
+        """Block until queued deaths have been processed.
+
+        Returns False if they were still outstanding when the timeout expired.
+        Used by tests and by anything that needs to read straight after a death.
+        """
+        with self._pending_cv:
+            return self._pending_cv.wait_for(lambda: self._pending == 0, timeout=timeout)
+
+    def _work(self) -> None:
+        """Drain the queue until told to stop."""
+        while True:
+            death = self._queue.get() if self._queue is not None else None
+            if death is None:
+                return
+
+            try:
+                self.record(death)
+            except Exception as exc:  # noqa: BLE001 - one bad death must not end the worker
+                self._log_error(f"Could not process a death: {exc}")
+            finally:
+                with self._pending_cv:
+                    self._pending -= 1
+                    self._pending_cv.notify_all()
 
     def _append(self, record: DeathRecord) -> None:
         """Append one record to today's file.

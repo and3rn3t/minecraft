@@ -139,10 +139,87 @@ describe('HallOfDeaths', () => {
 
     await user.type(screen.getByPlaceholderText(/filter by player/i), 'Silas');
 
+    await waitFor(
+      () => {
+        expect(api.api.getDeaths).toHaveBeenLastCalledWith(
+          expect.objectContaining({ player: 'Silas' })
+        );
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  it('debounces typing into one request', async () => {
+    // Without the debounce this fired a request per keystroke.
+    const user = userEvent.setup();
+    withDeaths([aDeath()]);
+    renderWithRouter(<HallOfDeaths />);
+
+    await waitFor(() => expect(api.api.getDeaths).toHaveBeenCalledTimes(1));
+
+    await user.type(screen.getByPlaceholderText(/filter by player/i), 'Silas');
+
+    await waitFor(
+      () => {
+        expect(api.api.getDeaths).toHaveBeenLastCalledWith(
+          expect.objectContaining({ player: 'Silas' })
+        );
+      },
+      { timeout: 3000 }
+    );
+
+    // One initial load plus one for the settled filter, not one per letter.
+    expect(api.api.getDeaths.mock.calls.length).toBeLessThan(5);
+  });
+
+  it('ignores a stale response that arrives after a newer one', async () => {
+    // A slow request for an earlier filter value must not overwrite the
+    // results of a later one.
+    api.api.getDeathsLeaderboard.mockResolvedValue({ leaderboard: [] });
+
+    let releaseFirst;
+    const firstResponse = new Promise(resolve => {
+      releaseFirst = () => resolve({ deaths: [aDeath({ epitaph: 'STALE RESULT' })], stats: null });
+    });
+
+    api.api.getDeaths
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValue({ deaths: [aDeath({ epitaph: 'FRESH RESULT' })], stats: null });
+
+    const user = userEvent.setup();
+    renderWithRouter(<HallOfDeaths />);
+
+    await user.type(screen.getByPlaceholderText(/filter by player/i), 'Si');
+
+    await waitFor(() => expect(screen.getByText(/FRESH RESULT/)).toBeInTheDocument(), {
+      timeout: 3000,
+    });
+
+    releaseFirst();
+
+    await waitFor(() => expect(screen.getByText(/FRESH RESULT/)).toBeInTheDocument());
+    expect(screen.queryByText(/STALE RESULT/)).not.toBeInTheDocument();
+  });
+
+  it('does not claim nobody has died when the request failed', async () => {
+    // An empty list after an error is a backend failure, not good news.
+    api.api.getDeaths.mockRejectedValue(new Error('network down'));
+    api.api.getDeathsLeaderboard.mockRejectedValue(new Error('network down'));
+
+    renderWithRouter(<HallOfDeaths />);
+
     await waitFor(() => {
-      expect(api.api.getDeaths).toHaveBeenLastCalledWith(
-        expect.objectContaining({ player: 'Silas' })
-      );
+      expect(screen.getByText(/could not load the hall of deaths/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/nobody has died yet/i)).not.toBeInTheDocument();
+  });
+
+  it('gives the filter an accessible name', async () => {
+    withDeaths([]);
+    renderWithRouter(<HallOfDeaths />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/filter obituaries by player name/i)).toBeInTheDocument();
     });
   });
 

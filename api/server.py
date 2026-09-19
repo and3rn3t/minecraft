@@ -4079,6 +4079,10 @@ def start_event_capture():
         # hall stays testable without a server and without RCON.
         hall = hall_of_deaths.get_hall(announcer=_announce_in_game)
         hall.set_error_logger(app.logger.error)
+        # Announcing makes a network call, and bus handlers run on the log
+        # follower thread. The worker keeps an unreachable server from stalling
+        # event processing behind each death.
+        hall.start_worker()
         bus.subscribe(hall.handle_event)
 
     _ensure_log_reader()

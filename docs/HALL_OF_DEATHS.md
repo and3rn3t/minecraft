@@ -32,13 +32,31 @@ manage it.
 
 1. `api/events.py` parses a death line from the server log into a `death` event.
 2. `HallOfDeaths.handle_event` in [`api/hall_of_deaths.py`](../api/hall_of_deaths.py)
-   picks it up from the bus.
-3. [`api/epitaphs.py`](../api/epitaphs.py) classifies the cause and writes a line.
-4. The record is persisted, then announced with `tellraw`.
+   picks it up from the bus and queues it.
+3. A worker thread takes it from the queue.
+4. [`api/epitaphs.py`](../api/epitaphs.py) classifies the cause and writes a line.
+5. The epitaph is announced with `tellraw`, then the record is stored with
+   whether that announcement actually reached anyone.
 
-Persisting happens before announcing on purpose. Announcing needs the game
-server to be reachable, and a death is worth keeping even when the announcement
-cannot be delivered. A record carries `announced` so you can tell the difference.
+### Why a worker thread
+
+Event bus handlers run on the thread that follows the server log, and announcing
+a death makes a network call. In production that call goes through RCON with a
+connection timeout and then a shell fallback with its own, so an unreachable
+server could stall the follower for tens of seconds per death and hold up every
+other event behind it. The handler only enqueues and returns.
+
+Without `start_worker()` the handler processes deaths inline, which is what the
+tests do. `drain()` waits for the queue, and `stop_worker()` gives queued deaths
+a chance to be written.
+
+### Why announce before storing
+
+`announced` has to reflect what actually happened. Storing first and patching
+afterwards would mean either rewriting the file or leaving every stored record
+saying `false`, which makes the field useless. Nothing is lost by waiting: the
+death is already in the event log by then, and the announcer has a bounded
+timeout.
 
 ## Epitaphs
 
@@ -97,7 +115,7 @@ gitignored.
 | `RETENTION_DAYS` | `365` | How long to keep records. `0` disables pruning. |
 
 Records are stored in `data/deaths/YYYY-MM-DD.jsonl`, which is gitignored and
-lives only on the Pi. They are written immediately rather than batched like log
+lives only on the Pi. They are written one at a time rather than batched like log
 events, because deaths are rare and losing a good epitaph to a crash would be a
 worse trade than a few extra writes.
 
@@ -132,6 +150,8 @@ curl -H "X-API-Key: $API_KEY" "http://localhost:8080/api/deaths?limit=5"
   containing a quote cannot break the command or inject extra components.
 - **Long lines are truncated deliberately**, because the server would otherwise
   truncate them silently.
+- **Where a death names a projectile, the epitaph credits what fired it.** `was
+  shot by a skull from Wither` names the Wither, not the skull.
 
 ## Related
 
