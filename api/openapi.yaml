@@ -86,6 +86,31 @@ components:
       description: Session cookie from login
 
   schemas:
+    GameEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Event type
+          example: death
+        timestamp:
+          type: string
+          format: date-time
+          description: When the line was ingested, in UTC
+        player:
+          type: string
+          nullable: true
+          description: Player the event concerns, if any
+        data:
+          type: object
+          description: >-
+            Type-specific fields. Always includes log_time, the HH:MM:SS the
+            server itself printed.
+          additionalProperties: true
+        raw:
+          type: string
+          description: The original log line
+
     Error:
       type: object
       properties:
@@ -642,6 +667,85 @@ paths:
                       type: string
                   total_lines:
                     type: integer
+
+  /api/events:
+    get:
+      tags:
+        - Events
+      summary: Get game events
+      description: |
+        Retrieve game events parsed from the server log, newest first.
+        Requires the `logs.view` permission.
+      operationId: getEvents
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 500
+          description: Maximum number of events to return
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - chat
+              - connect
+              - join
+              - leave
+              - death
+              - advancement
+              - command
+              - server_ready
+              - server_stopping
+          description: Only return events of this type
+        - name: player
+          in: query
+          schema:
+            type: string
+          description: Only return events for this player
+      responses:
+        '200':
+          description: Game events, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GameEvent'
+                  count:
+                    type: integer
+        '400':
+          description: Unknown event type or non-numeric limit
+        '503':
+          description: Event capture is unavailable
+
+  /api/events/types:
+    get:
+      tags:
+        - Events
+      summary: List game event types
+      description: List the event types the bus can produce. Requires `logs.view`.
+      operationId: getEventTypes
+      responses:
+        '200':
+          description: Known event types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  types:
+                    type: array
+                    items:
+                      type: string
+        '503':
+          description: Event capture is unavailable
 
   /api/metrics:
     get:

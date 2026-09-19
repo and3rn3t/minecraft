@@ -57,6 +57,65 @@ describe('API Service', () => {
     });
   });
 
+  describe('getEvents', () => {
+    it('sends the default limit and no filters', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { events: [], count: 0 } });
+
+      await api.getEvents();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/events', {
+        params: { limit: 100 },
+      });
+    });
+
+    it('passes type and player filters through', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { events: [], count: 0 } });
+
+      await api.getEvents({ limit: 25, type: 'death', player: 'Silas' });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/events', {
+        params: { limit: 25, type: 'death', player: 'Silas' },
+      });
+    });
+
+    it('omits filters that are not set', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { events: [], count: 0 } });
+
+      await api.getEvents({ type: 'chat' });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/events', {
+        params: { limit: 100, type: 'chat' },
+      });
+    });
+
+    it('returns the response payload', async () => {
+      const payload = { events: [{ type: 'death', player: 'Jonah' }], count: 1 };
+      mockAxiosInstance.get.mockResolvedValue({ data: payload });
+
+      await expect(api.getEvents()).resolves.toEqual(payload);
+    });
+  });
+
+  describe('getEventTypes', () => {
+    it('calls the types endpoint', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { types: ['chat', 'death'] } });
+
+      const result = await api.getEventTypes();
+
+      expect(result.types).toEqual(['chat', 'death']);
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/events/types', { params: {} });
+    });
+
+    it('serves a repeat call from cache', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { types: ['chat'] } });
+
+      await api.getEventTypes();
+      await api.getEventTypes();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('server control', () => {
     it('startServer calls correct endpoint', async () => {
       mockAxiosInstance.post.mockResolvedValue({

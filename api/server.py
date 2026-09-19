@@ -87,6 +87,27 @@ except ImportError:
         return False
 
 
+# In-process RCON client. Keeps one authenticated connection open instead of
+# paying for a TCP handshake and login per command.
+try:
+    from api import rcon
+
+    RCON_AVAILABLE = True
+except ImportError:
+    RCON_AVAILABLE = False
+    rcon = None
+
+# Game event bus. Parses the server log into typed events that features can
+# subscribe to, instead of every feature re-parsing raw text for itself.
+try:
+    from api import events as game_events
+
+    EVENTS_AVAILABLE = True
+except ImportError:
+    EVENTS_AVAILABLE = False
+    game_events = None
+
+
 app = Flask(__name__)
 # SECRET_KEY is resolved further down, once config/api.conf has been read.
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
@@ -358,6 +379,28 @@ def run_script(script_name, *args, timeout=DEFAULT_SCRIPT_TIMEOUT):
         return None, f"Script execution timeout after {timeout}s", 504
     except Exception as e:
         return None, str(e), 500
+
+
+def run_rcon_command(command):
+    """Execute a Minecraft command over RCON, returning (stdout, stderr, code).
+
+    Prefers the pooled in-process client in ``api/rcon.py``, which reuses one
+    authenticated connection. Falls back to ``scripts/rcon-client.sh`` only when
+    the command provably never reached the server, because that script can reach
+    ``rcon-cli`` inside the container when the port is not published to the host.
+
+    Minecraft commands are not idempotent. ``502`` and ``503`` mean nothing was
+    sent, so running the command by another route is safe. Every other code is
+    returned as-is: an auth failure or a rejected command would fail the same
+    way again, and ``500`` means the command reached the server but its result
+    was lost, so repeating it could apply a ``give`` or a ``kill`` twice.
+    """
+    if RCON_AVAILABLE:
+        stdout, stderr, code = rcon.execute(command)
+        if code not in (502, 503):
+            return stdout, stderr, code
+
+    return run_script("rcon-client.sh", "command", command)
 
 
 @app.route("/api/health", methods=["GET"])
@@ -1791,6 +1834,10 @@ def send_command():
     command = data.get("command")
     if not command:
         return jsonify({"error": "Command required"}), 400
+    if not isinstance(command, str):
+        # The sanitizer calls string methods, so a JSON number or object would
+        # raise inside it and surface as a 500 rather than a bad request.
+        return jsonify({"error": "Command must be a string"}), 400
 
     # Validate and sanitize command to prevent command injection
     if SECURITY_AVAILABLE:
@@ -1810,7 +1857,7 @@ def send_command():
     username = get_username_from_request()
     log_audit_event(username, "server.command", {"command": sanitize_string(command[:100])})
 
-    stdout, stderr, code = run_script("rcon-client.sh", "command", command)
+    stdout, stderr, code = run_rcon_command(command)
 
     if code == 0:
         # Sanitize response before returning
@@ -2174,11 +2221,53 @@ def get_logs():
     return jsonify({"logs": logs.split("\n"), "lines": len(logs.split("\n"))})
 
 
+@app.route("/api/events", methods=["GET"])
+@require_permission("logs.view")
+def get_game_events():
+    """Return recent game events, newest first.
+
+    Query parameters: `limit` (default 100, capped at 500), `type` to filter by
+    event type, and `player` to filter by player name.
+    """
+    if not EVENTS_AVAILABLE:
+        return jsonify({"error": "Event capture is unavailable"}), 503
+
+    try:
+        limit = min(max(int(request.args.get("limit", 100)), 1), 500)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    event_type = request.args.get("type")
+    if event_type and event_type not in game_events.ALL_EVENT_TYPES:
+        return jsonify({"error": "Unknown event type", "valid_types": list(game_events.ALL_EVENT_TYPES)}), 400
+
+    player = request.args.get("player")
+    if player:
+        player = sanitize_string(player, max_length=16)
+
+    try:
+        records = game_events.get_bus().read(limit=limit, event_type=event_type, player=player)
+    except Exception as e:
+        app.logger.error(f"Error reading events: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    return jsonify({"events": records, "count": len(records)})
+
+
+@app.route("/api/events/types", methods=["GET"])
+@require_permission("logs.view")
+def get_game_event_types():
+    """List the event types the bus can produce."""
+    if not EVENTS_AVAILABLE:
+        return jsonify({"error": "Event capture is unavailable"}), 503
+    return jsonify({"types": list(game_events.ALL_EVENT_TYPES)})
+
+
 @app.route("/api/players", methods=["GET"])
 @require_permission("players.view")
 def get_players():
     """Get list of online players"""
-    stdout, _, _ = run_script("rcon-client.sh", "command", "list")
+    stdout, _, _ = run_rcon_command("list")
 
     # Parse player list from RCON response
     players = []
@@ -3634,8 +3723,10 @@ if SOCKETIO_AVAILABLE:
     active_log_streams = set()
     _log_streams_lock = threading.Lock()
     # Mutable holder rather than a module-level bool, so the reader and the
-    # starter share one piece of state without `global` declarations.
-    _log_reader_state = {"running": False}
+    # starter share one piece of state without `global` declarations. The
+    # follower no longer stops when the last client disconnects, so `stop` is
+    # what shutdown and the tests use to bring it down deliberately.
+    _log_reader_state = {"running": False, "stop": False, "proc": None}
 
     LOG_BACKLOG_LINES = 200
 
@@ -3654,42 +3745,76 @@ if SOCKETIO_AVAILABLE:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return []
 
+    def _publish_log_line(line):
+        """Feed one log line to the event bus, returning the event or None.
+
+        Persistence failures and handler errors are contained by the bus itself;
+        this wrapper exists so that a bus problem can never stop log streaming.
+        """
+        if not EVENTS_AVAILABLE:
+            return None
+        try:
+            return game_events.get_bus().handle_line(line)
+        except Exception as exc:  # noqa: BLE001 - streaming must outlive the bus
+            app.logger.error(f"Event bus failed on a log line: {exc}")
+            return None
+
     def _log_reader():
-        """Follow the container log once and fan each line out to subscribers.
+        """Follow the container log, fan lines out, and drive the event bus.
 
         The previous implementation gave every client its own thread that ran
         `docker logs --tail 50` every second and diffed the result against the
         last batch, which scaled badly, missed lines that scrolled past between
         polls, and duplicated any line that legitimately repeated. One follower
         process streams the log instead, so lines arrive in order, exactly once.
-        """
-        while True:
-            with _log_streams_lock:
-                if not active_log_streams:
-                    _log_reader_state["running"] = False
-                    return
 
+        It now also runs whether or not anybody is watching. The log is the only
+        real-time signal the Minecraft server produces, so a follower that
+        started on the first browser connection and stopped on the last one
+        meant every death, advancement and chat message that happened with the
+        dashboard closed was lost. Events are parsed and recorded continuously;
+        the WebSocket fanout is just one consumer of them.
+
+        It attaches with `--tail 0` deliberately. Because every line read here
+        is persisted as an event, replaying a backlog would record the same
+        deaths and advancements again on every API restart and every re-attach,
+        and the counts would climb with each one. New clients still get their
+        scrollback: `handle_connect` sends `get_log_tail()` separately, and that
+        path does not touch the bus. The trade is that events occurring while
+        the API is down are not captured, which is far better than recording
+        some of them repeatedly.
+        """
+        while not _log_reader_state["stop"]:
             proc = None
             try:
                 proc = subprocess.Popen(
-                    ["docker", "logs", "-f", "--tail", str(LOG_BACKLOG_LINES), "minecraft-server"],
+                    ["docker", "logs", "-f", "--tail", "0", "minecraft-server"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,
                 )
+                with _log_streams_lock:
+                    _log_reader_state["proc"] = proc
 
                 for line in proc.stdout:
-                    with _log_streams_lock:
-                        subscribers = list(active_log_streams)
-                    if not subscribers:
+                    if _log_reader_state["stop"]:
                         break
 
                     line = line.rstrip("\n")
                     if not line.strip():
                         continue
+
+                    # Parse and persist first, so an event is recorded even if
+                    # no client is connected to receive it.
+                    event = _publish_log_line(line)
+
+                    with _log_streams_lock:
+                        subscribers = list(active_log_streams)
                     for sid in subscribers:
                         socketio.emit("logs", {"logs": [line], "type": "update"}, room=sid)
+                        if event is not None:
+                            socketio.emit("game_event", event.to_dict(), room=sid)
             except FileNotFoundError:
                 # Docker is not installed; there is nothing to stream
                 with _log_streams_lock:
@@ -3705,6 +3830,8 @@ if SOCKETIO_AVAILABLE:
                 for sid in subscribers:
                     socketio.emit("error", {"message": f"Log streaming error: {str(e)}"}, room=sid)
             finally:
+                with _log_streams_lock:
+                    _log_reader_state["proc"] = None
                 if proc is not None:
                     try:
                         proc.kill()
@@ -3714,9 +3841,16 @@ if SOCKETIO_AVAILABLE:
                         # stop the reader from re-attaching.
                         pass
 
-            # The container may have stopped or restarted. Wait a moment before
-            # re-attaching, as long as somebody is still listening.
+            if _log_reader_state["stop"]:
+                break
+
+            # The container may have stopped or restarted, and `docker logs -f`
+            # exits when it does. Pause briefly, then re-attach, so the server
+            # coming back up resumes the stream without anyone intervening.
             socketio.sleep(2)
+
+        with _log_streams_lock:
+            _log_reader_state["running"] = False
 
     def _ensure_log_reader():
         """Start the single follower thread if it is not already running"""
@@ -3724,7 +3858,27 @@ if SOCKETIO_AVAILABLE:
             if _log_reader_state["running"]:
                 return
             _log_reader_state["running"] = True
+            _log_reader_state["stop"] = False
         socketio.start_background_task(_log_reader)
+
+    def stop_log_reader():
+        """Stop the follower.
+
+        Setting the flag alone is not enough. A quiet server leaves the reader
+        blocked in `for line in proc.stdout`, where it never gets to check the
+        flag, so `docker logs -f` is killed to break the read. The reader then
+        unblocks, sees the flag and exits.
+        """
+        with _log_streams_lock:
+            _log_reader_state["stop"] = True
+            proc = _log_reader_state["proc"]
+
+        if proc is not None:
+            try:
+                proc.kill()
+            except Exception:
+                # Already exited, which is the outcome we wanted anyway.
+                pass
 
     @socketio.on("connect")
     def handle_connect(auth):
@@ -3778,11 +3932,33 @@ if SOCKETIO_AVAILABLE:
         if not command:
             socketio.emit("command_error", {"message": "Command required"}, room=request.sid)
             return
+        if not isinstance(command, str):
+            # Raising inside the sanitizer happens before the try block below,
+            # which would leave the client waiting with no error at all.
+            socketio.emit("command_error", {"message": "Command must be a string"}, room=request.sid)
+            return
+
+        # Sanitise exactly as POST /api/server/command does. This path reached
+        # RCON unvalidated, so the WebSocket was a way around the command
+        # allowlist that the REST endpoint enforces.
+        if SECURITY_AVAILABLE:
+            is_valid, sanitized_command, _ = sanitize_minecraft_command(command)
+            if not is_valid:
+                log_audit_event(
+                    "__api_key__",
+                    "server.command.rejected",
+                    {"original_command": sanitize_string(command[:100]), "source": "websocket"},
+                )
+                socketio.emit("command_error", {"message": "Invalid command format"}, room=request.sid)
+                return
+            command = sanitized_command
+
+        log_audit_event("__api_key__", "server.command", {"command": sanitize_string(command[:100])})
 
         # Check if user has permission (api_key already validated in connect)
         # Execute command via RCON
         try:
-            stdout, stderr, code = run_script("rcon-client.sh", "command", command)
+            stdout, stderr, code = run_rcon_command(command)
             if code == 0:
                 socketio.emit(
                     "command_response", {"command": command, "response": stdout, "success": True}, room=request.sid
@@ -3805,6 +3981,26 @@ else:
     warnings.warn("Flask-SocketIO not available. WebSocket support disabled.", stacklevel=1)
 
 
+def start_event_capture():
+    """Begin following the server log as soon as the API starts.
+
+    Capture must not wait for a browser: events that happen while the dashboard
+    is closed are exactly the ones worth recording. Tests skip this so no
+    background thread or docker call escapes into the suite.
+    """
+    if not (SOCKETIO_AVAILABLE and socketio and EVENTS_AVAILABLE):
+        return False
+
+    bus = game_events.get_bus()
+    bus.set_error_logger(app.logger.error)
+    # Without this, the last few events on a quiet server stay buffered until
+    # something else happens.
+    bus.start_periodic_flush()
+
+    _ensure_log_reader()
+    return True
+
+
 if __name__ == "__main__":
     if not API_ENABLED:
         print("API is disabled in configuration")
@@ -3813,6 +4009,8 @@ if __name__ == "__main__":
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
+        if start_event_capture():
+            print("Game event capture enabled")
         socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")

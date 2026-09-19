@@ -4,7 +4,71 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **In-process RCON client** (`api/rcon.py`)
+
+  - Replaces the per-command shell-out to `scripts/rcon-client.sh`, which opened a
+    new TCP connection and re-authenticated for every command. One authenticated
+    connection is now held open and shared, so command batches are practical.
+  - Fixes two defects in the previous Python fallback: a single unframed `recv`
+    truncated or split responses over 4096 bytes, and any reply of four or more
+    bytes was treated as a successful login instead of checking for the `-1`
+    request id that signals auth failure.
+  - Reassembles the multi-packet responses Minecraft sends for output over 4096
+    bytes, reconnects automatically after a server restart, and rejects commands
+    long enough that the server would silently truncate them.
+  - `api/server.py` calls it through a new `run_rcon_command()` helper that falls
+    back to `scripts/rcon-client.sh` when RCON is unconfigured or unreachable, so
+    the `rcon-cli`-inside-the-container path still works.
+
+- **Game event bus** (`api/events.py`) — see [docs/EVENT_BUS.md](docs/EVENT_BUS.md)
+
+  - Parses the server log into typed events: chat, connect, join, leave, death,
+    advancement, command, server ready and server stopping.
+  - Events are appended to `data/events/YYYY-MM-DD.jsonl`. Writes are batched and
+    files older than 30 days are pruned, to limit SD-card wear on the Pi.
+  - Features subscribe with a handler function instead of parsing raw log text.
+    A handler that raises is logged and skipped rather than stopping the bus.
+  - New endpoints `GET /api/events` and `GET /api/events/types`, both requiring
+    `logs.view`, plus a `game_event` WebSocket message alongside the existing raw
+    `logs` stream. `getEvents()` and `getEventTypes()` added to
+    `web/src/services/api.js`.
+
+- **Feature roadmap** ([docs/FAMILY_SERVER_ROADMAP.md](docs/FAMILY_SERVER_ROADMAP.md))
+  covering gameplay and integration features, as distinct from the management
+  product planned in `docs/ROADMAP.md`.
+
+### Fixed
+
+- **The WebSocket `execute_command` handler reached RCON without sanitising its
+  input**, so it bypassed the command allowlist that `POST /api/server/command`
+  enforces. It now runs the same validation and writes the same audit entries.
+- **A non-string `command` value crashed inside the sanitiser** on both the REST
+  and WebSocket paths. The REST endpoint returned a 500 instead of a 400, and the
+  WebSocket raised before its error handler, leaving the client with no response
+  at all. Both now reject the value explicitly.
+
 ### Changed
+
+- **The log follower now runs from API startup rather than from the first browser
+  connection**, and no longer stops when the last client disconnects. Events that
+  occur while the dashboard is closed were previously lost entirely. The follower
+  can be brought down deliberately with `stop_log_reader()`, which kills the
+  `docker logs` process so a quiet server cannot leave the reader parked in a
+  blocking read.
+- **The follower attaches with `--tail 0`.** Because every line it reads is now
+  persisted as an event, replaying a backlog recorded the same events again on
+  every restart and re-attach. Connecting clients still receive scrollback, which
+  is sent separately and does not reach the bus.
+- **RCON retries are limited to commands that provably never reached the
+  server.** Minecraft commands are not idempotent, so a lost response is now
+  reported as an unknown outcome rather than retried or re-run through the shell
+  fallback, which could otherwise apply a `give` or a `kill` twice.
+- **The RCON config is re-read when it changes on disk**, so rotating the
+  password with `scripts/rcon-setup.sh` no longer needs an API restart.
+- **Buffered events are flushed on a timer as well as on publish**, so the last
+  few events on a quiet server are not left in memory indefinitely.
 
 - **Repository and documentation cleanup**
 

@@ -2,10 +2,12 @@
 """Tests for the WebSocket log stream.
 
 The stream was rewritten from a per-client `docker logs --tail` poll into a
-single `docker logs -f` follower that fans lines out to every subscriber. None
-of it had test coverage, so the behaviour that matters (one follower regardless
-of client count, lines delivered in order, the follower stopping when the last
-client leaves) was unverified.
+single `docker logs -f` follower that fans lines out to every subscriber, and
+then into an always-on follower that also drives the game event bus.
+
+The behaviour that matters: one follower regardless of client count, lines
+delivered in order, capture continuing with no clients attached, and the
+follower stopping only when it is explicitly told to.
 """
 
 import subprocess
@@ -31,9 +33,16 @@ def clean_stream_state():
     """Each test starts with no subscribers and no running follower."""
     api_module.active_log_streams.clear()
     api_module._log_reader_state["running"] = False
+    api_module._log_reader_state["stop"] = False
     yield
     api_module.active_log_streams.clear()
     api_module._log_reader_state["running"] = False
+    api_module._log_reader_state["stop"] = False
+
+
+def stop_after_first_attach(*_args, **_kwargs):
+    """Side effect for socketio.sleep that ends the follower's retry loop."""
+    api_module._log_reader_state["stop"] = True
 
 
 class TestGetLogTail:
@@ -90,8 +99,29 @@ class TestEnsureLogReader:
 
 
 class TestLogReader:
-    def test_exits_immediately_when_nobody_is_subscribed(self):
+    def test_follows_the_log_even_with_nobody_subscribed(self):
+        """Capture must not depend on a browser being open.
+
+        Events that happen while the dashboard is closed are exactly the ones
+        worth recording, so an empty subscriber set no longer stops the reader.
+        """
         api_module._log_reader_state["running"] = True
+
+        proc = MagicMock()
+        proc.stdout = iter(["[16:04:23] [Server thread/INFO]: Jonah joined the game\n"])
+
+        with patch("api.server.subprocess.Popen", return_value=proc) as popen, patch.object(
+            api_module, "_publish_log_line"
+        ) as publish, patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
+            api_module._log_reader()
+
+        popen.assert_called_once()
+        publish.assert_called_once()
+        assert api_module._log_reader_state["running"] is False
+
+    def test_stops_when_asked_to(self):
+        api_module._log_reader_state["running"] = True
+        api_module._log_reader_state["stop"] = True
 
         with patch("api.server.subprocess.Popen") as popen:
             api_module._log_reader()
@@ -99,19 +129,27 @@ class TestLogReader:
         popen.assert_not_called()
         assert api_module._log_reader_state["running"] is False
 
+    def test_stop_log_reader_sets_the_flag(self):
+        api_module.stop_log_reader()
+        assert api_module._log_reader_state["stop"] is True
+
+    def test_starting_clears_a_previous_stop(self):
+        api_module._log_reader_state["stop"] = True
+
+        with patch.object(api_module.socketio, "start_background_task"):
+            api_module._ensure_log_reader()
+
+        assert api_module._log_reader_state["stop"] is False
+
     def test_fans_each_line_out_to_every_subscriber(self):
         api_module.active_log_streams.update({"sid-a", "sid-b"})
 
         proc = MagicMock()
         proc.stdout = iter(["hello\n", "world\n"])
 
-        def drop_subscribers(*_args, **_kwargs):
-            # Ends the outer retry loop after the lines are consumed
-            api_module.active_log_streams.clear()
-
         with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
             api_module.socketio, "emit"
-        ) as emit, patch.object(api_module.socketio, "sleep", side_effect=drop_subscribers):
+        ) as emit, patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
             api_module._log_reader()
 
         rooms = [c.kwargs["room"] for c in emit.call_args_list]
@@ -128,9 +166,7 @@ class TestLogReader:
 
         with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
             api_module.socketio, "emit"
-        ) as emit, patch.object(
-            api_module.socketio, "sleep", side_effect=lambda *_: api_module.active_log_streams.clear()
-        ):
+        ) as emit, patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
             api_module._log_reader()
 
         forwarded = [c.args[1]["logs"][0] for c in emit.call_args_list if c.args[0] == "logs"]
@@ -156,9 +192,7 @@ class TestLogReader:
 
         with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
             api_module.socketio, "emit"
-        ), patch.object(
-            api_module.socketio, "sleep", side_effect=lambda *_: api_module.active_log_streams.clear()
-        ):
+        ), patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
             api_module._log_reader()
 
         proc.kill.assert_called()
@@ -186,3 +220,153 @@ class TestDisconnect:
             api_module.handle_disconnect()
 
         assert api_module.active_log_streams == {"sid-b"}
+
+
+class TestBacklogIsNotReplayed:
+    """The follower persists what it reads, so a replayed tail duplicates events.
+
+    Attaching with `--tail 200` meant every API restart and every re-attach
+    recorded the same chat, join and death lines again, and the counts climbed
+    with each one. New clients still get scrollback from `get_log_tail()` at
+    connect time, which does not touch the bus.
+    """
+
+    def test_follower_attaches_with_no_backlog(self):
+        api_module._log_reader_state["running"] = True
+
+        proc = MagicMock()
+        proc.stdout = iter([])
+
+        with patch("api.server.subprocess.Popen", return_value=proc) as popen, patch.object(
+            api_module.socketio, "emit"
+        ), patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
+            api_module._log_reader()
+
+        command = popen.call_args.args[0]
+        assert "--tail" in command
+        assert command[command.index("--tail") + 1] == "0"
+
+    def test_reattaching_does_not_republish_old_lines(self):
+        """Two attaches in a row must publish each line exactly once."""
+        api_module._log_reader_state["running"] = True
+
+        attaches = []
+
+        def make_proc(*_args, **_kwargs):
+            proc = MagicMock()
+            # A replaying tail would hand back the same line on every attach.
+            proc.stdout = iter(["[16:04:23] [Server thread/INFO]: Jonah joined the game\n"])
+            attaches.append(proc)
+            return proc
+
+        def stop_on_second_attach(*_args, **_kwargs):
+            if len(attaches) >= 2:
+                api_module._log_reader_state["stop"] = True
+
+        with patch("api.server.subprocess.Popen", side_effect=make_proc), patch.object(
+            api_module, "_publish_log_line"
+        ) as publish, patch.object(api_module.socketio, "emit"), patch.object(
+            api_module.socketio, "sleep", side_effect=stop_on_second_attach
+        ):
+            api_module._log_reader()
+
+        # Two attaches, one line each, because neither replays a backlog.
+        assert publish.call_count == len(attaches)
+
+    def test_connecting_client_still_receives_scrollback(self):
+        """Dropping the follower's tail must not cost the UI its history."""
+        api_module.API_KEYS["scrollback-key"] = {"enabled": True}
+        request = MagicMock()
+        request.sid = "sid-scrollback"
+
+        try:
+            with patch("api.server.request", request), patch.object(
+                api_module, "get_log_tail", return_value=["old line"]
+            ) as tail, patch.object(api_module.socketio, "emit") as emit, patch.object(
+                api_module, "_ensure_log_reader"
+            ):
+                api_module.handle_connect({"api_key": "scrollback-key"})
+
+            tail.assert_called_once()
+            initial = [c.args[1] for c in emit.call_args_list if c.args[0] == "logs"]
+            assert initial and initial[0]["type"] == "initial"
+            assert initial[0]["logs"] == ["old line"]
+        finally:
+            api_module.API_KEYS.pop("scrollback-key", None)
+            api_module.active_log_streams.discard("sid-scrollback")
+
+
+class TestStoppingTheReader:
+    def test_stop_kills_the_running_process(self):
+        """A quiet server blocks in the read, so the flag alone cannot stop it."""
+        proc = MagicMock()
+        api_module._log_reader_state["proc"] = proc
+
+        try:
+            api_module.stop_log_reader()
+            assert api_module._log_reader_state["stop"] is True
+            proc.kill.assert_called_once()
+        finally:
+            api_module._log_reader_state["proc"] = None
+
+    def test_stop_is_safe_when_no_process_is_running(self):
+        api_module._log_reader_state["proc"] = None
+        api_module.stop_log_reader()
+        assert api_module._log_reader_state["stop"] is True
+
+    def test_stop_survives_a_process_that_already_exited(self):
+        proc = MagicMock()
+        proc.kill.side_effect = ProcessLookupError
+        api_module._log_reader_state["proc"] = proc
+
+        try:
+            api_module.stop_log_reader()
+            assert api_module._log_reader_state["stop"] is True
+        finally:
+            api_module._log_reader_state["proc"] = None
+
+    def test_process_reference_is_cleared_when_the_reader_exits(self):
+        api_module._log_reader_state["running"] = True
+
+        proc = MagicMock()
+        proc.stdout = iter([])
+
+        with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
+            api_module.socketio, "emit"
+        ), patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
+            api_module._log_reader()
+
+        assert api_module._log_reader_state["proc"] is None
+
+
+class TestCommandInputValidation:
+    """A truthy non-string command raised inside the sanitizer, which sits
+    outside the handler's try block, so the client got no error at all."""
+
+    def _emit_for(self, payload):
+        request = MagicMock()
+        request.sid = "sid-a"
+        with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
+            api_module, "run_rcon_command"
+        ) as run:
+            api_module.handle_execute_command(payload)
+        return emit, run
+
+    def test_numeric_command_returns_an_error(self):
+        emit, run = self._emit_for({"command": 1})
+
+        errors = [c.args[1]["message"] for c in emit.call_args_list if c.args[0] == "command_error"]
+        assert errors and "string" in errors[0].lower()
+        run.assert_not_called()
+
+    def test_list_command_returns_an_error(self):
+        emit, run = self._emit_for({"command": ["say", "hi"]})
+
+        assert any(c.args[0] == "command_error" for c in emit.call_args_list)
+        run.assert_not_called()
+
+    def test_missing_command_still_returns_an_error(self):
+        emit, run = self._emit_for({})
+
+        assert any(c.args[0] == "command_error" for c in emit.call_args_list)
+        run.assert_not_called()
