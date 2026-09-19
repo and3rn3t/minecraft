@@ -27,9 +27,13 @@ services:
     stdin_open: true
     tty: true
     healthcheck:
-      # Probe the game port so "healthy" means the server accepts connections
+      # Probe the game port so "healthy" means the server accepts connections.
+      # Must be the exec form invoking bash: CMD-SHELL runs /bin/sh, which is
+      # dash on Jammy, and /dev/tcp is a bash-only redirection.
       test:
-        - CMD-SHELL
+        - CMD
+        - bash
+        - -c
         - 'exec 3<>/dev/tcp/127.0.0.1/25565'
       interval: 30s
       timeout: 10s

@@ -3633,7 +3633,9 @@ if SOCKETIO_AVAILABLE:
     # Session ids currently subscribed to the log stream
     active_log_streams = set()
     _log_streams_lock = threading.Lock()
-    _log_reader_started = False
+    # Mutable holder rather than a module-level bool, so the reader and the
+    # starter share one piece of state without `global` declarations.
+    _log_reader_state = {"running": False}
 
     LOG_BACKLOG_LINES = 200
 
@@ -3661,12 +3663,10 @@ if SOCKETIO_AVAILABLE:
         polls, and duplicated any line that legitimately repeated. One follower
         process streams the log instead, so lines arrive in order, exactly once.
         """
-        global _log_reader_started
-
         while True:
             with _log_streams_lock:
                 if not active_log_streams:
-                    _log_reader_started = False
+                    _log_reader_state["running"] = False
                     return
 
             proc = None
@@ -3697,7 +3697,7 @@ if SOCKETIO_AVAILABLE:
                 for sid in subscribers:
                     socketio.emit("error", {"message": "Docker is not available"}, room=sid)
                 with _log_streams_lock:
-                    _log_reader_started = False
+                    _log_reader_state["running"] = False
                 return
             except Exception as e:  # noqa: BLE001 - surfaced to the client below
                 with _log_streams_lock:
@@ -3709,6 +3709,9 @@ if SOCKETIO_AVAILABLE:
                     try:
                         proc.kill()
                     except Exception:
+                        # Best effort: the process has usually exited on its
+                        # own by this point, and failing to reap it must not
+                        # stop the reader from re-attaching.
                         pass
 
             # The container may have stopped or restarted. Wait a moment before
@@ -3717,11 +3720,10 @@ if SOCKETIO_AVAILABLE:
 
     def _ensure_log_reader():
         """Start the single follower thread if it is not already running"""
-        global _log_reader_started
         with _log_streams_lock:
-            if _log_reader_started:
+            if _log_reader_state["running"]:
                 return
-            _log_reader_started = True
+            _log_reader_state["running"] = True
         socketio.start_background_task(_log_reader)
 
     @socketio.on("connect")

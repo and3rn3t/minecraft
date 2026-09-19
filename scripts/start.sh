@@ -41,11 +41,11 @@ case "$SERVER_TYPE" in
         ;;
 esac
 
-# Fall back to a plain server.jar if the type-specific jar was never placed
-if [ ! -f "${SERVER_DIR}/${MINECRAFT_JAR}" ] && [ -f "${SERVER_DIR}/server.jar" ]; then
-    echo -e "${YELLOW}${MINECRAFT_JAR} not found, falling back to server.jar${NC}"
-    MINECRAFT_JAR="server.jar"
-fi
+# Records which type and version the jar in the data volume was fetched for.
+# Without it a persisted jar is indistinguishable from a freshly requested
+# one, so changing MINECRAFT_VERSION would silently keep launching the old,
+# potentially world-incompatible jar.
+JAR_META="${SERVER_DIR}/.server-jar.meta"
 
 # Create the directories the server writes to. Ownership is handled by the
 # image (and by scripts/fix-permissions.sh on the host for bind mounts); this
@@ -64,10 +64,39 @@ if [ ! -f "${SERVER_DIR}/eula.txt" ] || ! grep -q "eula=true" "${SERVER_DIR}/eul
     echo "eula=true" > "${SERVER_DIR}/eula.txt"
 fi
 
-# Download the server jar for the requested version if it is not present.
+# Decide whether the jar currently in the data volume satisfies the request.
 # download-server.sh resolves the real download URL from Mojang's version
 # manifest (and the Paper/Fabric APIs), so MINECRAFT_VERSION is honoured.
+WANT="${SERVER_TYPE} ${MINECRAFT_VERSION}"
+NEED_DOWNLOAD=0
+
 if [ ! -f "${SERVER_DIR}/${MINECRAFT_JAR}" ]; then
+    NEED_DOWNLOAD=1
+elif [ -f "$JAR_META" ]; then
+    HAVE="$(cat "$JAR_META" 2>/dev/null || true)"
+    if [ "$HAVE" != "$WANT" ]; then
+        echo -e "${YELLOW}Installed jar is ${HAVE}, requested ${WANT}. Re-downloading.${NC}"
+        NEED_DOWNLOAD=1
+    fi
+else
+    # A jar somebody placed by hand. Use it, but say plainly that its version
+    # cannot be verified rather than implying it matches the request.
+    echo -e "${YELLOW}Using existing ${MINECRAFT_JAR}; it was not downloaded by this${NC}"
+    echo -e "${YELLOW}script, so it may not be ${SERVER_TYPE} ${MINECRAFT_VERSION}.${NC}"
+fi
+
+if [ "$NEED_DOWNLOAD" -eq 1 ]; then
+    # download-server.sh has no Spigot path: Spigot must be produced locally
+    # with BuildTools. Say so here rather than failing deep inside the
+    # downloader with a message about a tool this container does not run.
+    if [ "$SERVER_TYPE" = "spigot" ]; then
+        echo -e "${RED}Spigot cannot be downloaded; it must be built with BuildTools.${NC}"
+        echo -e "${YELLOW}Build it (https://www.spigotmc.org/wiki/buildtools/) and place the${NC}"
+        echo -e "${YELLOW}result at ${SERVER_DIR}/${MINECRAFT_JAR}, or use SERVER_TYPE=paper, which${NC}"
+        echo -e "${YELLOW}runs Spigot plugins and downloads automatically.${NC}"
+        exit 1
+    fi
+
     echo -e "${YELLOW}Downloading ${SERVER_TYPE} server ${MINECRAFT_VERSION}...${NC}"
 
     if [ ! -x "$DOWNLOADER" ]; then
@@ -81,6 +110,7 @@ if [ ! -f "${SERVER_DIR}/${MINECRAFT_JAR}" ]; then
         exit 1
     fi
 
+    echo "$WANT" > "$JAR_META"
     echo -e "${GREEN}Download complete!${NC}"
 fi
 

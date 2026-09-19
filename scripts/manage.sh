@@ -277,10 +277,9 @@ case "${1}" in
     update)
         # Check compatibility before updating
         if [ -f "${SCRIPT_DIR}/check-compatibility.sh" ]; then
-            local current_version
             current_version=$(grep -E "MINECRAFT_VERSION=" docker-compose.yml | head -1 | sed 's/.*MINECRAFT_VERSION:-\([^}]*\).*/\1/' | sed 's/.*MINECRAFT_VERSION=\([^}]*\).*/\1/' | tr -d '"' | tr -d "'" || echo "1.20.4")
             current_version=${current_version:-${MINECRAFT_VERSION:-1.20.4}}
-            local target_version="${2:-}"
+            target_version="${2:-}"
 
             if [ -n "$target_version" ]; then
                 echo -e "${BLUE}Running compatibility check...${NC}"

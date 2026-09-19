@@ -343,13 +343,13 @@ class TestSecretKeyResolution:
         assert first != second
 
     def test_module_key_is_not_a_known_placeholder(self):
-        import api.server as api_module
+        from api.server import _REJECTED_SECRET_KEYS, SECRET_KEY
 
-        assert api_module.SECRET_KEY not in api_module._REJECTED_SECRET_KEYS
+        assert SECRET_KEY not in _REJECTED_SECRET_KEYS
 
     def test_flask_config_matches_signing_key(self):
         """generate_token/verify_token sign with the module-level SECRET_KEY,
         so Flask's session key must be the same value."""
-        import api.server as api_module
+        from api.server import SECRET_KEY
 
-        assert api_module.app.config["SECRET_KEY"] == api_module.SECRET_KEY
+        assert app.config["SECRET_KEY"] == SECRET_KEY
