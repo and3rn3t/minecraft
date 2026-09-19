@@ -1,0 +1,18 @@
+# Hall of Deaths configuration
+#
+# Copy to config/deaths.conf and edit. The real file is gitignored.
+# See docs/HALL_OF_DEATHS.md.
+
+# Announce each epitaph in game with tellraw, to everyone online.
+# Set to false to keep the Hall of Deaths dashboard-only.
+ANNOUNCE_IN_GAME=true
+
+# Colour of the in-game announcement. Any Minecraft colour name:
+# black, dark_blue, dark_green, dark_aqua, dark_red, dark_purple, gold,
+# gray, dark_gray, blue, green, aqua, red, light_purple, yellow, white
+ANNOUNCE_COLOR=gray
+
+# How long to keep death records, in days. 0 disables pruning.
+# These are small, and the point of the Hall is to remember, so the default
+# is deliberately long.
+RETENTION_DAYS=365

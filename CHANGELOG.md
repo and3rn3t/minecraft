@@ -6,6 +6,29 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Hall of Deaths** (`api/hall_of_deaths.py`, `api/epitaphs.py`) — see
+  [docs/HALL_OF_DEATHS.md](docs/HALL_OF_DEATHS.md)
+
+  - Every death gets a one-line obituary, announced in game with `tellraw` and
+    kept for the dashboard. The first feature built on the event bus.
+  - Deaths are classified into 18 categories, each with several lines, so the
+    same death does not read the same way twice in an evening. Where the message
+    names a culprit it is used, with the weapon dropped.
+  - Epitaph writing is behind a small interface. The default writer runs
+    offline, costs nothing and needs no API key; a language-model-backed writer
+    can be dropped in by implementing `write()`.
+  - New page at `/deaths` with recent obituaries, summary tiles and a
+    leaderboard of who dies most and how they usually manage it.
+  - New endpoints `GET /api/deaths` and `GET /api/deaths/leaderboard`, both
+    requiring `players.view`, plus `getDeaths()` and `getDeathsLeaderboard()` in
+    `web/src/services/api.js`.
+  - Configured through `config/deaths.conf`; see `config/deaths.conf.example`.
+    In-game announcements can be turned off while keeping the dashboard.
+  - Announcing runs on a worker thread rather than on the log follower, so an
+    unreachable game server cannot stall event processing behind each death.
+
+### Added
+
 - **In-process RCON client** (`api/rcon.py`)
 
   - Replaces the per-command shell-out to `scripts/rcon-client.sh`, which opened a

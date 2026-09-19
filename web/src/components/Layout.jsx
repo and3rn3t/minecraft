@@ -20,6 +20,7 @@ const Layout = ({ children }) => {
     { path: '/console', label: 'Console', icon: '💻', category: 'main' },
     { path: '/scheduler', label: 'Scheduler', icon: '⏰', category: 'main' },
     { path: '/players', label: 'Players', icon: '👥', category: 'server' },
+    { path: '/deaths', label: 'Hall of Deaths', icon: '💀', category: 'server' },
     { path: '/backups', label: 'Backups', icon: '💾', category: 'server' },
     { path: '/worlds', label: 'Worlds', icon: '🌍', category: 'server' },
     { path: '/plugins', label: 'Plugins', icon: '🔌', category: 'server' },
