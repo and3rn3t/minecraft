@@ -16,12 +16,15 @@ if (globalThis.__VITEST_SETUP_LOADED__) {
   // Extend Vitest's expect with accessibility matchers
   expect.extend({ toHaveNoViolations });
 
-  // Mock ResizeObserver (needed for Recharts)
-  globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
+  // Mock ResizeObserver (needed for Recharts). A plain class rather than
+  // vi.fn().mockImplementation(): Recharts calls `new ResizeObserver(...)`,
+  // and whether a mock function is constructible is a vitest implementation
+  // detail that changed in v5.
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
 
   // Mock scrollIntoView (needed for Logs component)
   Element.prototype.scrollIntoView = vi.fn();
