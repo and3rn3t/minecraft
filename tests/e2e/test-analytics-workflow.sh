@@ -126,10 +126,10 @@ setup() {
     assert_success
 
     # Verify report structure
-    echo "$report_output" | python3 << EOF
+    PAYLOAD="$report_output" python3 << EOF
 import json
-import sys
-data = json.load(sys.stdin)
+import os
+data = json.loads(os.environ["PAYLOAD"])
 assert 'report' in data or 'error' in data
 if 'report' in data:
     report = data['report']
@@ -138,4 +138,3 @@ if 'report' in data:
 EOF
     assert_success
 }
-

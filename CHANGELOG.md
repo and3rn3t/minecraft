@@ -1,3 +1,9 @@
+<!-- markdownlint-disable MD024 -->
+<!-- Released sections below repeat "### Added" and friends within a single
+     version. That is history and is not being rewritten; the rule stays on
+     everywhere else, and it is what caught the Unreleased section having three
+     "### Fixed" blocks. -->
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -18,6 +24,15 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Local checks now reproduce the CI jobs.** `make ci` runs lint, actionlint,
+  gitleaks, the test suites and CodeQL; `make doctor` reports which supporting
+  tools are installed; `make hooks` installs the pre-commit hooks, which were
+  configured but had never been installed. Two "passing" checks were not
+  checking anything: `lint_python` reported success with no Python linter
+  present, and `lint_bash` piped shellcheck into `tee`, so the pipeline
+  reported `tee`'s exit status and shellcheck's findings were invisible. Both
+  now fail honestly. See "Checks that mirror CI" in `AGENTS.md`.
+
 - **One API now fronts the command schedule** (#30). `/api/commands/schedule*`
   and `/api/scheduler/schedules` both wrote `config/command-schedule.json`;
   the first has been removed and the second is the whole surface. It gains the
@@ -26,7 +41,26 @@ All notable changes to this project will be documented in this file.
   expression or a `once` with no datetime is rejected rather than written to a
   file where the scheduler would skip it forever without saying so.
 
+- **Consolidated every roadmap and feature-planning document into a single
+  [docs/ROADMAP.md](docs/ROADMAP.md).** `docs/TASKS.md`,
+  `docs/FAMILY_SERVER_ROADMAP.md`, `docs/MINECRAFT_ENHANCEMENTS.md` and
+  `docs/MINECRAFT_GAMEPLAY_ENHANCEMENTS.md` are removed. The four disagreed
+  with each other and with the code: the old roadmap opened by calling v1.3.0
+  current and v1.4.0 "60% complete" while v1.4.0 through v1.6.0 had all
+  shipped, and three of them listed the same work at different priorities.
+  Completed work is no longer restated in the roadmap at all — that record is
+  this file. What remains is what is not done, ordered, with the items that
+  were decided against kept in a "Ruled out" section so they stop being
+  reproposed.
+
 ### Fixed
+
+- **Five test scripts piped data into a heredoc that discarded it.**
+  `echo "$json" | python3 << EOF ... json.load(sys.stdin) ... EOF` reads the
+  heredoc, not the pipe, so those assertions were parsing the Python source
+  instead of the response they meant to check. The data is passed in the
+  environment now. Found by making the shellcheck gate report its real exit
+  status (SC2259).
 
 - **A cron schedule ran once and was then skipped forever.** The cron branch of
   `should_run_schedule()` read a `last_run_time` that only the other branches
@@ -57,8 +91,6 @@ All notable changes to this project will be documented in this file.
   way; it now returns 404 when nothing matched.
 - **Changing a schedule's type left the old type's fields behind**, so a daily
   schedule switched to an interval kept a stale `run_time`.
-
-### Fixed
 
 - **Admin-scoped API keys were refused the `server.manage` endpoints.** Scoping
   API keys (#27) checked a key's permissions by membership, with no admin
@@ -91,20 +123,6 @@ All notable changes to this project will be documented in this file.
   previously never checked despite a comment saying otherwise. Keys created
   before this are kept as `admin` with a startup warning, and can be narrowed
   from the API Keys page or with the new `PUT /api/keys/<key_id>`.
-
-### Changed
-
-- **Consolidated every roadmap and feature-planning document into a single
-  [docs/ROADMAP.md](docs/ROADMAP.md).** `docs/TASKS.md`,
-  `docs/FAMILY_SERVER_ROADMAP.md`, `docs/MINECRAFT_ENHANCEMENTS.md` and
-  `docs/MINECRAFT_GAMEPLAY_ENHANCEMENTS.md` are removed. The four disagreed
-  with each other and with the code: the old roadmap opened by calling v1.3.0
-  current and v1.4.0 "60% complete" while v1.4.0 through v1.6.0 had all
-  shipped, and three of them listed the same work at different priorities.
-  Completed work is no longer restated in the roadmap at all — that record is
-  this file. What remains is what is not done, ordered, with the items that
-  were decided against kept in a "Ruled out" section so they stop being
-  reproposed.
 
 ## [1.5.0] - 2026-09-19
 

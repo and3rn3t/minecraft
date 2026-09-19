@@ -28,7 +28,7 @@ API, and a React web admin panel.
 
 ## Repository Layout
 
-```
+```text
 api/          Flask REST API (server.py, security.py) + OpenAPI spec in api/openapi.yaml
 web/          React admin panel; its own package.json, ESLint, Vite and Playwright configs
 scripts/      Bash management scripts; scripts/lib/common.sh holds shared helpers
@@ -56,6 +56,33 @@ make lint              # shellcheck + eslint + python + yaml + compose validate
 make coverage          # pytest with coverage report
 make coverage-check    # enforce the threshold in .coverage-config.ini
 make build             # docker compose build
+```
+
+### Checks that mirror CI
+
+`make ci` runs everything the GitHub workflows run, so a failure appears here
+rather than three minutes into a pull request.
+
+```bash
+make ci                # lint + actionlint + gitleaks + tests + CodeQL
+make hooks             # install the pre-commit hooks (do this once per clone)
+make doctor            # which of the supporting tools are installed
+make secrets           # gitleaks, as the Gitleaks workflow runs it
+make actionlint        # lint the workflow files
+make codeql            # CodeQL, python-security-and-quality, as the workflow runs it
+```
+
+`make codeql` prints the whole-repository total and then the results sitting on
+lines this branch changed, which is what the CodeQL check reports on a pull
+request. The baseline is large — see [Known baselines](#known-baselines) — so
+the second list is the one to read.
+
+Install the supporting tools with:
+
+```bash
+uv tool install pre-commit ruff
+brew install gitleaks actionlint shellcheck codeql
+make hooks
 ```
 
 Direct equivalents when you need them:
@@ -192,12 +219,27 @@ Test on real hardware when a change is hardware-specific.
 
 ## Before You Call It Done
 
-- [ ] `make lint` passes
-- [ ] `make test` passes
+- [ ] `make ci` passes (this covers `make lint`, `make test` and the security
+      jobs; run it before pushing rather than letting CI find things)
 - [ ] `docker compose config` validates
 - [ ] Docs updated (`README.md` for user-facing changes, the relevant `docs/` guide otherwise)
 - [ ] `CHANGELOG.md` updated
 - [ ] No secrets, no hardcoded absolute paths
+
+## Known baselines
+
+These are pre-existing and deliberately not fixed in passing; a change that adds
+to them should be questioned, and a change that reduces them is welcome.
+
+| Check | Baseline on `main` | What it is |
+| --- | --- | --- |
+| CodeQL | 83 errors | `Information exposure through an exception` — handlers returning `str(e)` to the caller. Newer handlers log and return a generic message instead; follow those |
+| CodeQL | 39 errors | `Uncontrolled data used in path expression` — worth a real look, not yet triaged |
+| CodeQL | 33 notes | `Module is imported with 'import' and 'import from'` — the test suite's import convention |
+| ruff | 450+ | Style rules outside `--select F`. Only `F` is enforced, because it flags defects rather than preferences |
+| shellcheck | 90 warnings, ~3900 style | `.shellcheckrc` sets `enable=all`. Only `-S error` is enforced, which is clean as of this writing |
+| markdownlint | 39 MD040 | Code fences with no language, outside the files touched so far |
+| gitleaks | 12 | Placeholder credentials in `docs/`. `docs/OAUTH_SETUP.md` matching `private-key` deserves a check |
 
 ## Documentation Rules
 

@@ -227,9 +227,9 @@ teardown() {
     response=$(curl -s -X GET "${API_URL}/api/status")
 
     # Should return 401
-    echo "$response" | python3 << EOF
-import sys, json
-data = json.load(sys.stdin)
+    PAYLOAD="$response" python3 << EOF
+import json, os
+data = json.loads(os.environ["PAYLOAD"])
 # May be error message or empty, but should not be successful data
 assert 'error' in data or 'status' not in data
 EOF
@@ -243,11 +243,10 @@ EOF
     response=$(curl -s -X GET "${API_URL}/api/nonexistent")
 
     # Should return 404
-    echo "$response" | python3 << EOF
-import sys, json
-data = json.load(sys.stdin)
+    PAYLOAD="$response" python3 << EOF
+import json, os
+data = json.loads(os.environ["PAYLOAD"])
 assert 'error' in data
 EOF
     assert_success
 }
-

@@ -95,10 +95,10 @@ teardown() {
     # Check that data includes timestamp
     if [ -f analytics/performance.jsonl ] && [ -s analytics/performance.jsonl ]; then
         first_line=$(head -n 1 analytics/performance.jsonl)
-        echo "$first_line" | python3 << EOF
+        FIRST_LINE="$first_line" python3 << EOF
 import json
-import sys
-data = json.load(sys.stdin)
+import os
+data = json.loads(os.environ["FIRST_LINE"])
 assert 'timestamp' in data, "Missing timestamp"
 assert 'datetime' in data, "Missing datetime"
 assert isinstance(data['timestamp'], (int, float)), "Timestamp not numeric"
@@ -106,4 +106,3 @@ EOF
         assert_success
     fi
 }
-

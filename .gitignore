@@ -24,7 +24,11 @@ Thumbs.db
 desktop.ini
 
 # IDE files
-.vscode/
+# Editor settings: the directory is ignored, but the two files that describe
+# how this repo should be linted and tested are shared deliberately.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.sublime-project
 *.sublime-workspace
@@ -74,3 +78,7 @@ playwright/.cache/
 # Local development
 .local/
 *.local
+
+# Local CodeQL runs (make codeql)
+.codeql-db/
+codeql-results.sarif

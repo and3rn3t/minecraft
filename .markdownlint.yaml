@@ -1,0 +1,21 @@
+# markdownlint runs in pre-commit only; no workflow checks Markdown, so these
+# settings are about keeping the hook usable rather than matching CI.
+#
+# The rules disabled below are ones the entire existing corpus violates. Left
+# on, a one-line edit to a long-standing document fails on unrelated pre-existing
+# findings, and the hook gets bypassed instead of fixed.
+default: true
+
+# Line length: the prose here wraps at roughly 80 by hand, but tables and links
+# legitimately run past it, and 222 existing lines do.
+MD013: false
+
+# Duplicate headings: CHANGELOG.md repeats "### Added" under every version,
+# which is the Keep a Changelog format working as intended.
+MD024:
+  siblings_only: true
+
+# Ordered list numbering style, and emphasis used as a heading. Both stylistic,
+# both widespread in the existing docs.
+MD029: false
+MD036: false

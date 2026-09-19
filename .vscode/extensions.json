@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "charliermarsh.ruff",
+    "sonarsource.sonarlint-vscode",
+    "ms-python.python",
+    "timonwong.shellcheck",
+    "dbaeumer.vscode-eslint"
+  ]
+}

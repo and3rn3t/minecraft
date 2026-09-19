@@ -9,6 +9,9 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
+        # VS Code settings files are JSONC: comments are valid there and
+        # this hook only understands strict JSON.
+        exclude: ^\.vscode/
       - id: check-added-large-files
         args: ["--maxkb=1000"]
       - id: check-merge-conflict
@@ -20,7 +23,10 @@ repos:
     rev: v0.9.0.6
     hooks:
       - id: shellcheck
-        args: ["-x"]
+        # Matches scripts/lint.sh. .shellcheckrc sets enable=all, so without a
+        # severity floor every script fails on style preferences and the hook
+        # gets bypassed rather than heeded.
+        args: ["-x", "-S", "error"]
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.33.0
@@ -34,6 +40,29 @@ repos:
       - id: markdownlint
         args: ["--fix"]
 
+  # Mirrors the Gitleaks workflow, which scans the commits a PR adds. Running
+  # it here means a placeholder that trips the entropy rules is caught before
+  # it is pushed rather than by a failed check.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # Scoped to pyflakes (F) on purpose: those are real defects — undefined
+  # names, redefinitions, unused imports — rather than style. The full default
+  # rule set reports 450+ findings on this repo, which would train everyone to
+  # ignore it.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: ["--select", "F", "--line-length", "120"]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.4
+    hooks:
+      - id: actionlint
+
   - repo: local
     hooks:
       - id: docker-compose-check
@@ -46,8 +75,7 @@ repos:
 
       - id: shell-syntax-check
         name: Check shell script syntax
-        entry: bash
-        args: ["-n"]
-        language: system
+        entry: scripts/check-shell-syntax.sh
+        language: script
         files: '\.sh$'
         pass_filenames: true

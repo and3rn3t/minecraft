@@ -10,6 +10,8 @@ don't duplicate AGENTS.md content here.
 - This repo uses **npm**, not pnpm. Web commands run from `web/`; Python tests run
   from `tests/api/`.
 - Use `docker compose` (with a space) — never `docker-compose`.
-- Run `make lint && make test` before declaring a change done.
+- Run `make ci` before declaring a change done — it reproduces the CI jobs
+  (lint, gitleaks, actionlint, tests, CodeQL) locally. `make doctor` says which
+  supporting tools are missing.
 - Most runtime state (`data/`, `backups/`, `config/*.conf`) is gitignored and lives
   only on the Raspberry Pi — don't assume those paths exist locally.
