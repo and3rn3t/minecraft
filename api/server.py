@@ -651,6 +651,7 @@ PERMISSIONS = {
     "server.view": "View server status",
     "server.control": "Control server (start/stop/restart)",
     "server.command": "Send commands to server",
+    "server.manage": "Manage server configuration (properties, presets, announcements, schedules)",
     # Backup management
     "backup.create": "Create backups",
     "backup.restore": "Restore backups",
@@ -770,7 +771,15 @@ def has_permission(username, permission):
     # return True unconditionally, which made every key a full admin
     # credential regardless of what it was created for.
     if username == "__api_key__":
-        return permission in get_api_key_permissions(getattr(request, "api_key_info", {}))
+        key_info = getattr(request, "api_key_info", {})
+        # An admin-scoped key matches an admin user, which is what the check
+        # just below does. Without this, an admin key is refused any permission
+        # missing from PERMISSIONS while an admin user sails through — the
+        # asymmetry that locked admin keys out of the server.manage endpoints.
+        # A key carrying an explicit allowlist is held to that list instead.
+        if key_info.get("permissions") is None and key_info.get("role") == "admin":
+            return True
+        return permission in get_api_key_permissions(key_info)
     if username not in USERS:
         return False
     user_role = USERS[username].get("role", "user")

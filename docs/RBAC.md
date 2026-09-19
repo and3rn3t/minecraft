@@ -71,7 +71,10 @@ The system defines the following permissions:
 ### Server Permissions
 
 - `server.view` - View server status and metrics
-- `server.control` - Start, stop, restart server, send commands
+- `server.control` - Start, stop, restart the server
+- `server.command` - Send commands to the server, over REST or the log socket
+- `server.manage` - Manage server configuration: properties, performance
+  presets, announcements and scheduled commands. Held by `admin` only
 
 ### Backup Permissions
 
@@ -329,6 +332,11 @@ Shortcut that only starts the server needs `server.control`, nothing more.
 Keys created before scoping existed have no role recorded. They are treated as
 `admin` so nothing breaks, and the API server warns about them on startup.
 Narrow them from the API Keys page. See [API_KEYS.md](API_KEYS.md).
+
+A key whose role is `admin` reaches everything an admin user reaches, and is
+not held to the `PERMISSIONS` list. A key carrying an explicit `permissions`
+array is held to that array whatever its role, so narrowing a key by listing
+its permissions always wins.
 
 The WebSocket log stream is scoped too: connecting needs `logs.view`, and running
 a command over that socket needs `server.command`.

@@ -540,6 +540,64 @@ class TestAPIKeyAccess:
         assert keys["scoped"]["role"] == "user"
 
 
+class TestPermissionsAreDefined:
+    """A permission that is enforced but never declared is invisible: no role
+    lists it, and a scoped API key cannot be granted it."""
+
+    def test_every_enforced_permission_is_declared(self):
+        """Guards the defect where 14 endpoints required an undeclared
+        server.manage, which no admin-scoped API key could ever hold."""
+        import re
+
+        source = (PathLib(__file__).parent.parent.parent / "api" / "server.py").read_text()
+        enforced = set(re.findall(r'require_permission\("([^"]+)"\)', source))
+
+        undeclared = sorted(p for p in enforced if p not in PERMISSIONS)
+        assert undeclared == [], f"enforced but not in PERMISSIONS: {undeclared}"
+
+    def test_admin_role_covers_every_permission(self):
+        """The admin role is defined as all of them; keep it that way"""
+        assert set(ROLE_PERMISSIONS["admin"]) == set(PERMISSIONS)
+
+
+class TestAdminApiKeyParity:
+    """An admin-scoped key should reach what an admin user reaches"""
+
+    def test_admin_key_matches_admin_user(self, client, temp_api_keys_file):
+        """Regression: an admin key was refused the server.manage endpoints
+        that an admin user could reach, because the permission was undeclared
+        and the key path had no admin short-circuit."""
+        test_key = "admin-parity-key"
+        api_module.API_KEYS[test_key] = {"name": "dash", "enabled": True, "role": "admin"}
+
+        response = client.get("/api/announcements", headers={"X-API-Key": test_key})
+        assert response.status_code != 403
+
+    def test_operator_key_still_refused_server_manage(self, client, temp_api_keys_file):
+        """The parity is for admins only; it must not widen the other roles"""
+        test_key = "operator-parity-key"
+        api_module.API_KEYS[test_key] = {"name": "op", "enabled": True, "role": "operator"}
+
+        response = client.get("/api/announcements", headers={"X-API-Key": test_key})
+        assert response.status_code == 403
+
+    def test_an_explicit_allowlist_beats_the_admin_role(self, client, temp_api_keys_file):
+        """A key narrowed to named permissions is held to them, whatever its role"""
+        test_key = "narrowed-admin-key"
+        api_module.API_KEYS[test_key] = {
+            "name": "shortcut",
+            "enabled": True,
+            "role": "admin",
+            "permissions": ["server.view"],
+        }
+
+        refused = client.get("/api/announcements", headers={"X-API-Key": test_key})
+        assert refused.status_code == 403
+
+        allowed = client.get("/api/status", headers={"X-API-Key": test_key})
+        assert allowed.status_code == 200
+
+
 class TestCreateUser:
     """POST /api/users — how accounts are added once registration closes"""
 
