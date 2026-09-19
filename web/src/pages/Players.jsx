@@ -6,7 +6,7 @@ import { useToast } from '../components/ToastContainer';
 
 const Players = () => {
   const [kickingPlayer, setKickingPlayer] = useState(null);
-  const { success, error } = useToast();
+  const { success } = useToast();
   const handleError = useErrorHandler();
 
   const { data: playersData, loading } = usePolling(

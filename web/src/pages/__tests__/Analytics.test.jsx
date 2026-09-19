@@ -21,7 +21,7 @@ vi.mock('../../services/api', () => ({
 describe('Analytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
@@ -204,7 +204,8 @@ describe('Analytics', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Player Behavior')).toBeInTheDocument();
-      expect(screen.getByText('5')).toBeInTheDocument(); // unique_players
+      // Scope to the stat tile: '5' also appears in the hourly distribution grid
+      expect(screen.getByText('Unique Players').parentElement).toHaveTextContent('5');
     });
   });
 
@@ -272,7 +273,7 @@ describe('Analytics', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Resource Usage Predictions')).toBeInTheDocument();
-      expect(screen.getByText('1200')).toBeInTheDocument(); // predicted value
+      expect(screen.getByText('1200.00')).toBeInTheDocument(); // predicted value, formatNumber -> 2dp
     });
   });
 
@@ -372,7 +373,7 @@ describe('Analytics', () => {
     renderWithRouter(<Analytics />);
 
     await waitFor(() => {
-      expect(screen.getByText('Warnings')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Warnings' })).toBeInTheDocument();
       expect(screen.getByText('Low TPS detected')).toBeInTheDocument();
       expect(screen.getByText('High memory usage')).toBeInTheDocument();
     });
@@ -400,7 +401,7 @@ describe('Analytics', () => {
     renderWithRouter(<Analytics />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recommendations')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Recommendations' })).toBeInTheDocument();
       expect(screen.getByText('Consider reducing view distance')).toBeInTheDocument();
     });
   });

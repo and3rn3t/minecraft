@@ -28,13 +28,6 @@ describe('StatusCard', () => {
 
   it('handles different status types', () => {
     const statuses = ['success', 'error', 'warning', 'info'];
-    const expectedColors = {
-      success: 'minecraft-grass-DEFAULT',
-      error: '#C62828',
-      warning: '#F57C00',
-      info: 'minecraft-water-DEFAULT',
-    };
-
     statuses.forEach(status => {
       const { container } = render(
         <StatusCard title="Test" value="Value" status={status} icon="🟢" />

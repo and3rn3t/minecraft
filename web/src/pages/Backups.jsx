@@ -8,7 +8,7 @@ const Backups = () => {
   const [creating, setCreating] = useState(false);
   const [restoring, setRestoring] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const { success: showSuccess, error: showError } = useToast();
+  const { success: showSuccess } = useToast();
   const handleError = useErrorHandler();
 
   // Poll backups list every 30 seconds

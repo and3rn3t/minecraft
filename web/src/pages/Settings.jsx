@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
+/*
+ * NOTE: the "Connected Accounts" OAuth linking UI further down is commented out
+ * and marked "Disabled for future development". Its handlers below are kept
+ * deliberately so the feature can be switched back on; they are unreferenced
+ * until then, hence the targeted no-unused-vars exemptions.
+ */
 const Settings = () => {
   const { user, checkAuth } = useAuth();
   const [apiKey, setApiKey] = useState(localStorage.getItem('api_key') || '');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  // eslint-disable-next-line no-unused-vars -- used by the parked OAuth linking UI
   const [linking, setLinking] = useState(null);
   const [twoFactorStatus, setTwoFactorStatus] = useState(null);
   const [twoFactorSetup, setTwoFactorSetup] = useState(null);
@@ -111,12 +118,14 @@ const Settings = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars -- used by the parked OAuth linking UI
   const getOAuthProviderName = provider => {
     if (provider.startsWith('google:')) return 'Google';
     if (provider.startsWith('apple:')) return 'Apple';
     return provider;
   };
 
+  // eslint-disable-next-line no-unused-vars -- used by the parked OAuth linking UI
   const handleLinkOAuth = async provider => {
     try {
       setLinking(provider);
@@ -203,6 +212,7 @@ const Settings = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars -- used by the parked OAuth linking UI
   const handleUnlinkOAuth = async provider => {
     if (!window.confirm(`Are you sure you want to unlink your ${provider} account?`)) {
       return;
@@ -228,6 +238,7 @@ const Settings = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars -- used by the parked OAuth linking UI
   const hasOAuthProvider = provider => {
     if (!user?.oauth_providers) return false;
     return user.oauth_providers.some(p => p.startsWith(`${provider}:`));

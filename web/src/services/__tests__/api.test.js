@@ -25,11 +25,13 @@ vi.mock('axios', () => ({
 
 // Import api after mocking
 import { api } from '../api';
+import { clearAllCache } from '../../utils/apiCache';
 
 describe('API Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    clearAllCache();
   });
 
   describe('getHealth', () => {
@@ -51,7 +53,7 @@ describe('API Service', () => {
       localStorage.setItem('api_key', 'test-key');
       await api.getStatus();
 
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/status');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/status', { params: {} });
     });
   });
 
@@ -113,7 +115,7 @@ describe('API Service', () => {
       });
 
       await api.listBackups();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/backups');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/backups', { params: {} });
     });
   });
 
@@ -135,7 +137,7 @@ describe('API Service', () => {
       });
 
       const result = await api.getPlayers();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/players');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/players', { params: {} });
       expect(result.players).toEqual(['Player1']);
     });
   });
@@ -147,7 +149,7 @@ describe('API Service', () => {
       });
 
       const result = await api.getMetrics();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/metrics');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/metrics', { params: {} });
       expect(result.metrics.cpu_percent).toBe('50');
     });
   });
@@ -159,7 +161,7 @@ describe('API Service', () => {
       });
 
       const result = await api.listWorlds();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/worlds');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/worlds', { params: {} });
       expect(result.worlds).toEqual(['world']);
     });
   });
@@ -171,7 +173,7 @@ describe('API Service', () => {
       });
 
       const result = await api.listPlugins();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/plugins');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/plugins', { params: {} });
       expect(result.plugins).toEqual(['Plugin1']);
     });
   });
@@ -183,7 +185,7 @@ describe('API Service', () => {
       });
 
       const result = await api.listConfigFiles();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files', { params: {} });
       expect(result.files).toHaveLength(1);
     });
 
@@ -193,7 +195,7 @@ describe('API Service', () => {
       });
 
       const result = await api.getConfigFile('server.properties');
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files/server.properties');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files/server.properties', { params: {} });
       expect(result.content).toBe('# config');
     });
 

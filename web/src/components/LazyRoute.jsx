@@ -12,11 +12,13 @@ const PageLoading = () => (
 
 export function createLazyRoute(importFn) {
   const LazyComponent = lazy(importFn);
-  return props => (
+  const LazyRoute = props => (
     <Suspense fallback={<PageLoading />}>
       <LazyComponent {...props} />
     </Suspense>
   );
+  LazyRoute.displayName = 'LazyRoute';
+  return LazyRoute;
 }
 
 export default PageLoading;

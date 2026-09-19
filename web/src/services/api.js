@@ -75,10 +75,9 @@ async function cachedGet(url, params = {}, cacheTTL = 5000) {
   return requestPromise;
 }
 
-// Helper function to clear cache after mutations
-function invalidateCache(pattern = null) {
-  // For now, clear all cache on mutations
-  // Can be optimized later to clear specific patterns
+// Helper function to clear cache after mutations.
+// Clears everything; per-pattern invalidation can be added if it's ever needed.
+function invalidateCache() {
   clearAllCache();
 }
 
