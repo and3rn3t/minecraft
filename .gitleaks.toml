@@ -17,6 +17,9 @@ regexTarget = "match"
 regexes = [
   # tests/api/*: the dummy key every API-key fixture authenticates with.
   '''test-api-key-1234567890+''',
-  # docs/API_KEYS.md: the example key shown in the request/response samples.
-  '''mc_1234567890abcdef1234567890abcdef12345678''',
+  # The "mc_" prefix marks the made-up keys in the tests and in the examples in
+  # docs/API_KEYS.md. No real key can match: generate_api_key() draws 32
+  # characters from an alphabet of letters and digits only, so a generated key
+  # can never contain an underscore.
+  '''mc_[A-Za-z0-9]+''',
 ]

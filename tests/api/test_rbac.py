@@ -13,6 +13,7 @@ import pytest
 PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import api.server as api_module  # noqa: E402
 from api.server import PERMISSIONS, ROLE_PERMISSIONS, app
 
 
@@ -447,8 +448,6 @@ class TestAPIKeyAccess:
 
     @staticmethod
     def _make_key(scope=None, key="test-api-key-123456789012345678901234567890"):
-        import api.server as api_module
-
         entry = {
             "name": "test-key",
             "description": "Test key",
@@ -478,24 +477,26 @@ class TestAPIKeyAccess:
         """A key with no role stated at creation is read-only, not an admin"""
         test_key = self._make_key({"role": "user"})
 
-        assert client.get("/api/users", headers={"X-API-Key": test_key}).status_code == 403
-        assert (
-            client.post(
-                "/api/keys",
-                headers={"X-API-Key": test_key},
-                json={"name": "escalate", "description": "should not work"},
-            ).status_code
-            == 403
+        users = client.get("/api/users", headers={"X-API-Key": test_key})
+        assert users.status_code == 403
+
+        escalate = client.post(
+            "/api/keys",
+            headers={"X-API-Key": test_key},
+            json={"name": "escalate", "description": "should not work"},
         )
+        assert escalate.status_code == 403
 
         # It keeps the read access its role grants.
-        assert client.get("/api/status", headers={"X-API-Key": test_key}).status_code == 200
+        status = client.get("/api/status", headers={"X-API-Key": test_key})
+        assert status.status_code == 200
 
     def test_operator_key_controls_server_but_not_users(self, client, temp_api_keys_file):
         """The middle rung behaves like an operator user does"""
         test_key = self._make_key({"role": "operator"})
 
-        assert client.get("/api/users", headers={"X-API-Key": test_key}).status_code == 403
+        users = client.get("/api/users", headers={"X-API-Key": test_key})
+        assert users.status_code == 403
 
         with patch("api.server.subprocess.run") as mock_run:
             from unittest.mock import MagicMock
@@ -512,21 +513,19 @@ class TestAPIKeyAccess:
         """A key can be narrowed to single permissions, for a Shortcut or a widget"""
         test_key = self._make_key({"role": "admin", "permissions": ["server.view"]})
 
-        assert client.get("/api/status", headers={"X-API-Key": test_key}).status_code == 200
-        assert client.get("/api/users", headers={"X-API-Key": test_key}).status_code == 403
+        status = client.get("/api/status", headers={"X-API-Key": test_key})
+        assert status.status_code == 200
+        users = client.get("/api/users", headers={"X-API-Key": test_key})
+        assert users.status_code == 403
 
     def test_unknown_permission_names_are_ignored(self, client, temp_api_keys_file):
         """A typo in the config file must not widen a key"""
-        import api.server as api_module
-
         test_key = self._make_key({"permissions": ["server.view", "not.a.permission"]})
 
         assert api_module.get_api_key_permissions(api_module.API_KEYS[test_key]) == ["server.view"]
 
     def test_pre_scoping_keys_are_migrated_to_admin(self):
         """Keys written before scoping keep working, but say so explicitly"""
-        import api.server as api_module
-
         keys = {"legacy": {"name": "legacy", "enabled": True}}
         with pytest.warns(UserWarning, match="no role"):
             api_module._migrate_api_key_roles(keys)
@@ -535,8 +534,6 @@ class TestAPIKeyAccess:
 
     def test_migration_leaves_scoped_keys_alone(self):
         """A key that already states its scope is not touched"""
-        import api.server as api_module
-
         keys = {"scoped": {"name": "scoped", "enabled": True, "role": "user"}}
         api_module._migrate_api_key_roles(keys)
 
@@ -548,15 +545,11 @@ class TestCreateUser:
 
     @staticmethod
     def _mock_hashing(monkeypatch):
-        import api.server as api_module
-
         monkeypatch.setattr(api_module, "BCRYPT_AVAILABLE", True)
         monkeypatch.setattr(api_module, "hash_password", lambda p: f"hashed_{p}")
 
     def test_admin_can_create_a_user(self, client, admin_user, temp_users_file, monkeypatch):
         """The happy path: an admin adds an account with the default role"""
-        import api.server as api_module
-
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -571,8 +564,6 @@ class TestCreateUser:
 
     def test_admin_can_choose_the_role(self, client, admin_user, temp_users_file, monkeypatch):
         """An explicit role is honoured when it is a real one"""
-        import api.server as api_module
-
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -587,8 +578,6 @@ class TestCreateUser:
 
     def test_operator_cannot_create_a_user(self, client, operator_user, temp_users_file):
         """Creating accounts needs users.manage, which an operator lacks"""
-        import api.server as api_module
-
         with client.session_transaction() as session:
             session["username"] = "operator"
 
@@ -617,8 +606,6 @@ class TestCreateUser:
 
     def test_invalid_role_is_rejected(self, client, admin_user, temp_users_file, monkeypatch):
         """An unrecognised role is a bad request, not a silent default"""
-        import api.server as api_module
-
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -633,8 +620,6 @@ class TestCreateUser:
 
     def test_duplicate_username_is_rejected(self, client, admin_user, temp_users_file, monkeypatch):
         """An existing account must not be overwritten"""
-        import api.server as api_module
-
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -646,8 +631,6 @@ class TestCreateUser:
 
     def test_short_password_is_rejected(self, client, admin_user, temp_users_file, monkeypatch):
         """The same password rule registration applies"""
-        import api.server as api_module
-
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -663,18 +646,17 @@ class TestCreateUser:
         with client.session_transaction() as session:
             session["username"] = "admin"
 
-        assert client.post("/api/users", json={"username": "ab", "password": "a-long-password"}).status_code == 400
-        assert (
-            client.post("/api/users", json={"username": "a" * 33, "password": "a-long-password"}).status_code == 400
-        )
+        too_short = client.post("/api/users", json={"username": "ab", "password": "a-long-password"})
+        assert too_short.status_code == 400
+
+        too_long = client.post("/api/users", json={"username": "a" * 33, "password": "a-long-password"})
+        assert too_long.status_code == 400
 
     def test_a_failed_save_does_not_leave_the_user_behind(
         self, client, admin_user, temp_users_file, monkeypatch
     ):
         """A user that could not be persisted must not linger in memory,
         where it would work until the next restart and then vanish."""
-        import api.server as api_module
-
         self._mock_hashing(monkeypatch)
         monkeypatch.setattr(api_module, "save_users", lambda: False)
         with client.session_transaction() as session:
@@ -718,8 +700,6 @@ class TestAPIKeyScopeManagement:
 
     def test_a_key_can_be_narrowed_after_the_fact(self, client, admin_user, temp_users_file, temp_api_keys_file):
         """Migrated admin keys have to be narrowable, or the migration is a dead end"""
-        import api.server as api_module
-
         test_key = "test-api-key-123456789012345678901234567890"
         api_module.API_KEYS[test_key] = {"name": "legacy", "enabled": True, "role": "admin"}
 
@@ -731,13 +711,12 @@ class TestAPIKeyScopeManagement:
         assert api_module.API_KEYS[test_key]["role"] == "user"
 
         # And the narrowed key is refused where it used to be allowed.
-        assert client.get("/api/users", headers={"X-API-Key": test_key}).status_code == 403
+        refused = client.get("/api/users", headers={"X-API-Key": test_key})
+        assert refused.status_code == 403
 
     def test_the_id_from_the_listing_resolves(self, client, admin_user, temp_users_file, temp_api_keys_file):
         """GET /api/keys shows a first-8...last-4 preview, and that is what the
         web UI sends back, so every endpoint taking a key id has to accept it."""
-        import api.server as api_module
-
         full_key = "mc_abcdef1234567890abcdef1234567890abcdef12"
         api_module.API_KEYS[full_key] = {"name": "dashboard", "enabled": True, "role": "admin"}
 
@@ -747,30 +726,32 @@ class TestAPIKeyScopeManagement:
         listed_id = json.loads(client.get("/api/keys").data)["keys"][0]["id"]
         assert "..." in listed_id
 
-        assert client.put(f"/api/keys/{listed_id}", json={"role": "user"}).status_code == 200
+        rescoped = client.put(f"/api/keys/{listed_id}", json={"role": "user"})
+        assert rescoped.status_code == 200
         assert api_module.API_KEYS[full_key]["role"] == "user"
-        assert client.put(f"/api/keys/{listed_id}/disable").status_code == 200
+
+        disabled = client.put(f"/api/keys/{listed_id}/disable")
+        assert disabled.status_code == 200
         assert api_module.API_KEYS[full_key]["enabled"] is False
-        assert client.delete(f"/api/keys/{listed_id}").status_code == 200
+
+        deleted = client.delete(f"/api/keys/{listed_id}")
+        assert deleted.status_code == 200
         assert full_key not in api_module.API_KEYS
 
     def test_an_ambiguous_id_resolves_to_nothing(self, client, admin_user, temp_users_file, temp_api_keys_file):
         """A prefix shared by two keys must not act on whichever came first"""
-        import api.server as api_module
-
         api_module.API_KEYS["mc_shared_prefix_aaaa"] = {"name": "one", "enabled": True, "role": "user"}
         api_module.API_KEYS["mc_shared_prefix_bbbb"] = {"name": "two", "enabled": True, "role": "user"}
 
         with client.session_transaction() as session:
             session["username"] = "admin"
 
-        assert client.delete("/api/keys/mc_shared_prefix").status_code == 404
+        response = client.delete("/api/keys/mc_shared_prefix")
+        assert response.status_code == 404
         assert len(api_module.API_KEYS) == 2
 
     def test_rescope_rolls_back_a_failed_save(self, client, admin_user, temp_users_file, temp_api_keys_file, monkeypatch):
         """A scope that could not be written must not stay live in this process"""
-        import api.server as api_module
-
         test_key = "test-api-key-123456789012345678901234567890"  # gitleaks:allow
         api_module.API_KEYS[test_key] = {"name": "legacy", "enabled": True, "role": "admin"}
         monkeypatch.setattr(api_module, "save_api_keys", lambda: False)
@@ -785,15 +766,14 @@ class TestAPIKeyScopeManagement:
 
     def test_rescope_requires_a_scope(self, client, admin_user, temp_users_file, temp_api_keys_file):
         """An empty body is a bad request"""
-        import api.server as api_module
-
         test_key = "test-api-key-123456789012345678901234567890"
         api_module.API_KEYS[test_key] = {"name": "legacy", "enabled": True, "role": "admin"}
 
         with client.session_transaction() as session:
             session["username"] = "admin"
 
-        assert client.put(f"/api/keys/{test_key}", json={}).status_code == 400
+        response = client.put(f"/api/keys/{test_key}", json={})
+        assert response.status_code == 400
 
 
 class TestUserEnableDisable:
