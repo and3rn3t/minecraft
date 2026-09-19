@@ -294,6 +294,11 @@ if USERS_FILE.exists():
     except (FileNotFoundError, json.JSONDecodeError):
         USERS = {}
 
+# Open registration. The default lets the very first account be created to
+# bootstrap the server and closes the endpoint afterwards; admins add everyone
+# else through POST /api/users. Set REGISTRATION_ENABLED=true to keep it open.
+REGISTRATION_ENABLED = os.environ.get("REGISTRATION_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
 # Audit log file
 AUDIT_LOG_FILE = PROJECT_ROOT / "config" / "audit.log"
 
@@ -779,6 +784,12 @@ def require_auth(f):
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     """Register a new user"""
+    if USERS and not REGISTRATION_ENABLED:
+        return (
+            jsonify({"error": "Registration is closed. Ask an administrator to create your account."}),
+            403,
+        )
+
     data = request.get_json() or {}
     username = data.get("username")
     password = data.get("password")
@@ -802,13 +813,17 @@ def register():
     if username in USERS:
         return jsonify({"error": "Username already exists"}), 400
 
-    # Create user
+    # Create user. The first account bootstraps the server and has to be an
+    # admin; every later one starts with no privileges and is promoted by an
+    # admin through /api/users/<username>/role.
+    role = "admin" if not USERS else "user"
+
     hashed_password = hash_password(password)
     USERS[username] = {
         "username": username,
         "password_hash": hashed_password,
         "email": email,
-        "role": "admin",  # First user is admin, others default to "user"
+        "role": role,
         "enabled": True,
         "created": datetime.now(timezone.utc).isoformat(),
     }
@@ -1627,6 +1642,67 @@ def list_users():
         return jsonify({"success": True, "users": users_list}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to list users: {str(e)}"}), 500
+
+
+@app.route("/api/users", methods=["POST"])
+@require_permission("users.manage")
+def create_user():
+    """Create a user. This is how accounts are added once registration closes."""
+    try:
+        data = request.get_json() or {}
+        username = data.get("username")
+        password = data.get("password")
+        email = data.get("email", "")
+        role = data.get("role", "user")
+
+        if not username or not password:
+            return jsonify({"error": "Username and password required"}), 400
+
+        if not BCRYPT_AVAILABLE:
+            return jsonify({"error": "Password hashing not available"}), 500
+
+        if len(username) < 3 or len(username) > 32:
+            return jsonify({"error": "Username must be 3-32 characters"}), 400
+
+        if len(password) < 8:
+            return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+        if username in USERS:
+            return jsonify({"error": "Username already exists"}), 400
+
+        if role not in ROLE_PERMISSIONS:
+            return (
+                jsonify({"error": f"Invalid role. Valid roles: {', '.join(ROLE_PERMISSIONS.keys())}"}),
+                400,
+            )
+
+        USERS[username] = {
+            "username": username,
+            "password_hash": hash_password(password),
+            "email": email,
+            "role": role,
+            "enabled": True,
+            "created": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if not save_users():
+            del USERS[username]
+            return jsonify({"error": "Failed to save user"}), 500
+
+        log_audit_event(get_username_from_request(), "users.create", {"username": username, "role": role})
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "User created",
+                    "user": {"username": username, "role": role},
+                }
+            ),
+            201,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Failed to create user: {str(e)}"}), 500
 
 
 @app.route("/api/users/<username>/role", methods=["PUT"])

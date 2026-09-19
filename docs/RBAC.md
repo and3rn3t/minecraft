@@ -143,6 +143,46 @@ def start_server():
 
 ## User Management
 
+### Registration and the first account
+
+`POST /api/auth/register` creates the **bootstrap account** — the first user on
+a fresh server, which is given the `admin` role so there is someone who can
+manage everyone else. Once that account exists the endpoint returns `403` and
+further accounts are created by an admin through `POST /api/users`.
+
+Set `REGISTRATION_ENABLED=true` in the environment to keep open registration on
+anyway. Accounts created that way get the `user` role, never `admin`.
+
+### Creating Users
+
+**Endpoint:** `POST /api/users`
+
+**Permission Required:** `users.manage`
+
+**Request Body:**
+
+```json
+{
+  "username": "silas",
+  "password": "a-long-password",
+  "email": "silas@example.com",
+  "role": "user"
+}
+```
+
+`role` is optional and defaults to `user`. It must be one of `admin`,
+`operator` or `user`.
+
+**Response:** `201 Created`
+
+```json
+{
+  "success": true,
+  "message": "User created",
+  "user": { "username": "silas", "role": "user" }
+}
+```
+
 ### Viewing Users
 
 **Endpoint:** `GET /api/users`

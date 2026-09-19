@@ -209,7 +209,7 @@ Check if API is running (no authentication required).
 
 ### Authentication Endpoints
 
-- `POST /api/auth/register` - Register new user
+- `POST /api/auth/register` - Create the bootstrap account (closed once a user exists; see [RBAC.md](RBAC.md))
 - `POST /api/auth/login` - Login user
 - `POST /api/auth/logout` - Logout user
 - `GET /api/auth/me` - Get current user
@@ -637,6 +637,13 @@ API_PORT=8080
 # Enable CORS
 CORS_ENABLED=true
 ```
+
+Two settings are read from the environment rather than this file:
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `SECRET_KEY` | generated per restart | Signs sessions and JWTs; see [SECURITY_HARDENING.md](SECURITY_HARDENING.md) |
+| `REGISTRATION_ENABLED` | unset (closed) | Keeps `POST /api/auth/register` open after the bootstrap account exists; see [RBAC.md](RBAC.md) |
 
 ## Security
 

@@ -315,8 +315,12 @@ paths:
     post:
       tags:
         - Authentication
-      summary: Register new user
-      description: Create a new user account
+      summary: Register the bootstrap account
+      description: >-
+        Creates the first user on a fresh server, which is given the admin role.
+        Once any user exists this returns 403 and further accounts are created
+        with POST /api/users, unless REGISTRATION_ENABLED is set in the
+        environment — accounts created that way get the user role.
       operationId: register
       requestBody:
         required: true
@@ -355,6 +359,12 @@ paths:
                         description: JWT token (if available)
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Registration is closed because a user already exists
           content:
             application/json:
               schema:
@@ -1219,6 +1229,60 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/User'
+    post:
+      tags:
+        - Users
+      summary: Create a user
+      description: Create a user account. Requires the users.manage permission.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                password:
+                  type: string
+                  minLength: 8
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, operator, user]
+                  default: user
+              required:
+                - username
+                - password
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/ddns/status:
     get:
