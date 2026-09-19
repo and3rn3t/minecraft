@@ -4,6 +4,10 @@
 # The unit this replaces ran `docker compose up -d --force-recreate` every hour
 # regardless of whether a new image existed, so these tests are mostly about
 # what the script declines to do.
+#
+# tests/helpers/bats-assert is a minimal stub: assert_output matches exactly and
+# assert_line greps, with no refute helpers. Negative checks are therefore
+# written as an explicit grep whose failure is asserted.
 
 load '../helpers/bats-support/load'
 load '../helpers/bats-assert/load'
@@ -16,9 +20,8 @@ setup() {
     cd "$TEST_DIR" || exit 1
 
     # A stub docker whose behaviour each test controls through these files.
-    mkdir -p bin
     STATE_DIR="$TEST_DIR/state"
-    mkdir -p "$STATE_DIR"
+    mkdir -p bin "$STATE_DIR"
     echo "running" > "$STATE_DIR/ps"
     echo "image-a" > "$STATE_DIR/image"
     : > "$STATE_DIR/calls"
@@ -27,6 +30,9 @@ setup() {
 #!/bin/bash
 echo "\$@" >> "$STATE_DIR/calls"
 case "\$*" in
+    "compose version")
+        echo "Docker Compose version v2.0.0"
+        ;;
     *"ps --status running"*)
         cat "$STATE_DIR/ps"
         ;;
@@ -54,28 +60,35 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-@test "auto-update.sh passes shellcheck-able syntax" {
-    run bash -n scripts/auto-update.sh
+# Helper: assert the stub was never asked to do something
+assert_docker_not_called_with() {
+    run grep -q -- "$1" "$STATE_DIR/calls"
+    assert_failure
+}
+
+# Helper: assert the stub was asked to do something
+assert_docker_called_with() {
+    run grep -q -- "$1" "$STATE_DIR/calls"
     assert_success
 }
 
 @test "auto-update.sh shows usage without a subcommand" {
     run scripts/auto-update.sh
     assert_failure
-    assert_output --partial "Usage:"
+    assert_line "Usage:"
 }
 
 @test "auto-update.sh rejects an unknown subcommand" {
     run scripts/auto-update.sh frobnicate
     assert_failure
-    assert_output --partial "Usage:"
+    assert_line "Usage:"
 }
 
 @test "run does not restart when the image is unchanged" {
     run scripts/auto-update.sh run
     assert_success
-    assert_output --partial "Already up to date"
-    refute_line --partial "up -d"
+    assert_line "Already up to date"
+    assert_docker_not_called_with "up -d"
 }
 
 @test "run restarts when the image changed" {
@@ -83,10 +96,8 @@ teardown() {
 
     run scripts/auto-update.sh run
     assert_success
-    assert_output --partial "New image found"
-
-    run grep -c "up -d" "$STATE_DIR/calls"
-    assert_success
+    assert_line "New image found"
+    assert_docker_called_with "up -d"
 }
 
 @test "run leaves a stopped server stopped" {
@@ -96,10 +107,8 @@ teardown() {
 
     run scripts/auto-update.sh run
     assert_success
-    assert_output --partial "not running"
-
-    run grep -q "up -d" "$STATE_DIR/calls"
-    assert_failure
+    assert_line "not running"
+    assert_docker_not_called_with "up -d"
 }
 
 @test "run does not pull when the server is stopped" {
@@ -107,15 +116,22 @@ teardown() {
 
     run scripts/auto-update.sh run
     assert_success
+    assert_docker_not_called_with "pull"
+}
 
-    run grep -q "pull" "$STATE_DIR/calls"
-    assert_failure
+@test "run still restarts a changed image only once" {
+    echo "image-b" > "$STATE_DIR/new-image"
+    run scripts/auto-update.sh run
+    assert_success
+
+    run bash -c "grep -c -- 'up -d' '$STATE_DIR/calls'"
+    assert_output "1"
 }
 
 @test "check reports when up to date" {
     run scripts/auto-update.sh check
     assert_success
-    assert_output --partial "Up to date"
+    assert_line "Up to date"
 }
 
 @test "check reports an available update" {
@@ -123,7 +139,7 @@ teardown() {
 
     run scripts/auto-update.sh check
     assert_success
-    assert_output --partial "update is available"
+    assert_line "update is available"
 }
 
 @test "check never restarts the server" {
@@ -131,7 +147,5 @@ teardown() {
 
     run scripts/auto-update.sh check
     assert_success
-
-    run grep -q "up -d" "$STATE_DIR/calls"
-    assert_failure
+    assert_docker_not_called_with "up -d"
 }
