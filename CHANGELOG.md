@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Admin-scoped API keys were refused the `server.manage` endpoints.** Scoping
+  API keys (#27) checked a key's permissions by membership, with no admin
+  short-circuit of the kind users get. `server.manage` was enforced by 14
+  endpoints but never declared in `PERMISSIONS`, so it was in no role's list and
+  an admin-scoped key was refused announcements, server presets and command
+  schedules that an admin user could reach. `server.manage` is now declared, and
+  an admin-scoped key matches an admin user; a key carrying an explicit
+  `permissions` array is still held to that array whatever its role. A test now
+  fails if any enforced permission is missing from `PERMISSIONS`.
+
 ### Security
 
 - **Registration no longer mints every user as an administrator** (#26).
