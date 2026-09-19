@@ -1,0 +1,12 @@
+[Unit]
+Description=Check for Due Minecraft Scheduled Commands
+Requires=minecraft-scheduler.service
+
+[Timer]
+# Every minute, which is the finest granularity the schedule format expresses.
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target
