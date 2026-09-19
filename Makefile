@@ -1,6 +1,9 @@
 # Minecraft Server Management Makefile
 # Provides convenient commands for server management
 
+# Prefer the Docker Compose v2 plugin, fall back to the legacy v1 binary
+COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+
 .PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch
 
 # Default target
@@ -38,42 +41,42 @@ help:
 # Installation
 install:
 	@echo "Installing dependencies..."
-	@chmod +x setup-rpi.sh manage.sh start.sh
-	@./setup-rpi.sh
+	@chmod +x scripts/setup-rpi.sh scripts/manage.sh scripts/start.sh
+	@./scripts/setup-rpi.sh
 
 # Server management
 start:
-	@./manage.sh start
+	@./scripts/manage.sh start
 
 stop:
-	@./manage.sh stop
+	@./scripts/manage.sh stop
 
 restart:
-	@./manage.sh restart
+	@./scripts/manage.sh restart
 
 status:
-	@./manage.sh status
+	@./scripts/manage.sh status
 
 logs:
-	@./manage.sh logs
+	@./scripts/manage.sh logs
 
 backup:
-	@./manage.sh backup
+	@./scripts/manage.sh backup
 
 console:
-	@./manage.sh console
+	@./scripts/manage.sh console
 
 update:
-	@./manage.sh update
+	@./scripts/manage.sh update
 
 # Docker operations
 build:
 	@echo "Building Docker image..."
-	@docker-compose build
+	@$(COMPOSE) build
 
 clean:
 	@echo "Cleaning up Docker resources..."
-	@docker-compose down -v
+	@$(COMPOSE) down -v
 	@docker system prune -f
 
 shell:
@@ -82,12 +85,12 @@ shell:
 # Testing
 test:
 	@echo "Running all tests..."
-	@bash -n manage.sh
-	@bash -n start.sh
-	@bash -n setup-rpi.sh
-	@docker-compose config > /dev/null
-	@cd tests/api && pytest -v --cov=../../api --cov-config=../../.coverage-config.ini --cov-report=term-missing || true
-	@cd web && npm test -- --run || true
+	@bash -n scripts/manage.sh
+	@bash -n scripts/start.sh
+	@bash -n scripts/setup-rpi.sh
+	@$(COMPOSE) config > /dev/null
+	@cd tests/api && pytest -v --cov=../../api --cov-config=../../.coverage-config.ini --cov-report=term-missing
+	@cd web && npm test
 	@echo "All tests passed!"
 
 test-api:
@@ -203,11 +206,11 @@ build-multiarch-setup:
 # Development
 dev-start:
 	@echo "Starting in development mode..."
-	@docker-compose up
+	@$(COMPOSE) up
 
 dev-stop:
 	@echo "Stopping development mode..."
-	@docker-compose down
+	@$(COMPOSE) down
 
 # Backup management
 backup-list:
@@ -225,7 +228,7 @@ info:
 	@docker --version
 	@echo ""
 	@echo "Docker Compose version:"
-	@docker-compose --version
+	@$(COMPOSE) --version
 	@echo ""
 	@echo "System resources:"
 	@free -h
@@ -234,7 +237,7 @@ info:
 	@df -h
 	@echo ""
 	@echo "Server status:"
-	@./manage.sh status
+	@./scripts/manage.sh status
 
 # Quick setup
 quick-setup: install

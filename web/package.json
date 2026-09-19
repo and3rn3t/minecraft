@@ -4,14 +4,19 @@
   "description": "Web Admin Panel for Minecraft Server",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ci": "vitest run --reporter=dot",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:a11y": "vitest test/a11y.test.jsx",
+    "test:a11y": "vitest run src/test/a11y.test.jsx",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
