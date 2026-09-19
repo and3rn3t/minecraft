@@ -431,7 +431,7 @@ See [Docker Optimization Guide](docs/DOCKER_OPTIMIZATION.md) for details.
 **Project Planning:**
 
 - **[Roadmap](docs/ROADMAP.md)** - Development roadmap
-- **[Tasks](TASKS.md)** - Detailed task breakdown
+- **[Tasks](docs/TASKS.md)** - Detailed task breakdown
 - **[Changelog](CHANGELOG.md)** - Version history
 
 **Troubleshooting:**

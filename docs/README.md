@@ -64,7 +64,7 @@ docs/
 ### For Planning
 
 - **What's next?** → [ROADMAP.md](ROADMAP.md)
-- **What needs doing?** → [../TASKS.md](../TASKS.md)
+- **What needs doing?** → [TASKS.md](TASKS.md)
 - **What changed?** → [../CHANGELOG.md](../CHANGELOG.md)
 
 ## Documentation Standards

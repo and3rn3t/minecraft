@@ -359,7 +359,7 @@ minecraft/
 ├── Makefile                      # Convenience commands
 ├── README.md                     # Main documentation
 ├── CONTRIBUTING.md               # Contribution guidelines
-├── TASKS.md                      # Development tasks
+├── docs/TASKS.md                 # Development tasks
 └── CHANGELOG.md                  # Version history
 ```
 
@@ -676,7 +676,7 @@ docker-compose config          # Validate Docker config
 - `api/server.py` - REST API server
 - `docker-compose.yml` - Docker configuration
 - `README.md` - Main documentation
-- `TASKS.md` - Development tasks
+- `docs/TASKS.md` - Development tasks
 - `CONTRIBUTING.md` - Contribution guidelines
 - `docs/DEVELOPMENT.md` - Development guide
 
@@ -690,7 +690,7 @@ docker-compose config          # Validate Docker config
 
 ### When Adding New Features
 
-1. Check `TASKS.md` for related tasks
+1. Check `docs/TASKS.md` for related tasks
 2. Follow existing patterns in similar features
 3. Add tests for new functionality
 4. Update documentation (README, relevant docs/)
