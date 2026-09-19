@@ -74,7 +74,8 @@ The system defines the following permissions:
 - `server.control` - Start, stop, restart the server
 - `server.command` - Send commands to the server, over REST or the log socket
 - `server.manage` - Manage server configuration: properties, performance
-  presets, announcements and scheduled commands. Held by `admin` only
+  presets, announcements and scheduled commands. Included in the `admin` role by
+  default; it may also be granted explicitly in an API key's `permissions` array.
 
 ### Backup Permissions
 
