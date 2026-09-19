@@ -86,6 +86,36 @@ components:
       description: Session cookie from login
 
   schemas:
+    DeathRecord:
+      type: object
+      properties:
+        player:
+          type: string
+        cause:
+          type: string
+          description: The vanilla death cause, without the player's name
+          example: was slain by Zombie
+        category:
+          type: string
+          description: Classified cause, used to pick an epitaph and an icon
+          example: combat
+        epitaph:
+          type: string
+          example: Here lies Jonah, who met Zombie and did not come to an arrangement.
+        culprit:
+          type: string
+          nullable: true
+          description: Who or what did it, when the message names one
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: The full death message as the server printed it
+        announced:
+          type: boolean
+          description: Whether the epitaph reached players in game
+
     GameEvent:
       type: object
       properties:
@@ -667,6 +697,113 @@ paths:
                       type: string
                   total_lines:
                     type: integer
+
+  /api/deaths:
+    get:
+      tags:
+        - Hall of Deaths
+      summary: Get recent deaths with epitaphs
+      description: |
+        Recent deaths, newest first, each with the epitaph written for it.
+        Requires the `players.view` permission.
+      operationId: getDeaths
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+          description: Maximum number of deaths to return
+        - name: player
+          in: query
+          schema:
+            type: string
+          description: Only return deaths for this player
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Only return deaths of this category, for example `fall`
+      responses:
+        '200':
+          description: Recent deaths and overall statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deaths:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeathRecord'
+                  stats:
+                    type: object
+                    properties:
+                      total_deaths:
+                        type: integer
+                      players:
+                        type: integer
+                      most_common_cause:
+                        type: string
+                        nullable: true
+        '400':
+          description: Non-numeric limit
+        '503':
+          description: The Hall of Deaths is unavailable
+
+  /api/deaths/leaderboard:
+    get:
+      tags:
+        - Hall of Deaths
+      summary: Get the death leaderboard
+      description: Per-player death totals, most deaths first. Requires `players.view`.
+      operationId: getDeathsLeaderboard
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Ranked players
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaderboard:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        player:
+                          type: string
+                        deaths:
+                          type: integer
+                        favourite_cause:
+                          type: string
+                        favourite_cause_count:
+                          type: integer
+                          description: >-
+                            How often the favourite cause occurred. A value of 1
+                            means there is no real pattern, only a tie, so
+                            callers should not describe it as a favourite.
+                        last_category:
+                          type: string
+                          description: Category of this player's most recent death
+                        last_epitaph:
+                          type: string
+                        last_death:
+                          type: string
+        '400':
+          description: Non-numeric limit
+        '503':
+          description: The Hall of Deaths is unavailable
 
   /api/events:
     get:

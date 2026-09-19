@@ -116,6 +116,59 @@ describe('API Service', () => {
     });
   });
 
+  describe('getDeaths', () => {
+    it('sends the default limit with no filters', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { deaths: [], stats: {} } });
+
+      await api.getDeaths();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/deaths', {
+        params: { limit: 50 },
+      });
+    });
+
+    it('passes player and category filters through', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { deaths: [], stats: {} } });
+
+      await api.getDeaths({ limit: 5, player: 'Jonah', category: 'fall' });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/deaths', {
+        params: { limit: 5, player: 'Jonah', category: 'fall' },
+      });
+    });
+
+    it('omits filters that are null', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { deaths: [], stats: {} } });
+
+      await api.getDeaths({ player: null, category: null });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/deaths', {
+        params: { limit: 50 },
+      });
+    });
+  });
+
+  describe('getDeathsLeaderboard', () => {
+    it('requests the leaderboard with a limit', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { leaderboard: [] } });
+
+      await api.getDeathsLeaderboard(3);
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/deaths/leaderboard', {
+        params: { limit: 3 },
+      });
+    });
+
+    it('serves a repeat call from cache', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { leaderboard: [] } });
+
+      await api.getDeathsLeaderboard();
+      await api.getDeathsLeaderboard();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('server control', () => {
     it('startServer calls correct endpoint', async () => {
       mockAxiosInstance.post.mockResolvedValue({

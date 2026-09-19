@@ -160,6 +160,19 @@ export const api = {
     return cachedGet('/events/types', {}, 300000);
   },
 
+  // Hall of Deaths: epitaphs, stats and the leaderboard
+  async getDeaths({ limit = 50, player = null, category = null } = {}) {
+    const params = { limit };
+    if (player) params.player = player;
+    if (category) params.category = category;
+    const response = await apiClient.get('/deaths', { params });
+    return response.data;
+  },
+
+  async getDeathsLeaderboard(limit = 10) {
+    return cachedGet('/deaths/leaderboard', { limit }, 15000);
+  },
+
   // Players (cached for 3 seconds)
   async getPlayers() {
     return cachedGet('/players', {}, 3000);

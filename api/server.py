@@ -107,6 +107,16 @@ except ImportError:
     EVENTS_AVAILABLE = False
     game_events = None
 
+# Hall of Deaths. The first feature built on the event bus: it writes an
+# epitaph for every death, announces it in game and keeps the record.
+try:
+    from api import hall_of_deaths
+
+    DEATHS_AVAILABLE = True
+except ImportError:
+    DEATHS_AVAILABLE = False
+    hall_of_deaths = None
+
 
 app = Flask(__name__)
 # SECRET_KEY is resolved further down, once config/api.conf has been read.
@@ -401,6 +411,17 @@ def run_rcon_command(command):
             return stdout, stderr, code
 
     return run_script("rcon-client.sh", "command", command)
+
+
+def _announce_in_game(command):
+    """Run a command whose only purpose is to show players something.
+
+    Raises on failure so the caller can record that the announcement did not
+    reach anyone, which is the normal case when the server is stopped.
+    """
+    _, stderr, code = run_rcon_command(command)
+    if code != 0:
+        raise RuntimeError(stderr or f"RCON returned {code}")
 
 
 @app.route("/api/health", methods=["GET"])
@@ -2263,6 +2284,62 @@ def get_game_event_types():
     return jsonify({"types": list(game_events.ALL_EVENT_TYPES)})
 
 
+@app.route("/api/deaths", methods=["GET"])
+@require_permission("players.view")
+def get_deaths():
+    """Return recent deaths with their epitaphs, newest first.
+
+    Query parameters: `limit` (default 50, capped at 200), `player`, and
+    `category` to filter by how they died.
+    """
+    if not DEATHS_AVAILABLE:
+        return jsonify({"error": "The Hall of Deaths is unavailable"}), 503
+
+    try:
+        limit = min(max(int(request.args.get("limit", 50)), 1), 200)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    player = request.args.get("player")
+    if player:
+        player = sanitize_string(player, max_length=16)
+
+    category = request.args.get("category")
+    if category:
+        category = sanitize_string(category, max_length=32)
+
+    try:
+        hall = hall_of_deaths.get_hall()
+        return jsonify(
+            {
+                "deaths": hall.read(limit=limit, player=player, category=category),
+                "stats": hall.stats(),
+            }
+        )
+    except Exception as e:
+        app.logger.error(f"Error reading deaths: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/deaths/leaderboard", methods=["GET"])
+@require_permission("players.view")
+def get_deaths_leaderboard():
+    """Per-player death totals, most deaths first."""
+    if not DEATHS_AVAILABLE:
+        return jsonify({"error": "The Hall of Deaths is unavailable"}), 503
+
+    try:
+        limit = min(max(int(request.args.get("limit", 10)), 1), 50)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    try:
+        return jsonify({"leaderboard": hall_of_deaths.get_hall().leaderboard(limit=limit)})
+    except Exception as e:
+        app.logger.error(f"Error building the death leaderboard: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
 @app.route("/api/players", methods=["GET"])
 @require_permission("players.view")
 def get_players():
@@ -3996,6 +4073,13 @@ def start_event_capture():
     # Without this, the last few events on a quiet server stay buffered until
     # something else happens.
     bus.start_periodic_flush()
+
+    if DEATHS_AVAILABLE:
+        # The announcer is injected rather than imported by the hall, so the
+        # hall stays testable without a server and without RCON.
+        hall = hall_of_deaths.get_hall(announcer=_announce_in_game)
+        hall.set_error_logger(app.logger.error)
+        bus.subscribe(hall.handle_event)
 
     _ensure_log_reader()
     return True
