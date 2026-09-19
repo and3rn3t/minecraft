@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { usePolling } from '../hooks/usePolling';
 import { api } from '../services/api';
 
@@ -41,11 +41,9 @@ const Bedtime = () => {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // The countdown moves on its own, so keep it honest without a refresh.
+  // usePolling fetches on mount as well as on its interval, so this covers the
+  // initial load too. A separate effect here would just fire a second request.
+  // The countdown moves on its own, so it needs refreshing regardless.
   usePolling(load, 15000);
 
   const act = async (action, label) => {
@@ -57,13 +55,19 @@ const Bedtime = () => {
       setNotice(result.message || `${label} done.`);
       setError(null);
     } catch (err) {
-      // A refused control is a 409 carrying a reason worth showing.
-      const refusal = err?.response?.data?.error;
-      if (refusal) {
-        setNotice(refusal);
+      // Only 409 means "the request was fine, the server will not do it".
+      // A 500 or 503 also carries an `error` field, and showing that as a
+      // friendly notice would dress a server failure up as a normal refusal.
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.error;
+
+      if (status === 409 && detail) {
+        setNotice(detail);
+        setError(null);
       } else {
         console.error(`Bedtime ${label} failed:`, err);
-        setError(`Could not ${label.toLowerCase()}.`);
+        setNotice(null);
+        setError(detail || `Could not ${label.toLowerCase()}.`);
       }
     } finally {
       setBusy(false);

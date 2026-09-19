@@ -134,6 +134,53 @@ describe('Bedtime', () => {
     });
   });
 
+  it('treats a server error as an error, not a refusal', async () => {
+    // A 500 also carries an `error` field. Showing it as a friendly notice
+    // would dress a server failure up as a normal refusal.
+    const user = userEvent.setup();
+    api.api.getBedtime.mockResolvedValue(aStatus());
+    api.api.startBedtimeNow.mockRejectedValue({
+      response: { status: 500, data: { error: 'Internal server error' } },
+    });
+
+    renderWithRouter(<Bedtime />);
+    await waitFor(() => expect(screen.getByText(/bedtime now/i)).toBeInTheDocument());
+
+    await user.click(screen.getByText(/bedtime now/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/internal server error/i)).toBeInTheDocument();
+    });
+    // The error banner is red; a refusal notice is not.
+    expect(screen.getByText(/internal server error/i).className).toMatch(/text-red/);
+  });
+
+  it('treats a 503 as an error too', async () => {
+    const user = userEvent.setup();
+    api.api.getBedtime.mockResolvedValue(aStatus());
+    api.api.skipBedtime.mockRejectedValue({
+      response: { status: 503, data: { error: 'Bedtime mode is unavailable' } },
+    });
+
+    renderWithRouter(<Bedtime />);
+    await waitFor(() => expect(screen.getByText(/skip tonight/i)).toBeInTheDocument());
+
+    await user.click(screen.getByText(/skip tonight/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/bedtime mode is unavailable/i).className).toMatch(/text-red/);
+    });
+  });
+
+  it('loads once on mount, not twice', async () => {
+    // usePolling already fetches on mount; a separate effect would double it.
+    api.api.getBedtime.mockResolvedValue(aStatus());
+    renderWithRouter(<Bedtime />);
+
+    await waitFor(() => expect(api.api.getBedtime).toHaveBeenCalled());
+    expect(api.api.getBedtime).toHaveBeenCalledTimes(1);
+  });
+
   it('skips tonight', async () => {
     const user = userEvent.setup();
     api.api.getBedtime.mockResolvedValue(aStatus());

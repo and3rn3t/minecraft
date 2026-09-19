@@ -25,6 +25,9 @@ All notable changes to this project will be documented in this file.
     `/skip` and `/now` (`server.control`), with matching OpenAPI paths and schemas.
   - Configured through `config/bedtime.conf`; see `config/bedtime.conf.example`.
     Disabled unless the config says otherwise.
+  - Enforcement is idempotent. The bedtime thread and an API request can both
+    reach it, so closing the evening twice would mean two goodnights, two kicks
+    and two attempts to stop the server.
 
 - **`systemd/minecraft-scheduler.{service,timer}`** — nothing executed the
   scheduled commands the web UI creates. The Scheduler page wrote entries to

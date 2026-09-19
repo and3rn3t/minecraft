@@ -537,3 +537,107 @@ class TestBedtimeEndpoints:
         client.post("/api/bedtime/now", headers={"X-API-Key": mock_api_keys})
         response = client.post("/api/bedtime/now", headers={"X-API-Key": mock_api_keys})
         assert response.status_code == 409
+
+
+@pytest.mark.unit
+class TestEnforcementIsIdempotent:
+    """The bedtime thread and an API request can both reach enforcement.
+
+    tick() runs on the bedtime thread and start_now() runs on a request thread.
+    Both check `enforced` before acting, so without an atomic check-and-set the
+    evening could be closed twice: two goodnights, two kicks, two attempts to
+    stop the server.
+    """
+
+    def test_tick_and_start_now_together_enforce_once(self, bed, sent):
+        bed.start_now(at(MONDAY, 20, 31))
+        bed.tick(at(MONDAY, 20, 31))
+
+        assert len(messages(sent, "kick @a")) == 1
+        # "Goodnight" appears in the kick message too, so count announcements.
+        assert len([m for m in messages(sent, "tellraw") if "Goodnight" in m]) == 1
+        assert len([m for m in sent if m == "save-all"]) == 1
+
+    def test_enforcing_twice_acts_once(self, bed, sent):
+        """The guard itself, tested directly.
+
+        The two callers reach _enforce through their own `enforced` checks, and
+        those checks are far enough apart in time that a thread test cannot
+        reproduce the overlap reliably. Calling _enforce twice is the same
+        condition without the timing, and it fails without the guard.
+        """
+        moment = at(MONDAY, 20, 31)
+        bed._enforce(moment)
+        bed._enforce(moment)
+
+        assert len(messages(sent, "kick @a")) == 1
+        assert len([m for m in messages(sent, "tellraw") if "Goodnight" in m]) == 1
+
+    def test_enforcing_twice_stops_the_server_once(self, config):
+        config.action = ACTION_STOP
+        stops = []
+        bed = Bedtime(config=config, runner=lambda _c: None, stopper=lambda: stops.append(1))
+
+        moment = at(MONDAY, 20, 31)
+        bed._enforce(moment)
+        bed._enforce(moment)
+
+        assert stops == [1]
+
+    def test_concurrent_callers_enforce_once(self, config):
+        """A stress check. It cannot reliably reproduce the overlap on its own,
+        so the deterministic tests above are what actually cover the guard."""
+        import threading
+
+        sent = []
+        sent_lock = threading.Lock()
+
+        def record(command):
+            with sent_lock:
+                sent.append(command)
+
+        bed = Bedtime(config=config, runner=record)
+        moment = at(MONDAY, 20, 31)
+        barrier = threading.Barrier(8)
+
+        def race():
+            barrier.wait()
+            bed.tick(moment)
+
+        threads = [threading.Thread(target=race) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert len(messages(sent, "kick @a")) == 1
+
+    def test_stop_action_is_attempted_once_under_load(self, config):
+        import threading
+
+        config.action = ACTION_STOP
+        stops = []
+        bed = Bedtime(config=config, runner=lambda _c: None, stopper=lambda: stops.append(1))
+
+        moment = at(MONDAY, 20, 31)
+        barrier = threading.Barrier(6)
+
+        def race():
+            barrier.wait()
+            bed.tick(moment)
+
+        threads = [threading.Thread(target=race) for _ in range(6)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert stops == [1]
+
+    def test_a_new_evening_can_be_enforced_again(self, bed, sent):
+        """Idempotence is per evening, not forever."""
+        bed.tick(at(MONDAY, 20, 31))
+        sent.clear()
+        bed.tick(at(MONDAY + timedelta(days=1), 20, 31))
+
+        assert len(messages(sent, "kick @a")) == 1

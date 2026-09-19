@@ -133,11 +133,14 @@ def load_bedtime_config(config_file: Optional[Path] = None) -> BedtimeConfig:
             try:
                 config.extend_minutes = max(0, int(value))
             except ValueError:
+                # A typo here must not stop the server starting. The default
+                # stands and bedtime still works, which beats refusing to boot.
                 pass
         elif key == "MAX_EXTENSIONS":
             try:
                 config.max_extensions = max(0, int(value))
             except ValueError:
+                # As above: keep the default rather than fail on a bad value.
                 pass
         elif key == "ACTION" and value.lower() in VALID_ACTIONS:
             config.action = value.lower()
@@ -455,8 +458,18 @@ class Bedtime:
             self._bossbar_shown = False
 
     def _enforce(self, now: datetime) -> None:
-        """Bedtime has arrived. Say goodnight, then do what was configured."""
+        """Bedtime has arrived. Say goodnight, then do what was configured.
+
+        Idempotent, and it has to be. The bedtime thread reaches this from
+        tick(), and an API request can reach it from start_now() at the same
+        moment. Both of those check `enforced` before calling, so without an
+        atomic check-and-set here the evening could be closed twice: two
+        goodnights, two kicks, two attempts to stop the server.
+        """
         with self._lock:
+            self._ensure_night(self._night_of(now))
+            if self._state.enforced:
+                return
             self._state.enforced = True
 
         self._clear_bossbar()

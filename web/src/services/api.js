@@ -168,16 +168,19 @@ export const api = {
 
   async extendBedtime() {
     const response = await apiClient.post('/bedtime/extend');
+    invalidateCache(); // Bedtime moved, so cached reads are stale
     return response.data;
   },
 
   async skipBedtime() {
     const response = await apiClient.post('/bedtime/skip');
+    invalidateCache(); // Bedtime moved, so cached reads are stale
     return response.data;
   },
 
   async startBedtimeNow() {
     const response = await apiClient.post('/bedtime/now');
+    invalidateCache(); // This can stop the server, so /status is stale too
     return response.data;
   },
 
