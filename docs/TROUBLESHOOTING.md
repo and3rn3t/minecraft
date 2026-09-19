@@ -35,7 +35,7 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 3. **Run script with more verbose output**:
 
    ```bash
-   bash -x ./setup-rpi.sh
+   bash -x ./scripts/setup-rpi.sh
    ```
 
 4. **Check disk space**:
@@ -70,7 +70,7 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 
    ```bash
    docker --version
-   docker-compose --version
+   docker compose --version
    ```
 
 ### Permission Denied Errors
@@ -103,7 +103,7 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 
 ### Server Won't Start
 
-**Symptoms**: `./manage.sh start` fails or server exits immediately
+**Symptoms**: `./scripts/manage.sh start` fails or server exits immediately
 
 **Diagnostic Steps**:
 
@@ -118,7 +118,7 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 2. **View detailed logs**:
 
    ```bash
-   docker-compose logs
+   docker compose logs
    ```
 
 3. **Check for port conflicts**:
@@ -143,7 +143,7 @@ This guide helps you diagnose and fix common issues with the Minecraft Server on
 
 ```bash
 echo "eula=true" > ~/minecraft-server/eula.txt
-./manage.sh restart
+./scripts/manage.sh restart
 ```
 
 #### Out of Memory
@@ -202,10 +202,59 @@ ports:
 4. **Delete corrupted world**:
 
    ```bash
-   ./manage.sh stop
+   ./scripts/manage.sh stop
    rm -rf data/world*
-   ./manage.sh start
+   ./scripts/manage.sh start
    ```
+
+### Server Restart Loop
+
+**Symptoms**: The container starts, stops, and starts again in a cycle.
+
+**Diagnosis**:
+
+```bash
+docker ps -a | grep minecraft-server          # Container status
+docker logs --tail 100 minecraft-server       # Recent logs
+docker inspect minecraft-server | grep -A 5 RestartCount
+```
+
+**Common causes and fixes**:
+
+1. **Out of memory** — logs show `OutOfMemoryError`, or Docker kills the container.
+   Lower `MEMORY_MIN`/`MEMORY_MAX` in `docker-compose.yml` and check `free -h`.
+
+2. **Server JAR missing or corrupted** — "Could not find or load main class" or
+   "Unable to access jarfile". Stop the server, check `ls -lh data/server.jar`;
+   the start script re-downloads it on the next start if it is absent.
+
+3. **Port already in use** — "Address already in use". Find the holder with
+   `sudo lsof -i :25565` and stop it, or change the port in `docker-compose.yml`.
+
+4. **Corrupted world data** — crashes during world loading. Stop the server and
+   move the world aside: `mv data/world data/world.backup.$(date +%Y%m%d)`.
+
+5. **Healthcheck failing** — the container restarts even though Java is running.
+   Raise `healthcheck.start_period` (e.g. `180s`) and `retries` in `docker-compose.yml`.
+
+6. **Disk full** — "No space left on device". Check `df -h` and run
+   `./scripts/log-manager.sh clean`.
+
+7. **Insufficient permissions** — permission denied in the logs. Run
+   `./scripts/fix-permissions.sh`, or
+   `sudo chown -R $USER:$USER data/ backups/ plugins/`.
+
+**Breaking the loop to investigate**: set `restart: "no"` in `docker-compose.yml`,
+run `docker compose up -d`, and watch `docker logs -f minecraft-server`. Restore
+`restart: on-failure` once the cause is fixed.
+
+**Deeper debugging**:
+
+```bash
+docker stats minecraft-server                 # CPU and memory
+vcgencmd measure_temp && vcgencmd get_throttled   # Pi thermal state
+docker exec minecraft-server java -version    # Java inside the container
+```
 
 ### Server Download Fails
 
@@ -241,14 +290,14 @@ ports:
 1. **Verify server is running**:
 
    ```bash
-   ./manage.sh status
+   ./scripts/manage.sh status
    # Should show "Up"
    ```
 
 2. **Check server logs**:
 
    ```bash
-   ./manage.sh logs
+   ./scripts/manage.sh logs
    # Look for "Done!" message
    ```
 
@@ -438,7 +487,7 @@ ports:
 
    ```bash
    # Add to crontab for daily restart
-   0 4 * * * cd ~/minecraft-server && ./manage.sh restart
+   0 4 * * * cd ~/minecraft-server && ./scripts/manage.sh restart
    ```
 
 ### High CPU Usage
@@ -480,17 +529,17 @@ ports:
 1. **Remove old containers**:
 
    ```bash
-   docker-compose down
+   docker compose down
    docker rm minecraft-server
-   docker-compose up -d
+   docker compose up -d
    ```
 
 2. **Rebuild image**:
 
    ```bash
-   docker-compose down
-   docker-compose build --no-cache
-   docker-compose up -d
+   docker compose down
+   docker compose build --no-cache
+   docker compose up -d
    ```
 
 3. **Check Docker logs**:
@@ -498,6 +547,36 @@ ports:
    ```bash
    docker logs minecraft-server
    ```
+
+### Docker Compose Plugin Conflict
+
+**Symptoms**: `apt` fails while installing `docker-compose`:
+
+```text
+dpkg: error processing archive ... trying to overwrite
+'/usr/libexec/docker/cli-plugins/docker-compose',
+which is also in package docker-compose-plugin
+```
+
+**Cause**: Docker Engine 20.10+ ships Compose as a plugin (`docker compose`,
+with a space). The standalone `docker-compose` package conflicts with it and is
+not needed.
+
+**Fix**:
+
+```bash
+sudo apt-get remove --purge docker-compose
+sudo apt-get autoremove && sudo apt-get autoclean
+docker compose version    # should print v2.x
+```
+
+If `docker compose version` still fails, install the plugin:
+`sudo apt-get install -y docker-compose-plugin`.
+
+Use `docker compose <command>` everywhere — including in any systemd unit files
+you wrote by hand (`ExecStart=/usr/bin/docker compose up -d`), followed by
+`sudo systemctl daemon-reload`. The `Makefile` detects which form is available
+and uses the plugin when present.
 
 ### Docker Disk Space Full
 
@@ -568,9 +647,9 @@ ports:
 2. **Restore from backup**:
 
    ```bash
-   ./manage.sh stop
+   ./scripts/manage.sh stop
    tar -xzf backups/minecraft_backup_*.tar.gz -C data/
-   ./manage.sh start
+   ./scripts/manage.sh start
    ```
 
 3. **Consider using SSD**:
@@ -626,42 +705,42 @@ ports:
 **Basic log viewing**:
 
 ```bash
-./manage.sh logs
+./scripts/manage.sh logs
 # Shows last 100 lines of server logs
 ```
 
 **Search logs**:
 
 ```bash
-./manage.sh logs-search "error"
+./scripts/manage.sh logs-search "error"
 # Search for "error" in logs
 
-./manage.sh logs-search -l ERROR
+./scripts/manage.sh logs-search -l ERROR
 # Show all ERROR level messages
 
-./manage.sh logs-search -d 2025-01-15 "crash"
+./scripts/manage.sh logs-search -d 2025-01-15 "crash"
 # Search for "crash" on specific date
 
-./manage.sh logs-search -r 2025-01-01 2025-01-31 "player joined"
+./scripts/manage.sh logs-search -r 2025-01-01 2025-01-31 "player joined"
 # Search date range
 ```
 
 **Log management**:
 
 ```bash
-./manage.sh logs-manage all
+./scripts/manage.sh logs-manage all
 # Run all log operations (rotate, index, errors, stats)
 
-./manage.sh logs-manage index
+./scripts/manage.sh logs-manage index
 # Parse and index logs for faster searching
 
-./manage.sh logs-manage errors
+./scripts/manage.sh logs-manage errors
 # Detect and report error patterns
 
-./manage.sh logs-manage rotate
+./scripts/manage.sh logs-manage rotate
 # Rotate and archive old logs
 
-./manage.sh logs-manage stats
+./scripts/manage.sh logs-manage stats
 # Show log statistics
 ```
 
@@ -679,7 +758,7 @@ Edit `config/log-management.conf` to configure:
 
 ```bash
 # Manually rotate logs
-./manage.sh logs-manage rotate
+./scripts/manage.sh logs-manage rotate
 
 # Or reduce retention period in config/log-management.conf
 LOG_RETENTION_DAYS=7
@@ -689,20 +768,20 @@ LOG_RETENTION_DAYS=7
 
 ```bash
 # Re-index logs
-./manage.sh logs-manage index
+./scripts/manage.sh logs-manage index
 
 # Then search
-./manage.sh logs-search "your search term"
+./scripts/manage.sh logs-search "your search term"
 ```
 
 **Too many errors detected**:
 
 ```bash
 # View error summary
-./manage.sh logs-manage errors
+./scripts/manage.sh logs-manage errors
 
 # Check specific error patterns
-./manage.sh logs-search -l ERROR
+./scripts/manage.sh logs-search -l ERROR
 ```
 
 ## Getting Additional Help
@@ -723,10 +802,10 @@ When asking for help, include:
 2. **Server logs**:
 
    ```bash
-   docker-compose logs > logs.txt
+   docker compose logs > logs.txt
    # Or use log management
-   ./manage.sh logs-manage errors > errors.txt
-   ./manage.sh logs-search "error" > search_results.txt
+   ./scripts/manage.sh logs-manage errors > errors.txt
+   ./scripts/manage.sh logs-search "error" > search_results.txt
    ```
 
 3. **Configuration**:
@@ -754,7 +833,7 @@ When asking for help, include:
 
 ### Best Practices
 
-1. **Regular backups**: `./manage.sh backup`
+1. **Regular backups**: `./scripts/manage.sh backup`
 2. **Monitor resources**: `htop` and `docker stats`
 3. **Keep system updated**: `sudo apt update && sudo apt upgrade`
 4. **Use quality hardware**: Good SD card, proper cooling

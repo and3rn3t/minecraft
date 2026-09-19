@@ -210,7 +210,7 @@ fi
 2. **Stop server**:
 
    ```bash
-   ./manage.sh stop
+   ./scripts/manage.sh stop
    ```
 
 3. **Restore backup**:
@@ -223,7 +223,7 @@ fi
 4. **Start server**:
 
    ```bash
-   ./manage.sh start
+   ./scripts/manage.sh start
    ```
 
 ## Cost Considerations

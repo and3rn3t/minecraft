@@ -162,10 +162,10 @@ ls -la
 
 ```bash
 # Make setup script executable
-chmod +x setup-rpi.sh
+chmod +x scripts/setup-rpi.sh
 
 # Run setup script
-./setup-rpi.sh
+./scripts/setup-rpi.sh
 ```
 
 The setup script will:
@@ -192,7 +192,7 @@ ssh pi@minecraft-server.local
 
 # Verify Docker works without sudo
 docker --version
-docker-compose --version
+docker compose --version
 ```
 
 ### Step 7: Configure Server (Optional)
@@ -220,17 +220,17 @@ Press `Ctrl+X`, then `Y`, then `Enter` to save changes.
 cd ~/minecraft-server
 
 # Make management script executable
-chmod +x manage.sh
+chmod +x scripts/manage.sh
 
 # Start the server
-./manage.sh start
+./scripts/manage.sh start
 ```
 
 ### Monitor Startup
 
 ```bash
 # View logs (Press Ctrl+C to exit)
-./manage.sh logs
+./scripts/manage.sh logs
 ```
 
 First startup takes 5-10 minutes as it:
@@ -305,7 +305,7 @@ Share this IP with friends: `YOUR.PUBLIC.IP:25565`
 ### Check Server Status
 
 ```bash
-./manage.sh status
+./scripts/manage.sh status
 ```
 
 Should show container as "Up".
@@ -332,7 +332,7 @@ docker stats minecraft-server
 ### Create First Backup
 
 ```bash
-./manage.sh backup
+./scripts/manage.sh backup
 ```
 
 ## Troubleshooting
@@ -347,7 +347,7 @@ sudo systemctl status docker
 sudo systemctl start docker
 
 # Check detailed error logs
-docker-compose logs
+docker compose logs
 ```
 
 ### Memory Issues
@@ -365,7 +365,7 @@ environment:
 Then restart:
 
 ```bash
-./manage.sh restart
+./scripts/manage.sh restart
 ```
 
 ### Permission Errors
@@ -408,7 +408,7 @@ nmap -p 25565 localhost
 If you encounter issues:
 
 1. Check the Troubleshooting section above
-2. Review logs: `./manage.sh logs`
+2. Review logs: `./scripts/manage.sh logs`
 3. Check system resources: `htop`
 4. Open an issue on GitHub with:
    - Description of the problem

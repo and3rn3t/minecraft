@@ -349,4 +349,4 @@ The project includes Cursor configuration in `docs/CURSOR_CONFIGURATION.md` with
 - [Development Guide](DEVELOPMENT.md) - Development workflow
 - [Testing Guide](TESTING.md) - Testing framework
 - [Contributing Guide](../CONTRIBUTING.md) - Contribution guidelines
-- [Code Quality Standards](../AGENT_INSTRUCTIONS.md) - Code standards
+- [Code Quality Standards](../AGENTS.md) - Code standards

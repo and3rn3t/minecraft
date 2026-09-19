@@ -322,7 +322,7 @@ The generated `.img` file includes:
    ```bash
    ssh pi@minecraft-server.local
    cd ~/minecraft-server
-   ./manage.sh status
+   ./scripts/manage.sh status
    ```
 
 ## Automated Releases

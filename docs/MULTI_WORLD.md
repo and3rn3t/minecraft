@@ -18,26 +18,26 @@ The multi-world system allows you to:
 ### List Worlds
 
 ```bash
-./manage.sh worlds list
+./scripts/manage.sh worlds list
 ```
 
 ### Create a New World
 
 ```bash
 # Create a normal world
-./manage.sh worlds create myworld
+./scripts/manage.sh worlds create myworld
 
 # Create a flat world
-./manage.sh worlds create flatworld flat
+./scripts/manage.sh worlds create flatworld flat
 
 # Create a world with a specific seed
-./manage.sh worlds create seededworld normal 12345
+./scripts/manage.sh worlds create seededworld normal 12345
 ```
 
 ### Switch Worlds
 
 ```bash
-./manage.sh worlds switch myworld
+./scripts/manage.sh worlds switch myworld
 ```
 
 ## World Management
@@ -47,7 +47,7 @@ The multi-world system allows you to:
 Create a new world with specific settings:
 
 ```bash
-./manage.sh worlds create <name> [type] [seed]
+./scripts/manage.sh worlds create <name> [type] [seed]
 ```
 
 **World Types**:
@@ -61,13 +61,13 @@ Create a new world with specific settings:
 
 ```bash
 # Standard world
-./manage.sh worlds create survival
+./scripts/manage.sh worlds create survival
 
 # Flat world for building
-./manage.sh worlds create creative flat
+./scripts/manage.sh worlds create creative flat
 
 # World with seed
-./manage.sh worlds create adventure normal -1234567890
+./scripts/manage.sh worlds create adventure normal -1234567890
 ```
 
 ### Listing Worlds
@@ -75,7 +75,7 @@ Create a new world with specific settings:
 View all available worlds:
 
 ```bash
-./manage.sh worlds list
+./scripts/manage.sh worlds list
 ```
 
 Shows:
@@ -90,13 +90,13 @@ Shows:
 Get detailed information about a world:
 
 ```bash
-./manage.sh worlds info <world-name>
+./scripts/manage.sh worlds info <world-name>
 ```
 
 Or for the current world:
 
 ```bash
-./manage.sh worlds info
+./scripts/manage.sh worlds info
 ```
 
 ### Switching Worlds
@@ -104,7 +104,7 @@ Or for the current world:
 Switch to a different world:
 
 ```bash
-./manage.sh worlds switch <world-name>
+./scripts/manage.sh worlds switch <world-name>
 ```
 
 This will:
@@ -121,7 +121,7 @@ This will:
 Delete a world (with automatic backup):
 
 ```bash
-./manage.sh worlds delete <world-name>
+./scripts/manage.sh worlds delete <world-name>
 ```
 
 **Warning**: This permanently deletes the world. A backup is created before deletion.
@@ -147,7 +147,7 @@ CREATED=2025-01-15 10:30:00
 Apply world-specific settings:
 
 ```bash
-./manage.sh worlds config <world-name>
+./scripts/manage.sh worlds config <world-name>
 ```
 
 This applies:
@@ -171,17 +171,17 @@ When switching worlds, the system automatically:
 Create a template from an existing world:
 
 ```bash
-./manage.sh worlds create-template <template-name> [source-world]
+./scripts/manage.sh worlds create-template <template-name> [source-world]
 ```
 
 **Example**:
 
 ```bash
 # Create template from current world
-./manage.sh worlds create-template mytemplate
+./scripts/manage.sh worlds create-template mytemplate
 
 # Create template from specific world
-./manage.sh worlds create-template survival-template survival
+./scripts/manage.sh worlds create-template survival-template survival
 ```
 
 Templates are stored in `config/world-templates/` and can be reused to create new worlds quickly.
@@ -191,13 +191,13 @@ Templates are stored in `config/world-templates/` and can be reused to create ne
 Create a new world from a template:
 
 ```bash
-./manage.sh worlds from-template <world-name> <template-name>
+./scripts/manage.sh worlds from-template <world-name> <template-name>
 ```
 
 **Example**:
 
 ```bash
-./manage.sh worlds from-template newworld survival-template
+./scripts/manage.sh worlds from-template newworld survival-template
 ```
 
 This creates a new world with the same structure as the template (excluding player data).
@@ -209,13 +209,13 @@ This creates a new world with the same structure as the template (excluding play
 Backup a specific world:
 
 ```bash
-./manage.sh worlds backup <world-name>
+./scripts/manage.sh worlds backup <world-name>
 ```
 
 Or backup the current world:
 
 ```bash
-./manage.sh worlds backup
+./scripts/manage.sh worlds backup
 ```
 
 Backups are stored in `backups/worlds/` with timestamps.
@@ -278,7 +278,7 @@ Add to crontab for automatic backups:
 Monitor world sizes:
 
 ```bash
-./manage.sh worlds sizes
+./scripts/manage.sh worlds sizes
 ```
 
 Shows:
@@ -300,7 +300,7 @@ Useful for:
 Standard Minecraft world with varied terrain:
 
 ```bash
-./manage.sh worlds create myworld normal
+./scripts/manage.sh worlds create myworld normal
 ```
 
 ### Flat World
@@ -308,7 +308,7 @@ Standard Minecraft world with varied terrain:
 Superflat world for building:
 
 ```bash
-./manage.sh worlds create flatworld flat
+./scripts/manage.sh worlds create flatworld flat
 ```
 
 Configure in `server.properties`:
@@ -323,7 +323,7 @@ generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":
 Amplified terrain (requires more resources):
 
 ```bash
-./manage.sh worlds create amplifiedworld amplified
+./scripts/manage.sh worlds create amplifiedworld amplified
 ```
 
 **Note**: Amplified worlds are resource-intensive and may not perform well on Raspberry Pi 5.
@@ -333,7 +333,7 @@ Amplified terrain (requires more resources):
 Large biomes variant:
 
 ```bash
-./manage.sh worlds create largeworld large_biomes
+./scripts/manage.sh worlds create largeworld large_biomes
 ```
 
 ## Best Practices
@@ -352,8 +352,8 @@ Large biomes variant:
 
 **Solutions**:
 
-1. Ensure server is stopped: `./manage.sh stop`
-2. Check world exists: `./manage.sh worlds list`
+1. Ensure server is stopped: `./scripts/manage.sh stop`
+2. Check world exists: `./scripts/manage.sh worlds list`
 3. Verify server.properties is writable
 4. Check world directory has `level.dat`
 
@@ -377,7 +377,7 @@ Large biomes variant:
 1. Check disk space: `df -h`
 2. Verify world directory exists
 3. Check file permissions
-4. Try manual backup: `./manage.sh worlds backup <name>`
+4. Try manual backup: `./scripts/manage.sh worlds backup <name>`
 
 ### World Too Large
 
@@ -385,7 +385,7 @@ Large biomes variant:
 
 **Solutions**:
 
-1. Monitor sizes: `./manage.sh worlds sizes`
+1. Monitor sizes: `./scripts/manage.sh worlds sizes`
 2. Delete unused worlds
 3. Use MCA Selector or similar tools to delete unused chunks
 4. Consider using flat worlds for building
@@ -404,17 +404,17 @@ Run multiple servers with different worlds:
 
 Move worlds between servers:
 
-1. Backup world: `./manage.sh worlds backup <name>`
+1. Backup world: `./scripts/manage.sh worlds backup <name>`
 2. Copy backup file to new server
 3. Extract backup: `tar -xzf world_<name>_*.tar.gz -C data/`
-4. Switch to world: `./manage.sh worlds switch <name>`
+4. Switch to world: `./scripts/manage.sh worlds switch <name>`
 
 ### World Cloning
 
 Clone an existing world:
 
-1. Create template: `./manage.sh worlds create-template template <source>`
-2. Create from template: `./manage.sh worlds from-template <new-name> template`
+1. Create template: `./scripts/manage.sh worlds create-template template <source>`
+2. Create from template: `./scripts/manage.sh worlds from-template <new-name> template`
 
 ---
 

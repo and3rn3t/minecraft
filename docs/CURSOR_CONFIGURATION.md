@@ -14,17 +14,26 @@ Cursor IDE uses various configuration files to provide:
 
 ## Configuration Files
 
-### `.cursorrules`
+### AI assistant instructions
 
-**Purpose**: AI agent instructions for consistent development across sessions.
+**Source of truth**: [`AGENTS.md`](../AGENTS.md) in the project root. It defines the
+stack, commands, code standards, testing layout and conventions.
 
-**Location**: Project root
+Every editor-specific file is a thin pointer to it — edit `AGENTS.md`, never these:
 
-**Usage**: Automatically loaded by Cursor IDE to guide AI assistants.
-
-**See Also**: [AGENT_INSTRUCTIONS.md](../AGENT_INSTRUCTIONS.md)
+| File | Read by |
+| --- | --- |
+| `.cursor/rules/project.mdc` | Cursor (rules format, always applied) |
+| `.cursorrules` | Cursor (legacy format) |
+| `CLAUDE.md` | Claude Code — plus a few Claude-specific notes |
+| `.github/copilot-instructions.md` | GitHub Copilot (older setups; newer ones read `AGENTS.md` directly) |
+| `.clinerules` | Cline |
+| `.windsurfrules` | Windsurf |
 
 ---
+
+> **Note**: `.vscode/` is gitignored, so the files below are not in the repository —
+> they are per-developer. The sections describe what to put in them if you want them.
 
 ### `.vscode/settings.json`
 

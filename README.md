@@ -1,487 +1,229 @@
 # Minecraft Server for Raspberry Pi 5
 
-A custom Minecraft server setup optimized for Raspberry Pi 5, providing easy control over settings and customization. This setup uses Docker for easy deployment and management.
+A self-hosted Minecraft server stack tuned for the Raspberry Pi 5 (ARM64): Docker
+deployment, automated and offsite backups, plugin and mod management, multi-world
+support, RCON, a REST API, and a React web admin panel.
+
+Works on x86_64 too — the Pi is just what it is optimised for.
 
 ## Features
 
-- 🎮 Optimized for Raspberry Pi 5 (ARM64 architecture)
-- 🐳 Docker-based deployment for easy management
-- ⚙️ Easy customization of server settings
-- 💾 Automatic backup support
-- 🔄 Simple update mechanism
-- 📊 Resource-efficient configuration
+- 🎮 Tuned for Raspberry Pi 5 (ARM64), multi-arch images
+- 🐳 Docker Compose deployment with systemd units for boot-time start
+- 💾 Scheduled backups with retention, plus offsite backup to R2 / S3 / B2
+- 🔌 Plugin and mod management (Paper, Spigot, Fabric, Forge)
+- 🌍 Multi-world management, switching, and per-world backups
+- 🖥️ REST API + React admin panel with RBAC, API keys and OAuth
+- 📊 Analytics, metrics, log rotation and search
+- 🔄 Version checking, compatibility checks and guided updates
 
 ## Requirements
 
-- Raspberry Pi 5 (4GB or 8GB RAM recommended)
-- MicroSD card (32GB or larger recommended)
+- Raspberry Pi 5 (4GB minimum, 8GB recommended)
+- MicroSD card, 32GB or larger
 - Raspberry Pi OS (64-bit)
-- Internet connection for initial setup
+- Docker with the Compose v2 plugin (the setup script installs it)
 
 ## Quick Start
 
-### 1. Flash Raspberry Pi OS
-
-Quick steps:
-
-1. Download and install [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
-2. Insert your microSD card into your computer
-3. Open Raspberry Pi Imager
-4. Choose OS: **Raspberry Pi OS (64-bit)**
-5. Choose Storage: Select your microSD card
-6. Click on the gear icon (⚙️) for advanced options:
-   - Set hostname (e.g., `minecraft-server`)
-   - Enable SSH
-   - Set username and password
-   - Configure WiFi (optional)
-7. Click **Write** and wait for the process to complete
-
-### 2. Initial Setup on Raspberry Pi
-
-1. Insert the microSD card into your Raspberry Pi 5
-2. Power on the Raspberry Pi
-3. SSH into your Raspberry Pi:
-
-   ```bash
-   ssh pi@minecraft-server.local
-   ```
-
-   Or use the IP address if hostname doesn't work
-
-4. Clone this repository:
-
-   ```bash
-   cd ~
-   git clone https://github.com/and3rn3t/minecraft.git minecraft-server
-   cd minecraft-server
-   ```
-
-5. Run the setup script:
-
-   ```bash
-   chmod +x setup-rpi.sh
-   ./setup-rpi.sh
-   ```
-
-6. **Important**: Log out and log back in for Docker permissions to take effect:
-
-   ```bash
-   exit
-   # SSH back in
-   ssh pi@minecraft-server.local
-   cd ~/minecraft-server
-   ```
-
-### 3. Start the Minecraft Server
-
 ```bash
-# Make management script executable
-chmod +x manage.sh
+# On the Pi
+git clone https://github.com/and3rn3t/minecraft.git ~/minecraft-server
+cd ~/minecraft-server
 
-# Start the server
-./manage.sh start
+./scripts/setup-rpi.sh      # installs Docker, dependencies, permissions
+# log out and back in so the docker group takes effect
 
-# View logs
-./manage.sh logs
+./scripts/manage.sh start   # start the server
+./scripts/manage.sh logs    # watch it come up
 ```
 
-## Server Management
+Connect from Minecraft using the Pi's address on port `25565`.
 
-The `manage.sh` script provides easy server management:
+Full walkthrough, including flashing the SD card: **[docs/INSTALL.md](docs/INSTALL.md)**.
+Deploying the API and web panel as well: **[docs/RPI5_FULL_DEPLOYMENT.md](docs/RPI5_FULL_DEPLOYMENT.md)**.
+
+## Managing the Server
+
+`scripts/manage.sh` is the main entry point; `make` wraps the common ones.
 
 ```bash
-./manage.sh start              # Start the server
-./manage.sh stop               # Stop the server
-./manage.sh restart            # Restart the server
-./manage.sh status             # Check server status
-./manage.sh logs               # View server logs
-./manage.sh backup             # Create a backup
-./manage.sh console            # Attach to server console (Ctrl+P, Ctrl+Q to detach)
-./manage.sh update [version]   # Update server to latest or specified version
-./manage.sh check-version      # Check for available updates
-./manage.sh check-compatibility # Check compatibility before updating
+./scripts/manage.sh start|stop|restart|status|logs|backup|console
+./scripts/manage.sh update [version]      # update the server jar
+./scripts/manage.sh check-version         # is there a newer release?
+./scripts/manage.sh check-compatibility   # safe to update?
 ```
 
-### Minecraft-Specific Tools
+```bash
+make help        # every target
+make start       # same as ./scripts/manage.sh start
+make status
+make backup
+make logs
+```
 
-Additional scripts for Minecraft server management:
+### Other tools
 
 ```bash
-# Server Properties
-./scripts/server-properties-manager.sh get view-distance
+# Server properties and presets
 ./scripts/server-properties-manager.sh set view-distance 10
-./scripts/server-properties-manager.sh preset balanced
+./scripts/performance-presets.sh balanced
 
-# Player Management
+# Players
 ./scripts/whitelist-manager.sh add PlayerName
 ./scripts/ban-manager.sh ban PlayerName "Reason"
 ./scripts/op-manager.sh grant PlayerName 4
 
 # Performance
 ./scripts/jvm-optimizer.sh generate 2G 4 aikar
-./scripts/performance-presets.sh balanced
+./scripts/monitor-rpi5.sh
 ```
 
-## Customization
+Everything is listed in **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)**.
 
-### Server Properties
+## Configuration
 
-Edit `server.properties` to customize your server:
+### Server properties
+
+Edit `server.properties`, then `./scripts/manage.sh restart`:
 
 ```properties
-# Common settings to adjust
-max-players=10              # Maximum number of players
-difficulty=normal           # easy, normal, hard, peaceful
-gamemode=survival          # survival, creative, adventure
-view-distance=10           # Render distance (lower = better performance)
-motd=My Minecraft Server   # Server name in multiplayer list
+max-players=10
+difficulty=normal
+gamemode=survival
+view-distance=10           # lower is faster
+motd=My Minecraft Server
 ```
 
-After changing settings, restart the server:
+### Memory and version
+
+Both come from environment variables read by `docker-compose.yml`, so set them in a
+`.env` file next to it rather than editing the compose file:
 
 ```bash
-./manage.sh restart
+MINECRAFT_VERSION=1.20.4
+MEMORY_MIN=1G              # 2G on an 8GB Pi
+MEMORY_MAX=2G              # 4G on an 8GB Pi
+CONTAINER_MEMORY_LIMIT=3G  # must exceed MEMORY_MAX by ~1G
 ```
 
-### Memory Allocation
+> `CONTAINER_MEMORY_LIMIT` has to leave the JVM roughly 0.5–1G of headroom beyond
+> `MEMORY_MAX`. Setting it equal to `MEMORY_MAX` is the classic cause of a restart
+> loop — see [Troubleshooting](docs/TROUBLESHOOTING.md#server-restart-loop).
 
-Edit `docker-compose.yml` to adjust memory settings:
-
-```yaml
-environment:
-  - MEMORY_MIN=1G # Minimum memory (1G for 4GB Pi, 2G for 8GB Pi)
-  - MEMORY_MAX=2G # Maximum memory (2G for 4GB Pi, 4G for 8GB Pi)
-```
-
-**Recommended Memory Settings:**
-
-- Raspberry Pi 5 (4GB): MIN=1G, MAX=2G
-- Raspberry Pi 5 (8GB): MIN=2G, MAX=4G
-
-### Minecraft Version
-
-To change Minecraft version, edit `docker-compose.yml`:
-
-```yaml
-environment:
-  - MINECRAFT_VERSION=1.20.4 # Change to desired version
-```
-
-Then rebuild and restart:
-
-```bash
-docker-compose down
-docker-compose up -d --build
-```
-
-## Port Forwarding
-
-To allow players outside your local network to connect:
-
-1. Find your Raspberry Pi's local IP address:
-
-   ```bash
-   hostname -I
-   ```
-
-2. Log into your router's admin panel
-3. Set up port forwarding:
-
-   - External Port: 25565
-   - Internal Port: 25565
-   - Internal IP: Your Raspberry Pi's IP address
-   - Protocol: TCP
-
-4. Find your public IP address: Visit [whatismyipaddress.com](https://whatismyipaddress.com/)
-5. Share your public IP with your friends to connect
+More examples: **[docs/CONFIGURATION_EXAMPLES.md](docs/CONFIGURATION_EXAMPLES.md)**.
 
 ## Backups
 
-### Manual Backup
+```bash
+./scripts/manage.sh backup                   # one-off, into backups/
+./scripts/install-backup-timer.sh            # scheduled via systemd timer
+./scripts/cloud-backup-r2.sh upload          # offsite (also -s3 and -b2 variants)
+```
+
+To restore, stop the server, extract the archive into `data/`, and start again.
+Details and retention policy: **[docs/BACKUP_AND_MONITORING.md](docs/BACKUP_AND_MONITORING.md)**
+and **[docs/CLOUD_BACKUP.md](docs/CLOUD_BACKUP.md)**.
+
+## Starting on Boot
+
+systemd units ship in `systemd/`. They use `docker compose` and pull the latest
+image before starting:
 
 ```bash
-./manage.sh backup
+sudo cp systemd/minecraft.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now minecraft.service
 ```
 
-Backups are stored in the `backups/` directory.
+`minecraft-api.service`, `minecraft-web.service`, the backup timer and the update
+timer install the same way. See **[docs/DOCKER_BOOT_SETUP.md](docs/DOCKER_BOOT_SETUP.md)**.
 
-### Restore from Backup
+## Remote Access
+
+To let friends connect from outside your network, forward TCP `25565` to the Pi.
+For a stable hostname on a changing home IP, use the DDNS updater —
+**[docs/DYNAMIC_DNS.md](docs/DYNAMIC_DNS.md)**.
+
+## Web Panel & API
 
 ```bash
-# Stop the server
-./manage.sh stop
-
-# Extract backup to data directory
-tar -xzf backups/minecraft_backup_YYYYMMDD_HHMMSS.tar.gz -C ./data/
-
-# Start the server
-./manage.sh start
+./scripts/setup-api-venv.sh     # Python venv for the API
+./scripts/api-server.sh start   # REST API
+./scripts/build-web.sh          # build the React panel
 ```
 
-## Troubleshooting
-
-### Server won't start
-
-1. Check if Docker is running:
-
-   ```bash
-   sudo systemctl status docker
-   ```
-
-2. View detailed logs:
-
-   ```bash
-   docker-compose logs
-   ```
-
-3. Check available memory:
-
-   ```bash
-   free -h
-   ```
-
-### Performance Issues
-
-1. Reduce view distance in `server.properties`:
-
-   ```properties
-   view-distance=6
-   simulation-distance=6
-   ```
-
-2. Lower max players:
-
-   ```properties
-   max-players=5
-   ```
-
-3. Reduce memory if system is struggling:
-
-   ```yaml
-   MEMORY_MAX=1G
-   ```
-
-### Cannot connect from outside network
-
-1. Verify port forwarding is set up correctly
-2. Check if server is running: `./manage.sh status`
-3. Ensure firewall allows port 25565:
-
-   ```bash
-   sudo ufw allow 25565/tcp
-   ```
-
-## Performance Tips
-
-1. **Use Ethernet**: Wired connection is more stable than WiFi
-2. **Proper Cooling**: Ensure your Pi 5 has adequate cooling (case with fan recommended)
-3. **Quality Power Supply**: Use the official Raspberry Pi 5 power supply
-4. **Fast Storage**: Use a high-quality microSD card (Class 10, A2 rating)
-5. **Regular Backups**: Back up your world regularly
-
-## Advanced Configuration
-
-### Installing Plugins (For Bukkit/Spigot/Paper)
-
-If you want to use plugins, you'll need to use Paper or Spigot instead of vanilla:
-
-1. Switch to Paper or Spigot:
-
-   ```bash
-   ./scripts/switch-server-type.sh paper
-   ```
-
-2. Install plugins:
-
-   ```bash
-   ./scripts/plugin-manager.sh install /path/to/plugin.jar
-   ```
-
-3. Restart the server:
-   ```bash
-   ./scripts/manage.sh restart
-   ```
-
-See [PLUGIN_MANAGEMENT.md](docs/PLUGIN_MANAGEMENT.md) for detailed plugin management guide.
-
-### Automatic Startup on Boot
-
-To start the server automatically when the Pi boots:
-
-```bash
-# Create systemd service
-sudo nano /etc/systemd/system/minecraft.service
-```
-
-Add:
-
-```ini
-[Unit]
-Description=Minecraft Server
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/home/pi/minecraft-server
-ExecStart=/usr/bin/docker-compose up -d
-ExecStop=/usr/bin/docker-compose down
-User=pi
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable the service:
-
-```bash
-sudo systemctl enable minecraft.service
-sudo systemctl start minecraft.service
-```
-
-## Testing
-
-The project includes comprehensive automated tests:
-
-```bash
-# Run API tests
-python -m pytest tests/api/ -v
-
-# Run with coverage
-python -m pytest tests/api/ -v --cov=api --cov-report=term-missing
-```
-
-**Current Status**: ✅ 60+ API tests passing (~60% coverage)
-
-See [Testing Guide](docs/TESTING.md) for more information.
-
-## Code Quality
-
-The project uses static code analysis to ensure code quality:
-
-```bash
-# Run all linting checks
-make lint
-
-# Or use the linting script directly
-./scripts/lint.sh all
-```
-
-**Linting Tools**:
-
-- **ShellCheck** - Bash script linting
-- **ESLint** - JavaScript/React linting
-- **flake8/pylint** - Python code analysis (optional)
-- **yamllint** - YAML file validation (optional)
-
-See [Linting Guide](docs/LINTING.md) for more information.
-
-## Docker Optimization
-
-The project uses optimized Docker images for Raspberry Pi 5:
-
-- **Multi-stage builds** - Reduced image size
-- **Layer optimization** - Better build caching
-- **Minimal base image** - Security and performance
-- **Build arguments** - Flexible configuration
-
-```bash
-# Build with custom version
-docker build --build-arg MINECRAFT_VERSION=1.21.0 -t minecraft-server .
-
-# Use BuildKit for faster builds
-export DOCKER_BUILDKIT=1
-docker build -t minecraft-server .
-```
-
-See [Docker Optimization Guide](docs/DOCKER_OPTIMIZATION.md) for details.
-
-## Documentation
-
-📚 **Start here**: [Documentation Index](docs/INDEX.md) - Complete navigation guide
-
-### Quick Links
-
-**Getting Started:**
-
-- **[Installation Guide](docs/INSTALL.md)** - Complete setup instructions
-- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Command cheat sheet
-- **[Configuration Examples](docs/CONFIGURATION_EXAMPLES.md)** - Config file examples
-
-**User Guides:**
-
-- **[Backup & Monitoring](docs/BACKUP_AND_MONITORING.md)** - Automated backups and metrics
-- **[Update Management](docs/UPDATE_MANAGEMENT.md)** - Server updates and versions
-- **[Plugin Management](docs/PLUGIN_MANAGEMENT.md)** - Installing and managing plugins
-- **[Multi-World Support](docs/MULTI_WORLD.md)** - Managing multiple worlds
-- **[Log Management](docs/LOG_MANAGEMENT.md)** - Log rotation and analysis
-- **[RCON Guide](docs/RCON.md)** - Remote console setup
-- **[REST API](docs/API.md)** - API documentation
-- **[Web Interface](docs/WEB_INTERFACE.md)** - Web admin panel
-
-**Developer Guides:**
-
-- **[Development Guide](docs/DEVELOPMENT.md)** - Setup and workflow
-- **[Testing Guide](docs/TESTING.md)** - Testing best practices
-- **[Cursor Configuration](docs/CURSOR_CONFIGURATION.md)** - IDE setup
-- **[Contributing](CONTRIBUTING.md)** - Contribution guidelines
-- **[Agent Instructions](AGENT_INSTRUCTIONS.md)** - AI agent consistency guide
-
-**Project Planning:**
-
-- **[Roadmap](docs/ROADMAP.md)** - Development roadmap
-- **[Tasks](docs/TASKS.md)** - Detailed task breakdown
-- **[Changelog](CHANGELOG.md)** - Version history
-
-**Troubleshooting:**
-
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common problems and solutions
-
-For complete documentation navigation, see [docs/INDEX.md](docs/INDEX.md).
-
-## Resources
-
-- [Minecraft Server Documentation](https://minecraft.fandom.com/wiki/Server)
-- [Raspberry Pi Documentation](https://www.raspberrypi.com/documentation/)
-- [Docker Documentation](https://docs.docker.com/)
-- [Server Properties Guide](https://minecraft.fandom.com/wiki/Server.properties)
+The panel covers server control, players, worlds, backups, plugins, logs, the
+console, analytics, config editing, users and API keys. See
+**[docs/WEB_INTERFACE.md](docs/WEB_INTERFACE.md)** and **[docs/API.md](docs/API.md)**
+(the OpenAPI spec is `api/openapi.yaml`).
 
 ## Development
 
-### Quick Start for Developers
-
 ```bash
-# Clone repository
 git clone https://github.com/and3rn3t/minecraft.git
 cd minecraft
 
-# Setup environment
-cp .env.example .env  # Edit with your settings
-make install
-
-# Test
-make test
-make build
-
-# Start development
-make start
+make lint     # shellcheck, eslint, python, yaml, compose validation
+make test     # pytest + vitest + syntax checks
+make coverage # coverage report
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development guide.
+- **[AGENTS.md](AGENTS.md)** — conventions, stack, commands (also what AI assistants read)
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** — setup and workflow
+- **[docs/TESTING.md](docs/TESTING.md)** — test layout and how to run each suite
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — contribution guidelines
 
-### Contributing
+## Documentation
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+📚 **[docs/INDEX.md](docs/INDEX.md) lists every guide**, grouped by task. Common ones:
 
-### Roadmap
+| Topic | Guide |
+| --- | --- |
+| Install from scratch | [docs/INSTALL.md](docs/INSTALL.md) |
+| Command cheat sheet | [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) |
+| Something is broken | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
+| Backups & monitoring | [docs/BACKUP_AND_MONITORING.md](docs/BACKUP_AND_MONITORING.md) |
+| Plugins | [docs/PLUGIN_MANAGEMENT.md](docs/PLUGIN_MANAGEMENT.md) |
+| Multiple worlds | [docs/MULTI_WORLD.md](docs/MULTI_WORLD.md) |
+| REST API | [docs/API.md](docs/API.md) |
+| Pi tuning | [docs/RASPBERRY_PI_OPTIMIZATIONS.md](docs/RASPBERRY_PI_OPTIMIZATIONS.md) |
+| Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Version history | [CHANGELOG.md](CHANGELOG.md) |
 
-Check out [ROADMAP.md](ROADMAP.md) for planned features and development phases.
+## Troubleshooting
+
+Start with **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — it covers
+installation failures, startup problems, restart loops, connectivity, performance,
+Docker and system-level issues.
+
+Quick checks:
+
+```bash
+./scripts/manage.sh status
+./scripts/health-check.sh
+docker logs --tail 100 minecraft-server
+free -h && df -h
+vcgencmd measure_temp       # should stay below 80°C
+```
+
+## Performance Tips
+
+1. Use Ethernet rather than WiFi
+2. Give the Pi 5 active cooling — it throttles under sustained load
+3. Use the official Pi 5 power supply
+4. Use a fast A2-rated card, or better, an NVMe drive
+5. Lower `view-distance` and `simulation-distance` before lowering memory
+
+See **[docs/RASPBERRY_PI_OPTIMIZATIONS.md](docs/RASPBERRY_PI_OPTIMIZATIONS.md)**.
+
+## Resources
+
+- [Minecraft server documentation](https://minecraft.wiki/w/Server)
+- [server.properties reference](https://minecraft.wiki/w/Server.properties)
+- [Raspberry Pi documentation](https://www.raspberrypi.com/documentation/)
+- [Docker documentation](https://docs.docker.com/)
 
 ## License
 
-This project is open source and available for personal use.
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
+See [LICENSE](LICENSE). Security reports: [SECURITY.md](SECURITY.md).

@@ -362,4 +362,4 @@ const admins = users.filter(u => u.role === 'admin');
 
 - [API Documentation](API.md) - Complete API reference
 - [Web Interface Guide](WEB_INTERFACE.md) - Web UI documentation
-- [Security Guide](SECURITY.md) - Security best practices
+- [Security Hardening](SECURITY_HARDENING.md) - Security best practices

@@ -238,48 +238,33 @@ See `.github/workflows/tests.yml` for configuration.
 
 ## Test Coverage
 
-### Current Coverage
+Coverage is measured for the Python API with `coverage.py`, configured in
+`.coverage-config.ini`. The enforced threshold is **40%** (`fail_under`); raise it
+in that file as coverage grows. `scripts/check-coverage.sh` honours the same value
+via `COVERAGE_THRESHOLD`.
 
-- **API Endpoints**: 51% coverage
-- **Authentication**: ✅ Fully tested
-- **Error Handling**: ✅ Fully tested
-- **Health Checks**: ✅ Fully tested
-
-### Coverage Goals
-
-- **Target**: 80%+ coverage for API
-- **Current**: ~60%+ coverage (increased from 51%)
-- **Priority**: Critical paths first
-- **Focus**: Authentication, error handling, core endpoints, configuration management
-
-### New Test Coverage (This Session)
-
-**Backend API Tests:**
-
-- Configuration file management endpoints (list, get, save, validate)
-- Backup restore and delete endpoints
-- User authentication endpoints (register, login, logout, me)
-- OAuth endpoints (get URL, link, unlink)
-
-**Frontend Component Tests:**
-
-- ConfigEditor component (rendering, editing, saving, error handling)
-- OAuthButtons component (Google/Apple buttons, popup handling, callbacks)
-- AuthContext (authentication state, login, register, logout)
-- Login page (form rendering, validation, error handling)
-- Register page (form rendering, password validation, error handling)
-- ConfigFiles page (file list, loading, error handling)
-
-### Viewing Coverage
+### Running coverage
 
 ```bash
-# Terminal report
-python -m pytest tests/api/ --cov=api --cov-report=term-missing
-
-# HTML report
-python -m pytest tests/api/ --cov=api --cov-report=html
-open htmlcov/index.html
+make coverage          # pytest with term + HTML report
+make coverage-check    # fail if below the threshold
+make coverage-gaps     # list untested lines by file
 ```
+
+Reports land in `htmlcov/` (open `htmlcov/index.html`), plus `coverage.json` and
+`coverage.xml` for tooling. CI publishes the same numbers on every run — treat
+that as the source of truth rather than any figure written into a document.
+
+### What is covered
+
+- **Well covered**: authentication and API keys, RBAC, OAuth, backup management,
+  config-file endpoints, analytics endpoints, log streaming, `run_script`.
+- **Partially covered**: server control workflows, monitoring/metrics integration,
+  error and failure paths.
+- **Thin**: shell-script unit tests (`tests/unit/` covers only a few scripts) and
+  end-to-end workflows, several of which skip without a live server.
+
+Open gaps worth closing are tracked in [TASKS.md](TASKS.md) rather than duplicated here.
 
 ## Continuous Improvement
 
@@ -485,7 +470,6 @@ pytest -m "not slow"
 
 - [pytest Documentation](https://docs.pytest.org/)
 - [BATS Documentation](https://bats-core.readthedocs.io/)
-- [Test Coverage Guide](TEST_COVERAGE.md) - Detailed coverage analysis
 - [Web UI Testing Guide](WEB_UI_TESTING.md) - Frontend testing guide
 - [Coverage.py Documentation](https://coverage.readthedocs.io/)
 - [pytest-xdist Documentation](https://pytest-xdist.readthedocs.io/)

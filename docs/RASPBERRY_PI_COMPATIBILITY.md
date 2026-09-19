@@ -76,7 +76,7 @@ When building on Raspberry Pi 5:
 
 ```bash
 # Build directly on Pi (recommended)
-docker-compose build
+docker compose build
 
 # Or specify platform explicitly
 docker buildx build --platform linux/arm64 -t minecraft-server .
@@ -150,7 +150,7 @@ chmod +x scripts/setup-rpi.sh
 ./scripts/setup-rpi.sh
 
 # 3. Build Docker image
-docker-compose build
+docker compose build
 
 # 4. Start server
 ./scripts/manage.sh start
@@ -168,7 +168,7 @@ docker buildx create --name multiarch --use
 docker buildx build --platform linux/arm64 -t minecraft-server:arm64 .
 
 # Or with docker-compose
-docker-compose build --build-arg BUILDPLATFORM=linux/arm64
+docker compose build --build-arg BUILDPLATFORM=linux/arm64
 ```
 
 **Action Required**: ⚠️ Document cross-platform building (optional)
@@ -195,7 +195,7 @@ Before deploying to Raspberry Pi 5:
 
 - [ ] **Docker Ready**:
   - [ ] Docker installed: `docker --version`
-  - [ ] Docker Compose installed: `docker-compose --version`
+  - [ ] Docker Compose installed: `docker compose --version`
   - [ ] User in docker group: `groups | grep docker`
 
 ### Deployment Testing
@@ -220,7 +220,7 @@ Before deploying to Raspberry Pi 5:
 3. **Build Docker Image**:
 
    ```bash
-   docker-compose build
+   docker compose build
    # Should complete without errors
    ```
 
@@ -258,7 +258,7 @@ python3 -m pytest tests/api/ -v
 bash -n scripts/*.sh
 
 # Docker Compose validation
-docker-compose config
+docker compose config
 ```
 
 ## Performance Considerations
@@ -306,7 +306,7 @@ Raspberry Pi 5 has 4 cores. Optimize JVM flags in `scripts/start.sh`:
 
 #### 1. Docker Build Fails
 
-**Symptoms**: `docker-compose build` fails with architecture errors
+**Symptoms**: `docker compose build` fails with architecture errors
 
 **Solutions**:
 
@@ -362,7 +362,7 @@ npm install
 
 ```bash
 # Check logs
-docker-compose logs
+docker compose logs
 
 # Check architecture compatibility
 docker inspect minecraft-server | grep Architecture
