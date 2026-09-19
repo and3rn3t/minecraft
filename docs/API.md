@@ -302,6 +302,17 @@ Send a command to the server via RCON.
 - `"op PlayerName"` - Grant operator status
 - `"save-all"` - Save world
 
+### Server Properties
+
+- `GET /api/server/properties` - List server.properties
+- `GET /api/server/properties/{key}` - Read one property
+- `PUT /api/server/properties/{key}` - Set one property
+- `POST /api/server/properties/preset` - Apply a performance preset
+  (`low-end`, `balanced` or `high-performance`), which sets view distance,
+  simulation distance, max players, network compression and entity broadcast
+  range together. Needs `server.manage`, and the server must be restarted for
+  the values to take effect.
+
 ### Backups
 
 **POST** `/api/backup`
@@ -460,6 +471,44 @@ For more details, see [RBAC Guide](RBAC.md).
 - `POST /api/ddns/config` - Update DDNS configuration
 
 For more details, see [Dynamic DNS Guide](DYNAMIC_DNS.md).
+
+### Scheduled Commands
+
+One HTTP surface fronts `config/command-schedule.json`, which
+`scripts/command-scheduler.py` reads when it runs. All of these need
+`server.command`.
+
+- `GET /api/scheduler/schedules` - List scheduled commands
+- `POST /api/scheduler/schedules` - Create one
+- `PUT /api/scheduler/schedules/{id}` - Update one
+- `DELETE /api/scheduler/schedules/{id}` - Delete one
+- `PUT /api/scheduler/schedules/{id}/enable` - Enable one
+- `PUT /api/scheduler/schedules/{id}/disable` - Pause one without deleting it
+
+`type` is one of `interval`, `daily`, `weekly`, `cron` or `once`, and decides
+which other fields apply:
+
+| Type | Fields | Default |
+| --- | --- | --- |
+| `interval` | `interval_minutes` | 60 |
+| `daily` | `run_time` (`HH:MM`) | `00:00` |
+| `weekly` | `day_of_week` (0=Monday), `run_time` | 0, `00:00` |
+| `cron` | `cron_expression` | required |
+| `once` | `run_datetime` (ISO 8601) | required |
+
+An optional `condition` object holds the schedule back until it is satisfied,
+for example a minimum player count.
+
+A type the scheduler cannot run, or a `cron` with no expression, is rejected
+rather than written to the file, because a schedule the daemon skips gives no
+sign that it is never going to fire.
+
+**Removed:** `/api/commands/schedule*` fronted the same file and is gone. It
+piped its options as JSON to a script that never read standard input, so every
+option was silently replaced by a default — a 5-minute interval was stored as
+60 — it returned the string `Schedule created: <uuid>` where an id was
+expected, and it reported success when deleting ids that did not exist. Use the
+`/api/scheduler/*` endpoints above.
 
 ## Usage Examples
 

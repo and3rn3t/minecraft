@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`POST /api/server/properties/preset`** applies one of the performance
+  presets in `scripts/server-properties-manager.sh` (`low-end`, `balanced`,
+  `high-performance`), which set view distance, simulation distance, max
+  players, network compression and entity broadcast range together (#29). The
+  handler already existed with its permission decorator but no route, so it was
+  unreachable and presets could only be applied from the shell.
+- **`PUT /api/scheduler/schedules/<id>/enable` and `/disable`**, so a schedule
+  can be paused without deleting it. These existed only on the duplicate API
+  that has been removed, so the web interface had no way to do it.
+
+### Changed
+
+- **One API now fronts the command schedule** (#30). `/api/commands/schedule*`
+  and `/api/scheduler/schedules` both wrote `config/command-schedule.json`;
+  the first has been removed and the second is the whole surface. It gains the
+  `cron` and `once` types and `condition` support that only the removed one
+  claimed to offer, and validates them: an unknown type, a `cron` with no
+  expression or a `once` with no datetime is rejected rather than written to a
+  file where the scheduler would skip it forever without saying so.
+
+### Fixed
+
+- **Scheduled commands silently ignored every option they were given.**
+  `POST /api/commands/schedule` passed its options as JSON on standard input to
+  `scripts/command-scheduler.py`, which never reads standard input, so a
+  5-minute interval was stored as the 60-minute default; the same endpoint
+  returned the script's `Schedule created: <uuid>` chatter where callers
+  expected an id, and `DELETE` reported success for ids that were never there.
+  Removed in favour of `/api/scheduler/*`, which does not have these faults.
+- **Deleting an unknown schedule reported success.**
+  `DELETE /api/scheduler/schedules/<id>` filtered the list and saved it either
+  way; it now returns 404 when nothing matched.
+- **Changing a schedule's type left the old type's fields behind**, so a daily
+  schedule switched to an interval kept a stale `run_time`.
+
 ### Fixed
 
 - **Admin-scoped API keys were refused the `server.manage` endpoints.** Scoping
