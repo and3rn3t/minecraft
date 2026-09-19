@@ -1,0 +1,22 @@
+# Gitleaks configuration.
+#
+# The default rules are kept in full; this file only records the placeholder
+# credentials that live in the test suite, which the generic-api-key rule flags
+# on entropy alone.
+#
+# The allowlist matches those exact strings rather than whitelisting the tests
+# directory, so a credential that really did leak into a test still fails the
+# scan.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fixed placeholder credentials in tests and docs, never real ones"
+regexTarget = "match"
+regexes = [
+  # tests/api/*: the dummy key every API-key fixture authenticates with.
+  '''test-api-key-1234567890+''',
+  # docs/API_KEYS.md: the example key shown in the request/response samples.
+  '''mc_1234567890abcdef1234567890abcdef12345678''',
+]

@@ -1694,7 +1694,10 @@ def update_api_key_scope(key_id):
             200,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to update API key: {str(e)}"}), 500
+        # The message is logged rather than returned: an exception raised while
+        # re-scoping a credential can carry internals the caller should not see.
+        app.logger.error(f"Failed to update API key scope: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/keys/<key_id>", methods=["DELETE"])
@@ -1854,7 +1857,8 @@ def create_user():
             201,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to create user: {str(e)}"}), 500
+        app.logger.error(f"Failed to create user: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/users/<username>/role", methods=["PUT"])
