@@ -3019,11 +3019,15 @@ def apply_server_preset():
     """Apply a performance preset to server.properties"""
     try:
         data = request.get_json() or {}
-        preset = data.get("preset")
-        if not preset:
+        requested = data.get("preset")
+        if not requested:
             return jsonify({"error": "Preset name required"}), 400
 
-        if preset not in SERVER_PROPERTY_PRESETS:
+        # Resolve the request to the matching constant and carry that onward,
+        # so nothing downstream — the script argument, the log line, the audit
+        # entry — handles the caller's string.
+        preset = next((p for p in SERVER_PROPERTY_PRESETS if p == requested), None)
+        if preset is None:
             return (
                 jsonify({"error": f"Invalid preset. Valid: {', '.join(SERVER_PROPERTY_PRESETS)}"}),
                 400,
@@ -3031,9 +3035,11 @@ def apply_server_preset():
 
         stdout, stderr, code = run_script("server-properties-manager.sh", "preset", preset)
         if code != 0:
-            # The script's stderr carries filesystem paths, so it goes to the
-            # log rather than to the caller.
-            app.logger.error(f"Preset '{preset}' failed: {stderr}")
+            # stderr carries filesystem paths, so it goes to the log rather
+            # than to the caller, and it is subprocess output going into a log
+            # line, so it is stripped of newlines first — otherwise it could
+            # forge entries of its own.
+            app.logger.error("Preset '%s' failed: %s", preset, sanitize_string(stderr, max_length=200))
             return jsonify({"error": "Failed to apply preset"}), 500
 
         log_audit_event(get_username_from_request(), "server.properties.preset", {"preset": preset})
