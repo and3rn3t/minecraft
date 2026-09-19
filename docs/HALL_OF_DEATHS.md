@@ -99,7 +99,7 @@ running on a Pi in a family's house.
 A writer backed by a language model is the obvious upgrade and slots in here
 without anything else moving. It would need an API key, a per-death cost, a
 timeout that does not stall the event bus thread, and the kid-safety guardrails
-described under W1 in [FAMILY_SERVER_ROADMAP.md](FAMILY_SERVER_ROADMAP.md).
+described under W1 in [ROADMAP.md](ROADMAP.md).
 Handlers run synchronously on the follower thread, so a network call belongs on
 a queue rather than inline.
 
@@ -156,4 +156,4 @@ curl -H "X-API-Key: $API_KEY" "http://localhost:8080/api/deaths?limit=5"
 ## Related
 
 - [EVENT_BUS.md](EVENT_BUS.md) — where death events come from
-- [FAMILY_SERVER_ROADMAP.md](FAMILY_SERVER_ROADMAP.md) — W3, and what comes next
+- [ROADMAP.md](ROADMAP.md) — W3 shipped here; what comes next

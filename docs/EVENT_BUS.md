@@ -2,7 +2,7 @@
 
 The event bus turns the Minecraft server's log into typed, persisted events that
 features can subscribe to. It is the foundation the gameplay features in
-[FAMILY_SERVER_ROADMAP.md](FAMILY_SERVER_ROADMAP.md) are built on.
+[ROADMAP.md](ROADMAP.md) are built on.
 
 ## Why it exists
 
@@ -164,4 +164,4 @@ Raw `logs` messages continue unchanged, so the existing Logs page is unaffected.
 - [`api/events.py`](../api/events.py) — the parser, bus and storage
 - [`api/rcon.py`](../api/rcon.py) — how handlers talk back to the server
 - [RCON.md](RCON.md) — RCON setup
-- [FAMILY_SERVER_ROADMAP.md](FAMILY_SERVER_ROADMAP.md) — what this is for
+- [ROADMAP.md](ROADMAP.md) — what this is for

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Consolidated every roadmap and feature-planning document into a single
+  [docs/ROADMAP.md](docs/ROADMAP.md).** `docs/TASKS.md`,
+  `docs/FAMILY_SERVER_ROADMAP.md`, `docs/MINECRAFT_ENHANCEMENTS.md` and
+  `docs/MINECRAFT_GAMEPLAY_ENHANCEMENTS.md` are removed. The four disagreed
+  with each other and with the code: the old roadmap opened by calling v1.3.0
+  current and v1.4.0 "60% complete" while v1.4.0 through v1.6.0 had all
+  shipped, and three of them listed the same work at different priorities.
+  Completed work is no longer restated in the roadmap at all — that record is
+  this file. What remains is what is not done, ordered, with the items that
+  were decided against kept in a "Ruled out" section so they stop being
+  reproposed.
+
 ## [1.5.0] - 2026-09-19
 
 ### Added
@@ -104,9 +118,10 @@ All notable changes to this project will be documented in this file.
     `logs` stream. `getEvents()` and `getEventTypes()` added to
     `web/src/services/api.js`.
 
-- **Feature roadmap** ([docs/FAMILY_SERVER_ROADMAP.md](docs/FAMILY_SERVER_ROADMAP.md))
-  covering gameplay and integration features, as distinct from the management
-  product planned in `docs/ROADMAP.md`.
+- **Feature roadmap** (`docs/FAMILY_SERVER_ROADMAP.md`) covering gameplay and
+  integration features, as distinct from the management product planned in
+  `docs/ROADMAP.md`. Both were folded into a single `docs/ROADMAP.md` after
+  this release.
 
 ### Fixed
 

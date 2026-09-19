@@ -50,8 +50,6 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | Guide | What it covers |
 | --- | --- |
 | [MINECRAFT_MANAGEMENT.md](MINECRAFT_MANAGEMENT.md) | Whitelist, bans, ops, server properties, announcements |
-| [MINECRAFT_ENHANCEMENTS.md](MINECRAFT_ENHANCEMENTS.md) | Minecraft-specific tuning and configuration |
-| [MINECRAFT_GAMEPLAY_ENHANCEMENTS.md](MINECRAFT_GAMEPLAY_ENHANCEMENTS.md) | Gameplay feature set and roadmap |
 | [MULTI_WORLD.md](MULTI_WORLD.md) | Creating, switching and backing up multiple worlds |
 | [PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md) | Installing and configuring Bukkit/Spigot/Paper plugins |
 | [MOD_SUPPORT.md](MOD_SUPPORT.md) | Mod loader detection and mod pack installation |
@@ -99,9 +97,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [LINTING.md](LINTING.md) | ShellCheck, ESLint, flake8, yamllint |
 | [CI_CD.md](CI_CD.md) | GitHub Actions pipeline and release process |
 | [CURSOR_CONFIGURATION.md](CURSOR_CONFIGURATION.md) | Cursor IDE setup |
-| [ROADMAP.md](ROADMAP.md) | Planned work, by phase |
-| [TASKS.md](TASKS.md) | Detailed task backlog |
-| [FAMILY_SERVER_ROADMAP.md](FAMILY_SERVER_ROADMAP.md) | Wow-factor feature roadmap for the family server |
+| [ROADMAP.md](ROADMAP.md) | Everything planned, in order — the only roadmap |
 
 AI assistants read [`../AGENTS.md`](../AGENTS.md) — the single source of truth for
 conventions. See also [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
