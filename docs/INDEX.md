@@ -56,6 +56,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md) | Installing and configuring Bukkit/Spigot/Paper plugins |
 | [MOD_SUPPORT.md](MOD_SUPPORT.md) | Mod loader detection and mod pack installation |
 | [RCON.md](RCON.md) | Remote console setup and usage |
+| [EVENT_BUS.md](EVENT_BUS.md) | Typed game events parsed from the server log |
 | [ANALYTICS.md](ANALYTICS.md) | Player and server analytics collection and reports |
 
 ---
@@ -98,6 +99,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [CURSOR_CONFIGURATION.md](CURSOR_CONFIGURATION.md) | Cursor IDE setup |
 | [ROADMAP.md](ROADMAP.md) | Planned work, by phase |
 | [TASKS.md](TASKS.md) | Detailed task backlog |
+| [FAMILY_SERVER_ROADMAP.md](FAMILY_SERVER_ROADMAP.md) | Wow-factor feature roadmap for the family server |
 
 AI assistants read [`../AGENTS.md`](../AGENTS.md) — the single source of truth for
 conventions. See also [`../CONTRIBUTING.md`](../CONTRIBUTING.md).

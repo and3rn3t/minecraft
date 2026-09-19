@@ -2,10 +2,12 @@
 """Tests for the WebSocket log stream.
 
 The stream was rewritten from a per-client `docker logs --tail` poll into a
-single `docker logs -f` follower that fans lines out to every subscriber. None
-of it had test coverage, so the behaviour that matters (one follower regardless
-of client count, lines delivered in order, the follower stopping when the last
-client leaves) was unverified.
+single `docker logs -f` follower that fans lines out to every subscriber, and
+then into an always-on follower that also drives the game event bus.
+
+The behaviour that matters: one follower regardless of client count, lines
+delivered in order, capture continuing with no clients attached, and the
+follower stopping only when it is explicitly told to.
 """
 
 import subprocess
@@ -31,9 +33,16 @@ def clean_stream_state():
     """Each test starts with no subscribers and no running follower."""
     api_module.active_log_streams.clear()
     api_module._log_reader_state["running"] = False
+    api_module._log_reader_state["stop"] = False
     yield
     api_module.active_log_streams.clear()
     api_module._log_reader_state["running"] = False
+    api_module._log_reader_state["stop"] = False
+
+
+def stop_after_first_attach(*_args, **_kwargs):
+    """Side effect for socketio.sleep that ends the follower's retry loop."""
+    api_module._log_reader_state["stop"] = True
 
 
 class TestGetLogTail:
@@ -90,8 +99,29 @@ class TestEnsureLogReader:
 
 
 class TestLogReader:
-    def test_exits_immediately_when_nobody_is_subscribed(self):
+    def test_follows_the_log_even_with_nobody_subscribed(self):
+        """Capture must not depend on a browser being open.
+
+        Events that happen while the dashboard is closed are exactly the ones
+        worth recording, so an empty subscriber set no longer stops the reader.
+        """
         api_module._log_reader_state["running"] = True
+
+        proc = MagicMock()
+        proc.stdout = iter(["[16:04:23] [Server thread/INFO]: Jonah joined the game\n"])
+
+        with patch("api.server.subprocess.Popen", return_value=proc) as popen, patch.object(
+            api_module, "_publish_log_line"
+        ) as publish, patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
+            api_module._log_reader()
+
+        popen.assert_called_once()
+        publish.assert_called_once()
+        assert api_module._log_reader_state["running"] is False
+
+    def test_stops_when_asked_to(self):
+        api_module._log_reader_state["running"] = True
+        api_module._log_reader_state["stop"] = True
 
         with patch("api.server.subprocess.Popen") as popen:
             api_module._log_reader()
@@ -99,19 +129,27 @@ class TestLogReader:
         popen.assert_not_called()
         assert api_module._log_reader_state["running"] is False
 
+    def test_stop_log_reader_sets_the_flag(self):
+        api_module.stop_log_reader()
+        assert api_module._log_reader_state["stop"] is True
+
+    def test_starting_clears_a_previous_stop(self):
+        api_module._log_reader_state["stop"] = True
+
+        with patch.object(api_module.socketio, "start_background_task"):
+            api_module._ensure_log_reader()
+
+        assert api_module._log_reader_state["stop"] is False
+
     def test_fans_each_line_out_to_every_subscriber(self):
         api_module.active_log_streams.update({"sid-a", "sid-b"})
 
         proc = MagicMock()
         proc.stdout = iter(["hello\n", "world\n"])
 
-        def drop_subscribers(*_args, **_kwargs):
-            # Ends the outer retry loop after the lines are consumed
-            api_module.active_log_streams.clear()
-
         with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
             api_module.socketio, "emit"
-        ) as emit, patch.object(api_module.socketio, "sleep", side_effect=drop_subscribers):
+        ) as emit, patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
             api_module._log_reader()
 
         rooms = [c.kwargs["room"] for c in emit.call_args_list]
@@ -128,9 +166,7 @@ class TestLogReader:
 
         with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
             api_module.socketio, "emit"
-        ) as emit, patch.object(
-            api_module.socketio, "sleep", side_effect=lambda *_: api_module.active_log_streams.clear()
-        ):
+        ) as emit, patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
             api_module._log_reader()
 
         forwarded = [c.args[1]["logs"][0] for c in emit.call_args_list if c.args[0] == "logs"]
@@ -156,9 +192,7 @@ class TestLogReader:
 
         with patch("api.server.subprocess.Popen", return_value=proc), patch.object(
             api_module.socketio, "emit"
-        ), patch.object(
-            api_module.socketio, "sleep", side_effect=lambda *_: api_module.active_log_streams.clear()
-        ):
+        ), patch.object(api_module.socketio, "sleep", side_effect=stop_after_first_attach):
             api_module._log_reader()
 
         proc.kill.assert_called()

@@ -147,6 +147,19 @@ export const api = {
     return response.data;
   },
 
+  // Game events (chat, joins, deaths, advancements) parsed from the server log
+  async getEvents({ limit = 100, type = null, player = null } = {}) {
+    const params = { limit };
+    if (type) params.type = type;
+    if (player) params.player = player;
+    const response = await apiClient.get('/events', { params });
+    return response.data;
+  },
+
+  async getEventTypes() {
+    return cachedGet('/events/types', {}, 300000);
+  },
+
   // Players (cached for 3 seconds)
   async getPlayers() {
     return cachedGet('/players', {}, 3000);
