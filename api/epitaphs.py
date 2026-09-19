@@ -219,7 +219,7 @@ class EpitaphWriter(Protocol):
     """Anything that can turn a death into a line of prose."""
 
     def write(self, death: Death) -> str:  # pragma: no cover - interface only
-        ...
+        """Return a one-line epitaph for this death."""
 
 
 class TemplateEpitaphWriter:

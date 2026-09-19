@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
@@ -92,6 +92,8 @@ def load_deaths_config(config_file: Optional[Path] = None) -> dict:
             try:
                 settings["retention_days"] = int(value)
             except ValueError:
+                # A typo in the config should not stop the server from starting.
+                # The default retention stays in place and the Hall still works.
                 pass
 
     return settings

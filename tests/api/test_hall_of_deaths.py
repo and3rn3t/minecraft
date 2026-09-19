@@ -9,7 +9,6 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.epitaphs import Death  # noqa: E402
 from api.events import GameEvent  # noqa: E402
 from api.hall_of_deaths import (  # noqa: E402
     MAX_ANNOUNCEMENT_LENGTH,

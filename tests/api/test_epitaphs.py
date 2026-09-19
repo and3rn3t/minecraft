@@ -142,7 +142,9 @@ class TestEpitaphWriting:
     def test_same_death_always_gets_the_same_epitaph(self):
         """Stable output keeps a regenerated record from changing under you."""
         death = Death(player="Jonah", cause="drowned", timestamp="2026-01-01T00:00:00+00:00")
-        assert write_epitaph(death) == write_epitaph(death)
+        first = write_epitaph(death)
+        second = write_epitaph(death)
+        assert first == second
 
     def test_different_deaths_vary(self):
         """Ten identical deaths should not read identically all evening."""
@@ -167,7 +169,8 @@ class TestEpitaphWriting:
 
     def test_template_writer_is_the_default(self):
         death = Death(player="Jonah", cause="drowned", timestamp="t")
-        assert write_epitaph(death) == TemplateEpitaphWriter().write(death)
+        expected = TemplateEpitaphWriter().write(death)
+        assert write_epitaph(death) == expected
 
 
 @pytest.mark.unit
