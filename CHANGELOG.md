@@ -25,7 +25,10 @@ All notable changes to this project will be documented in this file.
   - Added `.env.example` (referenced by the `Makefile` but previously missing).
   - Synced the pytest markers in `pyproject.toml` with `tests/api/pytest.ini`, and
     removed the duplicate `[tool.coverage]` block so `.coverage-config.ini` is the
-    only coverage config.
+    only coverage config. Added the matching `--cov-config` to
+    `tests/api/pytest.ini`, since that filename is not auto-discovered by
+    coverage.py — `make test-api` and a bare `cd tests/api && pytest` had been
+    running with no exclusions and no `fail_under` at all.
   - Tightened `.gitignore`: added `.mypy_cache/`, `playwright-report/`,
     `test-results/`; fixed an inline comment that made a negation pattern literal.
 

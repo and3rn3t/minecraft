@@ -207,7 +207,7 @@ Set server type in `docker-compose.yml` or `.env`:
 
 ```yaml
 environment:
-  - SERVER_TYPE=paper  # vanilla, paper, spigot, or fabric
+  - SERVER_TYPE=paper  # vanilla, paper or fabric (spigot needs BuildTools)
 ```
 
 Or in `.env`:

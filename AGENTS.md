@@ -157,7 +157,9 @@ wrapper from `scripts/lib/common.sh`.
   `web/src/test/integration/`; MSW handlers in `web/src/test/mocks/`.
 - Playwright specs belong in `web/tests/e2e/` only.
 - BATS suites in `tests/unit/`, `tests/integration/`, `tests/e2e/`.
-- Coverage threshold is enforced at **40%** in `.coverage-config.ini`.
+- Coverage threshold is enforced at **40%** in `.coverage-config.ini`. That file is
+  not auto-discovered by coverage.py, so every entry point passes `--cov-config`
+  explicitly; run pytest from `tests/api` so the relative path resolves.
 
 See [docs/TESTING.md](docs/TESTING.md) for the full guide.
 

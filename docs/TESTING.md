@@ -243,6 +243,11 @@ Coverage is measured for the Python API with `coverage.py`, configured in
 in that file as coverage grows. `scripts/check-coverage.sh` honours the same value
 via `COVERAGE_THRESHOLD`.
 
+That filename is not one coverage.py discovers on its own, so every entry point
+passes it explicitly with `--cov-config` — `tests/api/pytest.ini`, the `Makefile`
+targets, CI, and the helper scripts. Run pytest from `tests/api` so the relative
+path resolves.
+
 ### Running coverage
 
 ```bash
