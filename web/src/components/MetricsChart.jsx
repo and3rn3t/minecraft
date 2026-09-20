@@ -1,5 +1,15 @@
 import { memo, useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 const getStatusColor = value => {
   if (value >= 80) return '#C62828'; // Red
@@ -34,7 +44,7 @@ const MetricsChart = memo(({ metrics }) => {
           </div>
           <div className="flex items-center gap-3">
             <div
-              className="w-4 h-4"
+              className="w-4 h-4 shrink-0"
               style={{ backgroundColor: getStatusColor(cpuPercent), imageRendering: 'pixelated' }}
             />
             <p className="text-2xl font-minecraft text-minecraft-text-light">
@@ -45,8 +55,9 @@ const MetricsChart = memo(({ metrics }) => {
             <div
               className="h-full transition-all duration-500 ease-out"
               style={{
-                width: `${cpuPercent}%`,
+                width: `${Math.min(cpuPercent, 100)}%`,
                 backgroundColor: getStatusColor(cpuPercent),
+                boxShadow: `0 0 8px ${getStatusColor(cpuPercent)}`,
               }}
             />
           </div>
@@ -60,7 +71,7 @@ const MetricsChart = memo(({ metrics }) => {
           </div>
           <div className="flex items-center gap-3">
             <div
-              className="w-4 h-4"
+              className="w-4 h-4 shrink-0"
               style={{
                 backgroundColor: getStatusColor(memoryPercent),
                 imageRendering: 'pixelated',
@@ -69,13 +80,19 @@ const MetricsChart = memo(({ metrics }) => {
             <p className="text-2xl font-minecraft text-minecraft-text-light">
               {metrics.metrics?.memory_usage || 'N/A'}
             </p>
+            {metrics.metrics?.memory_percent && (
+              <span className="text-[8px] font-minecraft text-minecraft-text-dark ml-auto">
+                {memoryPercent}%
+              </span>
+            )}
           </div>
           <div className="mt-4 bg-minecraft-dirt-DEFAULT h-3 border-2 border-[#5D4037] overflow-hidden">
             <div
               className="h-full transition-all duration-500 ease-out"
               style={{
-                width: `${memoryPercent}%`,
+                width: `${Math.min(memoryPercent, 100)}%`,
                 backgroundColor: getStatusColor(memoryPercent),
+                boxShadow: `0 0 8px ${getStatusColor(memoryPercent)}`,
               }}
             />
           </div>
@@ -115,7 +132,21 @@ const MetricsChart = memo(({ metrics }) => {
                     fontSize: '10px',
                   }}
                 />
-                <Bar dataKey="value" fill="#7CB342" stroke="#558B2F" strokeWidth={2} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} strokeWidth={2}>
+                  {data.map(entry => (
+                    <Cell
+                      key={entry.name}
+                      fill={getStatusColor(entry.value)}
+                      stroke={getStatusColor(entry.value)}
+                    />
+                  ))}
+                  <LabelList
+                    dataKey="value"
+                    position="top"
+                    formatter={val => `${val}%`}
+                    style={{ fill: '#E0E0E0', fontSize: 10, fontFamily: '"Press Start 2P", monospace' }}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
