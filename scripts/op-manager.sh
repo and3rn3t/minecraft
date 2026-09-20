@@ -15,14 +15,11 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 OPS_FILE="${OPS_FILE:-${PROJECT_DIR}/data/ops.json}"
-RCON_CLIENT="${SCRIPT_DIR}/rcon-client.sh"
 RCON_CONFIG_FILE="${PROJECT_DIR}/config/rcon.conf"
 
-# Function to check if RCON is available. rcon-client.sh (which actually
-# sends the command, over the network — no rcon-cli binary involved) needs
-# config/rcon.conf, written by scripts/rcon-setup.sh; checking for that is
-# what the rest of this codebase (api/rcon.py) already treats as "RCON is
-# configured".
+# Function to check if RCON is available. Checking for config/rcon.conf,
+# written by scripts/rcon-setup.sh, is what the rest of this codebase
+# (api/rcon.py) already treats as "RCON is configured".
 check_rcon() {
     [ -f "$RCON_CONFIG_FILE" ]
 }
@@ -34,9 +31,27 @@ check_rcon() {
 # its next restart. Best-effort: a player who's actually online should see
 # this apply instantly, but ops.json is what makes it durable, so a failure
 # here doesn't abort the caller.
+#
+# Goes through api/rcon.py rather than scripts/rcon-client.sh, this repo's
+# other RCON client: that script does a single unframed recv() and never
+# checks the -1 request id the protocol uses to signal a failed login (see
+# api/rcon.py's own module docstring, which explains it replaced exactly
+# this), so it can report "Authentication failed" against a server that
+# api/rcon.py itself authenticates against successfully. rcon.py has no
+# Flask dependency, so it works standalone from a fresh interpreter here too.
 send_rcon() {
     local command="$1"
-    "$RCON_CLIENT" command "$command" >/dev/null 2>&1
+    python3 - "$PROJECT_DIR" "$command" >/dev/null 2>&1 << 'PYEOF'
+import sys
+
+project_dir, command = sys.argv[1], sys.argv[2]
+sys.path.insert(0, f"{project_dir}/api")
+
+import rcon
+
+_, _, code = rcon.execute(command)
+sys.exit(0 if code == 0 else 1)
+PYEOF
 }
 
 # Function to grant OP to player
