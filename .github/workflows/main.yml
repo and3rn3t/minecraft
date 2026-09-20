@@ -14,6 +14,13 @@ permissions:
   contents: read
   packages: write
 
+# Cancel a superseded run, but only on pull requests. On main, build-docker
+# pushes to ghcr.io; cancelling that run mid-push can leave a half-published
+# tag, so a push to main always runs to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # The pre-commit hooks: ruff, shellcheck, yamllint, markdownlint, gitleaks,
   # actionlint and the whitespace/EOF/compose checks. .pre-commit-config.yaml
@@ -46,8 +53,11 @@ jobs:
   lint:
     name: Lint and Syntax Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Check shell script syntax
         run: |
@@ -70,8 +80,11 @@ jobs:
   python-tests:
     name: Python API Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -86,6 +99,13 @@ jobs:
           pip install -r api/requirements.txt
           pip install -r api/requirements-test.txt
 
+      # -m "not performance": this step has no marker filter otherwise, so it
+      # collects and runs test_performance.py along with everything else —
+      # the same hard wall-clock assertions the dedicated, schedule-only step
+      # below exists to keep off the pull-request path. Without this
+      # exclusion here, that step was decorative: PR runs executed the
+      # timing-sensitive tests anyway via this one, and scheduled/dispatch
+      # runs executed them twice.
       - name: Run API tests (parallel)
         timeout-minutes: 15
         env:
@@ -94,6 +114,7 @@ jobs:
         run: |
           cd tests/api
           pytest -v -n auto \
+            -m "not performance" \
             --cov=../../api \
             --cov-config=../../.coverage-config.ini \
             --cov-report=term-missing \
@@ -104,15 +125,28 @@ jobs:
             --timeout-method=thread \
             -ra
 
-      - name: Run performance tests
-        run: |
-          cd tests/api
-          pytest -v -m performance || echo "Performance tests completed"
-
+      # Coverage is intentionally disabled here (--no-cov): the suite-wide
+      # coverage threshold in .coverage-config.ini is checked against the full
+      # test run above, and a marker-filtered subset exercises only a sliver
+      # of the codebase, so measuring coverage against it fails on arithmetic
+      # every time regardless of whether the contract tests themselves pass.
+      # That's what the old `|| echo` was actually working around, not test
+      # flakiness — with coverage off this is a real, always-honest gate.
       - name: Run contract tests
         run: |
           cd tests/api
-          pytest -v -m contract || echo "Contract tests completed"
+          pytest -v -m contract --no-cov
+
+      # Kept off the pull-request path: these assert hard wall-clock
+      # thresholds (e.g. "< 50ms"), which is exactly the kind of check that
+      # flakes on a shared, variably-loaded runner. Scheduled and manual runs
+      # are where a real regression is worth seeing and a noisy runner isn't
+      # blocking anyone's merge.
+      - name: Run performance tests
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd tests/api
+          pytest -v -m performance --no-cov
 
       - name: Analyze coverage gaps
         run: |
@@ -143,8 +177,11 @@ jobs:
   bash-tests:
     name: Bash Script Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Not cached: the previous cache saved only /usr/local/bin/bats, which is
       # a symlink into /usr/local/libexec/bats-core/. On a cache hit the
@@ -164,12 +201,17 @@ jobs:
           chmod +x scripts/*.sh tests/**/*.sh
           ./scripts/run-tests.sh bash
 
-  # Frontend tests (non-blocking)
+  # Frontend tests. Gates build-docker and the summary below like every other
+  # job here — despite the name this job once had, nothing about it is
+  # non-blocking.
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -200,6 +242,8 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -238,8 +282,11 @@ jobs:
     # rather than before it — so the push could complete before the failure
     # was even reported.
     needs: [pre-commit, lint, python-tests, bash-tests, frontend-tests]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
