@@ -178,7 +178,6 @@ class TestPermissionEndpoints:
 
     def test_get_permissions_with_session(self, client, admin_user, temp_users_file):
         """Get permissions returns user permissions"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -193,7 +192,6 @@ class TestPermissionEndpoints:
 
     def test_get_permissions_for_operator(self, client, operator_user, temp_users_file):
         """Get permissions returns operator permissions"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "operator"
@@ -213,7 +211,6 @@ class TestPermissionEndpoints:
 
     def test_get_roles_with_session(self, client, admin_user, temp_users_file):
         """Get roles returns all roles and permissions"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -232,7 +229,6 @@ class TestUserManagementPermissions:
 
     def test_list_users_requires_permission(self, client, regular_user, temp_users_file):
         """List users requires users.view permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -243,7 +239,6 @@ class TestUserManagementPermissions:
 
     def test_list_users_with_permission(self, client, admin_user, temp_users_file):
         """List users works with users.view permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -255,7 +250,6 @@ class TestUserManagementPermissions:
 
     def test_update_user_role_requires_permission(self, client, regular_user, temp_users_file):
         """Update user role requires users.manage permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -297,19 +291,17 @@ class TestServerControlPermissions:
 
     def test_start_server_requires_permission(self, client, regular_user, temp_users_file):
         """Start server requires server.control permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
 
-        with patch("api.server.subprocess.run") as mock_run:
+        with patch("api.server.subprocess.run"):
             response = client.post("/api/server/start")
             # Regular user should not have server.control permission
             assert response.status_code == 403
 
     def test_start_server_with_permission(self, client, operator_user, temp_users_file):
         """Start server works with server.control permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "operator"
@@ -328,7 +320,6 @@ class TestServerControlPermissions:
 
     def test_view_status_allowed_for_all(self, client, regular_user, temp_users_file):
         """View server status allowed for all authenticated users"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -345,7 +336,6 @@ class TestBackupPermissions:
 
     def test_create_backup_requires_permission(self, client, regular_user, temp_users_file):
         """Create backup requires backup.create permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -356,7 +346,6 @@ class TestBackupPermissions:
 
     def test_create_backup_with_permission(self, client, operator_user, temp_users_file):
         """Create backup works with backup.create permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "operator"
@@ -375,7 +364,6 @@ class TestBackupPermissions:
 
     def test_list_backups_allowed_for_all(self, client, regular_user, temp_users_file):
         """List backups allowed for all authenticated users"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -398,7 +386,6 @@ class TestAPIKeyPermissions:
 
     def test_list_api_keys_requires_permission(self, client, regular_user, temp_users_file):
         """List API keys requires api_keys.view permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -430,7 +417,6 @@ class TestAPIKeyPermissions:
 
     def test_create_api_key_requires_permission(self, client, operator_user, temp_users_file):
         """Create API key requires api_keys.manage permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "operator"
@@ -917,7 +903,6 @@ class TestConfigFilePermissions:
 
     def test_view_config_requires_permission(self, client, regular_user, temp_users_file):
         """View config requires config.view permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -936,7 +921,6 @@ class TestConfigFilePermissions:
 
     def test_edit_config_requires_permission(self, client, regular_user, temp_users_file):
         """Edit config requires config.edit permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "user"
@@ -950,7 +934,6 @@ class TestConfigFilePermissions:
 
     def test_edit_config_with_permission(self, client, operator_user, temp_users_file):
         """Edit config works with config.edit permission"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "operator"
@@ -964,7 +947,6 @@ class TestConfigFilePermissions:
 
     def test_edit_config_admin(self, client, admin_user, temp_users_file):
         """Edit config works for admin"""
-        import api.server as api_module
 
         with client.session_transaction() as session:
             session["username"] = "admin"
@@ -972,7 +954,7 @@ class TestConfigFilePermissions:
         # Admin should have config.edit permission
         # This will fail if file doesn't exist, but permission check should pass
         with patch("api.server.Path.exists", return_value=True):
-            with patch("api.server.Path.write_text") as mock_write:
+            with patch("api.server.Path.write_text"):
                 with patch("api.server.subprocess.run") as mock_run:
                     from unittest.mock import MagicMock
 

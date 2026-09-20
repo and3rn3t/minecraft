@@ -44,9 +44,9 @@ setup() {
     assert_success
 
     # Should contain success or user info
-    echo "$register_response" | python3 << EOF
-import sys, json
-data = json.load(sys.stdin)
+    PAYLOAD="$register_response" python3 << EOF
+import json, os
+data = json.loads(os.environ["PAYLOAD"])
 assert 'success' in data or 'user' in data or 'error' in data
 EOF
     assert_success
@@ -237,4 +237,3 @@ EOF
         assert_success
     fi
 }
-

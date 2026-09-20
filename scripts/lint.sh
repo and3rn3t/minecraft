@@ -57,11 +57,20 @@ lint_bash() {
         checked=$((checked + 1))
         echo -e "${BLUE}Checking: $script${NC}"
 
-        # Run shellcheck
-        if ! shellcheck -f gcc "$script" 2>&1 | tee /tmp/shellcheck_output.txt; then
-            local script_issues
-            script_issues=$(grep -c "error:" /tmp/shellcheck_output.txt 2>/dev/null || echo "0")
-            issues=$((issues + script_issues))
+        # Severity is pinned to "error" because .shellcheckrc sets enable=all,
+        # which turns on the style rules: the whole tree reports 90 warnings and
+        # nearly 4000 style findings, against zero errors. Enforcing the clean
+        # level keeps this gate meaningful; the rest is recorded as a baseline
+        # in AGENTS.md to work down.
+        #
+        # The exit status is read directly rather than through a pipe into tee:
+        # a pipeline reports the *last* command's status, so piping shellcheck
+        # into tee meant its failures were invisible and this check passed
+        # unconditionally.
+        local output
+        if ! output=$(shellcheck -x -S error -f gcc "$script" 2>&1); then
+            echo "$output"
+            issues=$((issues + 1))
         fi
     done < <(find "$PROJECT_DIR" -type f -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" -print0)
 
@@ -87,23 +96,46 @@ lint_python() {
     fi
 
     local issues=0
+    local linted=0
 
-    # Check for flake8
-    if command_exists flake8; then
-        echo -e "${BLUE}Running flake8...${NC}"
-        if ! flake8 "$PROJECT_DIR/api" --max-line-length=100 --ignore=E501,W503,E203 2>&1; then
+    # ruff covers what flake8 did and runs in a fraction of the time. Scoped to
+    # pyflakes (F): undefined names, redefinitions, unused imports. The full
+    # default rule set reports 450+ findings here, nearly all style, which
+    # would bury the ones that are defects.
+    if command_exists ruff; then
+        echo -e "${BLUE}Running ruff...${NC}"
+        linted=1
+        if ! ruff check "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests" \
+            --select F --line-length 120; then
             issues=$((issues + 1))
         fi
-    else
-        echo -e "${YELLOW}flake8 not installed. Install with: pip install flake8${NC}"
+    elif command_exists flake8; then
+        # Same paths and the same defect-focused selection as the ruff branch,
+        # so the fallback is not quietly weaker: F is pyflakes, which is what
+        # flake8's F checks are.
+        echo -e "${BLUE}Running flake8...${NC}"
+        linted=1
+        if ! flake8 "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests" \
+            --select=F --max-line-length=120 2>&1; then
+            issues=$((issues + 1))
+        fi
     fi
 
     # Check for pylint (optional, more strict)
     if command_exists pylint; then
         echo -e "${BLUE}Running pylint (informational only)...${NC}"
         pylint "$PROJECT_DIR/api" --disable=C0111,R0912,R0913,C0103 || true
-    else
-        echo -e "${YELLOW}pylint not installed. Install with: pip install pylint${NC}"
+    fi
+
+    # Reporting success while no linter ran is worse than reporting nothing:
+    # every "make lint" looks clean and nobody notices Python is unchecked.
+    if [ $linted -eq 0 ]; then
+        echo -e "${RED}✗ No Python linter installed, so nothing was checked${NC}"
+        echo -e "${YELLOW}  Install one with: uv tool install ruff   (or pip install ruff)${NC}"
+        FAILED_CHECKS=$((FAILED_CHECKS + 1))
+        TOTAL_ISSUES=$((TOTAL_ISSUES + 1))
+        echo ""
+        return 1
     fi
 
     if [ $issues -eq 0 ]; then
@@ -284,4 +316,3 @@ main() {
 
 # Run main function
 main "$@"
-

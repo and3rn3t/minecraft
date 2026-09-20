@@ -41,7 +41,9 @@ def temp_users_file(tmp_path, monkeypatch):
 def mock_bcrypt(monkeypatch):
     """Mock bcrypt for password hashing"""
     try:
-        import bcrypt
+        # Imported for the ImportError, which is how the fixture detects
+        # whether bcrypt is available; the name itself is unused.
+        import bcrypt  # noqa: F401
 
         def mock_checkpw(password, hashed):
             # Handle both bytes and strings
@@ -67,7 +69,8 @@ def mock_bcrypt(monkeypatch):
 def mock_jwt(monkeypatch):
     """Mock JWT for token generation"""
     try:
-        import jwt as pyjwt
+        # Same here: the import is the availability probe.
+        import jwt as pyjwt  # noqa: F401
 
         def mock_generate_token(username):
             return f"token_{username}"

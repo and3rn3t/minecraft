@@ -1,18 +1,15 @@
 # Gitleaks configuration.
 #
-# The default rules are kept in full; this file only records the placeholder
-# credentials that live in the test suite, which the generic-api-key rule flags
-# on entropy alone.
-#
-# The allowlist matches those exact strings rather than whitelisting the tests
-# directory, so a credential that really did leak into a test still fails the
-# scan.
+# The default rules are kept in full; the allowlists below record the
+# placeholder credentials that live in the tests and the documentation, each
+# scoped as narrowly as it can be so a credential that really did leak is still
+# reported. Every entry was checked by hand before being listed.
 
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Fixed placeholder credentials in tests and docs, never real ones"
+[[allowlists]]
+description = "Placeholder keys in the test suite"
 regexTarget = "match"
 regexes = [
   # tests/api/*: the dummy key every API-key fixture authenticates with.
@@ -23,3 +20,21 @@ regexes = [
   # can never contain an underscore.
   '''mc_[A-Za-z0-9]+''',
 ]
+
+[[allowlists]]
+description = "curl examples using the literal placeholder YOUR_API_KEY"
+condition = "AND"
+paths = ['''docs/API\.md''', '''docs/ANALYTICS\.md''']
+regexes = ['''YOUR_API_KEY''']
+
+[[allowlists]]
+description = "Dummy DuckDNS token in the setup instructions"
+condition = "AND"
+paths = ['''docs/DYNAMIC_DNS\.md''']
+regexes = ['''abc123-def456-ghi789''']
+
+[[allowlists]]
+description = "Bare PEM header in the Apple OAuth instructions, with no key material after it"
+condition = "AND"
+paths = ['''docs/OAUTH_SETUP\.md''']
+regexes = ['''-----BEGIN PRIVATE KEY-----''']
