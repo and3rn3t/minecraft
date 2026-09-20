@@ -5,6 +5,10 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+# A background maintenance task, not the live game server; deprioritize it
+# so it never competes with tick processing.
+Nice=10
+IOSchedulingClass=idle
 WorkingDirectory=/home/pi/minecraft-server
 # One pass over config/command-schedule.json, running whatever is due.
 # Without this nothing ever executed the schedules created in the web UI.

@@ -4,6 +4,8 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,12 +23,12 @@ if [ ! -f /proc/device-tree/model ]; then
 fi
 
 # Update system
-echo -e "${GREEN}[1/6] Updating system packages...${NC}"
+echo -e "${GREEN}[1/9] Updating system packages...${NC}"
 sudo apt-get update
 sudo apt-get upgrade -y
 
 # Install Docker
-echo -e "${GREEN}[2/6] Installing Docker...${NC}"
+echo -e "${GREEN}[2/9] Installing Docker...${NC}"
 if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
@@ -38,7 +40,7 @@ else
 fi
 
 # Install Docker Compose
-echo -e "${GREEN}[3/6] Installing Docker Compose...${NC}"
+echo -e "${GREEN}[3/9] Installing Docker Compose...${NC}"
 if ! docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
     # Compose v1 reached end of life in July 2023; install the v2 plugin
     sudo apt-get install -y docker-compose-plugin
@@ -48,7 +50,7 @@ else
 fi
 
 # Install additional utilities
-echo -e "${GREEN}[4/8] Installing additional utilities...${NC}"
+echo -e "${GREEN}[4/9] Installing additional utilities...${NC}"
 sudo apt-get install -y git wget curl screen htop python3 python3-pip python3-venv
 
 # Install Node.js for web interface (if not already installed)
@@ -61,8 +63,9 @@ else
     echo -e "${YELLOW}Node.js is already installed ($(node --version))${NC}"
 fi
 
-# Clone or update repository
-echo -e "${GREEN}[5/8] Setting up Minecraft server files...${NC}"
+# Create the directory the server files (copied here separately, not by this
+# script) and runtime data will live in.
+echo -e "${GREEN}[5/9] Setting up Minecraft server files...${NC}"
 MINECRAFT_DIR="$HOME/minecraft-server"
 if [ ! -d "$MINECRAFT_DIR" ]; then
     mkdir -p "$MINECRAFT_DIR"
@@ -75,7 +78,7 @@ mkdir -p "$MINECRAFT_DIR/backups"
 mkdir -p "$MINECRAFT_DIR/plugins"
 
 # Setup Python API dependencies (optional, for API server)
-echo -e "${GREEN}[6/8] Setting up Python API dependencies...${NC}"
+echo -e "${GREEN}[6/9] Setting up Python API dependencies...${NC}"
 if [ -d "$MINECRAFT_DIR/api" ]; then
     cd "$MINECRAFT_DIR/api"
     if [ ! -d "venv" ]; then
@@ -91,7 +94,7 @@ else
 fi
 
 # Setup Node.js web interface dependencies (optional, for web interface)
-echo -e "${GREEN}[7/8] Setting up Node.js web interface dependencies...${NC}"
+echo -e "${GREEN}[7/9] Setting up Node.js web interface dependencies...${NC}"
 if [ -d "$MINECRAFT_DIR/web" ]; then
     cd "$MINECRAFT_DIR/web"
     if [ -f "package.json" ]; then
@@ -106,9 +109,33 @@ else
 fi
 
 # Enable Docker service
-echo -e "${GREEN}[8/8] Enabling Docker service...${NC}"
+echo -e "${GREEN}[8/9] Enabling Docker service...${NC}"
 sudo systemctl enable docker
 sudo systemctl start docker
+
+# System-level tuning (CPU governor, swap, sysctl, journald, USB power, TRIM).
+# Separate from the packages/deps above because it edits system config and
+# offers a reboot, so it is opt-in rather than silently applied.
+echo -e "${GREEN}[9/9] Raspberry Pi system-level optimizations...${NC}"
+if [ -f /proc/device-tree/model ]; then
+    read -p "Apply system-level performance tuning now (CPU governor, swap, sysctl, journald)? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [ -f "${SCRIPT_DIR}/optimize-rpi5.sh" ]; then
+            # Invoked via bash rather than executed directly so a missing +x
+            # bit (e.g. a fresh checkout) doesn't turn an optional step into
+            # a hard failure; `|| true` keeps a failure inside it from
+            # aborting setup after everything else already succeeded.
+            bash "${SCRIPT_DIR}/optimize-rpi5.sh" || echo -e "${YELLOW}optimize-rpi5.sh exited with an error; continuing.${NC}"
+        else
+            echo -e "${YELLOW}${SCRIPT_DIR}/optimize-rpi5.sh not found; skipping system-level tuning.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Skipped. Run ${SCRIPT_DIR}/optimize-rpi5.sh later to apply it.${NC}"
+    fi
+else
+    echo -e "${YELLOW}Not running on a Raspberry Pi; skipping system-level tuning.${NC}"
+fi
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}Setup Complete!${NC}"

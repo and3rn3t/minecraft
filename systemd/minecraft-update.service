@@ -6,6 +6,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# Pulling an image is a burst of network and disk I/O; keep it from
+# competing with the live server for either.
+Nice=10
+IOSchedulingClass=idle
 WorkingDirectory=/home/pi/minecraft-server
 # Pull, and restart only when the image actually changed. This used to run
 # `docker compose up -d --force-recreate` unconditionally, which restarted the

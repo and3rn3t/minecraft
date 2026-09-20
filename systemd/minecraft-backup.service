@@ -5,6 +5,10 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+# Backups copy the whole world directory while the server may still be live;
+# keep that I/O and CPU contention from causing tick lag for players.
+Nice=10
+IOSchedulingClass=idle
 User=%i
 Group=%i
 WorkingDirectory=/home/%i/minecraft-server
