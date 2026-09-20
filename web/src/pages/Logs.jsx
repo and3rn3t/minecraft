@@ -28,22 +28,24 @@ const Logs = () => {
       };
     }
 
-    // Get API key
+    // Get API key or JWT — either is accepted by the socket auth handler
     const apiKey = localStorage.getItem('api_key') || import.meta.env.VITE_API_KEY;
-    if (!apiKey) {
-      console.warn('No API key found, falling back to polling');
+    const token = localStorage.getItem('auth_token');
+    if (!apiKey && !token) {
+      console.warn('No API key or token found, falling back to polling');
       setUseWebSocket(false);
       return;
     }
 
-    // Get API URL
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-    const wsUrl = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
-
-    // Create socket connection
-    const socket = io(wsUrl, {
+    // Connect to the current origin at Socket.IO's default path (/socket.io),
+    // which nginx (prod) and vite's dev server proxy through to the API.
+    // Deriving this from VITE_API_URL (an axios baseURL like "/api") doesn't
+    // work: passed to io() as a bare path, it's parsed as a namespace rather
+    // than a server address, so the connection never reaches the backend.
+    const socket = io(window.location.origin, {
       auth: {
         api_key: apiKey,
+        token,
       },
       transports: ['websocket', 'polling'],
       reconnection: true,

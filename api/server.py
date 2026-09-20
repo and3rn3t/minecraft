@@ -4345,11 +4345,13 @@ def save_ddns_config():
 if SOCKETIO_AVAILABLE:
     # Session ids currently subscribed to the log stream
     active_log_streams = set()
-    # sid -> the API key that opened that connection. The socket authenticates
-    # once at connect, so later messages on the same connection are checked
-    # against the key recorded here. The key itself is stored rather than its
-    # permissions, so narrowing, disabling or deleting a key takes effect on
-    # sockets it already opened instead of only on the next connection.
+    # sid -> the identity that opened that connection, as ("api_key", key) or
+    # ("user", username). The socket authenticates once at connect, so later
+    # messages on the same connection are checked against the identity
+    # recorded here. The identity itself is stored rather than its resolved
+    # permissions, so narrowing, disabling or deleting a key or user takes
+    # effect on sockets it already opened instead of only on the next
+    # connection.
     _stream_keys = {}
     _log_streams_lock = threading.Lock()
     # Mutable holder rather than a module-level bool, so the reader and the
@@ -4513,36 +4515,59 @@ if SOCKETIO_AVAILABLE:
 
     @socketio.on("connect")
     def handle_connect(auth):
-        """Handle WebSocket connection"""
+        """Handle WebSocket connection.
+
+        Accepts either an API key or a JWT, mirroring require_auth's REST
+        behavior — without the token path, any user who logged in with a
+        username/password (no API key ever issued) could use every REST
+        endpoint but not the log/console stream.
+        """
         api_key = auth.get("api_key") if auth else None
+        token = auth.get("token") if auth else None
 
-        if not api_key:
-            socketio.emit("error", {"message": "API key required"}, room=request.sid)
-            socketio.disconnect(request.sid)
-            return False
+        identity = None  # ("api_key", key) or ("user", username)
 
-        if api_key not in API_KEYS:
-            socketio.emit("error", {"message": "Invalid API key"}, room=request.sid)
-            socketio.disconnect(request.sid)
-            return False
+        if api_key:
+            if api_key not in API_KEYS:
+                socketio.emit("error", {"message": "Invalid API key"}, room=request.sid)
+                socketio.disconnect(request.sid)
+                return False
 
-        key_info = API_KEYS.get(api_key, {})
-        if not key_info.get("enabled", True):
-            socketio.emit("error", {"message": "API key disabled"}, room=request.sid)
+            key_info = API_KEYS.get(api_key, {})
+            if not key_info.get("enabled", True):
+                socketio.emit("error", {"message": "API key disabled"}, room=request.sid)
+                socketio.disconnect(request.sid)
+                return False
+
+            identity = ("api_key", api_key)
+        elif token:
+            username = verify_token(token)
+            if not username or username not in USERS:
+                socketio.emit("error", {"message": "Invalid or expired token"}, room=request.sid)
+                socketio.disconnect(request.sid)
+                return False
+
+            if not USERS[username].get("enabled", True):
+                socketio.emit("error", {"message": "Account disabled"}, room=request.sid)
+                socketio.disconnect(request.sid)
+                return False
+
+            identity = ("user", username)
+        else:
+            socketio.emit("error", {"message": "API key or token required"}, room=request.sid)
             socketio.disconnect(request.sid)
             return False
 
         # The log stream is server output, so it needs the same permission the
         # REST log endpoints require. Any enabled key used to be enough.
-        key_permissions = get_api_key_permissions(key_info)
-        if "logs.view" not in key_permissions:
+        if not _identity_has_permission(identity, "logs.view"):
             socketio.emit("error", {"message": "Permission denied: logs.view"}, room=request.sid)
             socketio.disconnect(request.sid)
             return False
 
         with _log_streams_lock:
             active_log_streams.add(request.sid)
-            _stream_keys[request.sid] = api_key
+            _stream_keys[request.sid] = identity
 
         # Send the backlog to this client only, then let the shared follower
         # deliver everything that arrives afterwards.
@@ -4559,20 +4584,34 @@ if SOCKETIO_AVAILABLE:
             active_log_streams.discard(request.sid)
             _stream_keys.pop(request.sid, None)
 
-    def _stream_may(permission):
-        """Check the live scope of the key that opened this connection.
+    def _identity_has_permission(identity, permission):
+        """Resolve a stream identity from handle_connect to a live permission check."""
+        if not identity:
+            return False
+        kind, value = identity
+        if kind == "api_key":
+            key_info = API_KEYS.get(value)
+            if not key_info or not key_info.get("enabled", True):
+                return False
+            return permission in get_api_key_permissions(key_info)
+        if kind == "user":
+            if value not in USERS or not USERS[value].get("enabled", True):
+                return False
+            return has_permission(value, permission)
+        return False
 
-        Re-read rather than trusting what the key could do at connect time: a
-        key revoked or narrowed through the management API would otherwise keep
-        its old rights on an open socket for as long as it stayed connected.
+    def _stream_may(permission):
+        """Check the live scope of the identity that opened this connection.
+
+        Re-read rather than trusting what the key or user could do at connect
+        time: a key revoked, a user disabled, or a role narrowed through the
+        management API would otherwise keep its old rights on an open socket
+        for as long as it stayed connected.
         """
         with _log_streams_lock:
-            api_key = _stream_keys.get(request.sid)
+            identity = _stream_keys.get(request.sid)
 
-        key_info = API_KEYS.get(api_key) if api_key else None
-        if not key_info or not key_info.get("enabled", True):
-            return False
-        return permission in get_api_key_permissions(key_info)
+        return _identity_has_permission(identity, permission)
 
     @socketio.on("request_logs")
     def handle_request_logs(data):

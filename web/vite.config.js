@@ -22,7 +22,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/ws': {
+      // Socket.IO's default handshake path (see api/server.py's SocketIO(...)
+      // call, which doesn't override it). The client connects to its own
+      // origin, so this is the path that needs proxying in dev too.
+      '/socket.io': {
         target: 'ws://localhost:8080',
         ws: true,
       },
