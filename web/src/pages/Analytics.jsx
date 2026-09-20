@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '../components/ToastContainer';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { usePolling } from '../hooks/usePolling';
@@ -30,7 +30,18 @@ const Analytics = () => {
     };
   }, [period]);
 
-  const { data: analyticsData, loading } = usePolling(loadAnalytics, 60000, [period]);
+  const {
+    data: analyticsData,
+    loading,
+    error: pollingError,
+    refetch,
+  } = usePolling(loadAnalytics, 60000, [period]);
+
+  useEffect(() => {
+    if (pollingError) {
+      handleError(pollingError, 'Failed to load analytics data');
+    }
+  }, [pollingError, handleError]);
 
   const report = analyticsData?.report || null;
   const trends = analyticsData?.trends || null;
@@ -134,6 +145,22 @@ const Analytics = () => {
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {pollingError && (
+        <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 flex justify-between items-center">
+          <div className="text-red-300">
+            Failed to load analytics data
+            {pollingError?.response?.data?.error ? `: ${pollingError.response.data.error}` : '.'}
+          </div>
+          <button
+            onClick={refetch}
+            className="bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-gray-700">

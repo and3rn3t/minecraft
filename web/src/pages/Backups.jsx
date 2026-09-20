@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '../components/ToastContainer';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { usePolling } from '../hooks/usePolling';
@@ -12,13 +12,24 @@ const Backups = () => {
   const handleError = useErrorHandler();
 
   // Poll backups list every 30 seconds
-  const { data: backupsData, loading } = usePolling(
+  const {
+    data: backupsData,
+    loading,
+    error: pollingError,
+    refetch,
+  } = usePolling(
     useCallback(async () => {
       const data = await api.listBackups();
       return data.backups || [];
     }, []),
     30000
   );
+
+  useEffect(() => {
+    if (pollingError) {
+      handleError(pollingError, 'Failed to load backups');
+    }
+  }, [pollingError, handleError]);
 
   const backups = backupsData || [];
 
@@ -149,6 +160,17 @@ const Backups = () => {
           )}
         </button>
       </div>
+
+      {pollingError && (
+        <div className="card-minecraft p-4 mb-6 flex items-center justify-between gap-4">
+          <p className="text-[10px] font-minecraft text-red-400 leading-relaxed">
+            FAILED TO LOAD BACKUPS
+          </p>
+          <button onClick={refetch} className="btn-minecraft-danger text-[8px] shrink-0">
+            RETRY
+          </button>
+        </div>
+      )}
 
       {/* Backups Table */}
       <div className="card-minecraft p-6">

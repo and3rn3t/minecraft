@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
 import { useErrorHandler } from '../hooks/useErrorHandler';
@@ -10,7 +10,12 @@ const Players = () => {
   const { success } = useToast();
   const handleError = useErrorHandler();
 
-  const { data, loading, refetch } = usePolling(
+  const {
+    data,
+    loading,
+    error: pollingError,
+    refetch,
+  } = usePolling(
     useCallback(async () => {
       const [playersData, opsData] = await Promise.all([api.getPlayers(), api.getOps()]);
       return {
@@ -20,6 +25,12 @@ const Players = () => {
     }, []),
     5000
   );
+
+  useEffect(() => {
+    if (pollingError) {
+      handleError(pollingError, 'Failed to load players');
+    }
+  }, [pollingError, handleError]);
 
   const players = data?.players || [];
   const opNames = data?.opNames || new Set();
@@ -75,6 +86,17 @@ const Players = () => {
       <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
         PLAYER MANAGEMENT
       </h1>
+
+      {pollingError && (
+        <div className="card-minecraft p-4 mb-6 flex items-center justify-between gap-4">
+          <p className="text-[10px] font-minecraft text-red-400 leading-relaxed">
+            FAILED TO LOAD PLAYERS
+          </p>
+          <button onClick={refetch} className="btn-minecraft-danger text-[8px] shrink-0">
+            RETRY
+          </button>
+        </div>
+      )}
 
       <div className="card-minecraft p-6">
         <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">

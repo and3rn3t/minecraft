@@ -8,6 +8,7 @@ import Players from '../Players';
 vi.mock('../../services/api', () => ({
   api: {
     getPlayers: vi.fn(),
+    getOps: vi.fn(),
   },
 }));
 
@@ -15,6 +16,7 @@ describe('Players', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.api.getOps.mockResolvedValue({ operators: [] });
   });
 
   afterEach(() => {

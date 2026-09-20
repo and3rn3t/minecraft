@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StatusCardSkeleton } from '../components/LoadingSkeleton';
 import MetricsChart from '../components/MetricsChart';
 import StatusCard from '../components/StatusCard';
@@ -26,7 +26,18 @@ const Dashboard = () => {
     };
   }, []);
 
-  const { data: dashboardData, loading } = usePolling(loadDashboardData, 5000);
+  const {
+    data: dashboardData,
+    loading,
+    error: pollingError,
+    refetch,
+  } = usePolling(loadDashboardData, 5000);
+
+  useEffect(() => {
+    if (pollingError) {
+      handleError(pollingError, 'Failed to load dashboard data');
+    }
+  }, [pollingError, handleError]);
 
   const status = dashboardData?.status || null;
   const metrics = dashboardData?.metrics || null;
@@ -80,6 +91,17 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {pollingError && (
+        <div className="card-minecraft p-4 flex items-center justify-between gap-4">
+          <p className="text-[10px] font-minecraft text-red-400 leading-relaxed">
+            FAILED TO LOAD DASHBOARD DATA
+          </p>
+          <button onClick={refetch} className="btn-minecraft-danger text-[8px] shrink-0">
+            RETRY
+          </button>
+        </div>
+      )}
 
       {/* Server Status */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
