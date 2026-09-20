@@ -18,6 +18,21 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`GET /api/players/stats` returns a list rather than a map**, with real
+  counters: time played, blocks mined by type, distance walked, damage taken
+  and dealt, advancements completed. `GET /api/players/stats/metrics` lists what
+  a leaderboard can rank by, and `?raw=true` returns the game's full stats
+  block. The metric names the old tracker invented (`login_count`,
+  `blocks_broken`, `play_time`) still resolve onto the nearest real counter, so
+  an existing caller gets a true answer instead of an empty leaderboard.
+
+- **The event bus can write somewhere other than the SD card.** `MC_EVENTS_DIR`
+  moves `data/events/` — the one directory the server writes to continuously —
+  onto an attached SSD, and `MC_EVENTS_RETENTION_DAYS` raises the 30-day prune
+  that existed to bound what the card absorbs. A malformed retention value
+  falls back to 30 rather than reading as zero, so a typo cannot quietly turn
+  pruning off. See [docs/EVENT_BUS.md](docs/EVENT_BUS.md).
+
 - **Local checks now reproduce the CI jobs.** `make ci` runs lint, actionlint,
   gitleaks, the test suites and CodeQL; `make doctor` reports which supporting
   tools are installed; `make hooks` installs the pre-commit hooks, which were
@@ -50,7 +65,27 @@ All notable changes to this project will be documented in this file.
   were decided against kept in a "Ruled out" section so they stop being
   reproposed.
 
+### Removed
+
+- **`POST /api/players/stats/parse`** and `scripts/player-stats-tracker.sh`.
+  The endpoint existed to trigger the log scrape; there is no collection step
+  any more, because the counters are the game's own.
+
 ### Fixed
+
+- **Player statistics no longer inflate on every run** (#28).
+  `scripts/player-stats-tracker.sh` scraped the server log with three regular
+  expressions and added what it found to the previous totals, so the same
+  unchanged log reported 1, then 2, then 3 — for a player who had joined once.
+  A restart replayed the whole file, and the death pattern matched the literal
+  word `etc`. Replaced by `api/player_stats.py`, which reads the counters the
+  game keeps in `<world>/stats/<uuid>.json` and
+  `<world>/advancements/<uuid>.json`. There is nothing to accumulate, so
+  reading is idempotent by construction, and it covers everything Minecraft
+  tracks rather than the three things the log mentioned. See
+  [docs/PLAYER_STATS.md](docs/PLAYER_STATS.md). Damage is reported in hearts to
+  one decimal place, so half a heart is not floored away, and the leaderboard
+  `limit` is clamped to 1-50 like `/api/deaths/leaderboard`.
 
 - **Four test scripts piped data into a heredoc that discarded it**, at five
   call sites.

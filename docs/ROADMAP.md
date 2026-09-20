@@ -54,33 +54,13 @@ ahead of the dates written down:
 | Game event bus | Done | [EVENT_BUS.md](EVENT_BUS.md) |
 | Hall of Deaths | Done | [HALL_OF_DEATHS.md](HALL_OF_DEATHS.md) |
 | Bedtime mode | Done | [BEDTIME.md](BEDTIME.md) |
+| Player statistics from the game's own files | Done | [PLAYER_STATS.md](PLAYER_STATS.md) |
 
 So the question this roadmap answers is no longer "what else should the admin
 panel do". It is: **what could this server do that no other Minecraft server
-does?** The management layer is good enough; the remaining work is the
-experience the kids actually see, plus the handful of real defects sitting
-underneath it.
-
----
-
-## Blockers
-
-These are defects, not features, and they sit in the path of everything below.
-Line numbers were verified against the current `main`, and each tracked one
-links to its issue.
-
-- **`scripts/player-stats-tracker.sh` inflates its counts on every run**
-  ([#28](https://github.com/and3rn3t/minecraft/issues/28)). It re-parses the
-  whole log file and adds to the existing totals, so the numbers climb whether
-  or not anything happened, and it only matches three crude patterns.
-  Superseded by F5 below.
-- **1.20.4 → 1.20.5 replaces item NBT with components.** Every `/give` carrying
-  NBT in this document — the Gazette book, mail, the time capsule — breaks on
-  that upgrade. Isolate item construction in one module before building three
-  features on top of it.
-- **SD-card write endurance.** The event bus appends JSONL continuously. Writes
-  are already batched and pruned at 30 days; if an SSD is present, move
-  `data/events/` onto it.
+does?** The management layer is good enough, the defects that were sitting
+underneath it are fixed, and what remains is the experience the kids actually
+see.
 
 ---
 
@@ -91,16 +71,15 @@ cheaper.
 
 | Order | Items | Why here |
 | --- | --- | --- |
-| 1 | Blockers | What is left of them; the auth defects that gated W6 are fixed |
-| 2 | W6, F5 | Days of work each, immediate payoff, no new infrastructure |
-| 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 4 | F3, P2 | Datapack pipeline plus family advancements, visible in the game's own UI |
-| 5 | M2, M1 | Map and time-lapse, rendered on the Mac, zero cost to the Pi |
-| 6 | W4, T3, M5 | The book pipeline: Gazette, mail and time capsule all share it |
-| 7 | W2 | The Invention Forge, once the datapack validator can be trusted |
-| 8 | H1, H2, H3 | House and game wired to each other |
-| 9 | R1 | Geyser, if tablets matter — consider pulling this much earlier |
-| 10 | F4, M3, T1, H4, T4 | The big physical projects. F4 comes first in this row: T1 serves its pack through it |
+| 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
+| 2 | W1 | First real "whoa"; proves the event bus end to end in both directions |
+| 3 | F3, P2 | Datapack pipeline plus family advancements, visible in the game's own UI |
+| 4 | M2, M1 | Map and time-lapse, rendered on the Mac, zero cost to the Pi |
+| 5 | F6, W4, T3, M5 | The book pipeline: F6 builds the items, then the Gazette, mail and the time capsule all share it |
+| 6 | W2 | The Invention Forge, once the datapack validator can be trusted |
+| 7 | H1, H2, H3 | House and game wired to each other |
+| 8 | R1 | Geyser, if tablets matter — consider pulling this much earlier |
+| 9 | F4, M3, T1, H4, T4 | The big physical projects. F4 comes first in this row: T1 serves its pack through it |
 
 **R1 (cross-play) is the one to reconsider first.** If the kids have iPads it
 changes when and where they can play at all, which outranks anything else on
@@ -110,9 +89,32 @@ this list.
 
 ## Foundations
 
-Plumbing that several features below depend on. Two of the four are done; those
-are described in [EVENT_BUS.md](EVENT_BUS.md) and [RCON.md](RCON.md) rather
-than repeated here.
+Plumbing that several features below depend on. Three are done and described in
+[EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md) and
+[PLAYER_STATS.md](PLAYER_STATS.md) rather than repeated here.
+
+### F6. One place that builds items — Green, build it with W4
+
+Three features hand a player an item: the Gazette book (W4), mail (T3) and the
+time capsule (M5). All three need `/give` with the item's contents attached,
+and **1.20.5 replaced item NBT with components**, so the syntax differs by
+server version:
+
+```text
+1.20.4   /give @p written_book{title:"...",author:"...",pages:['...']}
+1.20.5+  /give @p written_book[written_book_content={title:"...",author:"...",pages:['...']}]
+```
+
+Write one module that takes a book and returns the command for the running
+server, detecting the version rather than assuming it, and have all three
+features call it. One place to change when the server is upgraded, instead of
+three.
+
+**Build it as the first commit of W4, not before.** Nothing constructs items
+today, so a module written now would be guessing at what the three callers
+need, and would be wrong in the way abstractions written without a caller
+usually are. The constraint is recorded here so W4 starts with it rather than
+discovering it.
 
 ### F3. A datapack pipeline — Green
 
@@ -142,17 +144,6 @@ vanilla.
 
 Wants `scripts/resource-pack-manager.sh` (set URL, upload, compute hash,
 enable/disable) and `GET`/`POST`/`DELETE /api/resourcepack`.
-
-### F5. Statistics from the game's own data — Green
-
-Replace the log-scraping in `scripts/player-stats-tracker.sh`. Vanilla already
-writes authoritative per-player data to `data/<world>/stats/<uuid>.json` and
-`data/<world>/advancements/<uuid>.json`, covering every statistic Minecraft
-tracks: blocks mined by type, distance walked, damage taken, time played, every
-death cause. Read those files instead.
-
-This fixes the inflating-counts defect and gives the Gazette, the leaderboards
-and the advancement tree something true to read from.
 
 ---
 
@@ -223,9 +214,10 @@ Delivered two ways — as an HTML page on the dashboard, and **in game as an
 actual written book** placed in each player's inventory via `/give` with book
 NBT. Receiving a physical newspaper in your inventory on a Sunday is a ritual.
 
-Depends on F5 for real numbers and on the Hall of Deaths, which already stores
-the week's obituaries. See the NBT-to-components blocker before building the
-book writer.
+Reads its numbers from [PLAYER_STATS.md](PLAYER_STATS.md) and its obituaries
+from the Hall of Deaths, which already stores
+the week's obituaries. Start with F6: the book writer is where item
+construction is invented, and T3 and M5 both inherit it.
 
 ### W6. Siri, Shortcuts and HomeKit — Green
 

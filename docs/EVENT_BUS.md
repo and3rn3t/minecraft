@@ -16,8 +16,8 @@ The bus changes three things:
 - The follower runs from API startup, not from the first browser connection.
   Events that happen while nobody is watching are exactly the ones worth keeping.
 - Lines are parsed once into typed events and recorded once, so counts do not
-  drift. `scripts/player-stats-tracker.sh` re-reads the whole log on every run
-  and adds to the previous totals, which inflates its numbers.
+  drift. Statistics the game keeps for itself are not duplicated here at all:
+  [PLAYER_STATS.md](PLAYER_STATS.md) reads those from the world's own files.
 - Anything can subscribe. A new feature is a handler function, not another log
   parser.
 
@@ -107,11 +107,54 @@ than 30 days are pruned automatically on the first flush of each day.
 
 `data/` is gitignored and lives only on the Pi.
 
+### Moving the files onto an SSD
+
+This is the one directory the server writes to continuously, so it is the one
+worth moving off the SD card when an SSD is attached. Two environment
+variables, both read at import:
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `MC_EVENTS_DIR` | `data/events` under the project | Where the daily files are written. `~` is expanded |
+| `MC_EVENTS_RETENTION_DAYS` | `30` | Days of history to keep. `0` or negative disables pruning |
+
+In a systemd unit, these are `Environment=` directives — bare `NAME=value`
+lines are not valid there and systemd will reject the unit:
+
+```ini
+# /etc/systemd/system/minecraft-api.service
+[Service]
+Environment="MC_EVENTS_DIR=/mnt/ssd/minecraft/events"
+Environment="MC_EVENTS_RETENTION_DAYS=365"
+```
+
+Or, running the API from a shell:
+
+```bash
+export MC_EVENTS_DIR=/mnt/ssd/minecraft/events
+export MC_EVENTS_RETENTION_DAYS=365
+```
+
+Move the existing files first, or the history starts over:
+
+```bash
+sudo mkdir -p /mnt/ssd/minecraft/events
+sudo mv data/events/*.jsonl /mnt/ssd/minecraft/events/ 2>/dev/null || true
+sudo chown -R "$USER" /mnt/ssd/minecraft/events
+```
+
+The 30-day retention exists to bound what the card absorbs. Once the files are
+on an SSD that reason is gone, and the history is what the Gazette and the
+leaderboards read from, so raising it is the point of moving them.
+
+A malformed `MC_EVENTS_RETENTION_DAYS` falls back to 30 rather than being read
+as zero, so a typo cannot silently turn pruning off.
+
 ## REST API
 
 Both endpoints require the `logs.view` permission.
 
-```
+```text
 GET /api/events?limit=100&type=death&player=Silas
 GET /api/events/types
 ```

@@ -131,6 +131,15 @@ except ImportError:
     BEDTIME_AVAILABLE = False
     bedtime_mode = None
 
+# Player statistics, read from the counters the game itself writes.
+try:
+    from api import player_stats
+
+    PLAYER_STATS_AVAILABLE = True
+except ImportError:
+    PLAYER_STATS_AVAILABLE = False
+    player_stats = None
+
 
 app = Flask(__name__)
 # SECRET_KEY is resolved further down, once config/api.conf has been read.
@@ -3108,66 +3117,99 @@ def apply_server_preset():
 
 
 # Player Statistics Endpoints
+#
+# These read <world>/stats/<uuid>.json and <world>/advancements/<uuid>.json,
+# which the game writes and keeps current. There is no collection step: the
+# number in the file is the answer, so a read is idempotent. The log-scraping
+# tracker these replaced added its findings to the previous totals on every
+# run, so the same unchanged log reported 1, then 2, then 3.
+def _require_player_stats():
+    """None when the module is importable, otherwise the error to return."""
+    if PLAYER_STATS_AVAILABLE:
+        return None
+    return jsonify({"error": "Player statistics are unavailable"}), 503
+
+
 @app.route("/api/players/stats", methods=["GET"])
 @require_permission("players.view")
 def get_all_player_stats():
-    """Get all player statistics"""
-    try:
-        stdout, stderr, code = run_script("player-stats-tracker.sh", "list")
-        if code == 0:
-            stats = json.loads(stdout)
-            return jsonify({"success": True, "stats": stats}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to get player stats"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to get player stats: {str(e)}"}), 500
+    """Statistics for every player the world has a file for"""
+    unavailable = _require_player_stats()
+    if unavailable:
+        return unavailable
 
-
-@app.route("/api/players/stats/<player>", methods=["GET"])
-@require_permission("players.view")
-def get_player_stats(player):
-    """Get player statistics"""
     try:
-        stdout, stderr, code = run_script("player-stats-tracker.sh", "get", player)
-        if code == 0:
-            stats = json.loads(stdout)
-            return jsonify({"success": True, "player": player, "stats": stats}), 200
-        else:
-            return jsonify({"error": stderr or "Player not found"}), 404
+        players = [p.as_dict() for p in player_stats.read_all()]
+        return jsonify({"success": True, "players": players, "count": len(players)}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get player stats: {str(e)}"}), 500
+        app.logger.error(f"Failed to read player stats: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/stats/leaderboard", methods=["GET"])
 @require_permission("players.view")
 def get_player_stats_leaderboard():
-    """Get player statistics leaderboard"""
+    """Rank players by one counter"""
+    unavailable = _require_player_stats()
+    if unavailable:
+        return unavailable
+
+    metric = request.args.get("metric", "play_time_minutes")
     try:
-        metric = request.args.get("metric", "login_count")
-        limit = request.args.get("limit", "10")
+        # Clamped 1-50, as /api/deaths/leaderboard is: an unbounded limit lets
+        # a caller ask for every player on the server, and every stats file
+        # behind them, in one request.
+        limit = min(max(int(request.args.get("limit", 10)), 1), 50)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
 
-        stdout, stderr, code = run_script("player-stats-tracker.sh", "leaderboard", metric, limit)
-        if code == 0:
-            leaderboard = json.loads(stdout)
-            return jsonify({"success": True, **leaderboard}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to get leaderboard"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Failed to get leaderboard: {str(e)}"}), 500
-
-
-@app.route("/api/players/stats/parse", methods=["POST"])
-@require_permission("server.manage")
-def parse_player_stats():
-    """Parse server logs for player statistics"""
     try:
-        stdout, stderr, code = run_script("player-stats-tracker.sh", "parse")
-        if code == 0:
-            return jsonify({"success": True, "message": "Logs parsed successfully"}), 200
-        else:
-            return jsonify({"error": stderr or "Failed to parse logs"}), 500
+        return jsonify({"success": True, **player_stats.leaderboard(metric, limit)}), 200
+    except ValueError:
+        # An unknown metric is the caller's mistake, so name the ones that
+        # exist. The message is built here from our own list rather than
+        # passing the exception's text out, which would be a route for
+        # internals to reach the caller.
+        valid = ", ".join(sorted(player_stats.LEADERBOARD_METRICS))
+        return jsonify({"error": f"Unknown metric. Valid: {valid}"}), 400
     except Exception as e:
-        return jsonify({"error": f"Failed to parse logs: {str(e)}"}), 500
+        app.logger.error(f"Failed to build the leaderboard: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/players/stats/metrics", methods=["GET"])
+@require_permission("players.view")
+def get_player_stats_metrics():
+    """The counters a leaderboard can be built on"""
+    unavailable = _require_player_stats()
+    if unavailable:
+        return unavailable
+
+    return jsonify({"success": True, "metrics": player_stats.LEADERBOARD_METRICS}), 200
+
+
+# Werkzeug matches static rules ahead of converters regardless of registration
+# order, so /leaderboard and /metrics above are not captured by <player>. A
+# test pins that, since it is the kind of thing that breaks silently.
+@app.route("/api/players/stats/<player>", methods=["GET"])
+@require_permission("players.view")
+def get_player_stats(player):
+    """One player's statistics, by name"""
+    unavailable = _require_player_stats()
+    if unavailable:
+        return unavailable
+
+    try:
+        found = player_stats.find_by_name(player)
+    except Exception as e:
+        app.logger.error(f"Failed to read player stats: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    if found is None:
+        return jsonify({"error": "Player not found"}), 404
+
+    include_raw = request.args.get("raw", "").lower() in ("1", "true", "yes")
+    return jsonify({"success": True, "player": found.name, "stats": found.as_dict(include_raw)}), 200
 
 
 # Announcement Endpoints
