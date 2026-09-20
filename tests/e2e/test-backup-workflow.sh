@@ -50,4 +50,3 @@ teardown() {
     # run "${SCRIPT_DIR}/scripts/manage.sh" delete-backup "test_backup.tar.gz"
     # [ "$status" -eq 0 ]
 }
-

@@ -27,4 +27,3 @@ teedown() {
 @test "log-manager errors detects error patterns" {
     skip "Requires log-manager.sh"
 }
-

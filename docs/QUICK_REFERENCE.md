@@ -61,7 +61,7 @@ Detach: Press `Ctrl+P` then `Ctrl+Q`
 
 Common Minecraft server commands:
 
-```
+```text
 /op <player>            # Give operator status
 /deop <player>          # Remove operator status
 /whitelist add <player> # Add to whitelist
@@ -76,7 +76,7 @@ Common Minecraft server commands:
 
 ## File Locations
 
-```
+```text
 ~/minecraft-server/          # Main directory
 ├── server.properties        # Server configuration
 ├── docker-compose.yml       # Docker settings
@@ -315,14 +315,14 @@ docker ps --filter "name=minecraft-server" --format "{{.Status}}"
 
 ## Common Issues & Solutions
 
-| Problem                     | Solution                                            |
-| --------------------------- | --------------------------------------------------- |
-| Can't connect locally       | Check if server is running: `./scripts/manage.sh status`    |
-| Can't connect from internet | Configure port forwarding on router                 |
-| Low FPS/lag                 | Reduce view-distance and max-players                |
-| Out of memory               | Lower MEMORY_MAX in docker-compose.yml              |
-| Server crash on startup     | Check logs: `./scripts/manage.sh logs`                      |
-| Permission denied           | Run: `sudo chown -R $USER:$USER ~/minecraft-server` |
+| Problem                     | Solution                                                 |
+| --------------------------- | -------------------------------------------------------- |
+| Can't connect locally       | Check if server is running: `./scripts/manage.sh status` |
+| Can't connect from internet | Configure port forwarding on router                      |
+| Low FPS/lag                 | Reduce view-distance and max-players                     |
+| Out of memory               | Lower MEMORY_MAX in docker-compose.yml                   |
+| Server crash on startup     | Check logs: `./scripts/manage.sh logs`                   |
+| Permission denied           | Run: `sudo chown -R $USER:$USER ~/minecraft-server`      |
 
 ## Contact & Support
 

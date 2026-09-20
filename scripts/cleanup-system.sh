@@ -91,4 +91,3 @@ echo -e "\n${BLUE}Project directory sizes:${NC}"
 du -sh "$PROJECT_DIR"/* 2>/dev/null | sort -h | tail -10
 
 echo -e "\n${GREEN}✓ Cleanup complete!${NC}"
-

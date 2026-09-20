@@ -13,4 +13,3 @@ ExecReload=/bin/sh -c 'if systemctl is-active --quiet nginx; then systemctl relo
 
 [Install]
 WantedBy=multi-user.target
-

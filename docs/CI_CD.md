@@ -31,7 +31,7 @@ The unified CI/CD pipeline combines all testing, building, and deployment workfl
 
 ### Job Dependencies
 
-```
+```text
 lint ──┐
        ├──> build-docker ──> build-rpi-image
 python-tests ──┘
@@ -319,6 +319,7 @@ The generated `.img` file includes:
    - SSH into `minecraft-server.local` or check IP
 
 5. **Verify** setup:
+
    ```bash
    ssh pi@minecraft-server.local
    cd ~/minecraft-server

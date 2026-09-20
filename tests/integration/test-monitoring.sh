@@ -31,4 +31,3 @@ teardown() {
 @test "prometheus-exporter generates metrics" {
     skip "Requires prometheus-exporter.sh"
 }
-

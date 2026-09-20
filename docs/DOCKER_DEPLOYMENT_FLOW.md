@@ -41,7 +41,7 @@ graph LR
 
 The image is now available at:
 
-```
+```text
 ghcr.io/and3rn3t/minecraft-server:latest
 ghcr.io/and3rn3t/minecraft-server:main
 ghcr.io/and3rn3t/minecraft-server:<commit-sha>
@@ -139,7 +139,7 @@ Or use a Personal Access Token with `read:packages` permission.
 
 ## Complete Workflow Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. Developer Workflow                                        │
 └─────────────────────────────────────────────────────────────┘

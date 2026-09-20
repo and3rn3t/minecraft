@@ -234,6 +234,7 @@ fi
 **Issue**: Mod loader not detected even though installed
 
 **Solutions**:
+
 - Check mods directory exists: `ls -la data/mods/`
 - Verify mod loader files are present
 - Check server jar name for loader indicator
@@ -244,6 +245,7 @@ fi
 **Issue**: Mod installation fails
 
 **Solutions**:
+
 - Check internet connection (for URL downloads)
 - Verify file permissions on mods directory
 - Check disk space
@@ -254,6 +256,7 @@ fi
 **Issue**: Mod causes server crashes or errors
 
 **Solutions**:
+
 - Verify mod is compatible with Minecraft version
 - Check mod loader version compatibility
 - Review server logs for errors
@@ -265,6 +268,7 @@ fi
 **Issue**: Mod dependencies not automatically installed
 
 **Solutions**:
+
 - Manually install required dependencies
 - Check mod manifest for dependency list
 - Verify dependency URLs are accessible
@@ -299,4 +303,3 @@ curl http://localhost:8080/api/mods
 - [Plugin Management Guide](PLUGIN_MANAGEMENT.md) - Plugin installation
 - [Server Management Guide](QUICK_REFERENCE.md) - Server commands
 - [Installation Guide](INSTALL.md) - Server setup
-

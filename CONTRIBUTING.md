@@ -33,9 +33,11 @@ We welcome suggestions! When proposing enhancements:
 
 1. **Fork the repository**
 2. **Create a feature branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
+
 3. **Test your changes** thoroughly
 4. **Update documentation** as needed
 5. **Follow coding standards** (see below)
@@ -43,9 +45,10 @@ We welcome suggestions! When proposing enhancements:
 #### Submitting
 
 1. **Write clear commit messages**:
-   ```
+
+   ```text
    Add feature: Brief description
-   
+
    Longer explanation of what changed and why.
    Addresses any relevant issues.
    ```
@@ -66,6 +69,7 @@ We welcome suggestions! When proposing enhancements:
 ### Code Style
 
 #### Shell Scripts
+
 - Use `#!/bin/bash` shebang
 - Use 4-space indentation
 - Quote variables: `"$VAR"` not `$VAR`
@@ -74,6 +78,7 @@ We welcome suggestions! When proposing enhancements:
 - Check syntax: `bash -n script.sh`
 
 Example:
+
 ```bash
 #!/bin/bash
 set -e
@@ -91,6 +96,7 @@ fi
 ```
 
 #### Docker
+
 - Use official base images when possible
 - Minimize layers
 - Clean up in the same layer
@@ -98,6 +104,7 @@ fi
 - Add labels for metadata
 
 #### Documentation
+
 - Use clear, concise language
 - Include code examples
 - Keep formatting consistent
@@ -109,13 +116,14 @@ fi
 Before submitting changes:
 
 1. **Syntax checks**:
+
    ```bash
    # Shell scripts
    bash -n script.sh
-   
+
    # Docker Compose
    docker compose config
-   
+
    # Dockerfile
    docker build -t test .
    ```
@@ -146,7 +154,7 @@ When making changes, update:
 
 ## Project Structure
 
-```
+```text
 minecraft-server/
 ├── README.md                    # Main documentation
 ├── INSTALL.md                   # Installation guide
@@ -169,6 +177,7 @@ minecraft-server/
 ## Types of Contributions
 
 ### Documentation
+
 - Fix typos and grammar
 - Improve clarity
 - Add examples
@@ -176,12 +185,14 @@ minecraft-server/
 - Update screenshots
 
 ### Bug Fixes
+
 - Fix script errors
 - Resolve configuration issues
 - Improve error handling
 - Fix compatibility issues
 
 ### Features
+
 - New management commands
 - Additional configuration options
 - Performance improvements
@@ -189,6 +200,7 @@ minecraft-server/
 - Automation scripts
 
 ### Testing
+
 - Test on different Pi models
 - Test different Minecraft versions
 - Performance benchmarking
@@ -198,6 +210,7 @@ minecraft-server/
 ## Areas for Contribution
 
 ### High Priority
+
 - [ ] Automated testing framework
 - [ ] Performance benchmarking
 - [ ] Alternative server implementations (Paper/Spigot)
@@ -206,6 +219,7 @@ minecraft-server/
 - [ ] Dynamic DNS integration
 
 ### Medium Priority
+
 - [ ] Plugin management
 - [ ] Multi-server support
 - [ ] Advanced monitoring
@@ -214,6 +228,7 @@ minecraft-server/
 - [ ] Discord bot integration
 
 ### Low Priority
+
 - [ ] Custom themes for docs
 - [ ] Video tutorials
 - [ ] Community mod packs
@@ -223,6 +238,7 @@ minecraft-server/
 ## Version Guidelines
 
 We follow [Semantic Versioning](https://semver.org/):
+
 - **MAJOR**: Breaking changes
 - **MINOR**: New features (backward compatible)
 - **PATCH**: Bug fixes (backward compatible)
@@ -257,6 +273,7 @@ We follow [Semantic Versioning](https://semver.org/):
 ## Recognition
 
 Contributors will be:
+
 - Listed in CHANGELOG.md
 - Mentioned in release notes
 - Credited in documentation
@@ -271,7 +288,7 @@ By contributing, you agree that your contributions will be licensed under the MI
 - Check existing documentation
 - Review closed issues for similar questions
 
-## Thank You!
+## Thank You
 
 Every contribution, no matter how small, helps improve this project. Thank you for taking the time to contribute!
 
@@ -280,17 +297,20 @@ Every contribution, no matter how small, helps improve this project. Thank you f
 ## Quick Start for Contributors
 
 1. **Fork and clone**:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/minecraft.git
    cd minecraft
    ```
 
 2. **Create branch**:
+
    ```bash
    git checkout -b feature/my-feature
    ```
 
 3. **Make changes and test**:
+
    ```bash
    # Edit files
    bash -n *.sh  # Check syntax
@@ -298,6 +318,7 @@ Every contribution, no matter how small, helps improve this project. Thank you f
    ```
 
 4. **Commit and push**:
+
    ```bash
    git add .
    git commit -m "Add feature: description"

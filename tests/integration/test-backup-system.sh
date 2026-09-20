@@ -34,4 +34,3 @@ teardown() {
 @test "cleanup-backups removes old backups" {
     skip "Requires cleanup-backups.sh"
 }
-

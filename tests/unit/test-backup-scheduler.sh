@@ -24,4 +24,3 @@ teardown() {
 @test "backup-scheduler runs on daily schedule" {
     skip "Requires backup-scheduler.sh"
 }
-

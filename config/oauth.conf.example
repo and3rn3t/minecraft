@@ -14,4 +14,3 @@ APPLE_TEAM_ID=your-apple-team-id
 APPLE_KEY_ID=your-apple-key-id
 APPLE_PRIVATE_KEY=your-apple-private-key-content
 APPLE_REDIRECT_URI=http://localhost:3000/oauth/callback
-

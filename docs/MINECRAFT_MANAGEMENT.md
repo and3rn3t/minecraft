@@ -308,4 +308,3 @@ The server properties manager validates all property values:
 - [Performance Tuning](RASPBERRY_PI_OPTIMIZATIONS.md)
 - [API Documentation](API.md)
 - [Quick Reference](QUICK_REFERENCE.md)
-

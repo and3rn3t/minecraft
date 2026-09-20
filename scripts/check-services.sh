@@ -118,4 +118,3 @@ else
     echo -e "  sudo systemctl start minecraft-web.service"
     exit 1
 fi
-

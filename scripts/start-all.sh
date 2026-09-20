@@ -49,4 +49,3 @@ if [ -f "scripts/check-services.sh" ]; then
 else
     echo -e "${YELLOW}Health check script not found${NC}"
 fi
-

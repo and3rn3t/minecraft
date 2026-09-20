@@ -41,7 +41,7 @@ The web interface will be available at `http://localhost:3000`
 2. **Configure API URL** (if different from default):
    - Create `.env` file:
 
-     ```
+     ```env
      VITE_API_URL=http://localhost:8080/api
      VITE_API_KEY=your-api-key-here
      ```
@@ -92,7 +92,7 @@ Current coverage includes:
 
 ### Project Structure
 
-```
+```text
 web/
 ├── src/
 │   ├── components/     # Reusable components

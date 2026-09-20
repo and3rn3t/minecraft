@@ -240,6 +240,7 @@ Before deploying to Raspberry Pi 5:
    ```
 
 6. **Test Web Interface** (if web server is running):
+
    ```bash
    curl http://localhost:3000
    # Should return HTML

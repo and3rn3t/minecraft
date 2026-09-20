@@ -28,4 +28,3 @@ teardown() {
 @test "manage.sh usage function displays help" {
     skip "Requires manage.sh in test environment"
 }
-

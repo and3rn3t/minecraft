@@ -46,11 +46,13 @@ The installer will:
 - Backup plugin configuration if it exists
 
 **Compatibility Checks**:
+
 - Verifies server type supports plugins (Paper/Spigot required)
 - Checks API version compatibility with server version
 - Warns if plugin may not work correctly
 
 **Dependency Resolution**:
+
 - Automatically detects required dependencies from plugin.yml
 - Warns about missing dependencies
 - Allows installation to continue (dependencies may be optional)
@@ -143,6 +145,7 @@ Check which plugins have updates available:
 ```
 
 This will:
+
 - List all installed plugins with their current versions
 - Show update status (requires API integration for automatic checking)
 
@@ -163,6 +166,7 @@ Or via manage.sh:
 ```
 
 **Requirements**:
+
 - Server must be running
 - Server type must be Paper or Spigot (Vanilla doesn't support hot-reload)
 - Some plugins may not support hot-reload and may require a full restart
@@ -376,7 +380,7 @@ If plugins conflict:
 
 ## Plugin Directories Structure
 
-```
+```text
 minecraft-server/
 ├── plugins/              # Active plugins
 │   ├── plugin1.jar

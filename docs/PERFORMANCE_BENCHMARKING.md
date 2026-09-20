@@ -222,7 +222,7 @@ jobs:
 
 Benchmark results are stored in `benchmarks/results/`:
 
-```
+```text
 benchmarks/
 ├── baselines/
 │   └── baseline.json

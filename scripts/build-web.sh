@@ -53,4 +53,3 @@ else
     echo -e "${RED}✗ Build failed - dist directory not found${NC}"
     exit 1
 fi
-

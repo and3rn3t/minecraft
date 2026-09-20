@@ -108,4 +108,3 @@ echo -e "${BLUE}Python executable: ${VENV_DIR}/bin/python${NC}"
 echo -e "\n${YELLOW}To activate manually:${NC}"
 echo -e "  source ${VENV_DIR}/bin/activate"
 echo -e "\n${YELLOW}The systemd service will use this venv automatically.${NC}"
-

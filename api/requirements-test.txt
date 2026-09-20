@@ -20,4 +20,3 @@ pyyaml>=6.0.1  # For OpenAPI YAML parsing
 
 # Performance testing
 # (uses standard library, no extra deps needed)
-

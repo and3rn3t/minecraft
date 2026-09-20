@@ -228,4 +228,3 @@ echo -e "  - File descriptor limits (log out/in)"
 echo -e "\n${BLUE}To reboot: sudo reboot${NC}"
 
 echo -e "\n${GREEN}Optimization complete!${NC}"
-

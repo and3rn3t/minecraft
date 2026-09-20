@@ -252,13 +252,13 @@ sudo systemctl start minecraft-ddns.timer
 
 Once configured, players can connect using:
 
-```
+```text
 mine.andernet.dev:25565
 ```
 
 Or if using default port:
 
-```
+```text
 mine.andernet.dev
 ```
 

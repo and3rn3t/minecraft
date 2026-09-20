@@ -12,15 +12,15 @@ to play follows the same shape.
 
 A death happens. Moments later, in chat:
 
-```
+```text
 Here lies Jonah, who met Zombie and did not come to an arrangement.
 ```
 
-```
+```text
 Silas lost an argument with foliage and did not take it well.
 ```
 
-```
+```text
 Jonah went out with a bang, as they had always quietly hoped to.
 ```
 
@@ -123,7 +123,7 @@ worse trade than a few extra writes.
 
 Both endpoints require the `players.view` permission.
 
-```
+```text
 GET /api/deaths?limit=50&player=Silas&category=fall
 GET /api/deaths/leaderboard?limit=10
 ```

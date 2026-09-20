@@ -213,7 +213,7 @@ key's role.
 
 API keys follow this format:
 
-```
+```text
 mc_<32-character-hex-string>
 ```
 

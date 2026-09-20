@@ -44,4 +44,3 @@ setup() {
     # run curl -s -H "Authorization: Bearer ${TOKEN}" "${API_URL}/api/status"
     # [ "$status" -eq 0 ]
 }
-

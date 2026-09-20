@@ -73,4 +73,3 @@ echo -e "  View service logs: ${GREEN}sudo journalctl -u minecraft-backup.servic
 echo -e "  Stop timer: ${GREEN}sudo systemctl stop minecraft-backup.timer${NC}"
 echo -e "  Start timer: ${GREEN}sudo systemctl start minecraft-backup.timer${NC}"
 echo -e "  Disable timer: ${GREEN}sudo systemctl disable minecraft-backup.timer${NC}"
-
