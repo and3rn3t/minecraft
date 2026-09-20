@@ -326,6 +326,59 @@ list_plugins() {
     fi
 }
 
+# Escape backslashes and double quotes for embedding in a JSON string.
+_json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+# One JSON object for a single plugin jar, used by list_plugins_json.
+_plugin_json_entry() {
+    local plugin_file="$1"
+    local enabled="$2"
+    local plugin_name
+    plugin_name=$(basename "$plugin_file")
+    local plugin_info
+    plugin_info=$(get_plugin_info "$plugin_file" 2>/dev/null || echo "Unknown|Unknown|Unknown|||")
+    local name
+    name=$(echo "$plugin_info" | cut -d'|' -f1)
+    local version
+    version=$(echo "$plugin_info" | cut -d'|' -f2)
+
+    if [ "$name" = "Unknown" ]; then
+        name="$plugin_name"
+    fi
+
+    printf '{"name":"%s","version":"%s","filename":"%s","enabled":%s}' \
+        "$(_json_escape "$name")" "$(_json_escape "$version")" "$(_json_escape "$plugin_name")" "$enabled"
+}
+
+# Machine-readable plugin listing, for the API server to consume instead of
+# scraping list_plugins' colorized, human-oriented output. That scraping
+# used to misfire on header/summary lines (e.g. "No plugins installed"
+# contains the word "plugin" too), returning fragments of those lines,
+# ANSI codes included, as if they were plugin names.
+list_plugins_json() {
+    local plugin_dir
+    plugin_dir=$(find_plugin_dir)
+    local disabled_dir="$PLUGIN_DISABLED_DIR"
+
+    local entries=()
+    local plugin
+    for plugin in "$plugin_dir"/*.jar; do
+        [ -f "$plugin" ] || continue
+        entries+=("$(_plugin_json_entry "$plugin" "true")")
+    done
+    if [ -d "$disabled_dir" ]; then
+        for plugin in "$disabled_dir"/*.jar; do
+            [ -f "$plugin" ] || continue
+            entries+=("$(_plugin_json_entry "$plugin" "false")")
+        done
+    fi
+
+    local IFS=,
+    echo "[${entries[*]}]"
+}
+
 # Function to enable plugin
 enable_plugin() {
     local plugin_name="$1"
@@ -655,11 +708,12 @@ hot_reload_plugins() {
 usage() {
     echo -e "${BLUE}Plugin Manager for Minecraft Server${NC}"
     echo ""
-    echo "Usage: $0 {install|list|enable|disable|remove|update|check-updates|reload|backup-configs|restore-configs} [options]"
+    echo "Usage: $0 {install|list|list-json|enable|disable|remove|update|check-updates|reload|backup-configs|restore-configs} [options]"
     echo ""
     echo "Commands:"
     echo "  install <file>              - Install a plugin from .jar file"
-    echo "  list                        - List all installed plugins"
+    echo "  list                        - List all installed plugins (human-readable)"
+    echo "  list-json                   - List all plugins as JSON (for scripting/API use)"
     echo "  enable <plugin>             - Enable a disabled plugin"
     echo "  disable <plugin>           - Disable a plugin (moves to disabled/)"
     echo "  remove <plugin>             - Remove a plugin completely"
@@ -684,6 +738,9 @@ main() {
             ;;
         list)
             list_plugins
+            ;;
+        list-json)
+            list_plugins_json
             ;;
         enable)
             if [ -z "$2" ]; then

@@ -3589,19 +3589,12 @@ def list_worlds():
 @require_permission("plugins.view")
 def list_plugins():
     """List installed plugins"""
-    stdout, _, _ = run_script("plugin-manager.sh", "list")
+    stdout, _, _ = run_script("plugin-manager.sh", "list-json")
 
-    plugins = []
-    if stdout:
-        # Parse plugin list (simplified)
-        for line in stdout.split("\n"):
-            if "✓" in line or "plugin" in line.lower():
-                # Extract plugin name
-                parts = line.split()
-                for part in parts:
-                    if part and not part.startswith("(") and not part.startswith("v"):
-                        plugins.append(part)
-                        break
+    try:
+        plugins = json.loads(stdout) if stdout else []
+    except (ValueError, TypeError):
+        plugins = []
 
     return jsonify({"plugins": plugins, "count": len(plugins)})
 

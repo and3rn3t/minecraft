@@ -38,13 +38,29 @@ const Plugins = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {plugins.map(plugin => (
-              <div key={plugin} className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4">
-                <h3 className="text-sm font-minecraft text-minecraft-text-light mb-2 leading-tight">
-                  {plugin}
+              <div
+                key={plugin.filename}
+                className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4"
+              >
+                <h3 className="text-sm font-minecraft text-minecraft-text-light mb-1 leading-tight">
+                  {plugin.name}
                 </h3>
+                <p className="text-[10px] font-minecraft text-minecraft-text-dark mb-2">
+                  v{plugin.version} · {plugin.enabled ? 'ENABLED' : 'DISABLED'}
+                </p>
                 <div className="flex gap-2 mt-4">
-                  <button className="flex-1 btn-minecraft-primary text-[8px]">ENABLE</button>
-                  <button className="flex-1 btn-minecraft-danger text-[8px]">DISABLE</button>
+                  <button
+                    className="flex-1 btn-minecraft-primary text-[8px]"
+                    disabled={plugin.enabled}
+                  >
+                    ENABLE
+                  </button>
+                  <button
+                    className="flex-1 btn-minecraft-danger text-[8px]"
+                    disabled={!plugin.enabled}
+                  >
+                    DISABLE
+                  </button>
                 </div>
               </div>
             ))}
