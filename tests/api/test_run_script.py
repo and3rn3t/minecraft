@@ -75,14 +75,24 @@ class TestRunScriptOutcomes:
         assert code == 2
         assert stderr == "boom"
 
-    def test_unexpected_error_reports_500(self):
+    def test_unexpected_error_reports_500(self, caplog):
+        """The detail goes to the log, not to the caller.
+
+        Several handlers return this stderr value straight to the client, so
+        putting the exception text here published it. The operator still needs
+        it, so it is logged rather than dropped.
+        """
         with patch("api.server.subprocess.run") as mock_run:
             mock_run.side_effect = OSError("no such executable")
-            stdout, stderr, code = run_script("manage.sh", "status")
+            with caplog.at_level("ERROR"):
+                stdout, stderr, code = run_script("manage.sh", "status")
 
         assert code == 500
         assert stdout is None
-        assert "no such executable" in stderr
+        assert stderr == "Script execution failed"
+        assert "no such executable" not in stderr
+        # But it is not lost: an operator can still find out what happened.
+        assert "no such executable" in caplog.text
 
     def test_arguments_are_forwarded_after_the_script_path(self):
         with patch("api.server.subprocess.run") as mock_run:

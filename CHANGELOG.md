@@ -137,6 +137,26 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- **Handlers no longer return exception text to the caller.** Fifty-six
+  returned `f"...: {str(e)}"` with a 500, which can carry filesystem paths and
+  internal state. They log the detail and return a generic message, as the
+  newer handlers already did. `run_script()` did the same thing indirectly, by
+  handing the exception text back as the script's stderr, which several
+  handlers return verbatim; and two WebSocket error paths did it directly.
+  CodeQL's count for this drops from 75 to 0. The YAML validator was going to
+  be a deliberate exception, since it describes the content the caller just
+  submitted, but exempting it would have meant exempting the whole rule for
+  `api/server.py` — so it builds its message from the parser's own `problem`
+  and `problem_mark` instead, which is safe and reads better.
+- **A null byte in a file-browser path returned a 500** carrying the raw OS
+  error, because `Path.resolve()` raises before the allowlist check runs. All
+  six file-browser endpoints now share one `resolve_allowed_path()` helper that
+  rejects it as a 400. Found by attacking the endpoints rather than reading
+  them. Total CodeQL errors: 115 to 33 — 32 path-expression findings, reviewed
+  as false positives and covered by `tests/api/test_path_traversal.py`, and one
+  clear-text finding where the value written to the audit log is an API key's
+  name rather than the key.
+
 - **Registration no longer mints every user as an administrator** (#26).
   `POST /api/auth/register` hardcoded `"role": "admin"` beneath a comment
   claiming the first user was admin and everyone else defaulted to `user`, so

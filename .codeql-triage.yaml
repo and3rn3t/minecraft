@@ -1,0 +1,33 @@
+# Findings reviewed and judged not to be defects.
+#
+# Each entry needs a rule, a path, a reason and a count. `make codeql` reports matching
+# findings in their own section and does not fail on them; everything else
+# still fails. Keep this short — it is an argument that has been made and
+# checked, not a place to put findings that are inconvenient.
+#
+# The count is how many findings the entry covered when it was reviewed. If
+# the number grows, the run fails: matching on rule and file alone would exempt
+# a *new* finding of that rule anywhere in that file, which is how an exemption
+# quietly becomes a blind spot.
+#
+# Anything listed here should have a test that would fail if the reasoning
+# stopped holding. The tests are named in each reason.
+
+triaged:
+  - rule: py/path-injection
+    path: api/server.py
+    count: 32
+    reason: >-
+      The file browser resolves the path and checks is_relative_to against an
+      allowlist, the config endpoints use the request value only as a dict key,
+      and the backup endpoints reject separators. CodeQL cannot model those as
+      sanitizers. tests/api/test_path_traversal.py attacks all of them, symlink
+      escapes included, so the defenses cannot be removed quietly.
+
+  - rule: py/clear-text-storage-sensitive-data
+    path: api/server.py
+    count: 1
+    reason: >-
+      The value derived from API_KEYS and written to the audit log is the key's
+      name — the label someone typed — not the key. Asserted by
+      TestAuditLogDoesNotStoreSecrets.

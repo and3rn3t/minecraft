@@ -74,6 +74,13 @@ make actionlint        # lint the workflow files
 make codeql            # CodeQL, python-security-and-quality, as the workflow runs it
 ```
 
+Findings that have been reviewed and judged not to be defects live in
+`.codeql-triage.yaml`, which needs a rule, a path and a reason for each entry.
+`make codeql` reports them separately and does not fail on them; everything
+else still fails, including a new finding of a triaged rule in a file that is
+not listed. Each entry names the test that would fail if its reasoning stopped
+holding.
+
 A missing tool **fails** `make ci` rather than being skipped. A gate that
 reports success while quietly omitting a job is how the checks here came to be
 trusted without running. Opt out deliberately with `SKIP_CODEQL=1` or
@@ -240,8 +247,8 @@ to them should be questioned, and a change that reduces them is welcome.
 
 | Check | Baseline on `main` | What it is |
 | --- | --- | --- |
-| CodeQL | 83 errors | `Information exposure through an exception` — handlers returning `str(e)` to the caller. Newer handlers log and return a generic message instead; follow those |
-| CodeQL | 39 errors | `Uncontrolled data used in path expression` — worth a real look, not yet triaged |
+| CodeQL | 32 errors | `Uncontrolled data used in path expression`. **Triaged: all false positives.** These are the *uses* of a path after validation, not the validation: the file browser routes every path through `resolve_allowed_path()`, which resolves with `os.path.realpath` and checks a separator-terminated prefix — a form CodeQL recognises, so the gate itself is analysed rather than exempted. `tests/api/test_path_traversal.py` attacks all of them, including symlinks out of an allowed directory, which is the vector that defeats naive checks |
+| CodeQL | 1 error | `Clear-text storage of sensitive information`, where the audit log is written. **False positive:** the value derived from `API_KEYS` is the key's *name*, not the key. Asserted by a test |
 | CodeQL | 33 notes | `Module is imported with 'import' and 'import from'` — the test suite's import convention |
 | ruff | 450+ | Style rules outside `--select F`. Only `F` is enforced, because it flags defects rather than preferences |
 | shellcheck | 90 warnings, ~3900 style | `.shellcheckrc` sets `enable=all`. Only `-S error` is enforced, which is clean as of this writing |
