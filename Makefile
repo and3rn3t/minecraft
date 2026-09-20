@@ -4,7 +4,7 @@
 # Prefer the Docker Compose v2 plugin, fall back to the legacy v1 binary
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks secrets actionlint codeql doctor shell-syntax bash-tests
+.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests
 
 # Default target
 help:
@@ -41,6 +41,7 @@ help:
 	@echo ""
 	@echo "  make ci          - Run everything CI runs, before you push"
 	@echo "  make hooks       - Install the pre-commit hooks"
+	@echo "  make pre-commit  - Run the pre-commit hooks, as the CI job runs them"
 	@echo "  make secrets     - Scan for secrets (same as the Gitleaks workflow)"
 	@echo "  make actionlint  - Lint the GitHub Actions workflows"
 	@echo "  make codeql      - CodeQL, same query suite as the CodeQL workflow"
@@ -296,6 +297,18 @@ hooks:
 	@pre-commit install
 	@echo "Hooks installed. Run 'make doctor' to see what else is missing."
 
+# Same command the "Lint (pre-commit)" CI job runs. Covers ruff, shellcheck,
+# yamllint, markdownlint, gitleaks, actionlint and the whitespace/EOF/compose
+# checks — all versioned in .pre-commit-config.yaml, the one place they're
+# declared, so this and the CI job cannot drift apart.
+pre-commit:
+	@command -v pre-commit >/dev/null 2>&1 || { \
+		echo "pre-commit is not installed. Install it with:"; \
+		echo "  uv tool install pre-commit   (or pipx install pre-commit)"; \
+		exit 1; \
+	}
+	@pre-commit run --all-files
+
 # Both scans are blocking. The twelve pre-existing findings are documentation
 # placeholders, allowlisted individually in .gitleaks.toml and each scoped to
 # the file it appears in, so a real credential in those same files still fails.
@@ -374,6 +387,7 @@ bash-tests:
 # SKIP_CODEQL=1 or SKIP_BATS=1 if you need to.
 ci:
 	@echo "=== Running the checks CI runs ==="
+	@$(MAKE) --no-print-directory pre-commit
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory shell-syntax
 	@$(MAKE) --no-print-directory actionlint
