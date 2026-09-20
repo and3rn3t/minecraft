@@ -1,0 +1,14 @@
+[Unit]
+Description=Periodically Collect Minecraft Server Analytics Data
+Requires=minecraft-analytics.service
+
+[Timer]
+# First run shortly after boot, then every 5 minutes - the interval
+# docs/ANALYTICS.md recommends so trends/anomalies/predictions have enough
+# data points to say anything beyond "stable".
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

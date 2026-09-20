@@ -69,7 +69,22 @@ Generate detailed analytics reports:
 
 #### Automated Collection
 
-Set up a cron job for regular data collection:
+On a systemd host (e.g. the Raspberry Pi), install the bundled timer instead
+of a cron job - it follows the same pattern as `minecraft-update.timer`:
+
+```bash
+sudo cp systemd/minecraft-analytics.service systemd/minecraft-analytics.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now minecraft-analytics.timer
+```
+
+This collects a snapshot every 5 minutes. Without it (or an equivalent cron
+job), `analytics/*.jsonl` only gets a data point each time someone clicks
+"Collect Data" in the UI or calls `POST /api/analytics/collect` - too sparse
+for trends, anomaly detection, or predictions to report anything but
+"stable" / "no anomalies detected".
+
+If systemd isn't available, use cron instead:
 
 ```bash
 # Collect every 5 minutes

@@ -1,0 +1,20 @@
+[Unit]
+Description=Collect Minecraft Server Analytics Data
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# A background maintenance task, not the live game server; deprioritize it
+# so it never competes with tick processing.
+Nice=10
+IOSchedulingClass=idle
+WorkingDirectory=/home/pi/minecraft-server
+ExecStart=/home/pi/minecraft-server/scripts/analytics-collector.sh
+User=pi
+Group=pi
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

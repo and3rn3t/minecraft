@@ -191,11 +191,11 @@ if [ "$SYSTEMD_CHANGED" = true ] || [ "$1" = "--all" ]; then
     if [ -d "$PROJECT_DIR/systemd" ]; then
         cd "$PROJECT_DIR" || exit 1
 
-        # Copy service files
-        for service_file in systemd/*.service; do
-            if [ -f "$service_file" ]; then
-                echo -e "${BLUE}Installing $(basename "$service_file")...${NC}"
-                sudo cp "$service_file" /etc/systemd/system/ || true
+        # Copy service and timer files
+        for unit_file in systemd/*.service systemd/*.timer; do
+            if [ -f "$unit_file" ]; then
+                echo -e "${BLUE}Installing $(basename "$unit_file")...${NC}"
+                sudo cp "$unit_file" /etc/systemd/system/ || true
             fi
         done
 
