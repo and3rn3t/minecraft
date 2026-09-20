@@ -89,19 +89,6 @@ body {
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.2),
       0 2px 4px rgba(0, 0, 0, 0.2);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-minecraft:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    animation: shimmer 1.5s infinite;
   }
 
   .btn-minecraft-primary {
@@ -112,19 +99,6 @@ body {
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.2),
       0 2px 4px rgba(92, 184, 92, 0.3);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-minecraft-primary:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-    animation: shimmer 1.5s infinite;
   }
 
   .btn-minecraft-danger {
@@ -135,27 +109,17 @@ body {
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.2),
       0 2px 4px rgba(198, 40, 40, 0.3);
-    position: relative;
-    overflow: hidden;
   }
 
-  .btn-minecraft-danger:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    animation: shimmer 1.5s infinite;
-  }
-
+  /* No animation here — it used to fade in on every mount (65 uses), which
+     under a 5s poll reads as flicker rather than an entrance. Opt in with
+     the Card primitive's `animateIn` prop (adds Tailwind's animate-fadeIn)
+     where a real one-time entrance is wanted. */
   .card-minecraft {
     @apply bg-[#6D4C41] border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#5D4037] border-b-[#5D4037];
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.3),
       0 4px 6px rgba(0, 0, 0, 0.2);
-    animation: fadeIn 0.3s ease-out;
     @apply transition-shadow duration-200;
   }
 
@@ -177,6 +141,19 @@ body {
     background-size: 1000px 100%;
     animation: shimmer 2s infinite;
   }
+}
+
+/* Keyboard focus. Outside @layer so it beats the focus:outline-none the
+   button/input classes above apply for the mouse case — un-layered CSS
+   always wins over anything inside a @layer, regardless of source order.
+   .btn-minecraft* had no focus state at all before this; .input-minecraft
+   had only a subtle border-color shift on two edges. */
+.btn-minecraft:focus-visible,
+.btn-minecraft-primary:focus-visible,
+.btn-minecraft-danger:focus-visible,
+.input-minecraft:focus-visible {
+  outline: 2px solid #ffee58;
+  outline-offset: 2px;
 }
 
 /* Pixelated scrollbar */
