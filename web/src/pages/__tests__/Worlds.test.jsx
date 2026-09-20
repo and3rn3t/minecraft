@@ -40,7 +40,11 @@ describe('Worlds', () => {
 
   it('displays list of worlds', async () => {
     api.api.listWorlds.mockResolvedValue({
-      worlds: ['world', 'world_nether', 'world_the_end'],
+      worlds: [
+        { name: 'world', size: '120M', type: 'overworld', active: true },
+        { name: 'world_nether', size: '40M', type: 'nether', active: false },
+        { name: 'world_the_end', size: '15M', type: 'end', active: false },
+      ],
     });
 
     renderWithRouter(<Worlds />);
@@ -64,7 +68,10 @@ describe('Worlds', () => {
 
   it('displays switch and backup buttons for each world', async () => {
     api.api.listWorlds.mockResolvedValue({
-      worlds: ['world', 'survival'],
+      worlds: [
+        { name: 'world', size: '120M', type: 'overworld', active: true },
+        { name: 'survival', size: '80M', type: 'overworld', active: false },
+      ],
     });
 
     renderWithRouter(<Worlds />);
