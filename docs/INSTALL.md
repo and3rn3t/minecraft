@@ -176,9 +176,12 @@ The setup script will:
 4. Install additional utilities (git, wget, curl, screen, htop)
 5. Create necessary directories
 6. Create `.env` from `.env.example`, sized to this Pi's detected RAM
-7. Set up Python API and Node.js web interface dependencies
-8. Configure Docker service
-9. Optionally apply system-level performance tuning (CPU governor, swap, sysctl, journald)
+7. Set up Python API dependencies
+8. Generate a persistent API secret key (`config/api.conf`), so login sessions
+   and the Logs/Console WebSocket survive an API service restart
+9. Set up Node.js web interface dependencies
+10. Configure Docker service
+11. Optionally apply system-level performance tuning (CPU governor, swap, sysctl, journald)
 
 **This process takes 10-20 minutes.**
 

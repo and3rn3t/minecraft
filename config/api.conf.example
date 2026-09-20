@@ -1,0 +1,17 @@
+# API Server Configuration
+# Copy this file to api.conf and set SECRET_KEY — see below for why that
+# matters. api/server.py reads this file if present; every value here is
+# optional and falls back to the default shown.
+
+# API_HOST=127.0.0.1
+# API_PORT=8080
+# API_ENABLED=true
+
+# Signs JWTs (login sessions) and Flask's own session cookies. Leaving this
+# unset is NOT a safe default: api/server.py generates a random one on every
+# process start instead, which silently logs out every user and breaks the
+# Logs/Console WebSocket (both accept a JWT) each time the API service
+# restarts — including routine updates, reboots, or a crash-restart.
+#
+# Generate one with: python3 -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=
