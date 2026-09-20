@@ -72,6 +72,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [RBAC.md](RBAC.md) | Roles and permissions |
 | [OAUTH_SETUP.md](OAUTH_SETUP.md) | Google / Apple sign-in |
 | [WEB_INTERFACE.md](WEB_INTERFACE.md) | Using the React admin panel |
+| [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Tokens, primitives and conventions for the web panel's UI |
 | [SECURITY_HARDENING.md](SECURITY_HARDENING.md) | Hardening the API and the host |
 
 ---
