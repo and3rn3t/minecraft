@@ -355,7 +355,7 @@ class TestCommandInputValidation:
             "enabled": enabled,
             "permissions": list(permissions),
         }
-        api_module._stream_keys["sid-a"] = stream_key
+        api_module._stream_keys["sid-a"] = ("api_key", stream_key)
         try:
             with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
                 api_module, "run_rcon_command"
@@ -378,7 +378,7 @@ class TestCommandInputValidation:
         """A key deleted mid-connection loses the socket it was holding"""
         request = MagicMock()
         request.sid = "sid-gone"
-        api_module._stream_keys["sid-gone"] = "deleted-key"
+        api_module._stream_keys["sid-gone"] = ("api_key", "deleted-key")
         try:
             with patch("api.server.request", request), patch.object(api_module.socketio, "emit") as emit, patch.object(
                 api_module, "run_rcon_command"
