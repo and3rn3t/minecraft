@@ -88,6 +88,43 @@ components:
       description: Session cookie from login
 
   schemas:
+    PlayerStats:
+      type: object
+      description: Derived from the game's own counters; ticks, centimetres and tenths of hearts are converted.
+      properties:
+        uuid:
+          type: string
+        name:
+          type: string
+        play_time_minutes:
+          type: integer
+        deaths:
+          type: integer
+        mob_kills:
+          type: integer
+        player_kills:
+          type: integer
+        blocks_mined:
+          type: integer
+          description: Summed across every block type
+        items_crafted:
+          type: integer
+        damage_taken:
+          type: integer
+          description: In hearts
+        damage_dealt:
+          type: integer
+          description: In hearts
+        jumps:
+          type: integer
+        distance_walked_m:
+          type: integer
+        advancements:
+          type: integer
+          description: Completed advancements, excluding recipe unlocks
+        raw:
+          type: object
+          description: The complete stats block; only present with ?raw=true
     Schedule:
       type: object
       properties:
@@ -1496,6 +1533,146 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Success'
+
+  /api/players/stats:
+    get:
+      tags:
+        - Players
+      summary: Player statistics
+      description: >-
+        Read from the counters the game itself writes, in
+        <world>/stats/<uuid>.json and <world>/advancements/<uuid>.json. There is
+        no collection step, so a read is idempotent. Requires players.view.
+      operationId: listPlayerStats
+      responses:
+        '200':
+          description: Every player the world has a statistics file for
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      count:
+                        type: integer
+                      players:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PlayerStats'
+
+  /api/players/stats/metrics:
+    get:
+      tags:
+        - Players
+      summary: Counters a leaderboard can be built on
+      operationId: listPlayerStatsMetrics
+      responses:
+        '200':
+          description: Metric name to description
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      metrics:
+                        type: object
+                        additionalProperties:
+                          type: string
+
+  /api/players/stats/leaderboard:
+    get:
+      tags:
+        - Players
+      summary: Rank players by one counter
+      operationId: getPlayerStatsLeaderboard
+      parameters:
+        - name: metric
+          in: query
+          schema:
+            type: string
+            default: play_time_minutes
+          description: >-
+            One of the names from /api/players/stats/metrics. The old tracker's
+            names (login_count, blocks_broken, play_time) still resolve onto the
+            nearest real counter.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Ranked highest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      metric:
+                        type: string
+                      description:
+                        type: string
+                      leaderboard:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            uuid:
+                              type: string
+                            value:
+                              type: integer
+        '400':
+          description: Unknown metric, or a non-numeric limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/players/stats/{player}:
+    get:
+      tags:
+        - Players
+      summary: One player's statistics
+      operationId: getPlayerStats
+      parameters:
+        - name: player
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Player name, matched case-insensitively
+        - name: raw
+          in: query
+          schema:
+            type: boolean
+          description: Include the complete stats block from the game's file
+      responses:
+        '200':
+          description: The player's statistics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      player:
+                        type: string
+                      stats:
+                        $ref: '#/components/schemas/PlayerStats'
+        '404':
+          description: No statistics file for that player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/scheduler/schedules:
     get:

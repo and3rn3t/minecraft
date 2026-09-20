@@ -16,8 +16,8 @@ The bus changes three things:
 - The follower runs from API startup, not from the first browser connection.
   Events that happen while nobody is watching are exactly the ones worth keeping.
 - Lines are parsed once into typed events and recorded once, so counts do not
-  drift. `scripts/player-stats-tracker.sh` re-reads the whole log on every run
-  and adds to the previous totals, which inflates its numbers.
+  drift. Statistics the game keeps for itself are not duplicated here at all:
+  [PLAYER_STATS.md](PLAYER_STATS.md) reads those from the world's own files.
 - Anything can subscribe. A new feature is a handler function, not another log
   parser.
 

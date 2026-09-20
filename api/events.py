@@ -8,9 +8,9 @@ event, appends it to a daily JSONL file, and hands it to any registered handler.
 
 Everything reactive builds on this: death messages, join notifications,
 chat-triggered features, statistics that do not depend on re-reading the whole
-log. ``scripts/player-stats-tracker.sh`` re-parses the entire log on every run
-and adds to the previous totals, so its counts inflate; events recorded here are
-recorded exactly once.
+log. Statistics that Minecraft itself keeps are read from its own files by
+``api/player_stats.py``; events recorded here cover what the game does not
+count, and each is recorded exactly once.
 
 Writes are buffered. The Pi runs from an SD card with finite write endurance, so
 a continuous stream of one-line appends is flushed in batches rather than per
