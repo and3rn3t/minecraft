@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { ErrorState } from '../components/ui/Alert';
 import { api } from '../services/api';
 
 const Plugins = () => {
   const [plugins, setPlugins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadPlugins();
@@ -13,8 +15,10 @@ const Plugins = () => {
     try {
       const data = await api.listPlugins();
       setPlugins(data.plugins || []);
-    } catch (error) {
-      console.error('Failed to load plugins:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load plugins:', err);
+      setError('Could not load plugins.');
     } finally {
       setLoading(false);
     }
@@ -26,12 +30,14 @@ const Plugins = () => {
         PLUGIN MANAGEMENT
       </h1>
 
+      {error && <ErrorState message={error} onRetry={loadPlugins} />}
+
       <div className="card-minecraft p-6">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING PLUGINS...
           </div>
-        ) : plugins.length === 0 ? (
+        ) : error ? null : plugins.length === 0 ? (
           <div className="text-minecraft-text-dark text-center py-8 text-[10px] font-minecraft">
             NO PLUGINS INSTALLED
           </div>

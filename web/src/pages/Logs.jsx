@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+import { ErrorState } from '../components/ui/Alert';
 import { VirtualList } from '../components/VirtualList';
 import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../services/api';
@@ -7,6 +8,7 @@ import { api } from '../services/api';
 const Logs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState('');
   const [connected, setConnected] = useState(false);
@@ -123,8 +125,10 @@ const Logs = () => {
     try {
       const data = await api.getLogs(200);
       setLogs(data.logs || []);
-    } catch (error) {
-      console.error('Failed to load logs:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load logs:', err);
+      setError('Could not load logs.');
     } finally {
       setLoading(false);
     }
@@ -152,6 +156,8 @@ const Logs = () => {
       <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
         SERVER LOGS
       </h1>
+
+      {error && <ErrorState message={error} onRetry={refreshLogs} />}
 
       {/* Controls */}
       <div className="card-minecraft p-4 mb-6 flex gap-4 items-center flex-wrap">

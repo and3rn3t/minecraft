@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { ErrorState } from '../components/ui/Alert';
 import { api } from '../services/api';
 
 const Worlds = () => {
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadWorlds();
@@ -13,8 +15,10 @@ const Worlds = () => {
     try {
       const data = await api.listWorlds();
       setWorlds(data.worlds || []);
-    } catch (error) {
-      console.error('Failed to load worlds:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load worlds:', err);
+      setError('Could not load worlds.');
     } finally {
       setLoading(false);
     }
@@ -26,12 +30,14 @@ const Worlds = () => {
         WORLD MANAGEMENT
       </h1>
 
+      {error && <ErrorState message={error} onRetry={loadWorlds} />}
+
       <div className="card-minecraft p-6">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING WORLDS...
           </div>
-        ) : worlds.length === 0 ? (
+        ) : error ? null : worlds.length === 0 ? (
           <div className="text-minecraft-text-dark text-center py-8 text-[10px] font-minecraft">
             NO WORLDS FOUND
           </div>

@@ -30,6 +30,34 @@ describe('Logs', () => {
     expect(screen.getByText(/loading logs/i)).toBeInTheDocument();
   });
 
+  it('surfaces a fetch failure instead of a silent console.error', async () => {
+    api.api.getLogs.mockRejectedValue(new Error('API Error'));
+
+    renderWithRouter(<Logs />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/could not load logs/i);
+    });
+  });
+
+  it('retries via the Retry button and recovers once it succeeds', async () => {
+    api.api.getLogs.mockRejectedValueOnce(new Error('API Error'));
+    api.api.getLogs.mockResolvedValueOnce({ logs: ['[10:30:00] Server started'] });
+
+    renderWithRouter(<Logs />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('[10:30:00] Server started')).toBeInTheDocument();
+    });
+  });
+
   it('displays logs when loaded', async () => {
     const mockLogs = [
       '[10:30:00] [Server thread/INFO] Starting server',

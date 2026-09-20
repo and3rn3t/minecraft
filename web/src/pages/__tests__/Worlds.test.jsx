@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../services/api';
 import { renderWithRouter } from '../../test/utils';
@@ -92,6 +93,30 @@ describe('Worlds', () => {
     // Component should still render, even with errors
     await waitFor(() => {
       expect(screen.getByText(/world management/i)).toBeInTheDocument();
+    });
+
+    // The error is surfaced, not swallowed into a misleading empty state
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not load worlds/i);
+    expect(screen.queryByText(/no worlds found/i)).not.toBeInTheDocument();
+  });
+
+  it('retries after an error and recovers once it succeeds', async () => {
+    api.api.listWorlds.mockRejectedValueOnce(new Error('API Error'));
+    api.api.listWorlds.mockResolvedValueOnce({
+      worlds: [{ name: 'world', size: '120M', type: 'overworld', active: true }],
+    });
+
+    renderWithRouter(<Worlds />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('world')).toBeInTheDocument();
     });
   });
 });
