@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '../components/ToastContainer';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ErrorState } from '../components/ui/Alert';
+import { PageHeader } from '../components/ui/PageHeader';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from '../components/ui/Table';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { usePolling } from '../hooks/usePolling';
 import { api } from '../services/api';
@@ -138,122 +151,86 @@ const Backups = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-minecraft text-minecraft-grass-light leading-tight">
-          BACKUPS
-        </h1>
-        <button
-          onClick={handleCreateBackup}
-          disabled={creating}
-          className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {creating ? (
-            <>
-              <span>⏳</span>
-              CREATING...
-            </>
-          ) : (
-            <>
-              <span>💾</span>
-              CREATE BACKUP
-            </>
-          )}
-        </button>
-      </div>
+      <PageHeader
+        title="BACKUPS"
+        actions={
+          <Button variant="primary" onClick={handleCreateBackup} disabled={creating}>
+            {creating ? (
+              <>
+                <span>⏳</span>
+                CREATING...
+              </>
+            ) : (
+              <>
+                <span>💾</span>
+                CREATE BACKUP
+              </>
+            )}
+          </Button>
+        }
+      />
 
-      {pollingError && (
-        <div className="card-minecraft p-4 mb-6 flex items-center justify-between gap-4">
-          <p className="text-[10px] font-minecraft text-red-400 leading-relaxed">
-            FAILED TO LOAD BACKUPS
-          </p>
-          <button onClick={refetch} className="btn-minecraft-danger text-[8px] shrink-0">
-            RETRY
-          </button>
-        </div>
-      )}
+      {pollingError && <ErrorState message="Failed to load backups" onRetry={refetch} />}
 
       {/* Backups Table */}
-      <div className="card-minecraft p-6">
+      <Card padding="lg">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING BACKUPS...
           </div>
         ) : backups.length === 0 ? (
-          <div className="text-minecraft-text-dark text-center py-8">
-            <p className="text-sm font-minecraft mb-2">NO BACKUPS FOUND</p>
-            <p className="text-[10px] font-minecraft">CREATE A BACKUP TO GET STARTED</p>
-          </div>
+          <EmptyState icon="💾" title="No backups found" hint="Create a backup to get started" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-[#5D4037]">
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    NAME
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    SIZE
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    CREATED
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    AGE
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    ACTIONS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {backups.map((backup, index) => (
-                  <tr
-                    key={backup.name || `backup-${index}`}
-                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt"
-                  >
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
-                      {backup.name}
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
-                      {formatSize(backup.size)}
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
-                      {formatDate(backup.created)}
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
-                      {formatAge(backup.created)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleRestore(backup.name)}
-                          disabled={restoring === backup.name || deleting === backup.name}
-                          className="btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {restoring === backup.name ? 'RESTORING...' : 'RESTORE'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(backup.name)}
-                          disabled={restoring === backup.name || deleting === backup.name}
-                          className="btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {deleting === backup.name ? 'DELETING...' : 'DELETE'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table caption="Server backups">
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Size</TableHeaderCell>
+                <TableHeaderCell>Created</TableHeaderCell>
+                <TableHeaderCell>Age</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {backups.map((backup, index) => (
+                <TableRow key={backup.name || `backup-${index}`} className="hover:bg-minecraft-dirt">
+                  <TableCell>{backup.name}</TableCell>
+                  <TableCell>{formatSize(backup.size)}</TableCell>
+                  <TableCell>{formatDate(backup.created)}</TableCell>
+                  <TableCell className="text-minecraft-text-dark">
+                    {formatAge(backup.created)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleRestore(backup.name)}
+                        disabled={restoring === backup.name || deleting === backup.name}
+                      >
+                        {restoring === backup.name ? 'RESTORING...' : 'RESTORE'}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDelete(backup.name)}
+                        disabled={restoring === backup.name || deleting === backup.name}
+                      >
+                        {deleting === backup.name ? 'DELETING...' : 'DELETE'}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
 
       {/* Info */}
       {backups.length > 0 && (
-        <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
-          <strong>INFO:</strong> {backups.length} BACKUP{backups.length !== 1 ? 'S' : ''} AVAILABLE.
-          RESTORING A BACKUP WILL STOP THE SERVER AND CREATE A BACKUP OF THE CURRENT STATE FIRST.
+        <div className="mt-4 border-2 border-minecraft-water-dark bg-minecraft-water/30 p-3 text-[10px] font-minecraft text-minecraft-text-light">
+          <strong>INFO:</strong> {backups.length} backup{backups.length !== 1 ? 's' : ''} available.
+          Restoring a backup will stop the server and create a backup of the current state first.
         </div>
       )}
     </div>

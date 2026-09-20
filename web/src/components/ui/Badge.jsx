@@ -42,9 +42,12 @@ const DOT_CLASS = {
  * offline, Logs and Console used gray-with-no-pulse — so "disconnected"
  * looked different depending which page you were on.
  */
-export function StatusPill({ status = 'neutral', pulse = false, children, className }) {
+export function StatusPill({ status = 'neutral', pulse = false, children, className, ...props }) {
   return (
-    <span className={cn('inline-flex items-center gap-2 text-[10px] font-minecraft', className)}>
+    <span
+      className={cn('inline-flex items-center gap-2 text-[10px] font-minecraft', className)}
+      {...props}
+    >
       <span
         className={cn('h-2.5 w-2.5 shrink-0', DOT_CLASS[status], pulse && 'animate-pulse')}
         aria-hidden="true"

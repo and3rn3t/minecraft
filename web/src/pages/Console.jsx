@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Input } from '../components/ui/FormField';
+import { StatusPill } from '../components/ui/Badge';
+import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
 const Console = () => {
@@ -109,12 +115,11 @@ const Console = () => {
     // Also listen to logs for server output
     socket.on('logs', data => {
       if (data.type === 'update' && data.logs) {
-        // Add new log lines to output
-        data.logs.forEach(log => {
-          if (log.trim()) {
-            addOutput(log, 'log');
-          }
-        });
+        // One state update for the whole batch rather than one per line —
+        // each setOutput call copies the (up to 1000-entry) array, so an
+        // N-line batch was N copies instead of one.
+        const lines = data.logs.filter(log => log.trim()).map(text => ({ text, type: 'log' }));
+        addOutputBatch(lines);
       }
     });
 
@@ -136,6 +141,13 @@ const Console = () => {
   const addOutput = (text, type = 'log') => {
     const timestamp = new Date().toLocaleTimeString();
     setOutput(prev => [...prev, { text, type, timestamp }].slice(-1000)); // Keep last 1000 lines
+  };
+
+  // Same as addOutput, but for a batch of lines in a single state update.
+  const addOutputBatch = entries => {
+    if (entries.length === 0) return;
+    const timestamp = new Date().toLocaleTimeString();
+    setOutput(prev => [...prev, ...entries.map(e => ({ ...e, timestamp }))].slice(-1000));
   };
 
   const executeCommand = async cmd => {
@@ -245,7 +257,7 @@ const Console = () => {
       case 'response':
         return 'text-minecraft-grass-light';
       case 'error':
-        return 'text-[#C62828]';
+        return 'text-minecraft-danger';
       case 'system':
         return 'text-minecraft-text-dark italic';
       default:
@@ -255,75 +267,62 @@ const Console = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        SERVER CONSOLE
-      </h1>
+      <PageHeader title="SERVER CONSOLE" />
 
       {/* Connection Status */}
-      <div className="card-minecraft p-4 mb-6 flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass-light' : 'bg-minecraft-stone'}`}
-            title={connected ? 'Connected' : 'Disconnected'}
-            style={{ imageRendering: 'pixelated' }}
-          />
-          <span className="text-[10px] font-minecraft text-minecraft-text-dark">
-            {loading ? 'CONNECTING...' : connected ? 'CONNECTED' : 'DISCONNECTED'}
-          </span>
-        </div>
-        <button onClick={clearOutput} className="btn-minecraft text-[10px]">
-          CLEAR
-        </button>
-        <span className="text-[10px] font-minecraft text-minecraft-text-dark ml-auto">
+      <Card padding="md" className="mb-6 flex items-center gap-4">
+        <StatusPill
+          status={connected ? 'success' : 'neutral'}
+          title={connected ? 'Connected' : 'Disconnected'}
+        >
+          {loading ? 'CONNECTING...' : connected ? 'CONNECTED' : 'DISCONNECTED'}
+        </StatusPill>
+        <Button onClick={clearOutput}>CLEAR</Button>
+        <span className="ml-auto text-[10px] font-minecraft text-minecraft-text-dark">
           {commandHistory.length} COMMANDS IN HISTORY
         </span>
-      </div>
+      </Card>
 
       {/* Output Area */}
-      <div className="card-minecraft p-4 mb-4">
-        <div className="font-minecraft text-[10px] overflow-auto max-h-[500px] bg-minecraft-dirt p-2">
+      <Card padding="md" className="mb-4">
+        <div className="max-h-[500px] overflow-auto bg-minecraft-dirt p-2 font-minecraft text-[10px]">
           {output.length === 0 ? (
-            <div className="text-minecraft-text-dark text-center py-8">
-              NO OUTPUT YET. TYPE A COMMAND BELOW.
-            </div>
+            <EmptyState icon="💻" title="No output yet" hint="Type a command below" />
           ) : (
             output.map((item, index) => (
               <div key={index} className={`py-1 px-2 ${getOutputClass(item.type)}`}>
-                <span className="text-minecraft-text-dark mr-2">[{item.timestamp}]</span>
+                <span className="mr-2 text-minecraft-text-dark">[{item.timestamp}]</span>
                 {item.text}
               </div>
             ))
           )}
           <div ref={outputEndRef} />
         </div>
-      </div>
+      </Card>
 
       {/* Command Input */}
-      <div className="card-minecraft p-4">
-        <div className="flex gap-2 items-center">
+      <Card padding="md">
+        <div className="flex items-center gap-2">
           <span className="text-[10px] font-minecraft text-minecraft-text-light">$</span>
-          <input
+          <Input
             ref={inputRef}
             type="text"
+            aria-label="Console command"
             value={commandInput}
             onChange={e => setCommandInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="TYPE COMMAND HERE... (UP/DOWN FOR HISTORY, TAB FOR AUTOCOMPLETE)"
-            className="input-minecraft flex-1 font-minecraft text-[10px]"
+            className="flex-1 font-minecraft text-[10px]"
             disabled={!connected && loading}
           />
-          <button
-            onClick={() => executeCommand(commandInput)}
-            disabled={!connected || !commandInput.trim()}
-            className="btn-minecraft text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button onClick={() => executeCommand(commandInput)} disabled={!connected || !commandInput.trim()}>
             EXECUTE
-          </button>
+          </Button>
         </div>
         <div className="mt-2 text-[8px] font-minecraft text-minecraft-text-dark">
           TIP: Use ↑/↓ to navigate command history, TAB for autocomplete
         </div>
-      </div>
+      </Card>
     </div>
   );
 };
