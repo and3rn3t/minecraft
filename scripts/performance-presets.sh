@@ -43,10 +43,37 @@ show_env_or_default() {
     fi
 }
 
+# Converts a "9G"/"512M" value to megabytes; empty output on anything else.
+to_mb() {
+    local val="$1"
+    if [[ "$val" =~ ^([0-9]+)([GgMm])$ ]]; then
+        case "${BASH_REMATCH[2]}" in
+            G | g) echo $((${BASH_REMATCH[1]} * 1024)) ;;
+            M | m) echo "${BASH_REMATCH[1]}" ;;
+        esac
+    fi
+}
+
 # CONTAINER_MEMORY_LIMIT must exceed MEMORY_MAX (metaspace, thread stacks,
-# direct buffers) or the container restart-loops; see .env.example.
+# direct buffers) or the container restart-loops; see .env.example. It must
+# also fit in the host's actual RAM: the high-performance preset's 9G limit
+# would get a container OOM-killed and restart-looping on a supported 4GB or
+# 8GB Pi, so refuse (with an override) rather than apply it blind.
 apply_memory() {
     local mem_min="$1" mem_max="$2" container_limit="$3"
+    local total_ram_mb limit_mb
+    total_ram_mb="$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')"
+    limit_mb="$(to_mb "$container_limit")"
+    if [ -n "$total_ram_mb" ] && [ -n "$limit_mb" ] && [ "$limit_mb" -gt "$total_ram_mb" ]; then
+        echo -e "${RED}CONTAINER_MEMORY_LIMIT=${container_limit} (~${limit_mb}MB) exceeds this host's ${total_ram_mb}MB of RAM.${NC}"
+        echo -e "${YELLOW}Applying it anyway will likely get the container OOM-killed and restart-looping.${NC}"
+        read -p "Apply anyway? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Memory settings not changed.${NC}"
+            return 1
+        fi
+    fi
     set_env_var MEMORY_MIN "$mem_min"
     set_env_var MEMORY_MAX "$mem_max"
     set_env_var CONTAINER_MEMORY_LIMIT "$container_limit"
@@ -68,7 +95,7 @@ apply_low_end() {
         "$SCRIPT_DIR/server-properties-manager.sh" set max-tick-time 60000 false
     fi
 
-    apply_memory 1G 2G 3G
+    apply_memory 1G 2G 3G || { echo -e "${YELLOW}Low-End preset stopped: memory not changed.${NC}"; return 1; }
 
     # JVM arguments
     echo -e "${BLUE}Generating JVM arguments...${NC}"
@@ -93,7 +120,7 @@ apply_balanced() {
         "$SCRIPT_DIR/server-properties-manager.sh" set entity-broadcast-range-percentage 100 false
     fi
 
-    apply_memory 2G 4G 5G
+    apply_memory 2G 4G 5G || { echo -e "${YELLOW}Balanced preset stopped: memory not changed.${NC}"; return 1; }
 
     # JVM arguments
     echo -e "${BLUE}Generating JVM arguments...${NC}"
@@ -118,7 +145,7 @@ apply_high_performance() {
         "$SCRIPT_DIR/server-properties-manager.sh" set entity-broadcast-range-percentage 100 false
     fi
 
-    apply_memory 4G 8G 9G
+    apply_memory 4G 8G 9G || { echo -e "${YELLOW}High-Performance preset stopped: memory not changed.${NC}"; return 1; }
 
     # JVM arguments
     echo -e "${BLUE}Generating JVM arguments...${NC}"
