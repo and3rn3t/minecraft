@@ -202,6 +202,21 @@ export const api = {
     return cachedGet('/players', {}, 3000);
   },
 
+  async opPlayer(player, level = 4) {
+    const response = await apiClient.post('/players/op', { player, level });
+    return response.data;
+  },
+
+  async deopPlayer(player) {
+    const response = await apiClient.delete(`/players/op/${encodeURIComponent(player)}`);
+    return response.data;
+  },
+
+  async getOps() {
+    const response = await apiClient.get('/players/ops');
+    return response.data;
+  },
+
   // Metrics (cached for 2 seconds)
   async getMetrics() {
     return cachedGet('/metrics', {}, 2000);

@@ -15,20 +15,28 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 OPS_FILE="${OPS_FILE:-${PROJECT_DIR}/data/ops.json}"
+RCON_CLIENT="${SCRIPT_DIR}/rcon-client.sh"
+RCON_CONFIG_FILE="${PROJECT_DIR}/config/rcon.conf"
 
-# Function to check if RCON is available
+# Function to check if RCON is available. rcon-client.sh (which actually
+# sends the command, over the network — no rcon-cli binary involved) needs
+# config/rcon.conf, written by scripts/rcon-setup.sh; checking for that is
+# what the rest of this codebase (api/rcon.py) already treats as "RCON is
+# configured".
 check_rcon() {
-    if ! command -v rcon-cli >/dev/null 2>&1; then
-        return 1
-    fi
-    return 0
+    [ -f "$RCON_CONFIG_FILE" ]
 }
 
-# Function to send RCON command
+# Function to send RCON command to the live server. Previously a stub that
+# unconditionally returned success without sending anything — grant_op and
+# revoke_op only ever edited ops.json on disk, which Minecraft reads once at
+# startup, so op/deop never actually took effect for a running server until
+# its next restart. Best-effort: a player who's actually online should see
+# this apply instantly, but ops.json is what makes it durable, so a failure
+# here doesn't abort the caller.
 send_rcon() {
     local command="$1"
-    # This would use rcon-cli or manage.sh rcon
-    return 0
+    "$RCON_CLIENT" command "$command" >/dev/null 2>&1
 }
 
 # Function to grant OP to player
@@ -61,9 +69,12 @@ grant_op() {
         return 0
     fi
 
-    # Grant OP via RCON if available
+    # Grant OP via RCON if available. || true: send_rcon can now genuinely
+    # fail (e.g. server not running) and set -e is active — a failure here
+    # must not skip the ops.json write below, which is what makes this
+    # durable across the server's next start regardless.
     if check_rcon; then
-        send_rcon "op $player" >/dev/null 2>&1
+        send_rcon "op $player" || true
     fi
 
     # Add to ops.json
@@ -128,9 +139,10 @@ revoke_op() {
         return 1
     fi
 
-    # Revoke OP via RCON if available
+    # Revoke OP via RCON if available. See grant_op's matching comment for
+    # why the || true is needed now that send_rcon does real work.
     if check_rcon; then
-        send_rcon "deop $player" >/dev/null 2>&1
+        send_rcon "deop $player" || true
     fi
 
     # Remove from ops.json
