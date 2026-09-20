@@ -70,12 +70,12 @@ repos:
     hooks:
       - id: docker-compose-check
         name: Check docker-compose.yml
-        # `docker compose`, not `docker-compose`: the v1 binary is gone from the
-        # Ubuntu runner image and conflicts with the plugin on Raspberry Pi OS.
-        # AGENTS.md requires the spaced form everywhere; this hook was the one
-        # place still calling v1, so it failed anywhere v1 was absent.
-        entry: docker
-        args: ["compose", "config", "--quiet"]
+        # Reuses the same v2-preferred, v1-fallback detection as the
+        # Makefile's $(COMPOSE) and scripts/lib/common.sh's compose() helper,
+        # rather than hard-coding the v2 form: the runner image only has v2,
+        # but a contributor's machine may only have the legacy binary, and
+        # this hook should not be stricter than the rest of the project.
+        entry: bash -c 'source scripts/lib/common.sh && compose config --quiet'
         language: system
         pass_filenames: false
         always_run: true
