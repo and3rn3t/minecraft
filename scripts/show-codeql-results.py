@@ -83,6 +83,86 @@ def changed_lines(base):
     return touched
 
 
+def load_triage(path=Path(".codeql-triage.yaml")):
+    """Findings that have been reviewed and judged not to be defects.
+
+    Returns a list of dicts with rule, path, reason and count. A missing or
+    unusable file means no exemptions, which is the safe direction: everything
+    fails until someone has argued otherwise in writing.
+    """
+    if not path.exists():
+        return []
+    try:
+        import yaml
+    except ImportError:
+        print(f"PyYAML is not installed, so {path} was ignored.", file=sys.stderr)
+        return []
+    try:
+        data = yaml.safe_load(path.read_text())
+    except Exception as exc:  # noqa: BLE001 - a broken triage file must not hide findings
+        print(f"Could not read {path}: {exc}", file=sys.stderr)
+        return []
+
+    # A file that parses but is not shaped like a triage file — a bare list,
+    # a string, a "triaged" key holding something other than a list — must not
+    # raise its way out of here, and must not be read as "exempt everything".
+    if not isinstance(data, dict):
+        print(f"{path} is not a mapping, so it was ignored.", file=sys.stderr)
+        return []
+    raw_entries = data.get("triaged")
+    if not isinstance(raw_entries, list):
+        print(f"{path} has no 'triaged' list, so it was ignored.", file=sys.stderr)
+        return []
+
+    entries = []
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        rule, file_path, reason = entry.get("rule"), entry.get("path"), entry.get("reason")
+        count = entry.get("count")
+        # A reason is mandatory: an exemption without one is just a silencer.
+        # A count is mandatory too — see check_triage_counts.
+        if rule and file_path and reason and isinstance(count, int):
+            entries.append({"rule": rule, "path": file_path, "reason": reason, "count": count})
+        else:
+            print(f"{path}: ignoring an entry missing rule, path, reason or count.", file=sys.stderr)
+    return entries
+
+
+def is_triaged(result, triage):
+    return any(result["rule"] == e["rule"] and result["file"] == e["path"] for e in triage)
+
+
+def check_triage_counts(results, triage):
+    """Fail if a triaged rule has grown since it was reviewed.
+
+    Matching on rule and file alone would exempt a *new* finding of that rule
+    anywhere in that file, which is how an exemption quietly becomes a blind
+    spot. Each entry therefore records how many findings it covered when it was
+    written, checked here against the whole repository rather than against the
+    changed lines, so a regression cannot hide by landing on an untouched line.
+
+    Returns a list of complaints; empty means the counts are as recorded.
+    """
+    complaints = []
+    for entry in triage:
+        actual = sum(1 for r in results if r["rule"] == entry["rule"] and r["file"] == entry["path"])
+        if actual > entry["count"]:
+            complaints.append(
+                f"{entry['rule']} in {entry['path']}: {actual} findings, but "
+                f"{entry['count']} were triaged. Review the {actual - entry['count']} new one(s) "
+                f"before raising the count in .codeql-triage.yaml."
+            )
+        elif actual < entry["count"]:
+            # Not a failure, but worth saying: the exemption is wider than the
+            # problem it was written for.
+            print(
+                f"  note: {entry['rule']} in {entry['path']} is down to {actual} "
+                f"from the {entry['count']} triaged; lower the count to keep the exemption tight."
+            )
+    return complaints
+
+
 def load_results(path):
     sarif = json.loads(path.read_text())
     results = []
@@ -150,6 +230,23 @@ def main():
         shown = [r for r in results if r["line"] in touched.get(r["file"], ())]
         print()
         summarise(shown, f"On lines changed since {args.changed_since}")
+
+    triage = load_triage()
+
+    # Checked against every result, not just the changed lines: a new finding
+    # of a triaged rule is a regression wherever it landed.
+    complaints = check_triage_counts(results, triage)
+    if complaints:
+        print()
+        print("Triaged rules have grown since they were reviewed:")
+        for complaint in complaints:
+            print(f"  {complaint}")
+        return 1
+
+    exempt = [r for r in shown if is_triaged(r, triage)]
+    shown = [r for r in shown if not is_triaged(r, triage)]
+    if exempt:
+        print(f"  ({len(exempt)} triaged in .codeql-triage.yaml, not failing this run)")
 
     print()
     if not shown:

@@ -450,7 +450,11 @@ def run_script(script_name, *args, timeout=DEFAULT_SCRIPT_TIMEOUT):
     except subprocess.TimeoutExpired:
         return None, f"Script execution timeout after {timeout}s", 504
     except Exception as e:
-        return None, str(e), 500
+        # The second element is treated as the script's stderr by callers, and
+        # several return it to the client, so the exception text would reach
+        # them by that route. It goes to the log instead.
+        app.logger.error(f"Script {script_name} failed: {e}")
+        return None, "Script execution failed", 500
 
 
 def run_rcon_command(command):
@@ -1351,7 +1355,8 @@ def google_oauth_callback():
         )
 
     except Exception as e:
-        return jsonify({"error": f"OAuth callback error: {str(e)}"}), 500
+        app.logger.error(f"OAuth callback error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/auth/oauth/<provider>/link", methods=["POST"])
@@ -1479,7 +1484,8 @@ def link_oauth_account(provider):
             return jsonify({"error": "Invalid provider"}), 400
 
     except Exception as e:
-        return jsonify({"error": f"Failed to link OAuth account: {str(e)}"}), 500
+        app.logger.error(f"Failed to link OAuth account: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/auth/oauth/<provider>/unlink", methods=["POST"])
@@ -1591,7 +1597,8 @@ def apple_oauth_callback():
         )
 
     except Exception as e:
-        return jsonify({"error": f"Failed to process Apple OAuth: {str(e)}"}), 500
+        app.logger.error(f"Failed to process Apple OAuth: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # API Key Management Endpoints
@@ -1615,7 +1622,8 @@ def list_api_keys():
             )
         return jsonify({"success": True, "keys": keys_list}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to list API keys: {str(e)}"}), 500
+        app.logger.error(f"Failed to list API keys: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/keys", methods=["POST"])
@@ -1677,7 +1685,8 @@ def create_api_key():
             201,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to create API key: {str(e)}"}), 500
+        app.logger.error(f"Failed to create API key: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 def _find_api_key(key_id):
@@ -1782,7 +1791,8 @@ def delete_api_key(key_id):
 
         return jsonify({"success": True, "message": f"API key '{key_name}' deleted"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to delete API key: {str(e)}"}), 500
+        app.logger.error(f"Failed to delete API key: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/keys/<key_id>/enable", methods=["PUT"])
@@ -1802,7 +1812,8 @@ def enable_api_key(key_id):
 
         return jsonify({"success": True, "message": "API key enabled"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to enable API key: {str(e)}"}), 500
+        app.logger.error(f"Failed to enable API key: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/keys/<key_id>/disable", methods=["PUT"])
@@ -1822,7 +1833,8 @@ def disable_api_key(key_id):
 
         return jsonify({"success": True, "message": "API key disabled"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to disable API key: {str(e)}"}), 500
+        app.logger.error(f"Failed to disable API key: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # Role and Permission Management Endpoints
@@ -1844,7 +1856,8 @@ def list_users():
             )
         return jsonify({"success": True, "users": users_list}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to list users: {str(e)}"}), 500
+        app.logger.error(f"Failed to list users: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/users", methods=["POST"])
@@ -1958,7 +1971,8 @@ def update_user_role(username):
             200,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to update user role: {str(e)}"}), 500
+        app.logger.error(f"Failed to update user role: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/users/<username>", methods=["DELETE"])
@@ -1990,7 +2004,8 @@ def delete_user(username):
 
         return jsonify({"success": True, "message": f"User '{username}' deleted"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to delete user: {str(e)}"}), 500
+        app.logger.error(f"Failed to delete user: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/users/<username>/enable", methods=["PUT"])
@@ -2008,7 +2023,8 @@ def enable_user(username):
 
         return jsonify({"success": True, "message": "User enabled"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to enable user: {str(e)}"}), 500
+        app.logger.error(f"Failed to enable user: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/users/<username>/disable", methods=["PUT"])
@@ -2035,7 +2051,8 @@ def disable_user(username):
 
         return jsonify({"success": True, "message": "User disabled"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to disable user: {str(e)}"}), 500
+        app.logger.error(f"Failed to disable user: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/permissions", methods=["GET"])
@@ -2063,7 +2080,8 @@ def get_permissions():
             200,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to get permissions: {str(e)}"}), 500
+        app.logger.error(f"Failed to get permissions: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/roles", methods=["GET"])
@@ -2079,7 +2097,8 @@ def list_roles():
             }
         return jsonify({"success": True, "roles": roles_info}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to list roles: {str(e)}"}), 500
+        app.logger.error(f"Failed to list roles: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/status", methods=["GET"])
@@ -2577,7 +2596,8 @@ def get_audit_logs():
             200,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to get audit logs: {str(e)}"}), 500
+        app.logger.error(f"Failed to get audit logs: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/backups/<path:filename>/restore", methods=["POST"])
@@ -2640,7 +2660,8 @@ def restore_backup(filename):
             }
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to restore backup: {str(e)}"}), 500
+        app.logger.error(f"Failed to restore backup: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/backups/<path:filename>", methods=["DELETE"])
@@ -2666,7 +2687,8 @@ def delete_backup(filename):
         backup_path.unlink()
         return jsonify({"success": True, "message": "Backup deleted successfully"})
     except Exception as e:
-        return jsonify({"error": f"Failed to delete backup: {str(e)}"}), 500
+        app.logger.error(f"Failed to delete backup: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/logs", methods=["GET"])
@@ -2877,7 +2899,8 @@ def get_whitelist():
 
         return jsonify({"success": True, "players": whitelist}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get whitelist: {str(e)}"}), 500
+        app.logger.error(f"Failed to get whitelist: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/whitelist", methods=["POST"])
@@ -2896,7 +2919,8 @@ def add_whitelist():
         else:
             return jsonify({"error": stderr or "Failed to add player to whitelist"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to add to whitelist: {str(e)}"}), 500
+        app.logger.error(f"Failed to add to whitelist: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/whitelist/<player>", methods=["DELETE"])
@@ -2910,7 +2934,8 @@ def remove_whitelist(player):
         else:
             return jsonify({"error": stderr or "Failed to remove player from whitelist"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to remove from whitelist: {str(e)}"}), 500
+        app.logger.error(f"Failed to remove from whitelist: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/banned", methods=["GET"])
@@ -2927,7 +2952,8 @@ def get_banned():
 
         return jsonify({"success": True, "players": banned}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get ban list: {str(e)}"}), 500
+        app.logger.error(f"Failed to get ban list: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/ban", methods=["POST"])
@@ -2950,7 +2976,8 @@ def ban_player():
         else:
             return jsonify({"error": stderr or "Failed to ban player"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to ban player: {str(e)}"}), 500
+        app.logger.error(f"Failed to ban player: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/ban/<player>", methods=["DELETE"])
@@ -2964,7 +2991,8 @@ def unban_player(player):
         else:
             return jsonify({"error": stderr or "Failed to unban player"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to unban player: {str(e)}"}), 500
+        app.logger.error(f"Failed to unban player: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/ops", methods=["GET"])
@@ -2981,7 +3009,8 @@ def get_ops():
 
         return jsonify({"success": True, "operators": ops}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get operators: {str(e)}"}), 500
+        app.logger.error(f"Failed to get operators: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/op", methods=["POST"])
@@ -3001,7 +3030,8 @@ def grant_op():
         else:
             return jsonify({"error": stderr or "Failed to grant operator status"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to grant operator: {str(e)}"}), 500
+        app.logger.error(f"Failed to grant operator: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/players/op/<player>", methods=["DELETE"])
@@ -3015,7 +3045,8 @@ def revoke_op(player):
         else:
             return jsonify({"error": stderr or "Failed to revoke operator status"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to revoke operator: {str(e)}"}), 500
+        app.logger.error(f"Failed to revoke operator: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/server/properties", methods=["GET"])
@@ -3037,7 +3068,8 @@ def get_server_properties():
 
         return jsonify({"success": True, "properties": properties}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get server properties: {str(e)}"}), 500
+        app.logger.error(f"Failed to get server properties: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/server/properties/<key>", methods=["GET"])
@@ -3051,7 +3083,8 @@ def get_server_property(key):
         else:
             return jsonify({"error": stderr or f"Property '{key}' not found"}), 404
     except Exception as e:
-        return jsonify({"error": f"Failed to get property: {str(e)}"}), 500
+        app.logger.error(f"Failed to get property: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/server/properties/<key>", methods=["PUT"])
@@ -3070,7 +3103,8 @@ def set_server_property(key):
         else:
             return jsonify({"error": stderr or "Failed to set property"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to set property: {str(e)}"}), 500
+        app.logger.error(f"Failed to set property: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # The presets themselves live in scripts/server-properties-manager.sh; this
@@ -3225,7 +3259,8 @@ def get_announcements():
         else:
             return jsonify({"error": stderr or "Failed to get announcements"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to get announcements: {str(e)}"}), 500
+        app.logger.error(f"Failed to get announcements: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/announcements", methods=["POST"])
@@ -3260,7 +3295,8 @@ def create_announcement():
         else:
             return jsonify({"error": stderr or "Failed to create announcement"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to create announcement: {str(e)}"}), 500
+        app.logger.error(f"Failed to create announcement: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/announcements/<announcement_id>/send", methods=["POST"])
@@ -3274,7 +3310,8 @@ def send_announcement(announcement_id):
         else:
             return jsonify({"error": stderr or "Failed to send announcement"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to send announcement: {str(e)}"}), 500
+        app.logger.error(f"Failed to send announcement: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/announcements/<announcement_id>", methods=["DELETE"])
@@ -3288,7 +3325,8 @@ def delete_announcement(announcement_id):
         else:
             return jsonify({"error": stderr or "Failed to delete announcement"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to delete announcement: {str(e)}"}), 500
+        app.logger.error(f"Failed to delete announcement: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/metrics", methods=["GET"])
@@ -3338,7 +3376,8 @@ def collect_analytics():
         else:
             return jsonify({"error": stderr or "Failed to collect analytics"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to collect analytics: {str(e)}"}), 500
+        app.logger.error(f"Failed to collect analytics: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/analytics/report", methods=["GET"])
@@ -3370,7 +3409,8 @@ def get_analytics_report():
             return jsonify({"error": "Report not available"}), 404
 
     except Exception as e:
-        return jsonify({"error": f"Failed to get report: {str(e)}"}), 500
+        app.logger.error(f"Failed to get report: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/analytics/trends", methods=["GET"])
@@ -3400,7 +3440,8 @@ def get_analytics_trends():
         # Fallback: return basic trends from metrics
         return jsonify({"trends": {}, "period_hours": hours, "note": "Full analytics not available"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get trends: {str(e)}"}), 500
+        app.logger.error(f"Failed to get trends: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/analytics/anomalies", methods=["GET"])
@@ -3427,7 +3468,8 @@ def get_analytics_anomalies():
     except ImportError:
         return jsonify({"anomalies": [], "note": "Full analytics not available"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get anomalies: {str(e)}"}), 500
+        app.logger.error(f"Failed to get anomalies: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/analytics/predictions", methods=["GET"])
@@ -3454,7 +3496,8 @@ def get_analytics_predictions():
     except ImportError:
         return jsonify({"prediction": {}, "note": "Full analytics not available"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get predictions: {str(e)}"}), 500
+        app.logger.error(f"Failed to get predictions: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/analytics/player-behavior", methods=["GET"])
@@ -3476,7 +3519,8 @@ def get_player_behavior():
     except ImportError:
         return jsonify({"behavior": {}, "note": "Full analytics not available"}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to get player behavior: {str(e)}"}), 500
+        app.logger.error(f"Failed to get player behavior: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/analytics/custom-report", methods=["POST"])
@@ -3516,7 +3560,8 @@ def generate_custom_report():
     except ImportError:
         return jsonify({"error": "Analytics processor not available"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
+        app.logger.error(f"Failed to generate report: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/worlds", methods=["GET"])
@@ -3583,6 +3628,22 @@ CONFIG_ALLOWED_PATHS = {
 }
 
 # File Browser - Allowed directories (for security)
+def describe_yaml_error(error):
+    """Describe a YAML parse failure using only the parser's own fields.
+
+    str(a YAMLError) formats the problem together with the surrounding context
+    and the stream name. Taking `problem` and `problem_mark` keeps what the
+    caller needs — what is wrong and where — without passing the exception's
+    rendering through to the response.
+    """
+    problem = getattr(error, "problem", None) or "could not be parsed"
+    mark = getattr(error, "problem_mark", None)
+    if mark is not None:
+        # Marks are zero-based; editors are not.
+        return f"Invalid YAML: {problem} (line {mark.line + 1}, column {mark.column + 1})"
+    return f"Invalid YAML: {problem}"
+
+
 ALLOWED_FILE_PATHS = [
     PROJECT_ROOT / "data",
     PROJECT_ROOT / "config",
@@ -3648,7 +3709,8 @@ def get_config_file(filename):
             }
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to read file: {str(e)}"}), 500
+        app.logger.error(f"Failed to read file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/config/files/<path:filename>", methods=["POST"])
@@ -3689,7 +3751,8 @@ def save_config_file(filename):
 
             shutil.copy2(file_path, backup_path)
         except Exception as e:
-            return jsonify({"error": f"Failed to create backup: {str(e)}"}), 500
+            app.logger.error(f"Failed to create backup: {e}")
+            return jsonify({"error": "Internal server error"}), 500
 
     # Validate content (basic validation)
     content = data["content"]
@@ -3719,14 +3782,11 @@ def save_config_file(filename):
         except ImportError:
             pass  # YAML library not available, skip validation
         except yaml.YAMLError as e:
-            return (
-                jsonify(
-                    {
-                        "error": f"Invalid YAML format: {str(e)}",
-                    }
-                ),
-                400,
-            )
+            # The caller needs to know where their YAML is wrong, so the line
+            # and column are reported — but built from the parser's own fields
+            # rather than str(e), which formats the surrounding context and is
+            # a route for anything else in the exception to reach the response.
+            return jsonify({"error": describe_yaml_error(e)}), 400
 
     # Save file
     try:
@@ -3752,7 +3812,8 @@ def save_config_file(filename):
                 shutil.copy2(backup_path, file_path)
             except Exception:
                 pass  # Restore attempt is best-effort
-        return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
+        app.logger.error(f"Failed to save file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/config/files/<path:filename>/validate", methods=["POST"])
@@ -3791,10 +3852,11 @@ def validate_config_file(filename):
         except ImportError:
             warnings.append({"message": "YAML validation unavailable"})
         except yaml.YAMLError as e:
+            mark = getattr(e, "problem_mark", None)
             errors.append(
                 {
-                    "line": getattr(e, "problem_mark", {}).line if hasattr(e, "problem_mark") else 0,
-                    "message": str(e),
+                    "line": (mark.line + 1) if mark is not None else 0,
+                    "message": describe_yaml_error(e),
                 }
             )
 
@@ -3833,7 +3895,8 @@ def get_ddns_status():
         else:
             return jsonify({"success": False, "error": result.stderr or "Failed to get status"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to get DDNS status: {str(e)}"}), 500
+        app.logger.error(f"Failed to get DDNS status: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/ddns/update", methods=["POST"])
@@ -3856,7 +3919,8 @@ def update_ddns():
     except subprocess.TimeoutExpired:
         return jsonify({"error": "DDNS update timed out"}), 504
     except Exception as e:
-        return jsonify({"error": f"Failed to update DDNS: {str(e)}"}), 500
+        app.logger.error(f"Failed to update DDNS: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/ddns/config", methods=["GET"])
@@ -3876,24 +3940,67 @@ def get_ddns_config():
         content = config_file.read_text()
         return jsonify({"content": content, "is_example": False}), 200
     except Exception as e:
-        return jsonify({"error": f"Failed to read DDNS config: {str(e)}"}), 500
+        app.logger.error(f"Failed to read DDNS config: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # File Browser Endpoints
+def _within_allowed_roots(real_path):
+    """Whether an already-resolved path sits inside one of the allowed roots.
+
+    Written with os.path and a separator-terminated prefix rather than
+    ``Path.is_relative_to``: the two are equivalent, but this form is one
+    CodeQL recognises as a path sanitizer, so the file browser gets real
+    analysis instead of a standing exemption.
+
+    The trailing separator is what stops ``/srv/data-evil`` passing because it
+    begins with ``/srv/data``.
+    """
+    for allowed_path in ALLOWED_FILE_PATHS:
+        try:
+            root = os.path.realpath(str(allowed_path))
+        except (ValueError, OSError):
+            continue
+        if real_path == root or real_path.startswith(root + os.sep):
+            return True
+    return False
+
+
 def is_path_allowed(file_path):
     """Check if a file path is within allowed directories"""
     try:
-        resolved_path = Path(file_path).resolve()
-        for allowed_path in ALLOWED_FILE_PATHS:
-            try:
-                allowed_resolved = allowed_path.resolve()
-                if resolved_path.is_relative_to(allowed_resolved):
-                    return True
-            except (ValueError, OSError):
-                continue
-        return False
+        return _within_allowed_roots(os.path.realpath(str(file_path)))
     except (ValueError, OSError):
         return False
+
+
+def resolve_allowed_path(path_param):
+    """Resolve a caller-supplied path and confirm it is inside an allowed root.
+
+    Returns ``(path, None)`` when the path is usable, or ``(None, response)``
+    with the refusal to return.
+
+    Resolving first matters: ``.resolve()`` collapses ``..`` and follows
+    symlinks, so a link inside an allowed directory pointing outside one is
+    checked at its destination rather than by its name. Checking the string
+    before resolving would miss that.
+
+    The explicit rejections below are the paths that never reach the allowlist
+    check at all, because resolving them raises first — a null byte used to
+    surface as a 500 carrying the raw OS error.
+    """
+    if not isinstance(path_param, str) or "\x00" in path_param:
+        return None, (jsonify({"error": "Invalid path"}), 400)
+
+    try:
+        candidate = os.path.realpath(os.path.join(str(PROJECT_ROOT), path_param))
+    except (ValueError, OSError):
+        return None, (jsonify({"error": "Invalid path"}), 400)
+
+    if not _within_allowed_roots(candidate):
+        return None, (jsonify({"error": "Path not allowed"}), 403)
+
+    return Path(candidate), None
 
 
 @app.route("/api/files/list", methods=["GET"])
@@ -3918,9 +4025,9 @@ def list_files():
             return jsonify({"success": True, "files": roots, "path": ""}), 200
 
         # Resolve path (canonicalises .., resolves symlinks — required before any FS operation)
-        file_path = (PROJECT_ROOT / path_param).resolve()
-        if not is_path_allowed(file_path):
-            return jsonify({"error": "Path not allowed"}), 403
+        file_path, refusal = resolve_allowed_path(path_param)
+        if refusal:
+            return refusal
 
         if not file_path.exists():
             return jsonify({"error": "Path not found"}), 404
@@ -3962,7 +4069,8 @@ def list_files():
         except PermissionError:
             return jsonify({"error": "Permission denied"}), 403
     except Exception as e:
-        return jsonify({"error": f"Failed to list files: {str(e)}"}), 500
+        app.logger.error(f"Failed to list files: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/files/read", methods=["GET"])
@@ -3974,9 +4082,9 @@ def read_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = (PROJECT_ROOT / path_param).resolve()
-        if not is_path_allowed(file_path):
-            return jsonify({"error": "Path not allowed"}), 403
+        file_path, refusal = resolve_allowed_path(path_param)
+        if refusal:
+            return refusal
 
         if not file_path.exists():
             return jsonify({"error": "File not found"}), 404
@@ -4005,7 +4113,8 @@ def read_file():
         except UnicodeDecodeError:
             return jsonify({"error": "File is not a text file"}), 400
     except Exception as e:
-        return jsonify({"error": f"Failed to read file: {str(e)}"}), 500
+        app.logger.error(f"Failed to read file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/files/write", methods=["POST"])
@@ -4020,9 +4129,9 @@ def write_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = (PROJECT_ROOT / path_param).resolve()
-        if not is_path_allowed(file_path):
-            return jsonify({"error": "Path not allowed"}), 403
+        file_path, refusal = resolve_allowed_path(path_param)
+        if refusal:
+            return refusal
 
         # Create backup if file exists
         backup_path = None
@@ -4066,9 +4175,11 @@ def write_file():
                     shutil.copy2(backup_path, file_path)
                 except Exception:
                     pass  # Restore attempt is best-effort
-            return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
+            app.logger.error(f"Failed to write file: {e}")
+            return jsonify({"error": "Internal server error"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
+        app.logger.error(f"Failed to write file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/files/delete", methods=["DELETE"])
@@ -4080,9 +4191,9 @@ def delete_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = (PROJECT_ROOT / path_param).resolve()
-        if not is_path_allowed(file_path):
-            return jsonify({"error": "Path not allowed"}), 403
+        file_path, refusal = resolve_allowed_path(path_param)
+        if refusal:
+            return refusal
 
         if not file_path.exists():
             return jsonify({"error": "File not found"}), 404
@@ -4101,9 +4212,11 @@ def delete_file():
                 file_path.unlink()
             return jsonify({"success": True, "message": "File deleted successfully"}), 200
         except Exception as e:
-            return jsonify({"error": f"Failed to delete file: {str(e)}"}), 500
+            app.logger.error(f"Failed to delete file: {e}")
+            return jsonify({"error": "Internal server error"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to delete file: {str(e)}"}), 500
+        app.logger.error(f"Failed to delete file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/files/upload", methods=["POST"])
@@ -4135,9 +4248,9 @@ def upload_file():
         safe_name = secure_filename(file.filename)
         if not safe_name:
             return jsonify({"error": "Invalid filename"}), 400
-        file_path = (PROJECT_ROOT / path_param / safe_name).resolve()
-        if not is_path_allowed(file_path):
-            return jsonify({"error": "Path not allowed"}), 403
+        file_path, refusal = resolve_allowed_path(str(Path(path_param) / safe_name))
+        if refusal:
+            return refusal
 
         # Ensure parent directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -4156,7 +4269,8 @@ def upload_file():
             200,
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+        app.logger.error(f"Failed to upload file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/files/download", methods=["GET"])
@@ -4170,9 +4284,9 @@ def download_file():
         if not path_param:
             return jsonify({"error": "Path required"}), 400
 
-        file_path = (PROJECT_ROOT / path_param).resolve()
-        if not is_path_allowed(file_path):
-            return jsonify({"error": "Path not allowed"}), 403
+        file_path, refusal = resolve_allowed_path(path_param)
+        if refusal:
+            return refusal
 
         if not file_path.exists():
             return jsonify({"error": "File not found"}), 404
@@ -4182,7 +4296,8 @@ def download_file():
 
         return send_file(str(file_path), as_attachment=True)
     except Exception as e:
-        return jsonify({"error": f"Failed to download file: {str(e)}"}), 500
+        app.logger.error(f"Failed to download file: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/ddns/config", methods=["POST"])
@@ -4222,7 +4337,8 @@ def save_ddns_config():
             }
         )
     except Exception as e:
-        return jsonify({"error": f"Failed to save DDNS config: {str(e)}"}), 500
+        app.logger.error(f"Failed to save DDNS config: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # WebSocket event handlers for real-time log streaming
@@ -4341,8 +4457,9 @@ if SOCKETIO_AVAILABLE:
             except Exception as e:  # noqa: BLE001 - surfaced to the client below
                 with _log_streams_lock:
                     subscribers = list(active_log_streams)
+                app.logger.error(f"Log streaming error: {e}")
                 for sid in subscribers:
-                    socketio.emit("error", {"message": f"Log streaming error: {str(e)}"}, room=sid)
+                    socketio.emit("error", {"message": "Log streaming error"}, room=sid)
             finally:
                 with _log_streams_lock:
                     _log_reader_state["proc"] = None
@@ -4517,9 +4634,10 @@ if SOCKETIO_AVAILABLE:
                     room=request.sid,
                 )
         except Exception as e:
+            app.logger.error(f"Failed to execute command over the socket: {e}")
             socketio.emit(
                 "command_error",
-                {"message": f"Failed to execute command: {str(e)}", "command": command},
+                {"message": "Failed to execute command", "command": command},
                 room=request.sid,
             )
 
