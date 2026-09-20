@@ -37,13 +37,24 @@ const Worlds = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {worlds.map((world, index) => (
-              <div key={index} className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4">
-                <h3 className="text-sm font-minecraft text-minecraft-text-light mb-2 leading-tight">
-                  {world}
+            {worlds.map(world => (
+              <div
+                key={world.name}
+                className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4"
+              >
+                <h3 className="text-sm font-minecraft text-minecraft-text-light mb-1 leading-tight">
+                  {world.name}
+                  {world.active && (
+                    <span className="ml-2 text-[8px] text-minecraft-grass-light">[ACTIVE]</span>
+                  )}
                 </h3>
+                <p className="text-[10px] font-minecraft text-minecraft-text-dark mb-2">
+                  {world.type} · {world.size}
+                </p>
                 <div className="flex gap-2 mt-4">
-                  <button className="flex-1 btn-minecraft-primary text-[8px]">SWITCH</button>
+                  <button className="flex-1 btn-minecraft-primary text-[8px]" disabled={world.active}>
+                    SWITCH
+                  </button>
                   <button className="flex-1 btn-minecraft text-[8px]">BACKUP</button>
                 </div>
               </div>

@@ -3569,19 +3569,12 @@ def generate_custom_report():
 @require_permission("worlds.view")
 def list_worlds():
     """List all worlds"""
-    stdout, _, _ = run_script("world-manager.sh", "list")
+    stdout, _, _ = run_script("world-manager.sh", "list-json")
 
-    # Parse world list (basic implementation)
-    worlds = []
-    if stdout:
-        for line in stdout.split("\n"):
-            if "world" in line.lower() and ("ACTIVE" in line or "○" in line or "✓" in line):
-                # Extract world name (simplified parsing)
-                parts = line.split()
-                for part in parts:
-                    if part.startswith("world") or part.isalnum():
-                        worlds.append(part)
-                        break
+    try:
+        worlds = json.loads(stdout) if stdout else []
+    except (ValueError, TypeError):
+        worlds = []
 
     return jsonify({"worlds": worlds, "count": len(worlds)})
 

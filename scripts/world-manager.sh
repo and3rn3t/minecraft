@@ -77,6 +77,52 @@ list_worlds() {
     fi
 }
 
+# Escape backslashes and double quotes for embedding in a JSON string.
+_json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+# Machine-readable world listing, for the API server to consume instead of
+# scraping list_worlds' colorized, human-oriented output. That scraping
+# matched any line containing "world" plus an ACTIVE/○/✓ marker, then took
+# the first whitespace-split token that was alphanumeric or started with
+# "world" — which happens to land on the right token for a plain "world"
+# directory, but for a hyphenated or underscored name (e.g. survival-2024)
+# fails isalnum() and falls through to a later token instead, such as
+# "Overworld" from the world-type field on the same line.
+list_worlds_json() {
+    local current_world
+    current_world=$(get_current_world)
+
+    local entries=()
+    local world_dir
+    for world_dir in "$WORLDS_DIR"/world*; do
+        [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ] || continue
+
+        local world_name
+        world_name=$(basename "$world_dir")
+        local world_size
+        world_size=$(du -sh "$world_dir" 2>/dev/null | cut -f1)
+        local world_type="Unknown"
+        if [ -d "${world_dir}/region" ]; then
+            world_type="Overworld"
+        elif [ -d "${world_dir}/DIM-1" ]; then
+            world_type="Nether"
+        elif [ -d "${world_dir}/DIM1" ]; then
+            world_type="End"
+        fi
+        local active="false"
+        [ "$world_name" = "$current_world" ] && active="true"
+
+        entries+=("$(printf '{"name":"%s","size":"%s","type":"%s","active":%s}' \
+            "$(_json_escape "$world_name")" "$(_json_escape "$world_size")" \
+            "$(_json_escape "$world_type")" "$active")")
+    done
+
+    local IFS=,
+    echo "[${entries[*]}]"
+}
+
 # Function to create a new world
 create_world() {
     local world_name="$1"
@@ -607,10 +653,11 @@ create_from_template() {
 usage() {
     echo -e "${BLUE}World Manager for Minecraft Server${NC}"
     echo ""
-    echo "Usage: $0 {list|create|delete|switch|info|backup|sizes|config|create-template|from-template} [options]"
+    echo "Usage: $0 {list|list-json|create|delete|switch|info|backup|sizes|config|create-template|from-template} [options]"
     echo ""
     echo "Commands:"
-    echo "  list                        - List all available worlds"
+    echo "  list                        - List all available worlds (human-readable)"
+    echo "  list-json                   - List all worlds as JSON (for scripting/API use)"
     echo "  create <name> [type] [seed] - Create a new world"
     echo "  delete <name>               - Delete a world (with backup)"
     echo "  switch <name>               - Switch to a different world"
@@ -635,6 +682,9 @@ main() {
     case "${1:-}" in
         list)
             list_worlds
+            ;;
+        list-json)
+            list_worlds_json
             ;;
         create)
             create_world "$2" "$3" "$4"
