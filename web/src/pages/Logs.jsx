@@ -173,7 +173,7 @@ const Logs = () => {
         </label>
         <div className="flex items-center gap-2">
           <div
-            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass-DEFAULT' : 'bg-minecraft-stone-DEFAULT'}`}
+            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass' : 'bg-minecraft-stone'}`}
             title={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
             style={{ imageRendering: 'pixelated' }}
           />
@@ -201,7 +201,7 @@ const Logs = () => {
             renderItem={(log, index) => (
               <div
                 key={`log-${index}-${log.substring(0, 50)}`}
-                className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT font-minecraft text-[10px] ${
+                className={`py-1 px-2 hover:bg-minecraft-dirt font-minecraft text-[10px] ${
                   log.includes('ERROR') || log.includes('WARN')
                     ? 'text-[#C62828]'
                     : log.includes('INFO')
@@ -223,7 +223,7 @@ const Logs = () => {
             {filteredLogs.map((log, index) => (
               <div
                 key={`log-${index}-${log.substring(0, 50)}`}
-                className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT ${
+                className={`py-1 px-2 hover:bg-minecraft-dirt ${
                   log.includes('ERROR') || log.includes('WARN')
                     ? 'text-[#C62828]'
                     : log.includes('INFO')

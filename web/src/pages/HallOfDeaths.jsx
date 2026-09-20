@@ -129,7 +129,7 @@ const HallOfDeaths = () => {
       </p>
 
       {error && (
-        <div className="card-minecraft p-4 mb-6 border-minecraft-danger-DEFAULT">
+        <div className="card-minecraft p-4 mb-6 border-minecraft-danger">
           <p className="text-[10px] font-minecraft text-minecraft-danger-light">{error}</p>
         </div>
       )}
@@ -199,7 +199,7 @@ const HallOfDeaths = () => {
                 {deaths.map((death, index) => (
                   <li
                     key={`${death.timestamp}-${index}`}
-                    className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4"
+                    className="bg-minecraft-dirt border-2 border-[#5D4037] p-4"
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-xl leading-none" aria-hidden="true">

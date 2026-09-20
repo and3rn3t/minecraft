@@ -198,7 +198,7 @@ const ApiKeys = () => {
       )}
 
       {success && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <div className="bg-minecraft-grass border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {success}
         </div>
       )}
@@ -354,7 +354,7 @@ const ApiKeys = () => {
                 {keys.map((key, index) => (
                   <tr
                     key={key.id || `key-${index}`}
-                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
+                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt"
                   >
                     <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
                       {key.name}
@@ -384,7 +384,7 @@ const ApiKeys = () => {
                       <span
                         className={`px-2 py-1 text-[8px] font-minecraft ${
                           key.enabled
-                            ? 'bg-minecraft-grass-DEFAULT text-white'
+                            ? 'bg-minecraft-grass text-white'
                             : 'bg-[#C62828] text-white'
                         }`}
                       >
@@ -400,7 +400,7 @@ const ApiKeys = () => {
                           onClick={() => handleToggle(key.id, key.enabled)}
                           disabled={toggling === key.id || deleting === key.id}
                           className={`btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed ${
-                            !key.enabled ? 'bg-minecraft-grass-DEFAULT' : ''
+                            !key.enabled ? 'bg-minecraft-grass' : ''
                           }`}
                         >
                           {toggling === key.id ? '...' : key.enabled ? 'DISABLE' : 'ENABLE'}
@@ -424,7 +424,7 @@ const ApiKeys = () => {
 
       {/* Info */}
       {keys.length > 0 && (
-        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+        <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
           <strong>INFO:</strong> {keys.length} API KEY{keys.length !== 1 ? 'S' : ''} AVAILABLE. API
           KEYS ALLOW PROGRAMMATIC ACCESS TO THE SERVER. KEEP THEM SECURE AND ROTATE THEM REGULARLY.
         </div>

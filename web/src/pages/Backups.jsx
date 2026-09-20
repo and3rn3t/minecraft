@@ -209,7 +209,7 @@ const Backups = () => {
                 {backups.map((backup, index) => (
                   <tr
                     key={backup.name || `backup-${index}`}
-                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
+                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt"
                   >
                     <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
                       {backup.name}
@@ -251,7 +251,7 @@ const Backups = () => {
 
       {/* Info */}
       {backups.length > 0 && (
-        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+        <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
           <strong>INFO:</strong> {backups.length} BACKUP{backups.length !== 1 ? 'S' : ''} AVAILABLE.
           RESTORING A BACKUP WILL STOP THE SERVER AND CREATE A BACKUP OF THE CURRENT STATE FIRST.
         </div>

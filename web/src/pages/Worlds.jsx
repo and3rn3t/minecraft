@@ -40,7 +40,7 @@ const Worlds = () => {
             {worlds.map(world => (
               <div
                 key={world.name}
-                className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4"
+                className="bg-minecraft-dirt border-2 border-[#5D4037] p-4"
               >
                 <h3 className="text-sm font-minecraft text-minecraft-text-light mb-1 leading-tight">
                   {world.name}

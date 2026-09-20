@@ -141,7 +141,7 @@ const Scheduler = () => {
       </h1>
 
       {message && (
-        <div className="card-minecraft p-4 mb-6 bg-minecraft-grass-DEFAULT text-white">
+        <div className="card-minecraft p-4 mb-6 bg-minecraft-grass text-white">
           <div className="text-[10px] font-minecraft">{message}</div>
         </div>
       )}
@@ -308,8 +308,8 @@ const Scheduler = () => {
                 key={schedule.id}
                 className={`p-4 border-2 ${
                   schedule.enabled
-                    ? 'border-minecraft-grass-DEFAULT bg-minecraft-dirt-DEFAULT'
-                    : 'border-minecraft-stone-DEFAULT bg-minecraft-dirt-DEFAULT opacity-50'
+                    ? 'border-minecraft-grass bg-minecraft-dirt'
+                    : 'border-minecraft-stone bg-minecraft-dirt opacity-50'
                 }`}
               >
                 <div className="flex items-start justify-between">

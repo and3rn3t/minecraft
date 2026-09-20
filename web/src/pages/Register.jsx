@@ -57,7 +57,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-minecraft-background-DEFAULT">
+    <div className="min-h-screen flex items-center justify-center bg-minecraft-background">
       <div className="card-minecraft p-8 w-full max-w-md">
         <h1 className="text-xl font-minecraft text-minecraft-grass-light mb-6 text-center leading-tight">
           MINECRAFT ADMIN
@@ -164,7 +164,7 @@ const Register = () => {
           ALREADY HAVE AN ACCOUNT?{' '}
           <Link
             to="/login"
-            className="text-minecraft-grass-light hover:text-minecraft-grass-DEFAULT"
+            className="text-minecraft-grass-light hover:text-minecraft-grass"
           >
             LOGIN HERE
           </Link>

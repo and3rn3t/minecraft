@@ -214,7 +214,7 @@ const Dashboard = () => {
                 <div
                   key={player}
                   style={{ animationDelay: `${index * 60}ms` }}
-                  className="card-minecraft bg-minecraft-dirt-DEFAULT p-4 text-center text-[10px] font-minecraft text-minecraft-text-light hover:border-minecraft-grass-light hover:bg-minecraft-grass-DEFAULT hover:bg-opacity-20 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                  className="card-minecraft bg-minecraft-dirt p-4 text-center text-[10px] font-minecraft text-minecraft-text-light hover:border-minecraft-grass-light hover:bg-minecraft-grass hover:bg-opacity-20 transition-all duration-200 hover:scale-105 hover:shadow-lg"
                 >
                   <div className="text-lg mb-1">🧑</div>
                   <div className="break-words">{player}</div>

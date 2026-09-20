@@ -133,11 +133,11 @@ const Users = () => {
       case 'admin':
         return 'bg-[#C62828] text-white';
       case 'operator':
-        return 'bg-minecraft-water-DEFAULT text-white';
+        return 'bg-minecraft-water text-white';
       case 'user':
-        return 'bg-minecraft-stone-DEFAULT text-white';
+        return 'bg-minecraft-stone text-white';
       default:
-        return 'bg-minecraft-stone-DEFAULT text-white';
+        return 'bg-minecraft-stone text-white';
     }
   };
 
@@ -157,7 +157,7 @@ const Users = () => {
       )}
 
       {success && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <div className="bg-minecraft-grass border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {success}
         </div>
       )}
@@ -180,7 +180,7 @@ const Users = () => {
                   disabled={updating === showRoleModal.username || role === showRoleModal.currentRole}
                   className={`w-full btn-minecraft text-[10px] text-left ${
                     role === showRoleModal.currentRole
-                      ? 'bg-minecraft-grass-DEFAULT cursor-not-allowed'
+                      ? 'bg-minecraft-grass cursor-not-allowed'
                       : ''
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
@@ -239,7 +239,7 @@ const Users = () => {
                 {users.map((user, index) => (
                   <tr
                     key={user.username || `user-${index}`}
-                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
+                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt"
                   >
                     <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
                       {user.username}
@@ -261,7 +261,7 @@ const Users = () => {
                       <span
                         className={`px-2 py-1 text-[8px] font-minecraft ${
                           user.enabled
-                            ? 'bg-minecraft-grass-DEFAULT text-white'
+                            ? 'bg-minecraft-grass text-white'
                             : 'bg-[#C62828] text-white'
                         }`}
                       >
@@ -297,7 +297,7 @@ const Users = () => {
                             user.username === currentUser?.username
                           }
                           className={`btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed ${
-                            user.enabled ? '' : 'bg-minecraft-grass-DEFAULT'
+                            user.enabled ? '' : 'bg-minecraft-grass'
                           }`}
                         >
                           {updating === user.username
@@ -329,7 +329,7 @@ const Users = () => {
 
       {/* Info */}
       {users.length > 0 && (
-        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+        <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
           <strong>INFO:</strong> {users.length} USER{users.length !== 1 ? 'S' : ''} REGISTERED. YOU
           CANNOT MODIFY OR DELETE YOUR OWN ACCOUNT. AT LEAST ONE ADMIN USER MUST ALWAYS EXIST.
         </div>

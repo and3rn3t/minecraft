@@ -149,7 +149,7 @@ const AuditLogs = () => {
             <div className="overflow-x-auto">
               <table className="w-full font-minecraft text-[10px]">
                 <thead>
-                  <tr className="border-b-2 border-minecraft-stone-DEFAULT">
+                  <tr className="border-b-2 border-minecraft-stone">
                     <th className="text-left p-2 text-minecraft-text-light">TIMESTAMP</th>
                     <th className="text-left p-2 text-minecraft-text-light">USERNAME</th>
                     <th className="text-left p-2 text-minecraft-text-light">ACTION</th>
@@ -161,7 +161,7 @@ const AuditLogs = () => {
                   {logs.map((log, index) => (
                     <tr
                       key={index}
-                      className="border-b border-minecraft-dirt-DEFAULT hover:bg-minecraft-dirt-DEFAULT"
+                      className="border-b border-minecraft-dirt hover:bg-minecraft-dirt"
                     >
                       <td className="p-2 text-minecraft-text-dark">
                         {formatTimestamp(log.timestamp)}

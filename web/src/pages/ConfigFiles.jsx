@@ -99,7 +99,7 @@ const ConfigFiles = () => {
       )}
 
       {saveMessage && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <div className="bg-minecraft-grass border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {saveMessage}
         </div>
       )}
@@ -118,8 +118,8 @@ const ConfigFiles = () => {
                 disabled={loadingContent}
                 className={`w-full text-left px-3 py-2 text-[10px] font-minecraft disabled:opacity-50 disabled:cursor-not-allowed ${
                   selectedFile === file.name
-                    ? 'bg-minecraft-grass-DEFAULT text-white border-2 border-minecraft-grass-dark'
-                    : 'bg-minecraft-dirt-DEFAULT hover:bg-minecraft-dirt-light text-minecraft-text-light border-2 border-[#5D4037]'
+                    ? 'bg-minecraft-grass text-white border-2 border-minecraft-grass-dark'
+                    : 'bg-minecraft-dirt hover:bg-minecraft-dirt-light text-minecraft-text-light border-2 border-[#5D4037]'
                 }`}
               >
                 <div className="flex items-center justify-between">

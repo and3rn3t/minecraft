@@ -42,7 +42,7 @@ const Layout = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-minecraft-background-DEFAULT text-minecraft-text-DEFAULT">
+    <div className="min-h-screen bg-minecraft-background text-minecraft-text">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -92,8 +92,8 @@ const Layout = ({ children }) => {
                     onClick={() => setSidebarOpen(false)}
                     className={`flex items-center px-4 py-3 text-[10px] font-minecraft transition-all duration-150 ${
                       isActive
-                        ? 'bg-gradient-to-r from-minecraft-grass-DEFAULT to-minecraft-grass-light text-white border-r-4 border-minecraft-grass-light shadow-lg'
-                        : 'text-minecraft-text-dark hover:bg-minecraft-dirt-DEFAULT hover:text-white hover:pl-6'
+                        ? 'bg-gradient-to-r from-minecraft-grass to-minecraft-grass-light text-white border-r-4 border-minecraft-grass-light shadow-lg'
+                        : 'text-minecraft-text-dark hover:bg-minecraft-dirt hover:text-white hover:pl-6'
                     }`}
                   >
                     <span className="mr-2 text-xs transition-transform duration-150 hover:scale-110">
@@ -108,7 +108,7 @@ const Layout = ({ children }) => {
         </nav>
         <div className="p-4 border-t-2 border-[#5D4037] bg-gradient-to-t from-[#5D4037] to-[#6D4C41]">
           {isAuthenticated && user && (
-            <div className="mb-3 text-[8px] font-minecraft p-3 bg-minecraft-dirt-DEFAULT rounded border border-[#5D4037]">
+            <div className="mb-3 text-[8px] font-minecraft p-3 bg-minecraft-dirt rounded border border-[#5D4037]">
               <div className="text-minecraft-text-dark mb-1">LOGGED IN AS</div>
               <div className="text-[10px] text-minecraft-text-light font-bold">{user.username}</div>
               {user.role && (

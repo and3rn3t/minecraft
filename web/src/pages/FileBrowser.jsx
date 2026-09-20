@@ -193,8 +193,8 @@ const FileBrowser = () => {
                 files.map((file, index) => (
                   <div
                     key={index}
-                    className={`flex items-center justify-between p-2 mb-1 cursor-pointer hover:bg-minecraft-dirt-DEFAULT ${
-                      selectedFile?.path === file.path ? 'bg-minecraft-grass-DEFAULT' : ''
+                    className={`flex items-center justify-between p-2 mb-1 cursor-pointer hover:bg-minecraft-dirt ${
+                      selectedFile?.path === file.path ? 'bg-minecraft-grass' : ''
                     }`}
                     onClick={() => handleFileClick(file)}
                   >
@@ -289,11 +289,11 @@ const FileBrowser = () => {
                 <textarea
                   value={fileContent}
                   onChange={e => setFileContent(e.target.value)}
-                  className="w-full h-[500px] font-mono text-[10px] p-2 bg-minecraft-dirt-DEFAULT text-minecraft-text-light border-2 border-minecraft-stone-DEFAULT"
+                  className="w-full h-[500px] font-mono text-[10px] p-2 bg-minecraft-dirt text-minecraft-text-light border-2 border-minecraft-stone"
                   spellCheck={false}
                 />
               ) : (
-                <div className="font-mono text-[10px] overflow-auto max-h-[500px] bg-minecraft-dirt-DEFAULT p-2 text-minecraft-text-light whitespace-pre-wrap">
+                <div className="font-mono text-[10px] overflow-auto max-h-[500px] bg-minecraft-dirt p-2 text-minecraft-text-light whitespace-pre-wrap">
                   {fileContent || '(empty file)'}
                 </div>
               )}

@@ -125,7 +125,7 @@ const Players = () => {
               return (
                 <div
                   key={`${player}-${index}`}
-                  className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4 flex flex-col gap-2"
+                  className="bg-minecraft-dirt border-2 border-[#5D4037] p-4 flex flex-col gap-2"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-minecraft text-minecraft-text-light">

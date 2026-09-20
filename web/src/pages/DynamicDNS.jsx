@@ -93,7 +93,7 @@ const DynamicDNS = () => {
       )}
 
       {success && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <div className="bg-minecraft-grass border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
           {success}
         </div>
       )}
@@ -152,7 +152,7 @@ const DynamicDNS = () => {
       )}
 
       {/* Info */}
-      <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+      <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
         <strong>INFO:</strong> DYNAMIC DNS AUTOMATICALLY UPDATES YOUR DNS RECORDS WHEN YOUR PUBLIC
         IP ADDRESS CHANGES. CONFIGURE YOUR PROVIDER SETTINGS ABOVE AND ENABLE DDNS TO START
         AUTOMATIC UPDATES.

@@ -263,7 +263,7 @@ const Console = () => {
       <div className="card-minecraft p-4 mb-6 flex items-center gap-4">
         <div className="flex items-center gap-2">
           <div
-            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass-light' : 'bg-minecraft-stone-DEFAULT'}`}
+            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass-light' : 'bg-minecraft-stone'}`}
             title={connected ? 'Connected' : 'Disconnected'}
             style={{ imageRendering: 'pixelated' }}
           />
@@ -281,7 +281,7 @@ const Console = () => {
 
       {/* Output Area */}
       <div className="card-minecraft p-4 mb-4">
-        <div className="font-minecraft text-[10px] overflow-auto max-h-[500px] bg-minecraft-dirt-DEFAULT p-2">
+        <div className="font-minecraft text-[10px] overflow-auto max-h-[500px] bg-minecraft-dirt p-2">
           {output.length === 0 ? (
             <div className="text-minecraft-text-dark text-center py-8">
               NO OUTPUT YET. TYPE A COMMAND BELOW.
