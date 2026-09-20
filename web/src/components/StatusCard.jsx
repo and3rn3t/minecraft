@@ -1,4 +1,6 @@
-const StatusCard = ({ title, value, status, icon, subtitle, onClick }) => {
+import { memo } from 'react';
+
+const StatusCard = ({ title, value, status, icon, subtitle, onClick, index = 0 }) => {
   const statusColors = {
     success: {
       bg: 'bg-minecraft-grass-DEFAULT',
@@ -30,9 +32,10 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick }) => {
 
   return (
     <div
-      className={`card-minecraft p-6 relative overflow-hidden hover:scale-[1.02] transition-transform duration-200 ${
+      className={`card-minecraft p-6 relative overflow-hidden hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-200 ${
         onClick ? 'cursor-pointer' : ''
       } ${colors.glow}`}
+      style={{ animationDelay: `${index * 80}ms` }}
       onClick={onClick}
       onKeyDown={onClick ? e => e.key === 'Enter' && onClick() : undefined}
       role={onClick ? 'button' : undefined}
@@ -42,6 +45,8 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick }) => {
       <div
         className={`absolute top-0 right-0 w-32 h-32 ${colors.bg} opacity-10 rounded-full blur-2xl transform translate-x-8 -translate-y-8`}
       />
+      {/* Status accent bar */}
+      <div className={`absolute bottom-0 left-0 right-0 h-1 ${colors.bg}`} />
 
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-3">
@@ -49,7 +54,7 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick }) => {
             {title}
           </h3>
           <span
-            className="text-2xl transition-transform duration-200 hover:scale-110"
+            className="w-9 h-9 flex items-center justify-center text-lg bg-[#5D4037] border-2 border-t-[#8D6E63] border-l-[#8D6E63] border-r-[#3E2723] border-b-[#3E2723] transition-transform duration-200 hover:scale-110 shrink-0"
             style={{ imageRendering: 'pixelated' }}
           >
             {icon}
@@ -57,11 +62,11 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick }) => {
         </div>
         <div className="flex items-center gap-3">
           <div
-            className={`w-4 h-4 ${colors.bg} ${colors.border} border-2 animate-pulse`}
+            className={`w-4 h-4 ${colors.bg} ${colors.border} border-2 animate-pulse shrink-0`}
             style={{ imageRendering: 'pixelated' }}
           />
-          <div>
-            <p className="text-xl font-minecraft text-minecraft-text-light leading-tight">
+          <div className="min-w-0">
+            <p className="text-xl font-minecraft text-minecraft-text-light leading-tight truncate">
               {value}
             </p>
             {subtitle && (
@@ -74,4 +79,4 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick }) => {
   );
 };
 
-export default StatusCard;
+export default memo(StatusCard);
