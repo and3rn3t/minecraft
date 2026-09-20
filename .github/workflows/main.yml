@@ -232,7 +232,12 @@ jobs:
   build-docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: [lint, python-tests, bash-tests, frontend-tests]
+    # pre-commit is included so a lint failure can't publish an image: this
+    # job pushes to ghcr.io on push-to-main, and pre-commit was previously
+    # only a dependency of `summary`, which runs in parallel with this job
+    # rather than before it — so the push could complete before the failure
+    # was even reported.
+    needs: [pre-commit, lint, python-tests, bash-tests, frontend-tests]
     steps:
       - uses: actions/checkout@v7
 
