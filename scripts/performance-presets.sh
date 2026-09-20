@@ -15,7 +15,30 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SERVER_PROPERTIES="${SERVER_PROPERTIES:-${PROJECT_DIR}/data/server.properties}"
-DOCKER_COMPOSE="${DOCKER_COMPOSE:-${PROJECT_DIR}/docker-compose.yml}"
+ENV_FILE="${ENV_FILE:-${PROJECT_DIR}/.env}"
+
+# Memory is read from .env, not docker-compose.yml itself (Docker Compose
+# loads .env automatically); docker-compose.yml only references the vars.
+set_env_var() {
+    local key="$1" value="$2"
+    [ -f "$ENV_FILE" ] || touch "$ENV_FILE"
+    if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+        sed -i.bak "s/^${key}=.*/${key}=${value}/" "$ENV_FILE"
+        rm -f "${ENV_FILE}.bak"
+    else
+        echo "${key}=${value}" >> "$ENV_FILE"
+    fi
+}
+
+# CONTAINER_MEMORY_LIMIT must exceed MEMORY_MAX (metaspace, thread stacks,
+# direct buffers) or the container restart-loops; see .env.example.
+apply_memory() {
+    local mem_min="$1" mem_max="$2" container_limit="$3"
+    set_env_var MEMORY_MIN "$mem_min"
+    set_env_var MEMORY_MAX "$mem_max"
+    set_env_var CONTAINER_MEMORY_LIMIT "$container_limit"
+    echo -e "${GREEN}Wrote MEMORY_MIN=${mem_min} MEMORY_MAX=${mem_max} CONTAINER_MEMORY_LIMIT=${container_limit} to ${ENV_FILE}${NC}"
+}
 
 # Function to apply low-end preset
 apply_low_end() {
@@ -32,12 +55,7 @@ apply_low_end() {
         "$SCRIPT_DIR/server-properties-manager.sh" set max-tick-time 60000 false
     fi
 
-    # Docker compose memory
-    if [ -f "$DOCKER_COMPOSE" ]; then
-        echo -e "${YELLOW}Note: Update docker-compose.yml manually:${NC}"
-        echo "  MEMORY_MIN=1G"
-        echo "  MEMORY_MAX=2G"
-    fi
+    apply_memory 1G 2G 3G
 
     # JVM arguments
     echo -e "${BLUE}Generating JVM arguments...${NC}"
@@ -62,12 +80,7 @@ apply_balanced() {
         "$SCRIPT_DIR/server-properties-manager.sh" set entity-broadcast-range-percentage 100 false
     fi
 
-    # Docker compose memory
-    if [ -f "$DOCKER_COMPOSE" ]; then
-        echo -e "${YELLOW}Note: Update docker-compose.yml manually:${NC}"
-        echo "  MEMORY_MIN=2G"
-        echo "  MEMORY_MAX=4G"
-    fi
+    apply_memory 2G 4G 5G
 
     # JVM arguments
     echo -e "${BLUE}Generating JVM arguments...${NC}"
@@ -92,12 +105,7 @@ apply_high_performance() {
         "$SCRIPT_DIR/server-properties-manager.sh" set entity-broadcast-range-percentage 100 false
     fi
 
-    # Docker compose memory
-    if [ -f "$DOCKER_COMPOSE" ]; then
-        echo -e "${YELLOW}Note: Update docker-compose.yml manually:${NC}"
-        echo "  MEMORY_MIN=4G"
-        echo "  MEMORY_MAX=8G"
-    fi
+    apply_memory 4G 8G 9G
 
     # JVM arguments
     echo -e "${BLUE}Generating JVM arguments...${NC}"
@@ -135,11 +143,12 @@ show_current() {
         "$SCRIPT_DIR/server-properties-manager.sh" get max-players 2>/dev/null | sed 's/^/  Max Players: /' || echo "  Max Players: (not set)"
     fi
 
-    if [ -f "$DOCKER_COMPOSE" ]; then
+    if [ -f "$ENV_FILE" ]; then
         echo ""
-        echo "Docker Compose:"
-        grep "MEMORY_MIN" "$DOCKER_COMPOSE" 2>/dev/null | sed 's/^/  /' || echo "  MEMORY_MIN: (not set)"
-        grep "MEMORY_MAX" "$DOCKER_COMPOSE" 2>/dev/null | sed 's/^/  /' || echo "  MEMORY_MAX: (not set)"
+        echo "Memory (.env):"
+        grep "^MEMORY_MIN=" "$ENV_FILE" 2>/dev/null | sed 's/^/  /' || echo "  MEMORY_MIN: (not set, defaults to 1G)"
+        grep "^MEMORY_MAX=" "$ENV_FILE" 2>/dev/null | sed 's/^/  /' || echo "  MEMORY_MAX: (not set, defaults to 2G)"
+        grep "^CONTAINER_MEMORY_LIMIT=" "$ENV_FILE" 2>/dev/null | sed 's/^/  /' || echo "  CONTAINER_MEMORY_LIMIT: (not set, defaults to 3G)"
     fi
 
     echo ""
