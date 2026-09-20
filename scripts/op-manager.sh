@@ -64,25 +64,41 @@ grant_op() {
     # Check if already OP
     if is_op "$player"; then
         echo -e "${YELLOW}Player is already an operator: $player${NC}"
-        # Update level if different
-        update_op_level "$player" "$level"
+        # Update level if different. Best-effort: see the ops.json write
+        # below for why this can fail even when nothing is actually wrong.
+        update_op_level "$player" "$level" || true
         return 0
     fi
 
-    # Grant OP via RCON if available. || true: send_rcon can now genuinely
-    # fail (e.g. server not running) and set -e is active — a failure here
-    # must not skip the ops.json write below, which is what makes this
-    # durable across the server's next start regardless.
-    if check_rcon; then
-        send_rcon "op $player" || true
+    # Grant OP via RCON if available. A successful RCON "op" is both
+    # immediate (an already-connected player sees it live, no reconnect
+    # needed) and durable on its own: Minecraft's own RCON handler persists
+    # it to ops.json itself, from inside the container, as the container's
+    # user. That's exactly why the ops.json write below can't be relied on
+    # to always succeed here: once Minecraft — a different UID than this
+    # host script runs as — has touched that file, this process may no
+    # longer have write access to it (the same class of bind-mount UID
+    # mismatch fix-permissions.sh exists for, but recurring: it's not a
+    # one-time fix here since Minecraft rewrites the file on every op/deop).
+    local rcon_ok=1
+    if check_rcon && send_rcon "op $player"; then
+        rcon_ok=0
     fi
 
-    # Add to ops.json
+    # Ensure the file exists before trying to read/write it. Best-effort:
+    # if RCON already succeeded, a failure here isn't fatal (see below).
     if [ ! -f "$OPS_FILE" ]; then
-        echo '[]' > "$OPS_FILE"
+        echo '[]' > "$OPS_FILE" 2>/dev/null || true
     fi
 
-    python3 << EOF
+    # Only vanilla /op's default level (whatever op-permission-level is in
+    # server.properties, normally 4) is guaranteed by RCON alone — it takes
+    # no level argument. This write is what applies a non-default level, so
+    # it's still attempted even when RCON already succeeded; it's just no
+    # longer what decides overall success, per the comment above.
+    local write_ok=1
+    local write_output
+    if write_output=$(python3 2>&1 << EOF
 import json
 import sys
 from datetime import datetime
@@ -120,12 +136,18 @@ with open(ops_file, 'w') as f:
 
 sys.exit(0)
 EOF
+    ); then
+        write_ok=0
+    fi
 
-    if [ $? -eq 0 ]; then
+    if [ "$rcon_ok" -eq 0 ] || [ "$write_ok" -eq 0 ]; then
         echo -e "${GREEN}✓ Operator granted: $player (level $level)${NC}"
+        if [ "$write_ok" -ne 0 ]; then
+            echo -e "${YELLOW}Note: couldn't persist a custom level to ${OPS_FILE} (${write_output}). The RCON grant above still applies, at the server's default op level, and is durable via Minecraft's own write to that file.${NC}" >&2
+        fi
         return 0
     else
-        echo -e "${RED}✗ Failed to grant operator status${NC}"
+        echo -e "${RED}✗ Failed to grant operator status: ${write_output}${NC}" >&2
         return 1
     fi
 }
@@ -139,19 +161,21 @@ revoke_op() {
         return 1
     fi
 
-    # Revoke OP via RCON if available. See grant_op's matching comment for
-    # why the || true is needed now that send_rcon does real work.
-    if check_rcon; then
-        send_rcon "deop $player" || true
+    # Revoke OP via RCON if available. See grant_op's matching comment on
+    # why this is best-effort and why the ops.json write below can't be
+    # relied on either: Minecraft's own RCON "deop" handler already removes
+    # the player from that file itself, from inside the container, as the
+    # container's user — which is exactly what can leave this host process
+    # without write access to it.
+    local rcon_ok=1
+    if check_rcon && send_rcon "deop $player"; then
+        rcon_ok=0
     fi
 
-    # Remove from ops.json
-    if [ ! -f "$OPS_FILE" ]; then
-        echo -e "${YELLOW}Ops file not found${NC}"
-        return 1
-    fi
-
-    python3 << EOF
+    local write_ok=1
+    local write_output="Ops file not found"
+    if [ -f "$OPS_FILE" ]; then
+        if write_output=$(python3 2>&1 << EOF
 import json
 import sys
 
@@ -169,6 +193,7 @@ original_count = len(ops)
 ops = [p for p in ops if p.get('name') != player_name]
 
 if len(ops) == original_count:
+    print("Player not found in operators list", file=sys.stderr)
     sys.exit(1)
 
 with open(ops_file, 'w') as f:
@@ -176,12 +201,16 @@ with open(ops_file, 'w') as f:
 
 sys.exit(0)
 EOF
+        ); then
+            write_ok=0
+        fi
+    fi
 
-    if [ $? -eq 0 ]; then
+    if [ "$rcon_ok" -eq 0 ] || [ "$write_ok" -eq 0 ]; then
         echo -e "${GREEN}✓ Operator status revoked: $player${NC}"
         return 0
     else
-        echo -e "${YELLOW}Player not found in operators list: $player${NC}"
+        echo -e "${YELLOW}${write_output}${NC}"
         return 1
     fi
 }
