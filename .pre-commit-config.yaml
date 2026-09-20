@@ -48,15 +48,13 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Scoped to pyflakes (F) on purpose: those are real defects — undefined
-  # names, redefinitions, unused imports — rather than style. The full default
-  # rule set reports 450+ findings on this repo, which would train everyone to
-  # ignore it.
+  # No args: ruff reads [tool.ruff] from pyproject.toml, which is the one
+  # place those settings live. Passing them here as well is how the editor and
+  # the hook drift apart.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
       - id: ruff
-        args: ["--select", "F", "--line-length", "120"]
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.4

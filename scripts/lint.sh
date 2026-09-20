@@ -98,21 +98,21 @@ lint_python() {
     local issues=0
     local linted=0
 
-    # ruff covers what flake8 did and runs in a fraction of the time. Scoped to
-    # pyflakes (F): undefined names, redefinitions, unused imports. The full
-    # default rule set reports 450+ findings here, nearly all style, which
-    # would bury the ones that are defects.
+    # ruff covers what flake8 did and runs in a fraction of the time. Its
+    # settings come from [tool.ruff] in pyproject.toml rather than from flags
+    # here, so this agrees with the editor and the pre-commit hook by reading
+    # the same file instead of by repeating it.
     if command_exists ruff; then
         echo -e "${BLUE}Running ruff...${NC}"
         linted=1
-        if ! ruff check "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests" \
-            --select F --line-length 120; then
+        if ! ruff check "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests"; then
             issues=$((issues + 1))
         fi
     elif command_exists flake8; then
         # Same paths and the same defect-focused selection as the ruff branch,
         # so the fallback is not quietly weaker: F is pyflakes, which is what
-        # flake8's F checks are.
+        # flake8's F checks are. The flags stay explicit here because flake8
+        # does not read pyproject.toml without a plugin.
         echo -e "${BLUE}Running flake8...${NC}"
         linted=1
         if ! flake8 "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests" \

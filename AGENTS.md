@@ -91,6 +91,11 @@ lines this branch changed, which is what the CodeQL check reports on a pull
 request. The baseline is large — see [Known baselines](#known-baselines) — so
 the second list is the one to read.
 
+Ruff's settings live in `[tool.ruff]` in `pyproject.toml` and nowhere else.
+The editor extension, the pre-commit hook and `scripts/lint.sh` all discover
+that file rather than passing their own flags, so a change to the rules reaches
+all three at once.
+
 Install the supporting tools with:
 
 ```bash
@@ -250,7 +255,7 @@ to them should be questioned, and a change that reduces them is welcome.
 | CodeQL | 32 errors | `Uncontrolled data used in path expression`. **Triaged: all false positives.** These are the *uses* of a path after validation, not the validation: the file browser routes every path through `resolve_allowed_path()`, which resolves with `os.path.realpath` and checks a separator-terminated prefix — a form CodeQL recognises, so the gate itself is analysed rather than exempted. `tests/api/test_path_traversal.py` attacks all of them, including symlinks out of an allowed directory, which is the vector that defeats naive checks |
 | CodeQL | 1 error | `Clear-text storage of sensitive information`, where the audit log is written. **False positive:** the value derived from `API_KEYS` is the key's *name*, not the key. Asserted by a test |
 | CodeQL | 33 notes | `Module is imported with 'import' and 'import from'` — the test suite's import convention |
-| ruff | 450+ | Style rules outside `--select F`. Only `F` is enforced, because it flags defects rather than preferences |
+| ruff | 450+ | Style rules outside the `F` selection in `[tool.ruff.lint]`. Only `F` is enforced, because it flags defects rather than preferences. The editor, the pre-commit hook and `scripts/lint.sh` all read `pyproject.toml`, so none of them can disagree |
 | shellcheck | 90 warnings, ~3900 style | `.shellcheckrc` sets `enable=all`. Only `-S error` is enforced, which is clean as of this writing |
 | markdownlint | 39 MD040 | Code fences with no language, outside the files touched so far |
 | gitleaks | 0 | Twelve documentation placeholders (`YOUR_API_KEY` in curl examples, a dummy DuckDNS token, a bare `-----BEGIN PRIVATE KEY-----` header with no key material) are allowlisted individually in `.gitleaks.toml`, each scoped to the file it appears in, so a real credential in those same files is still reported |
