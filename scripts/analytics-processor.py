@@ -320,7 +320,16 @@ def main():
     """Main function"""
     processor = AnalyticsProcessor()
 
-    # Generate reports for different time periods
+    # The requested period (e.g. from the API's ?hours= query param) is passed
+    # as the first CLI arg; it defaults to 24 to match the standard periods below.
+    requested_hours = 24
+    if len(sys.argv) > 1:
+        try:
+            requested_hours = int(sys.argv[1])
+        except ValueError:
+            requested_hours = 24
+
+    # Generate reports for the standard time periods
     periods = [1, 6, 24, 168]  # 1 hour, 6 hours, 24 hours, 1 week
     reports = {}
 
@@ -328,8 +337,8 @@ def main():
         report = processor.generate_report(hours)
         reports[f"{hours}h"] = report
 
-    # Save latest report
-    latest_report = processor.generate_report(24)
+    # Save the report for the specifically requested period as "latest"
+    latest_report = reports.get(f"{requested_hours}h") or processor.generate_report(requested_hours)
     processor.save_report(latest_report, "latest_report.json")
 
     # Save all reports

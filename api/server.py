@@ -3386,10 +3386,16 @@ def collect_analytics():
 def get_analytics_report():
     """Get analytics report"""
     try:
+        try:
+            hours = int(request.args.get("hours", 24))
+        except (TypeError, ValueError):
+            hours = 24
+
         result = subprocess.run(
             [
                 sys.executable,
                 str(SCRIPTS_DIR / "analytics-processor.py"),
+                str(hours),
             ],
             capture_output=True,
             text=True,
