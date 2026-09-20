@@ -64,13 +64,20 @@ make build             # docker compose build
 rather than three minutes into a pull request.
 
 ```bash
-make ci                # lint + actionlint + gitleaks + tests + CodeQL
+make ci                # everything below, in the order CI runs it
 make hooks             # install the pre-commit hooks (do this once per clone)
 make doctor            # which of the supporting tools are installed
 make secrets           # gitleaks, as the Gitleaks workflow runs it
+make shell-syntax      # syntax-check every shell script, as the workflow does
+make bash-tests        # the BATS suite, as the workflow runs it
 make actionlint        # lint the workflow files
 make codeql            # CodeQL, python-security-and-quality, as the workflow runs it
 ```
+
+A missing tool **fails** `make ci` rather than being skipped. A gate that
+reports success while quietly omitting a job is how the checks here came to be
+trusted without running. Opt out deliberately with `SKIP_CODEQL=1` or
+`SKIP_BATS=1` when you have a reason to.
 
 `make codeql` prints the whole-repository total and then the results sitting on
 lines this branch changed, which is what the CodeQL check reports on a pull
@@ -239,7 +246,7 @@ to them should be questioned, and a change that reduces them is welcome.
 | ruff | 450+ | Style rules outside `--select F`. Only `F` is enforced, because it flags defects rather than preferences |
 | shellcheck | 90 warnings, ~3900 style | `.shellcheckrc` sets `enable=all`. Only `-S error` is enforced, which is clean as of this writing |
 | markdownlint | 39 MD040 | Code fences with no language, outside the files touched so far |
-| gitleaks | 12 | Placeholder credentials in `docs/`. `docs/OAUTH_SETUP.md` matching `private-key` deserves a check |
+| gitleaks | 0 | Twelve documentation placeholders (`YOUR_API_KEY` in curl examples, a dummy DuckDNS token, a bare `-----BEGIN PRIVATE KEY-----` header with no key material) are allowlisted individually in `.gitleaks.toml`, each scoped to the file it appears in, so a real credential in those same files is still reported |
 
 ## Documentation Rules
 

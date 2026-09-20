@@ -46,6 +46,12 @@ def changed_lines(base):
             text=True,
             check=True,
         ).stdout
+        untracked = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
     except subprocess.CalledProcessError as exc:
         print(f"Could not diff against {base}: {exc}", file=sys.stderr)
         return None
@@ -62,6 +68,18 @@ def changed_lines(base):
                 start = int(match.group(1))
                 count = int(match.group(2) or 1)
                 touched[current].update(range(start, start + count))
+
+    # A file that is new and not yet added shows up in neither the diff nor the
+    # index, but CodeQL analysed it along with everything else on disk. Without
+    # this, results in a brand-new file are silently reported as clean, which is
+    # the exact failure this filter exists to avoid.
+    for path in untracked:
+        try:
+            line_count = sum(1 for _ in Path(path).open("rb"))
+        except OSError:
+            continue
+        touched.setdefault(path, set()).update(range(1, line_count + 2))
+
     return touched
 
 

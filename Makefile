@@ -4,7 +4,7 @@
 # Prefer the Docker Compose v2 plugin, fall back to the legacy v1 binary
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks secrets actionlint codeql doctor
+.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks secrets actionlint codeql doctor shell-syntax bash-tests
 
 # Default target
 help:
@@ -44,6 +44,8 @@ help:
 	@echo "  make secrets     - Scan for secrets (same as the Gitleaks workflow)"
 	@echo "  make actionlint  - Lint the GitHub Actions workflows"
 	@echo "  make codeql      - CodeQL, same query suite as the CodeQL workflow"
+	@echo "  make shell-syntax - Syntax-check every shell script, as CI does"
+	@echo "  make bash-tests  - BATS suite, as CI runs it"
 	@echo "  make doctor      - Report which of these tools are installed"
 	@echo ""
 
@@ -294,13 +296,16 @@ hooks:
 	@pre-commit install
 	@echo "Hooks installed. Run 'make doctor' to see what else is missing."
 
+# Both scans are blocking. The twelve pre-existing findings are documentation
+# placeholders, allowlisted individually in .gitleaks.toml and each scoped to
+# the file it appears in, so a real credential in those same files still fails.
 secrets:
 	@echo "Scanning for secrets..."
 	@command -v gitleaks >/dev/null 2>&1 || { \
 		echo "gitleaks is not installed: brew install gitleaks"; exit 1; \
 	}
-	@echo "  working tree:"
-	@gitleaks detect --no-git --no-banner --redact || true
+	@echo "  working tree (includes files you have not committed yet):"
+	@gitleaks detect --no-git --no-banner --redact
 	@echo "  commits not yet on main (what the workflow scans):"
 	@gitleaks detect --no-banner --redact --log-opts="origin/main..HEAD"
 
@@ -343,19 +348,46 @@ doctor:
 	@printf "  %-12s " "codeql";     command -v codeql     >/dev/null 2>&1 && echo "installed" || echo "MISSING  (brew install codeql)"
 	@printf "  %-12s " "git hook";   test -f .git/hooks/pre-commit && echo "installed" || echo "MISSING  (make hooks)"
 
+# `make test` syntax-checks three scripts by name; the workflow checks every
+# shell file in scripts/ and tests/. This is that pass.
+shell-syntax:
+	@echo "Checking shell script syntax..."
+	@find scripts tests -name "*.sh" -type f -print0 \
+		| xargs -0 ./scripts/check-shell-syntax.sh
+	@echo "All shell scripts parse."
+
+# The workflow's bash-tests job. BATS is not always installed locally, and a
+# missing test runner is a gap in the gate rather than a pass, so say so.
+bash-tests:
+	@command -v bats >/dev/null 2>&1 || { \
+		echo "BATS is not installed, so the bash-tests job was not reproduced."; \
+		echo "  brew install bats-core"; \
+		exit 1; \
+	}
+	@./scripts/run-tests.sh bash
+
 # The order is deliberate: the fast, cheap checks fail first.
+#
+# A tool that is missing fails this target rather than being skipped quietly.
+# A gate that reports success while silently omitting a job is how the checks
+# in this repo came to be trusted without running. Opt out deliberately with
+# SKIP_CODEQL=1 or SKIP_BATS=1 if you need to.
 ci:
 	@echo "=== Running the checks CI runs ==="
 	@$(MAKE) --no-print-directory lint
+	@$(MAKE) --no-print-directory shell-syntax
 	@$(MAKE) --no-print-directory actionlint
 	@$(MAKE) --no-print-directory secrets
 	@$(MAKE) --no-print-directory test
-	@if command -v codeql >/dev/null 2>&1; then \
-		$(MAKE) --no-print-directory codeql; \
+	@if [ -n "$(SKIP_BATS)" ]; then \
+		echo "Skipping the bash-tests job (SKIP_BATS set)."; \
 	else \
-		echo ""; \
-		echo "Skipping CodeQL: not installed (brew install codeql)."; \
-		echo "Everything else ran, but the CodeQL job was not reproduced."; \
+		$(MAKE) --no-print-directory bash-tests; \
+	fi
+	@if [ -n "$(SKIP_CODEQL)" ]; then \
+		echo "Skipping CodeQL (SKIP_CODEQL set)."; \
+	else \
+		$(MAKE) --no-print-directory codeql; \
 	fi
 	@echo ""
 	@echo "All CI-parity checks passed."

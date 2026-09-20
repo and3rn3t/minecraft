@@ -110,9 +110,13 @@ lint_python() {
             issues=$((issues + 1))
         fi
     elif command_exists flake8; then
+        # Same paths and the same defect-focused selection as the ruff branch,
+        # so the fallback is not quietly weaker: F is pyflakes, which is what
+        # flake8's F checks are.
         echo -e "${BLUE}Running flake8...${NC}"
         linted=1
-        if ! flake8 "$PROJECT_DIR/api" --max-line-length=100 --ignore=E501,W503,E203 2>&1; then
+        if ! flake8 "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests" \
+            --select=F --max-line-length=120 2>&1; then
             issues=$((issues + 1))
         fi
     fi

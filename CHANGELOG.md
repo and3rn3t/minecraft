@@ -1,9 +1,3 @@
-<!-- markdownlint-disable MD024 -->
-<!-- Released sections below repeat "### Added" and friends within a single
-     version. That is history and is not being rewritten; the rule stays on
-     everywhere else, and it is what caught the Unreleased section having three
-     "### Fixed" blocks. -->
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -31,7 +25,10 @@ All notable changes to this project will be documented in this file.
   checking anything: `lint_python` reported success with no Python linter
   present, and `lint_bash` piped shellcheck into `tee`, so the pipeline
   reported `tee`'s exit status and shellcheck's findings were invisible. Both
-  now fail honestly. See "Checks that mirror CI" in `AGENTS.md`.
+  now fail honestly, a missing tool fails `make ci` rather than being skipped,
+  and the twelve known gitleaks findings are allowlisted individually in
+  `.gitleaks.toml`, each scoped to its file, so the scan blocks on anything
+  new. See "Checks that mirror CI" in `AGENTS.md`.
 
 - **One API now fronts the command schedule** (#30). `/api/commands/schedule*`
   and `/api/scheduler/schedules` both wrote `config/command-schedule.json`;
@@ -55,7 +52,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Five test scripts piped data into a heredoc that discarded it.**
+- **Four test scripts piped data into a heredoc that discarded it**, at five
+  call sites.
   `echo "$json" | python3 << EOF ... json.load(sys.stdin) ... EOF` reads the
   heredoc, not the pipe, so those assertions were parsing the Python source
   instead of the response they meant to check. The data is passed in the
@@ -123,6 +121,13 @@ All notable changes to this project will be documented in this file.
   previously never checked despite a comment saying otherwise. Keys created
   before this are kept as `admin` with a startup warning, and can be narrowed
   from the API Keys page or with the new `PUT /api/keys/<key_id>`.
+
+<!-- Everything from here down is released history, which repeats
+     "### Added" and friends within a single version. It is not being
+     rewritten. MD024 stays on for [Unreleased] above, which is the section
+     that changes — it is what caught that section accumulating three
+     "### Fixed" blocks, one per pull request. -->
+<!-- markdownlint-disable MD024 -->
 
 ## [1.5.0] - 2026-09-19
 
