@@ -115,7 +115,7 @@ describe('Analytics', () => {
     renderWithRouter(<Analytics />);
 
     await waitFor(() => {
-      expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('ANALYTICS DASHBOARD')).toBeInTheDocument();
     });
   });
 
@@ -129,7 +129,7 @@ describe('Analytics', () => {
     const { container } = renderWithRouter(<Analytics />);
 
     // Check for skeleton loaders in loading state
-    const skeletons = container.querySelectorAll('.animate-pulse, .bg-gray-700');
+    const skeletons = container.querySelectorAll('.skeleton');
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
@@ -417,7 +417,7 @@ describe('Analytics', () => {
 
     // Component should still render, even with errors
     await waitFor(() => {
-      expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('ANALYTICS DASHBOARD')).toBeInTheDocument();
     });
   });
 

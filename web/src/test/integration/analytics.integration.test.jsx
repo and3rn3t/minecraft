@@ -72,7 +72,7 @@ describe('Analytics Integration', () => {
 
     // Wait for all data to load
     await waitFor(() => {
-      expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('ANALYTICS DASHBOARD')).toBeInTheDocument();
     });
 
     // Verify all sections are present
