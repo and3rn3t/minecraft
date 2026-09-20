@@ -26,15 +26,12 @@ extend-exclude = '''
 # the way three copies of the same command-line flags did.
 line-length = 120
 target-version = "py311"
-exclude = [
-    ".git",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "build",
-    "dist",
-    "node_modules",
-]
+# No exclude key. Setting "exclude" *replaces* ruff's defaults rather than
+# adding to them, so a short custom list silently drops .mypy_cache,
+# .pytest_cache, .ruff_cache, .tox and the rest — 25 defaults for 7 entries.
+# Nothing here needs excluding beyond them: the only build/ directories are
+# under node_modules, which is a default, and __pycache__ holds no .py files
+# for ruff to read. Use extend-exclude if that ever changes.
 
 [tool.ruff.lint]
 # Pyflakes only: undefined names, redefinitions, unused imports — defects
