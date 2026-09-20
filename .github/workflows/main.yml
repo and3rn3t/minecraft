@@ -99,6 +99,13 @@ jobs:
           pip install -r api/requirements.txt
           pip install -r api/requirements-test.txt
 
+      # -m "not performance": this step has no marker filter otherwise, so it
+      # collects and runs test_performance.py along with everything else —
+      # the same hard wall-clock assertions the dedicated, schedule-only step
+      # below exists to keep off the pull-request path. Without this
+      # exclusion here, that step was decorative: PR runs executed the
+      # timing-sensitive tests anyway via this one, and scheduled/dispatch
+      # runs executed them twice.
       - name: Run API tests (parallel)
         timeout-minutes: 15
         env:
@@ -107,6 +114,7 @@ jobs:
         run: |
           cd tests/api
           pytest -v -n auto \
+            -m "not performance" \
             --cov=../../api \
             --cov-config=../../.coverage-config.ini \
             --cov-report=term-missing \
