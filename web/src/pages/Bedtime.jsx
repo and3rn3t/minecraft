@@ -1,4 +1,8 @@
 import { useCallback, useState } from 'react';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { PageHeader } from '../components/ui/PageHeader';
 import { usePolling } from '../hooks/usePolling';
 import { api } from '../services/api';
 
@@ -82,47 +86,32 @@ const Bedtime = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-2 leading-tight">
-        BEDTIME
-      </h1>
-      <p className="text-[10px] font-minecraft text-minecraft-text-dark mb-8 leading-relaxed">
-        A WARNED AND ORDERLY END TO THE EVENING
-      </p>
+      <PageHeader title="BEDTIME" subtitle="A WARNED AND ORDERLY END TO THE EVENING" />
 
-      {error && (
-        <div className="card-minecraft p-4 mb-6">
-          <p className="text-[10px] font-minecraft text-red-400 leading-relaxed">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
-      {notice && (
-        <div className="card-minecraft p-4 mb-6">
-          <p className="text-[10px] font-minecraft text-minecraft-grass-light leading-relaxed">
-            {notice}
-          </p>
-        </div>
-      )}
+      {notice && <Alert tone="success">{notice}</Alert>}
 
       {loading ? (
-        <div className="card-minecraft p-6 text-center text-[10px] font-minecraft text-minecraft-text-light">
+        <Card padding="lg" className="text-center text-[10px] font-minecraft text-minecraft-text-light">
           CHECKING THE CLOCK...
-        </div>
+        </Card>
       ) : !status ? (
-        <div className="card-minecraft p-6 text-center text-[10px] font-minecraft text-minecraft-text-dark">
+        <Card padding="lg" className="text-center text-[10px] font-minecraft text-minecraft-text-dark">
           BEDTIME STATUS UNAVAILABLE
-        </div>
+        </Card>
       ) : !status.enabled ? (
-        <div className="card-minecraft p-6">
+        <Card padding="lg">
           <p className="text-[10px] font-minecraft text-minecraft-text-light leading-relaxed mb-3">
             BEDTIME IS OFF
           </p>
           <p className="text-[8px] font-minecraft text-minecraft-text-dark leading-relaxed">
             SET ENABLED=TRUE IN CONFIG/BEDTIME.CONF TO TURN IT ON
           </p>
-        </div>
+        </Card>
       ) : (
         <>
-          <div className="card-minecraft p-6 mb-6">
+          <Card padding="lg" className="mb-6">
             {status.closed ? (
               <>
                 <p className="text-[8px] font-minecraft text-minecraft-text-dark mb-3">
@@ -148,38 +137,40 @@ const Bedtime = () => {
                 </p>
               </>
             )}
-          </div>
+          </Card>
 
-          <div className="card-minecraft p-6 mb-6">
+          <Card padding="lg" className="mb-6">
             <h2 className="text-sm font-minecraft text-minecraft-text-light mb-6 leading-tight">
               CONTROLS
             </h2>
             <div className="flex flex-wrap gap-3">
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => act(() => api.extendBedtime(), 'Extend')}
                 disabled={busy || extensionsLeft <= 0 || status.closed}
-                className="btn-minecraft-primary text-[8px] disabled:opacity-40"
               >
                 +{status.extend_minutes} MINUTES ({extensionsLeft} LEFT)
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => act(() => api.skipBedtime(), 'Skip')}
                 disabled={busy || status.closed || status.skipped_tonight}
-                className="btn-minecraft text-[8px] disabled:opacity-40"
               >
                 SKIP TONIGHT
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => act(() => api.startBedtimeNow(), 'Start bedtime')}
                 disabled={busy || status.closed}
-                className="btn-minecraft-danger text-[8px] disabled:opacity-40"
               >
                 BEDTIME NOW
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
-          <div className="card-minecraft p-6">
+          <Card padding="lg">
             <h2 className="text-sm font-minecraft text-minecraft-text-light mb-6 leading-tight">
               SCHEDULE
             </h2>
@@ -211,7 +202,7 @@ const Bedtime = () => {
                 </dd>
               </div>
             </dl>
-          </div>
+          </Card>
         </>
       )}
     </div>

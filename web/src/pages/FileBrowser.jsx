@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { ErrorState } from '../components/ui/Alert';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Textarea } from '../components/ui/FormField';
 import { api } from '../services/api';
 
 const FileBrowser = () => {
@@ -151,25 +156,19 @@ const FileBrowser = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        FILE BROWSER
-      </h1>
+      <PageHeader title="FILE BROWSER" />
 
-      {error && (
-        <div className="card-minecraft p-4 mb-6 bg-[#C62828] text-white">
-          <div className="text-[10px] font-minecraft">{error}</div>
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* File List */}
-        <div className="card-minecraft p-4">
+        <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               {currentPath && (
-                <button onClick={navigateUp} className="btn-minecraft text-[10px]" title="Go up">
+                <Button size="sm" onClick={navigateUp} aria-label="Go up a directory">
                   ↑
-                </button>
+                </Button>
               )}
               <span className="text-[10px] font-minecraft text-minecraft-text-light">
                 {currentPath || 'ROOT'}
@@ -190,16 +189,26 @@ const FileBrowser = () => {
               {files.length === 0 ? (
                 <div className="text-center py-8 text-minecraft-text-dark">NO FILES</div>
               ) : (
-                files.map((file, index) => (
+                files.map(file => (
                   <div
-                    key={index}
+                    key={file.path}
+                    role="button"
+                    tabIndex={0}
                     className={`flex items-center justify-between p-2 mb-1 cursor-pointer hover:bg-minecraft-dirt ${
                       selectedFile?.path === file.path ? 'bg-minecraft-grass' : ''
                     }`}
                     onClick={() => handleFileClick(file)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleFileClick(file);
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-2 flex-1">
-                      <span className="text-xs">{file.type === 'directory' ? '📁' : '📄'}</span>
+                      <span className="text-xs" aria-hidden="true">
+                        {file.type === 'directory' ? '📁' : '📄'}
+                      </span>
                       <span className="text-minecraft-text-light">{file.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -208,38 +217,41 @@ const FileBrowser = () => {
                           <span className="text-minecraft-text-dark text-[8px]">
                             {formatSize(file.size)}
                           </span>
-                          <button
+                          <Button
+                            size="sm"
+                            className="px-2"
+                            aria-label={`Download ${file.name}`}
                             onClick={e => {
                               e.stopPropagation();
                               handleDownload(file);
                             }}
-                            className="btn-minecraft text-[8px] px-2"
-                            title="Download"
                           >
                             ↓
-                          </button>
+                          </Button>
                         </>
                       )}
-                      <button
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        className="px-2"
+                        aria-label={`Delete ${file.name}`}
                         onClick={e => {
                           e.stopPropagation();
                           handleDelete(file);
                         }}
-                        className="btn-minecraft text-[8px] px-2 bg-[#C62828]"
-                        title="Delete"
                       >
                         ×
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* File Content */}
-        <div className="card-minecraft p-4">
+        <Card padding="md">
           {selectedFile ? (
             <>
               <div className="flex items-center justify-between mb-4">
@@ -249,47 +261,38 @@ const FileBrowser = () => {
                 <div className="flex gap-2">
                   {editing ? (
                     <>
-                      <button
-                        onClick={handleSave}
-                        className="btn-minecraft text-[10px]"
-                        disabled={loading}
-                      >
+                      <Button size="sm" onClick={handleSave} disabled={loading}>
                         SAVE
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm"
                         onClick={() => {
                           setEditing(false);
                           loadFiles(currentPath);
                           handleFileClick(selectedFile);
                         }}
-                        className="btn-minecraft text-[10px]"
                       >
                         CANCEL
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
-                      <button
-                        onClick={() => setEditing(true)}
-                        className="btn-minecraft text-[10px]"
-                      >
+                      <Button size="sm" onClick={() => setEditing(true)}>
                         EDIT
-                      </button>
-                      <button
-                        onClick={() => handleDownload(selectedFile)}
-                        className="btn-minecraft text-[10px]"
-                      >
+                      </Button>
+                      <Button size="sm" onClick={() => handleDownload(selectedFile)}>
                         DOWNLOAD
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
               </div>
               {editing ? (
-                <textarea
+                <Textarea
+                  aria-label="File content"
                   value={fileContent}
                   onChange={e => setFileContent(e.target.value)}
-                  className="w-full h-[500px] font-mono text-[10px] p-2 bg-minecraft-dirt text-minecraft-text-light border-2 border-minecraft-stone"
+                  className="h-[500px] font-mono text-[10px]"
                   spellCheck={false}
                 />
               ) : (
@@ -303,7 +306,7 @@ const FileBrowser = () => {
               SELECT A FILE TO VIEW
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

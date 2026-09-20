@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import ConfigEditor from '../components/ConfigEditor';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
 const ConfigFiles = () => {
@@ -60,9 +64,6 @@ const ConfigFiles = () => {
           ? `File saved successfully! Backup created: ${result.backup}`
           : 'File saved successfully!'
       );
-
-      // Clear message after 5 seconds
-      setTimeout(() => setSaveMessage(null), 5000);
     } catch (err) {
       throw new Error(err.response?.data?.error || 'Failed to save file');
     }
@@ -87,28 +88,22 @@ const ConfigFiles = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        CONFIGURATION FILES
-      </h1>
+      <PageHeader title="CONFIGURATION FILES" />
 
       {/* Error/Success messages */}
-      {error && (
-        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {saveMessage && (
-        <div className="bg-minecraft-grass border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <Alert tone="success" autoDismiss={5000} onDismiss={() => setSaveMessage(null)}>
           {saveMessage}
-        </div>
+        </Alert>
       )}
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
         {/* File list */}
-        <div className="card-minecraft p-4 lg:max-h-[calc(100vh-200px)] overflow-y-auto">
-          <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
-            FILES
+        <Card padding="md" className="lg:max-h-[calc(100vh-200px)] overflow-y-auto">
+          <h2 className="text-sm font-minecraft uppercase text-minecraft-text-light mb-4">
+            Files
           </h2>
           <div className="space-y-2">
             {files.map(file => (
@@ -119,7 +114,7 @@ const ConfigFiles = () => {
                 className={`w-full text-left px-3 py-2 text-[10px] font-minecraft disabled:opacity-50 disabled:cursor-not-allowed ${
                   selectedFile === file.name
                     ? 'bg-minecraft-grass text-white border-2 border-minecraft-grass-dark'
-                    : 'bg-minecraft-dirt hover:bg-minecraft-dirt-light text-minecraft-text-light border-2 border-[#5D4037]'
+                    : 'bg-minecraft-dirt hover:bg-minecraft-dirt-light text-minecraft-text-light border-2 border-minecraft-dirt-dark'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -138,16 +133,16 @@ const ConfigFiles = () => {
               </button>
             ))}
           </div>
-        </div>
+        </Card>
 
         {/* Editor */}
         <div className="lg:col-span-3 min-h-0 flex flex-col">
           {loadingContent && (
-            <div className="flex items-center justify-center h-full card-minecraft">
+            <Card padding="none" className="flex items-center justify-center h-full">
               <div className="text-sm font-minecraft text-minecraft-text-light">
                 LOADING FILE...
               </div>
-            </div>
+            </Card>
           )}
           {!loadingContent && selectedFile && fileContent && (
             <div className="flex-1 min-h-0">
@@ -160,21 +155,18 @@ const ConfigFiles = () => {
             </div>
           )}
           {!loadingContent && (!selectedFile || !fileContent) && (
-            <div className="flex items-center justify-center h-full card-minecraft">
-              <div className="text-center text-minecraft-text-dark">
-                <p className="text-sm font-minecraft mb-2">NO FILE SELECTED</p>
-                <p className="text-[10px] font-minecraft">SELECT A CONFIGURATION FILE TO EDIT</p>
-              </div>
-            </div>
+            <Card padding="none" className="flex items-center justify-center h-full">
+              <EmptyState icon="📄" title="No file selected" hint="Select a configuration file to edit" />
+            </Card>
           )}
         </div>
       </div>
 
       {/* Warning */}
-      <div className="mt-4 bg-[#F57C00]/30 border-2 border-[#E65100] p-3 text-[10px] font-minecraft text-white">
-        <strong>WARNING:</strong> CHANGES TO CONFIGURATION FILES MAY REQUIRE A SERVER RESTART TO
-        TAKE EFFECT. BACKUPS ARE AUTOMATICALLY CREATED BEFORE SAVING.
-      </div>
+      <Alert tone="warning" className="mt-4">
+        <strong>Warning:</strong> Changes to configuration files may require a server restart to
+        take effect. Backups are automatically created before saving.
+      </Alert>
     </div>
   );
 };

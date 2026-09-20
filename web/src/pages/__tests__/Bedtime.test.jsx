@@ -151,8 +151,9 @@ describe('Bedtime', () => {
     await waitFor(() => {
       expect(screen.getByText(/internal server error/i)).toBeInTheDocument();
     });
-    // The error banner is red; a refusal notice is not.
-    expect(screen.getByText(/internal server error/i).className).toMatch(/text-red/);
+    // The error banner is a danger-toned alert; a refusal notice is not.
+    const alert = screen.getByText(/internal server error/i).closest('[role="alert"]');
+    expect(alert.className).toMatch(/bg-minecraft-danger/);
   });
 
   it('treats a 503 as an error too', async () => {
@@ -168,7 +169,8 @@ describe('Bedtime', () => {
     await user.click(screen.getByText(/skip tonight/i));
 
     await waitFor(() => {
-      expect(screen.getByText(/bedtime mode is unavailable/i).className).toMatch(/text-red/);
+      const alert = screen.getByText(/bedtime mode is unavailable/i).closest('[role="alert"]');
+      expect(alert.className).toMatch(/bg-minecraft-danger/);
     });
   });
 
