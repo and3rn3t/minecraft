@@ -13,6 +13,7 @@ const API_KEY = import.meta.env.VITE_API_KEY || localStorage.getItem('api_key');
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     ...(API_KEY && { 'X-API-Key': API_KEY }),
@@ -48,8 +49,12 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper function to make cached GET requests
-async function cachedGet(url, params = {}, cacheTTL = 5000) {
+// Helper function to make cached GET requests. `signal` only ever aborts the
+// axios call this invocation actually issues; a caller that merely joins an
+// in-flight request from another consumer never aborts that shared promise,
+// so one component unmounting can't fail a fetch another component is still
+// waiting on.
+async function cachedGet(url, params = {}, cacheTTL = 5000, signal) {
   // Check cache first
   const cached = getCachedResponse(url, 'GET', params);
   if (cached) {
@@ -63,7 +68,7 @@ async function cachedGet(url, params = {}, cacheTTL = 5000) {
   }
 
   // Make request
-  const requestPromise = apiClient.get(url, { params }).then(response => {
+  const requestPromise = apiClient.get(url, { params, signal }).then(response => {
     // Cache successful responses
     setCachedResponse(url, 'GET', params, response.data, cacheTTL);
     return response.data;
@@ -89,8 +94,8 @@ export const api = {
   },
 
   // Server status (cached for 2 seconds)
-  async getStatus() {
-    return cachedGet('/status', {}, 2000);
+  async getStatus(signal) {
+    return cachedGet('/status', {}, 2000, signal);
   },
 
   // Server control (invalidate cache on state changes)
@@ -125,8 +130,8 @@ export const api = {
     return response.data;
   },
 
-  async listBackups() {
-    return cachedGet('/backups', {}, 10000); // Cache for 10 seconds
+  async listBackups(signal) {
+    return cachedGet('/backups', {}, 10000, signal); // Cache for 10 seconds
   },
 
   async restoreBackup(filename) {
@@ -141,10 +146,9 @@ export const api = {
     return response.data;
   },
 
-  // Logs
-  async getLogs(lines = 100) {
-    const response = await apiClient.get(`/logs?lines=${lines}`);
-    return response.data;
+  // Logs (cached briefly so a fast polling loop doesn't refetch identical lines)
+  async getLogs(lines = 100, signal) {
+    return cachedGet('/logs', { lines }, 1500, signal);
   },
 
   // Game events (chat, joins, deaths, advancements) parsed from the server log
@@ -160,10 +164,9 @@ export const api = {
     return cachedGet('/events/types', {}, 300000);
   },
 
-  // Bedtime mode: the countdown and its controls
-  async getBedtime() {
-    const response = await apiClient.get('/bedtime');
-    return response.data;
+  // Bedtime mode: the countdown and its controls (cached briefly for the 15s poll)
+  async getBedtime(signal) {
+    return cachedGet('/bedtime', {}, 10000, signal);
   },
 
   async extendBedtime() {
@@ -198,8 +201,8 @@ export const api = {
   },
 
   // Players (cached for 3 seconds)
-  async getPlayers() {
-    return cachedGet('/players', {}, 3000);
+  async getPlayers(signal) {
+    return cachedGet('/players', {}, 3000, signal);
   },
 
   async opPlayer(player, level = 4) {
@@ -212,14 +215,14 @@ export const api = {
     return response.data;
   },
 
-  async getOps() {
-    const response = await apiClient.get('/players/ops');
-    return response.data;
+  // Ops list (cached briefly so it shares the 5s poll's cadence with getPlayers)
+  async getOps(signal) {
+    return cachedGet('/players/ops', {}, 3000, signal);
   },
 
   // Metrics (cached for 2 seconds)
-  async getMetrics() {
-    return cachedGet('/metrics', {}, 2000);
+  async getMetrics(signal) {
+    return cachedGet('/metrics', {}, 2000, signal);
   },
 
   // Analytics (cached for longer periods - analytics don't change frequently)
@@ -229,24 +232,29 @@ export const api = {
     return response.data;
   },
 
-  async getAnalyticsReport(hours = 24) {
-    return cachedGet('/analytics/report', { hours }, 60000); // Cache for 60 seconds
+  async getAnalyticsReport(hours = 24, signal) {
+    return cachedGet('/analytics/report', { hours }, 60000, signal); // Cache for 60 seconds
   },
 
-  async getAnalyticsTrends(hours = 24, type = 'performance') {
-    return cachedGet('/analytics/trends', { hours, type }, 60000); // Cache for 60 seconds
+  async getAnalyticsTrends(hours = 24, type = 'performance', signal) {
+    return cachedGet('/analytics/trends', { hours, type }, 60000, signal); // Cache for 60 seconds
   },
 
-  async getAnalyticsAnomalies(hours = 24, metric = 'tps') {
-    return cachedGet('/analytics/anomalies', { hours, metric }, 60000); // Cache for 60 seconds
+  async getAnalyticsAnomalies(hours = 24, metric = 'tps', signal) {
+    return cachedGet('/analytics/anomalies', { hours, metric }, 60000, signal); // Cache for 60 seconds
   },
 
-  async getAnalyticsPredictions(hoursAhead = 1, metric = 'memory') {
-    return cachedGet('/analytics/predictions', { hours_ahead: hoursAhead, metric }, 60000); // Cache for 60 seconds
+  async getAnalyticsPredictions(hoursAhead = 1, metric = 'memory', signal) {
+    return cachedGet(
+      '/analytics/predictions',
+      { hours_ahead: hoursAhead, metric },
+      60000,
+      signal
+    ); // Cache for 60 seconds
   },
 
-  async getPlayerBehavior(hours = 24) {
-    return cachedGet('/analytics/player-behavior', { hours }, 60000); // Cache for 60 seconds
+  async getPlayerBehavior(hours = 24, signal) {
+    return cachedGet('/analytics/player-behavior', { hours }, 60000, signal); // Cache for 60 seconds
   },
 
   async generateCustomReport(config) {

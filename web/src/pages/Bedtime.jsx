@@ -29,11 +29,14 @@ const Bedtime = () => {
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async signal => {
     try {
-      setStatus(await api.getBedtime());
+      setStatus(await api.getBedtime(signal));
       setError(null);
     } catch (err) {
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error('Failed to load bedtime status:', err);
       setError('Could not load bedtime status.');
     } finally {

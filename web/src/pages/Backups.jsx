@@ -18,8 +18,8 @@ const Backups = () => {
     error: pollingError,
     refetch,
   } = usePolling(
-    useCallback(async () => {
-      const data = await api.listBackups();
+    useCallback(async signal => {
+      const data = await api.listBackups(signal);
       return data.backups || [];
     }, []),
     30000

@@ -11,24 +11,27 @@ const Analytics = () => {
   const handleError = useErrorHandler();
 
   // Load analytics data with polling (every minute)
-  const loadAnalytics = useCallback(async () => {
-    const [reportData, trendsData, anomaliesData, predictionsData, behaviorData] =
-      await Promise.all([
-        api.getAnalyticsReport(period),
-        api.getAnalyticsTrends(period, 'performance'),
-        api.getAnalyticsAnomalies(period, 'tps'),
-        api.getAnalyticsPredictions(1, 'memory'),
-        api.getPlayerBehavior(period),
-      ]);
+  const loadAnalytics = useCallback(
+    async signal => {
+      const [reportData, trendsData, anomaliesData, predictionsData, behaviorData] =
+        await Promise.all([
+          api.getAnalyticsReport(period, signal),
+          api.getAnalyticsTrends(period, 'performance', signal),
+          api.getAnalyticsAnomalies(period, 'tps', signal),
+          api.getAnalyticsPredictions(1, 'memory', signal),
+          api.getPlayerBehavior(period, signal),
+        ]);
 
-    return {
-      report: reportData.report,
-      trends: trendsData.trends,
-      anomalies: anomaliesData.anomalies || [],
-      predictions: predictionsData.prediction,
-      playerBehavior: behaviorData.behavior,
-    };
-  }, [period]);
+      return {
+        report: reportData.report,
+        trends: trendsData.trends,
+        anomalies: anomaliesData.anomalies || [],
+        predictions: predictionsData.prediction,
+        playerBehavior: behaviorData.behavior,
+      };
+    },
+    [period]
+  );
 
   const {
     data: analyticsData,

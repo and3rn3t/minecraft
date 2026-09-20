@@ -238,7 +238,10 @@ describe('API Service', () => {
       });
 
       await api.getLogs(100);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/logs?lines=100');
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/logs', {
+        params: { lines: 100 },
+        signal: undefined,
+      });
     });
   });
 

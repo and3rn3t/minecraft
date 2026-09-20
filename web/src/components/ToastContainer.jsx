@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import Toast from './Toast';
 
 const ToastContext = createContext();
@@ -44,17 +44,23 @@ export const ToastProvider = ({ children }) => {
     [showToast]
   );
 
+  const contextValue = useMemo(
+    () => ({ showToast, success, error, info, warning }),
+    [showToast, success, error, info, warning]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info, warning }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="toast-container">
         {toasts.map(toast => (
           <Toast
             key={toast.id}
+            id={toast.id}
             message={toast.message}
             type={toast.type}
             duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
+            onClose={removeToast}
           />
         ))}
       </div>

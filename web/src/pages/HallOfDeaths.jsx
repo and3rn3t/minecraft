@@ -129,8 +129,8 @@ const HallOfDeaths = () => {
       </p>
 
       {error && (
-        <div className="card-minecraft p-4 mb-6 border-minecraft-redstone">
-          <p className="text-[10px] font-minecraft text-red-400">{error}</p>
+        <div className="card-minecraft p-4 mb-6 border-minecraft-danger-DEFAULT">
+          <p className="text-[10px] font-minecraft text-minecraft-danger-light">{error}</p>
         </div>
       )}
 

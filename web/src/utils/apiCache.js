@@ -31,7 +31,7 @@ export function getCachedResponse(url, method = 'GET', params = {}) {
   const key = getCacheKey(url, method, params);
   const entry = cache.get(key);
 
-  if (entry && isCacheValid(entry)) {
+  if (entry && isCacheValid(entry, entry.ttl)) {
     return entry.data;
   }
 

@@ -16,8 +16,11 @@ const Players = () => {
     error: pollingError,
     refetch,
   } = usePolling(
-    useCallback(async () => {
-      const [playersData, opsData] = await Promise.all([api.getPlayers(), api.getOps()]);
+    useCallback(async signal => {
+      const [playersData, opsData] = await Promise.all([
+        api.getPlayers(signal),
+        api.getOps(signal),
+      ]);
       return {
         players: playersData.players || [],
         opNames: new Set((opsData.operators || []).map(op => op.name)),

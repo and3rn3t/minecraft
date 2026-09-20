@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 
-const Toast = ({ message, type = 'info', onClose, duration = 5000 }) => {
+const Toast = ({ id, message, type = 'info', onClose, duration = 5000 }) => {
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {
-        onClose();
+        onClose(id);
       }, duration);
 
       return () => clearTimeout(timer);
     }
-  }, [duration, onClose]);
+  }, [id, duration, onClose]);
 
   const typeClasses = {
     success: 'toast-success',
@@ -31,7 +31,7 @@ const Toast = ({ message, type = 'info', onClose, duration = 5000 }) => {
           <p className="text-[10px] font-minecraft text-white leading-tight">{message}</p>
         </div>
         <button
-          onClick={onClose}
+          onClick={() => onClose(id)}
           className="text-white hover:text-gray-200 text-lg font-minecraft px-2 transition-opacity"
           aria-label="Close"
         >

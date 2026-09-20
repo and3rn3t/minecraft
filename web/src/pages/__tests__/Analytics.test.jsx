@@ -295,7 +295,7 @@ describe('Analytics', () => {
     await user.selectOptions(periodSelect, '6');
 
     await waitFor(() => {
-      expect(api.api.getAnalyticsReport).toHaveBeenCalledWith(6);
+      expect(api.api.getAnalyticsReport).toHaveBeenCalledWith(6, expect.anything());
     });
   });
 

@@ -1,9 +1,25 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+// Cap error backoff at 8x the base interval, so a dead endpoint on a fast
+// poll (e.g. logs at 2s) doesn't settle into hammering the API at full rate
+// forever, but also doesn't drift into multi-minute silence.
+const MAX_BACKOFF_MULTIPLIER = 8;
+
+function isAbortError(err) {
+  return err?.name === 'CanceledError' || err?.name === 'AbortError' || err?.code === 'ERR_CANCELED';
+}
 
 /**
- * Custom hook for polling data at regular intervals
- * @param {Function} fetchFn - Function to fetch data
- * @param {number} intervalMs - Polling interval in milliseconds
+ * Custom hook for polling data at regular intervals.
+ * - `fetchFn` is called with an `AbortSignal`; the previous request is
+ *   aborted before the next one starts, and on unmount.
+ * - Polling pauses while the tab is hidden and catches up immediately when
+ *   it becomes visible again, so a background tab doesn't keep hitting the API.
+ * - Consecutive failures back off (up to `MAX_BACKOFF_MULTIPLIER`x); a
+ *   success resets the backoff to the base interval.
+ *
+ * @param {Function} fetchFn - Function to fetch data; receives an AbortSignal
+ * @param {number} intervalMs - Base polling interval in milliseconds
  * @param {Array} deps - Dependencies array (like useEffect)
  * @returns {Object} - { data, loading, error, refetch }
  */
@@ -11,19 +27,31 @@ export function usePolling(fetchFn, intervalMs = 5000, deps = []) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const intervalRef = useRef(null);
+  const timeoutRef = useRef(null);
   const mountedRef = useRef(true);
+  const controllerRef = useRef(null);
+  const consecutiveErrorsRef = useRef(0);
+  const runTickRef = useRef(() => {});
 
   const fetchData = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     try {
       setError(null);
-      const result = await fetchFn();
+      const result = await fetchFn(controller.signal);
       if (mountedRef.current) {
+        consecutiveErrorsRef.current = 0;
         setData(result);
         setLoading(false);
       }
     } catch (err) {
+      if (isAbortError(err)) {
+        return;
+      }
       if (mountedRef.current) {
+        consecutiveErrorsRef.current += 1;
         setError(err);
         setLoading(false);
       }
@@ -32,24 +60,52 @@ export function usePolling(fetchFn, intervalMs = 5000, deps = []) {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchData();
 
-    if (intervalMs > 0) {
-      intervalRef.current = setInterval(fetchData, intervalMs);
-    }
+    const scheduleNext = () => {
+      if (intervalMs <= 0 || !mountedRef.current) {
+        return;
+      }
+      const backoff = Math.min(2 ** consecutiveErrorsRef.current, MAX_BACKOFF_MULTIPLIER);
+      timeoutRef.current = setTimeout(runTick, intervalMs * backoff);
+    };
+
+    const runTick = async () => {
+      if (document.visibilityState !== 'hidden') {
+        await fetchData();
+      }
+      scheduleNext();
+    };
+    runTickRef.current = runTick;
+
+    fetchData().then(scheduleNext);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && mountedRef.current) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        runTick();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       mountedRef.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
+      controllerRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData, intervalMs, ...deps]);
 
   const refetch = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    runTickRef.current();
+  }, []);
 
   return { data, loading, error, refetch };
 }

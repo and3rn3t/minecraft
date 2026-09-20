@@ -1,15 +1,4 @@
 import { memo, useMemo } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
 const getStatusColor = value => {
   if (value >= 80) return '#C62828'; // Red
@@ -18,17 +7,10 @@ const getStatusColor = value => {
 };
 
 const MetricsChart = memo(({ metrics }) => {
-  const { cpuPercent, memoryPercent, data } = useMemo(() => {
+  const { cpuPercent, memoryPercent } = useMemo(() => {
     const cpu = parseFloat(metrics?.metrics?.cpu_percent?.replace('%', '') || 0);
     const memory = parseFloat(metrics?.metrics?.memory_percent?.replace('%', '') || 0);
-    return {
-      cpuPercent: cpu,
-      memoryPercent: memory,
-      data: [
-        { name: 'CPU', value: cpu },
-        { name: 'Memory', value: memory },
-      ],
-    };
+    return { cpuPercent: cpu, memoryPercent: memory };
   }, [metrics?.metrics?.cpu_percent, metrics?.metrics?.memory_percent]);
 
   return (
@@ -98,60 +80,6 @@ const MetricsChart = memo(({ metrics }) => {
           </div>
         </div>
       </div>
-
-      {/* Chart */}
-      {data.length > 0 && (
-        <div className="card-minecraft p-4">
-          <div className="bg-minecraft-dirt-DEFAULT p-4">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#5D4037" />
-                <XAxis
-                  dataKey="name"
-                  tick={{
-                    fill: '#E0E0E0',
-                    fontSize: 10,
-                    fontFamily: '"Press Start 2P", monospace',
-                  }}
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tick={{
-                    fill: '#E0E0E0',
-                    fontSize: 10,
-                    fontFamily: '"Press Start 2P", monospace',
-                  }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#6D4C41',
-                    border: '2px solid #5D4037',
-                    borderRadius: 0,
-                    color: '#E0E0E0',
-                    fontFamily: '"Press Start 2P", monospace',
-                    fontSize: '10px',
-                  }}
-                />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} strokeWidth={2}>
-                  {data.map(entry => (
-                    <Cell
-                      key={entry.name}
-                      fill={getStatusColor(entry.value)}
-                      stroke={getStatusColor(entry.value)}
-                    />
-                  ))}
-                  <LabelList
-                    dataKey="value"
-                    position="top"
-                    formatter={val => `${val}%`}
-                    style={{ fill: '#E0E0E0', fontSize: 10, fontFamily: '"Press Start 2P", monospace' }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
     </div>
   );
 });

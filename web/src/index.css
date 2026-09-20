@@ -3,8 +3,13 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Press Start 2P', monospace;
-  line-height: 1.8;
+  /* Body face by default — readable at the small sizes most of the app
+     renders text at. Press Start 2P (the display face, `font-minecraft`)
+     is a blocky pixel font meant for headings, nav and buttons; using it
+     as the *body* font made copy, tables and logs hard to scan. */
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  line-height: 1.4;
   font-weight: 400;
 
   color-scheme: dark;
@@ -13,9 +18,9 @@
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  /* Disable font smoothing for pixelated look */
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: unset;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* For icons/sprites, not text. */
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-optimize-contrast;
@@ -51,16 +56,6 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
   }
 }
 

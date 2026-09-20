@@ -13,11 +13,11 @@ const Dashboard = () => {
   const handleError = useErrorHandler();
 
   // Load dashboard data with polling
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = useCallback(async signal => {
     const [statusData, metricsData, playersData] = await Promise.all([
-      api.getStatus(),
-      api.getMetrics(),
-      api.getPlayers(),
+      api.getStatus(signal),
+      api.getMetrics(signal),
+      api.getPlayers(signal),
     ]);
     return {
       status: statusData,
@@ -41,7 +41,7 @@ const Dashboard = () => {
 
   const status = dashboardData?.status || null;
   const metrics = dashboardData?.metrics || null;
-  const players = useMemo(() => dashboardData?.players || [], [dashboardData]);
+  const players = useMemo(() => dashboardData?.players || [], [dashboardData?.players]);
 
   const lastUpdated = useMemo(() => {
     if (!status?.timestamp) return null;

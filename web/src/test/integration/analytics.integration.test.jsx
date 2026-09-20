@@ -176,10 +176,14 @@ describe('Analytics Integration', () => {
 
     // Verify API was called with new period
     await waitFor(() => {
-      expect(api.api.getAnalyticsReport).toHaveBeenCalledWith(6);
-      expect(api.api.getAnalyticsTrends).toHaveBeenCalledWith(6, 'performance');
-      expect(api.api.getAnalyticsAnomalies).toHaveBeenCalledWith(6, 'tps');
-      expect(api.api.getPlayerBehavior).toHaveBeenCalledWith(6);
+      expect(api.api.getAnalyticsReport).toHaveBeenCalledWith(6, expect.anything());
+      expect(api.api.getAnalyticsTrends).toHaveBeenCalledWith(
+        6,
+        'performance',
+        expect.anything()
+      );
+      expect(api.api.getAnalyticsAnomalies).toHaveBeenCalledWith(6, 'tps', expect.anything());
+      expect(api.api.getPlayerBehavior).toHaveBeenCalledWith(6, expect.anything());
     });
   });
 
