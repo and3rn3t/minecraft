@@ -30,6 +30,19 @@ set_env_var() {
     fi
 }
 
+# Prints the key's value from .env, or "key=default (default)" when .env is
+# absent or doesn't set it — .env missing is a valid state (docker-compose.yml
+# falls back to its own defaults), so "current" should never go silent on it.
+show_env_or_default() {
+    local key="$1" default="$2" line
+    line="$(grep "^${key}=" "$ENV_FILE" 2>/dev/null || true)"
+    if [ -n "$line" ]; then
+        echo "  $line"
+    else
+        echo "  ${key}=${default} (default)"
+    fi
+}
+
 # CONTAINER_MEMORY_LIMIT must exceed MEMORY_MAX (metaspace, thread stacks,
 # direct buffers) or the container restart-loops; see .env.example.
 apply_memory() {
@@ -143,13 +156,11 @@ show_current() {
         "$SCRIPT_DIR/server-properties-manager.sh" get max-players 2>/dev/null | sed 's/^/  Max Players: /' || echo "  Max Players: (not set)"
     fi
 
-    if [ -f "$ENV_FILE" ]; then
-        echo ""
-        echo "Memory (.env):"
-        grep "^MEMORY_MIN=" "$ENV_FILE" 2>/dev/null | sed 's/^/  /' || echo "  MEMORY_MIN: (not set, defaults to 1G)"
-        grep "^MEMORY_MAX=" "$ENV_FILE" 2>/dev/null | sed 's/^/  /' || echo "  MEMORY_MAX: (not set, defaults to 2G)"
-        grep "^CONTAINER_MEMORY_LIMIT=" "$ENV_FILE" 2>/dev/null | sed 's/^/  /' || echo "  CONTAINER_MEMORY_LIMIT: (not set, defaults to 3G)"
-    fi
+    echo ""
+    echo "Memory (.env, falling back to docker-compose.yml defaults):"
+    show_env_or_default MEMORY_MIN 1G
+    show_env_or_default MEMORY_MAX 2G
+    show_env_or_default CONTAINER_MEMORY_LIMIT 3G
 
     echo ""
 }

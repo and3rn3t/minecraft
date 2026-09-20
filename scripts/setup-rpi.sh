@@ -63,7 +63,8 @@ else
     echo -e "${YELLOW}Node.js is already installed ($(node --version))${NC}"
 fi
 
-# Clone or update repository
+# Create the directory the server files (copied here separately, not by this
+# script) and runtime data will live in.
 echo -e "${GREEN}[5/9] Setting up Minecraft server files...${NC}"
 MINECRAFT_DIR="$HOME/minecraft-server"
 if [ ! -d "$MINECRAFT_DIR" ]; then
@@ -120,7 +121,15 @@ if [ -f /proc/device-tree/model ]; then
     read -p "Apply system-level performance tuning now (CPU governor, swap, sysctl, journald)? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        "${SCRIPT_DIR}/optimize-rpi5.sh"
+        if [ -f "${SCRIPT_DIR}/optimize-rpi5.sh" ]; then
+            # Invoked via bash rather than executed directly so a missing +x
+            # bit (e.g. a fresh checkout) doesn't turn an optional step into
+            # a hard failure; `|| true` keeps a failure inside it from
+            # aborting setup after everything else already succeeded.
+            bash "${SCRIPT_DIR}/optimize-rpi5.sh" || echo -e "${YELLOW}optimize-rpi5.sh exited with an error; continuing.${NC}"
+        else
+            echo -e "${YELLOW}${SCRIPT_DIR}/optimize-rpi5.sh not found; skipping system-level tuning.${NC}"
+        fi
     else
         echo -e "${YELLOW}Skipped. Run ${SCRIPT_DIR}/optimize-rpi5.sh later to apply it.${NC}"
     fi
