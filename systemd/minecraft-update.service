@@ -6,10 +6,13 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Pulling an image is a burst of network and disk I/O; keep it from
-# competing with the live server for either.
-Nice=10
-IOSchedulingClass=idle
+# Deliberately no Nice=/IOSchedulingClass= here: this unit's own process
+# (auto-update.sh, then the `docker` CLI) does almost no work itself — the
+# actual image download and layer extraction happens inside dockerd, a
+# separate process under docker.service, so priority set on this unit
+# wouldn't reach it. Lowering docker.service's own priority isn't a fix
+# either: the live server's containerd-shim/process tree runs under that
+# same unit, so it would deprioritize the running game server too.
 WorkingDirectory=/home/pi/minecraft-server
 # Pull, and restart only when the image actually changed. This used to run
 # `docker compose up -d --force-recreate` unconditionally, which restarted the
