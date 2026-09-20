@@ -36,6 +36,7 @@ try:
     import eventlet  # type: ignore[import-untyped]
     from flask_socketio import (
         SocketIO,  # type: ignore[import-untyped]
+        disconnect,  # type: ignore[import-untyped]
     )
 
     # Only monkey patch if not in testing environment
@@ -4523,13 +4524,13 @@ if SOCKETIO_AVAILABLE:
         if api_key:
             if api_key not in API_KEYS:
                 socketio.emit("error", {"message": "Invalid API key"}, room=request.sid)
-                socketio.disconnect(request.sid)
+                disconnect(request.sid)
                 return False
 
             key_info = API_KEYS.get(api_key, {})
             if not key_info.get("enabled", True):
                 socketio.emit("error", {"message": "API key disabled"}, room=request.sid)
-                socketio.disconnect(request.sid)
+                disconnect(request.sid)
                 return False
 
             identity = ("api_key", api_key)
@@ -4537,25 +4538,25 @@ if SOCKETIO_AVAILABLE:
             username = verify_token(token)
             if not username or username not in USERS:
                 socketio.emit("error", {"message": "Invalid or expired token"}, room=request.sid)
-                socketio.disconnect(request.sid)
+                disconnect(request.sid)
                 return False
 
             if not USERS[username].get("enabled", True):
                 socketio.emit("error", {"message": "Account disabled"}, room=request.sid)
-                socketio.disconnect(request.sid)
+                disconnect(request.sid)
                 return False
 
             identity = ("user", username)
         else:
             socketio.emit("error", {"message": "API key or token required"}, room=request.sid)
-            socketio.disconnect(request.sid)
+            disconnect(request.sid)
             return False
 
         # The log stream is server output, so it needs the same permission the
         # REST log endpoints require. Any enabled key used to be enough.
         if not _identity_has_permission(identity, "logs.view"):
             socketio.emit("error", {"message": "Permission denied: logs.view"}, room=request.sid)
-            socketio.disconnect(request.sid)
+            disconnect(request.sid)
             return False
 
         with _log_streams_lock:
