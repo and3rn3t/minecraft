@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Ruff's settings moved to `[tool.ruff]` in `pyproject.toml`**, which the
+  editor extension, the pre-commit hook and `scripts/lint.sh` all discover.
+  They previously carried three copies of the same flags. The editor copy used
+  `ruff.lint.args`, which the native server that replaced `ruff-lsp` does not
+  support and warns about; see
+  [the migration guide](https://docs.astral.sh/ruff/editors/migration/).
+
 - **`GET /api/players/stats` returns a list rather than a map**, with real
   counters: time played, blocks mined by type, distance walked, damage taken
   and dealt, advancements completed. `GET /api/players/stats/metrics` lists what

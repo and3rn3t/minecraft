@@ -1,8 +1,11 @@
 {
-  // Python linting here uses the same ruff rules as the pre-commit hook and
-  // scripts/lint.sh, so the editor agrees with the gate rather than reporting
-  // a different set of problems.
-  "ruff.lint.args": ["--select", "F", "--line-length", "120"],
+  // Ruff's settings are not repeated here. The extension discovers
+  // pyproject.toml, which is also what the pre-commit hook and
+  // scripts/lint.sh read, so the editor cannot disagree with the gate.
+  //
+  // "ruff.lint.args" used to carry them, and the native server that replaced
+  // ruff-lsp does not support it — see
+  // https://docs.astral.sh/ruff/editors/migration/
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff"
   },

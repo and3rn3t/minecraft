@@ -20,6 +20,29 @@ extend-exclude = '''
 )/
 '''
 
+[tool.ruff]
+# The one place the ruff settings live. The editor extension, the pre-commit
+# hook and scripts/lint.sh all discover this file, so they cannot drift apart
+# the way three copies of the same command-line flags did.
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+# Pyflakes only: undefined names, redefinitions, unused imports — defects
+# rather than preferences. The full default rule set reports 450+ findings on
+# this repo, nearly all style, which would train everyone to ignore it. See
+# "Known baselines" in AGENTS.md.
+select = ["F"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests/api"]
 python_files = "test_*.py"
@@ -64,4 +87,3 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
-
