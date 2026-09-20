@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ErrorState } from '../components/ui/Alert';
+import { Input } from '../components/ui/FormField';
+import { PageHeader } from '../components/ui/PageHeader';
 import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../services/api';
 
@@ -121,58 +127,48 @@ const HallOfDeaths = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-2 leading-tight">
-        HALL OF DEATHS
-      </h1>
-      <p className="text-[10px] font-minecraft text-minecraft-text-dark mb-8 leading-relaxed">
-        EVERY DEMISE, DULY RECORDED
-      </p>
+      <PageHeader title="HALL OF DEATHS" subtitle="EVERY DEMISE, DULY RECORDED" />
 
-      {error && (
-        <div className="card-minecraft p-4 mb-6 border-minecraft-danger">
-          <p className="text-[10px] font-minecraft text-minecraft-danger-light">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {stats && stats.total_deaths > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="card-minecraft p-4">
+          <Card padding="md">
             <p className="text-[8px] font-minecraft text-minecraft-text-dark mb-2">TOTAL DEATHS</p>
             <p className="text-xl font-minecraft text-minecraft-text-light">{stats.total_deaths}</p>
-          </div>
-          <div className="card-minecraft p-4">
+          </Card>
+          <Card padding="md">
             <p className="text-[8px] font-minecraft text-minecraft-text-dark mb-2">THE FALLEN</p>
             <p className="text-xl font-minecraft text-minecraft-text-light">{stats.players}</p>
-          </div>
-          <div className="card-minecraft p-4">
+          </Card>
+          <Card padding="md">
             <p className="text-[8px] font-minecraft text-minecraft-text-dark mb-2">USUAL CAUSE</p>
             <p className="text-sm font-minecraft text-minecraft-text-light leading-tight">
               {iconFor(stats.most_common_cause)} {labelFor(stats.most_common_cause)}
             </p>
-          </div>
+          </Card>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="card-minecraft p-6">
+          <Card padding="lg">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="text-sm font-minecraft text-minecraft-text-light leading-tight">
                 RECENT OBITUARIES
               </h2>
               <div className="flex gap-2">
-                <input
-                  id="death-player-filter"
+                <Input
                   type="text"
                   value={playerFilter}
                   onChange={event => setPlayerFilter(event.target.value)}
                   placeholder="FILTER BY PLAYER"
                   aria-label="Filter obituaries by player name"
-                  className="bg-minecraft-background-dark border-2 border-[#5D4037] px-3 py-2 text-[8px] font-minecraft text-minecraft-text-light placeholder:text-minecraft-text-dark"
+                  className="w-auto"
                 />
-                <button onClick={load} className="btn-minecraft text-[8px]">
+                <Button size="sm" onClick={load}>
                   REFRESH
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -181,15 +177,7 @@ const HallOfDeaths = () => {
                 CONSULTING THE RECORDS...
               </div>
             ) : noDeathsYet ? (
-              <div className="text-center py-12">
-                <p className="text-2xl mb-4">🕊️</p>
-                <p className="text-[10px] font-minecraft text-minecraft-text-light leading-relaxed">
-                  NOBODY HAS DIED YET
-                </p>
-                <p className="text-[8px] font-minecraft text-minecraft-text-dark mt-3 leading-relaxed">
-                  GIVE IT TIME
-                </p>
-              </div>
+              <EmptyState icon="🕊️" title="Nobody has died yet" hint="Give it time" />
             ) : deaths.length === 0 ? (
               <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-dark">
                 {error ? 'COULD NOT REACH THE RECORDS' : 'NO DEATHS FOR THAT PLAYER'}
@@ -197,10 +185,7 @@ const HallOfDeaths = () => {
             ) : (
               <ul className="space-y-3">
                 {deaths.map((death, index) => (
-                  <li
-                    key={`${death.timestamp}-${index}`}
-                    className="bg-minecraft-dirt border-2 border-[#5D4037] p-4"
-                  >
+                  <Card as="li" key={`${death.timestamp}-${index}`} padding="md" className="bg-minecraft-dirt">
                     <div className="flex items-start gap-3">
                       <span className="text-xl leading-none" aria-hidden="true">
                         {iconFor(death.category)}
@@ -216,15 +201,15 @@ const HallOfDeaths = () => {
                         </p>
                       </div>
                     </div>
-                  </li>
+                  </Card>
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
         </div>
 
         <div>
-          <div className="card-minecraft p-6">
+          <Card padding="lg">
             <h2 className="text-sm font-minecraft text-minecraft-text-light mb-6 leading-tight">
               LEADERBOARD
             </h2>
@@ -236,10 +221,7 @@ const HallOfDeaths = () => {
             ) : (
               <ol className="space-y-3">
                 {leaderboard.map((entry, index) => (
-                  <li
-                    key={entry.player}
-                    className="bg-minecraft-background-dark border-2 border-[#5D4037] p-3"
-                  >
+                  <Card as="li" key={entry.player} padding="sm">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-[10px] font-minecraft text-minecraft-text-light truncate">
                         {index + 1}. {entry.player}
@@ -252,11 +234,11 @@ const HallOfDeaths = () => {
                       {habitFor(entry).prefix} {iconFor(habitFor(entry).category)}{' '}
                       {labelFor(habitFor(entry).category)}
                     </p>
-                  </li>
+                  </Card>
                 ))}
               </ol>
             )}
-          </div>
+          </Card>
         </div>
       </div>
     </div>
