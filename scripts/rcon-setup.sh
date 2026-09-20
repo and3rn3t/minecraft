@@ -14,7 +14,12 @@ NC='\033[0m' # No Color
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-SERVER_PROPERTIES="${PROJECT_DIR}/server.properties"
+# The repo-root server.properties only seeds the Docker image; once the
+# container has booted once, ./data is bind-mounted over /minecraft/server
+# and the server reads/writes its live config at data/server.properties
+# instead. Editing the repo-root copy after that point has no effect on the
+# running server.
+SERVER_PROPERTIES="${PROJECT_DIR}/data/server.properties"
 RCON_CONFIG="${PROJECT_DIR}/config/rcon.conf"
 
 # Function to generate secure password

@@ -10,6 +10,11 @@ services:
     restart: on-failure
     ports:
       - '${SERVER_PORT:-25565}:25565'
+      # RCON has no transport encryption and grants full command execution, so
+      # it's bound to loopback only. The API server (api/rcon.py) runs
+      # directly on the host and reaches it via 127.0.0.1, not the container
+      # network, which is why this needs a host port at all.
+      - '127.0.0.1:${RCON_PORT:-25575}:25575'
     environment:
       - MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
       - MEMORY_MIN=${MEMORY_MIN:-1G}
