@@ -57,6 +57,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [EVENT_BUS.md](EVENT_BUS.md) | Typed game events parsed from the server log |
 | [HALL_OF_DEATHS.md](HALL_OF_DEATHS.md) | Epitaphs for every death, in game and on the dashboard |
 | [BEDTIME.md](BEDTIME.md) | Scheduled, warned end to the evening |
+| [PLAYER_STATS.md](PLAYER_STATS.md) | Player counters read from the world's own stats files |
 | [ANALYTICS.md](ANALYTICS.md) | Player and server analytics collection and reports |
 
 ---

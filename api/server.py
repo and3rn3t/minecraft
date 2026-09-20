@@ -3156,9 +3156,12 @@ def get_player_stats_leaderboard():
 
     metric = request.args.get("metric", "play_time_minutes")
     try:
-        limit = int(request.args.get("limit", "10"))
-    except ValueError:
-        return jsonify({"error": "limit must be a number"}), 400
+        # Clamped 1-50, as /api/deaths/leaderboard is: an unbounded limit lets
+        # a caller ask for every player on the server, and every stats file
+        # behind them, in one request.
+        limit = min(max(int(request.args.get("limit", 10)), 1), 50)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
 
     try:
         return jsonify({"success": True, **player_stats.leaderboard(metric, limit)}), 200

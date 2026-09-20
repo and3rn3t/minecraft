@@ -110,11 +110,11 @@ components:
         items_crafted:
           type: integer
         damage_taken:
-          type: integer
-          description: In hearts
+          type: number
+          description: In hearts, to one decimal place
         damage_dealt:
-          type: integer
-          description: In hearts
+          type: number
+          description: In hearts, to one decimal place
         jumps:
           type: integer
         distance_walked_m:
@@ -1603,6 +1603,9 @@ paths:
           schema:
             type: integer
             default: 10
+            minimum: 1
+            maximum: 50
+          description: Clamped to 1-50
       responses:
         '200':
           description: Ranked highest first

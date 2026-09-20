@@ -39,11 +39,11 @@ many diamonds were mined and how far each player has walked.
 
 | Field | Derived from |
 | --- | --- |
-| `play_time_minutes` | `minecraft:play_time` ticks, at 20 per second. Falls back to `play_one_minute`, the pre-1.17 name |
+| `play_time_minutes` | `minecraft:play_time` ticks, at 20 per second, floored to whole minutes. Falls back to `play_one_minute`, the pre-1.17 name |
 | `deaths`, `mob_kills`, `player_kills` | the matching `minecraft:custom` counters |
 | `blocks_mined` | `minecraft:mined`, summed across every block type |
 | `items_crafted` | `minecraft:crafted`, summed |
-| `damage_taken`, `damage_dealt` | the counters, in tenths of a heart, converted to hearts |
+| `damage_taken`, `damage_dealt` | the counters, in tenths of a heart, converted to hearts and kept to one decimal — half a heart matters to a player who has three |
 | `jumps` | `minecraft:jump` |
 | `distance_walked_m` | `minecraft:walk_one_cm`, converted to metres |
 | `advancements` | completed advancements, **excluding** `minecraft:recipes/...` — those are how recipes unlock, not achievements, and counting them makes the number meaningless |
@@ -57,7 +57,7 @@ All require the `players.view` permission.
 
 - `GET /api/players/stats` — every player with a statistics file
 - `GET /api/players/stats/<player>` — one player, by name; `?raw=true` adds the full block
-- `GET /api/players/stats/leaderboard?metric=<m>&limit=<n>` — ranked, highest first
+- `GET /api/players/stats/leaderboard?metric=<m>&limit=<n>` — ranked, highest first; `limit` is clamped to 1-50
 - `GET /api/players/stats/metrics` — the counters a leaderboard can use
 
 `POST /api/players/stats/parse` is gone. It ran the log scrape, and there is no

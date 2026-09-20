@@ -133,8 +133,10 @@ class PlayerStats:
     player_kills: int = 0
     blocks_mined: int = 0
     items_crafted: int = 0
-    damage_taken: int = 0
-    damage_dealt: int = 0
+    # Hearts, to one decimal place: the game counts tenths, and half a heart is
+    # a real amount of damage to a player with three of them.
+    damage_taken: float = 0.0
+    damage_dealt: float = 0.0
     jumps: int = 0
     distance_walked_m: int = 0
     advancements: int = 0
@@ -216,19 +218,22 @@ def read_player(uuid: str, names: Optional[Dict[str, str]] = None) -> Optional[P
     return PlayerStats(
         uuid=uuid,
         name=names.get(uuid, uuid),
-        # Ticks to whole minutes. Rounding down matches how a player would
-        # describe their own play time.
+        # Ticks to whole minutes, floored deliberately: nobody describes their
+        # play time to the second.
         play_time_minutes=_play_time_ticks(stats) // (TICKS_PER_SECOND * 60),
         deaths=_custom(stats, "minecraft:deaths"),
         mob_kills=_custom(stats, "minecraft:mob_kills"),
         player_kills=_custom(stats, "minecraft:player_kills"),
         blocks_mined=_sum_section(stats, MINED),
         items_crafted=_sum_section(stats, CRAFTED),
-        # The damage counters are in tenths of a heart.
-        damage_taken=_custom(stats, "minecraft:damage_taken") // 10,
-        damage_dealt=_custom(stats, "minecraft:damage_dealt") // 10,
+        # The damage counters are in tenths of a heart. Kept to one decimal
+        # rather than floored: 5 tenths is half a heart, and flooring reports
+        # it as none at all.
+        damage_taken=round(_custom(stats, "minecraft:damage_taken") / 10, 1),
+        damage_dealt=round(_custom(stats, "minecraft:damage_dealt") / 10, 1),
         jumps=_custom(stats, "minecraft:jump"),
-        # Distances are in centimetres.
+        # Distances are in centimetres. Floored deliberately: sub-metre
+        # precision on a distance walked is noise.
         distance_walked_m=_custom(stats, "minecraft:walk_one_cm") // 100,
         advancements=_count_advancements(uuid),
         raw=stats,

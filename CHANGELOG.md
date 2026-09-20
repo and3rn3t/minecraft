@@ -83,7 +83,9 @@ All notable changes to this project will be documented in this file.
   `<world>/advancements/<uuid>.json`. There is nothing to accumulate, so
   reading is idempotent by construction, and it covers everything Minecraft
   tracks rather than the three things the log mentioned. See
-  [docs/PLAYER_STATS.md](docs/PLAYER_STATS.md).
+  [docs/PLAYER_STATS.md](docs/PLAYER_STATS.md). Damage is reported in hearts to
+  one decimal place, so half a heart is not floored away, and the leaderboard
+  `limit` is clamped to 1-50 like `/api/deaths/leaderboard`.
 
 - **Four test scripts piped data into a heredoc that discarded it**, at five
   call sites.

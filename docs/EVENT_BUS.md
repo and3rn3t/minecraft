@@ -118,10 +118,21 @@ variables, both read at import:
 | `MC_EVENTS_DIR` | `data/events` under the project | Where the daily files are written. `~` is expanded |
 | `MC_EVENTS_RETENTION_DAYS` | `30` | Days of history to keep. `0` or negative disables pruning |
 
+In a systemd unit, these are `Environment=` directives — bare `NAME=value`
+lines are not valid there and systemd will reject the unit:
+
+```ini
+# /etc/systemd/system/minecraft-api.service
+[Service]
+Environment="MC_EVENTS_DIR=/mnt/ssd/minecraft/events"
+Environment="MC_EVENTS_RETENTION_DAYS=365"
+```
+
+Or, running the API from a shell:
+
 ```bash
-# /etc/systemd/system/minecraft-api.service, or the API's environment
-MC_EVENTS_DIR=/mnt/ssd/minecraft/events
-MC_EVENTS_RETENTION_DAYS=365
+export MC_EVENTS_DIR=/mnt/ssd/minecraft/events
+export MC_EVENTS_RETENTION_DAYS=365
 ```
 
 Move the existing files first, or the history starts over:

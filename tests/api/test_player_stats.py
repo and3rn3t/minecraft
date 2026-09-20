@@ -107,8 +107,37 @@ class TestUnitConversions:
 
     def test_damage_is_converted_from_tenths_of_hearts(self, world):
         stats = player_stats.read_player(JONAH)
-        assert stats.damage_taken == 340
-        assert stats.damage_dealt == 990
+        assert stats.damage_taken == 340.0
+        assert stats.damage_dealt == 990.0
+
+    def test_half_hearts_survive_the_conversion(self, world):
+        """Flooring turned 5 tenths — half a heart — into no damage at all,
+        which matters most to the player who has taken the least."""
+        (world / "stats" / f"{GHOST}.json").write_text(
+            json.dumps(
+                {
+                    "stats": {
+                        "minecraft:custom": {
+                            "minecraft:damage_taken": 5,
+                            "minecraft:damage_dealt": 3_405,
+                        }
+                    }
+                }
+            )
+        )
+
+        stats = player_stats.read_player(GHOST)
+
+        assert stats.damage_taken == 0.5
+        assert stats.damage_dealt == 340.5
+
+    def test_the_floored_conversions_are_deliberate(self, world):
+        """Play time and distance are floored on purpose; pin it so a future
+        change to make them fractional is a decision rather than a drift."""
+        stats = player_stats.read_player(JONAH)
+
+        assert isinstance(stats.play_time_minutes, int)
+        assert isinstance(stats.distance_walked_m, int)
 
     def test_the_older_play_time_key_still_works(self, world):
         """1.17 renamed play_one_minute to play_time; both are ticks"""
@@ -283,6 +312,20 @@ class TestEndpoints:
 
         assert response.status_code == 400
         assert "Valid:" in response.get_json()["error"]
+
+    def test_leaderboard_limit_is_clamped(self, client, auth, world):
+        """An unbounded limit lets one request pull every player, and every
+        stats file behind them. /api/deaths/leaderboard clamps the same way."""
+        over = client.get("/api/players/stats/leaderboard?limit=100000", headers=auth)
+        assert over.status_code == 200
+        assert len(over.get_json()["leaderboard"]) <= 50
+
+        # Zero and negative used to return nothing at all rather than being
+        # treated as a mistake.
+        for limit in (0, -5):
+            response = client.get(f"/api/players/stats/leaderboard?limit={limit}", headers=auth)
+            assert response.status_code == 200
+            assert len(response.get_json()["leaderboard"]) == 1
 
     def test_leaderboard_rejects_a_non_numeric_limit(self, client, auth, world):
         response = client.get("/api/players/stats/leaderboard?limit=lots", headers=auth)
