@@ -66,21 +66,13 @@ underneath it.
 ## Blockers
 
 These are defects, not features, and they sit in the path of everything below.
-Line numbers were verified against the current `main`, and each tracked one
-links to its issue.
+One is left; the rest are in [`../CHANGELOG.md`](../CHANGELOG.md).
 
 - **`scripts/player-stats-tracker.sh` inflates its counts on every run**
   ([#28](https://github.com/and3rn3t/minecraft/issues/28)). It re-parses the
   whole log file and adds to the existing totals, so the numbers climb whether
   or not anything happened, and it only matches three crude patterns.
   Superseded by F5 below.
-- **1.20.4 → 1.20.5 replaces item NBT with components.** Every `/give` carrying
-  NBT in this document — the Gazette book, mail, the time capsule — breaks on
-  that upgrade. Isolate item construction in one module before building three
-  features on top of it.
-- **SD-card write endurance.** The event bus appends JSONL continuously. Writes
-  are already batched and pruned at 30 days; if an SSD is present, move
-  `data/events/` onto it.
 
 ---
 
@@ -96,7 +88,7 @@ cheaper.
 | 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
 | 4 | F3, P2 | Datapack pipeline plus family advancements, visible in the game's own UI |
 | 5 | M2, M1 | Map and time-lapse, rendered on the Mac, zero cost to the Pi |
-| 6 | W4, T3, M5 | The book pipeline: Gazette, mail and time capsule all share it |
+| 6 | F6, W4, T3, M5 | The book pipeline: F6 builds the items, then the Gazette, mail and the time capsule all share it |
 | 7 | W2 | The Invention Forge, once the datapack validator can be trusted |
 | 8 | H1, H2, H3 | House and game wired to each other |
 | 9 | R1 | Geyser, if tablets matter — consider pulling this much earlier |
@@ -113,6 +105,29 @@ this list.
 Plumbing that several features below depend on. Two of the four are done; those
 are described in [EVENT_BUS.md](EVENT_BUS.md) and [RCON.md](RCON.md) rather
 than repeated here.
+
+### F6. One place that builds items — Green, build it with W4
+
+Three features hand a player an item: the Gazette book (W4), mail (T3) and the
+time capsule (M5). All three need `/give` with the item's contents attached,
+and **1.20.5 replaced item NBT with components**, so the syntax differs by
+server version:
+
+```text
+1.20.4   /give @p written_book{title:"...",author:"...",pages:['...']}
+1.20.5+  /give @p written_book[written_book_content={title:"...",author:"...",pages:['...']}]
+```
+
+Write one module that takes a book and returns the command for the running
+server, detecting the version rather than assuming it, and have all three
+features call it. One place to change when the server is upgraded, instead of
+three.
+
+**Build it as the first commit of W4, not before.** Nothing constructs items
+today, so a module written now would be guessing at what the three callers
+need, and would be wrong in the way abstractions written without a caller
+usually are. The constraint is recorded here so W4 starts with it rather than
+discovering it.
 
 ### F3. A datapack pipeline — Green
 
@@ -224,8 +239,8 @@ actual written book** placed in each player's inventory via `/give` with book
 NBT. Receiving a physical newspaper in your inventory on a Sunday is a ritual.
 
 Depends on F5 for real numbers and on the Hall of Deaths, which already stores
-the week's obituaries. See the NBT-to-components blocker before building the
-book writer.
+the week's obituaries. Start with F6: the book writer is where item
+construction is invented, and T3 and M5 both inherit it.
 
 ### W6. Siri, Shortcuts and HomeKit — Green
 

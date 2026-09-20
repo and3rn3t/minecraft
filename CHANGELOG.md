@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **The event bus can write somewhere other than the SD card.** `MC_EVENTS_DIR`
+  moves `data/events/` — the one directory the server writes to continuously —
+  onto an attached SSD, and `MC_EVENTS_RETENTION_DAYS` raises the 30-day prune
+  that existed to bound what the card absorbs. A malformed retention value
+  falls back to 30 rather than reading as zero, so a typo cannot quietly turn
+  pruning off. See [docs/EVENT_BUS.md](docs/EVENT_BUS.md).
+
 - **Local checks now reproduce the CI jobs.** `make ci` runs lint, actionlint,
   gitleaks, the test suites and CodeQL; `make doctor` reports which supporting
   tools are installed; `make hooks` installs the pre-commit hooks, which were

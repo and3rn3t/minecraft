@@ -20,6 +20,7 @@ event.
 from __future__ import annotations
 
 import json
+import os
 import re
 import threading
 from dataclasses import asdict, dataclass, field
@@ -28,7 +29,24 @@ from pathlib import Path
 from typing import Callable, Iterator, Optional
 
 PROJECT_ROOT = Path(__file__).parent.parent
-EVENTS_DIR = PROJECT_ROOT / "data" / "events"
+
+
+def _resolve_events_dir() -> Path:
+    """Where the daily JSONL files live.
+
+    Defaults to ``data/events`` inside the project. The Pi boots from an SD
+    card, and this is the one directory the server writes to continuously, so
+    when an SSD is attached it is the thing worth moving: set ``MC_EVENTS_DIR``
+    to a path on it. Batching and the 30-day prune already limit how much is
+    written; moving the directory takes the writes off the card altogether.
+    """
+    configured = os.environ.get("MC_EVENTS_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    return PROJECT_ROOT / "data" / "events"
+
+
+EVENTS_DIR = _resolve_events_dir()
 
 # Event type constants. Kept as plain strings so they serialise directly.
 EVENT_CHAT = "chat"
@@ -56,8 +74,24 @@ ALL_EVENT_TYPES = (
 # Flush after this many buffered events, or this many seconds, whichever first.
 FLUSH_EVERY_EVENTS = 20
 FLUSH_EVERY_SECONDS = 30.0
-# Daily files older than this are pruned, again to protect the SD card.
-DEFAULT_RETENTION_DAYS = 30
+# Daily files older than this are pruned, again to protect the SD card. With
+# the events directory moved to an SSD there is no card to protect, so this is
+# worth raising: set MC_EVENTS_RETENTION_DAYS. A history worth keeping is the
+# point of recording events at all, and the Gazette and the leaderboards read
+# from it.
+def _resolve_retention_days(default: int = 30) -> int:
+    configured = os.environ.get("MC_EVENTS_RETENTION_DAYS", "").strip()
+    if not configured:
+        return default
+    try:
+        days = int(configured)
+    except ValueError:
+        return default
+    # Zero or negative disables pruning, which prune() already understands.
+    return days
+
+
+DEFAULT_RETENTION_DAYS = _resolve_retention_days()
 
 # Minecraft usernames: 3-16 characters of word characters.
 _NAME = r"[A-Za-z0-9_]{3,16}"

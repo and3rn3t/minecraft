@@ -4,6 +4,7 @@ import json
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -528,3 +529,96 @@ class TestFlushSafety:
 
     def test_stopping_without_starting_is_safe(self, tmp_path):
         EventBus(events_dir=tmp_path / "events").stop_periodic_flush()
+
+
+class TestStorageLocationIsConfigurable:
+    """The Pi boots from an SD card and this is the one directory written to
+    continuously, so it has to be movable onto an SSD without editing code."""
+
+    @staticmethod
+    def _reload(monkeypatch, **env):
+        """Re-import api.events with the given environment.
+
+        The module is taken from sys.modules rather than imported again: the
+        top of this file already imports from it, and a second `import api.events`
+        would be the same module reached two different ways.
+        """
+        import importlib
+        import sys as _sys
+
+        for key in ("MC_EVENTS_DIR", "MC_EVENTS_RETENTION_DAYS"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        return importlib.reload(_sys.modules["api.events"])
+
+    def test_defaults_to_the_project_data_directory(self, monkeypatch):
+        module = self._reload(monkeypatch)
+
+        assert module.EVENTS_DIR == module.PROJECT_ROOT / "data" / "events"
+
+    def test_mc_events_dir_moves_the_files(self, monkeypatch, tmp_path):
+        """Setting the variable is the whole SSD migration"""
+        target = tmp_path / "ssd" / "events"
+        module = self._reload(monkeypatch, MC_EVENTS_DIR=str(target))
+
+        assert module.EVENTS_DIR == target
+
+    def test_a_new_bus_writes_where_the_variable_points(self, monkeypatch, tmp_path):
+        """The setting has to reach the files, not just the constant"""
+        target = tmp_path / "ssd" / "events"
+        module = self._reload(monkeypatch, MC_EVENTS_DIR=str(target))
+
+        bus = module.EventBus()
+        bus.publish(
+            module.GameEvent(
+                type=module.EVENT_JOIN,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                player="Jonah",
+                raw="Jonah joined the game",
+            )
+        )
+        bus.flush()
+
+        written = list(target.glob("*.jsonl"))
+        assert written, f"nothing written under {target}"
+        assert json.loads(written[0].read_text().splitlines()[0])["player"] == "Jonah"
+
+    def test_a_home_relative_path_is_expanded(self, monkeypatch):
+        """~ is what anyone actually types for a mount point under home"""
+        module = self._reload(monkeypatch, MC_EVENTS_DIR="~/mc-events")
+
+        assert "~" not in str(module.EVENTS_DIR)
+        assert module.EVENTS_DIR.is_absolute()
+
+    def test_retention_defaults_to_thirty_days(self, monkeypatch):
+        module = self._reload(monkeypatch)
+
+        assert module.DEFAULT_RETENTION_DAYS == 30
+
+    def test_retention_can_be_raised_off_the_card(self, monkeypatch):
+        """On an SSD there is no card to protect, and the history is the point"""
+        module = self._reload(monkeypatch, MC_EVENTS_RETENTION_DAYS="365")
+
+        assert module.DEFAULT_RETENTION_DAYS == 365
+
+    def test_a_malformed_retention_falls_back(self, monkeypatch):
+        """A typo must not turn pruning off by accident"""
+        module = self._reload(monkeypatch, MC_EVENTS_RETENTION_DAYS="a fortnight")
+
+        assert module.DEFAULT_RETENTION_DAYS == 30
+
+    def test_zero_retention_disables_pruning(self, monkeypatch, tmp_path):
+        """prune() already treats <= 0 as 'keep everything'; keep that reachable"""
+        module = self._reload(monkeypatch, MC_EVENTS_RETENTION_DAYS="0")
+        assert module.DEFAULT_RETENTION_DAYS == 0
+
+        events_dir = tmp_path / "events"
+        events_dir.mkdir()
+        old_file = events_dir / "2020-01-01.jsonl"
+        old_file.write_text('{"type": "join"}\n')
+
+        bus = module.EventBus(events_dir=events_dir, retention_days=0)
+        bus.prune()
+
+        assert old_file.exists(), "pruning should be off"
