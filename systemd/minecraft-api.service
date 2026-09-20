@@ -7,15 +7,15 @@ Wants=network-online.target
 Type=simple
 User=pi
 Group=pi
-WorkingDirectory=/home/pi/minecraft/api
-Environment="PATH=/home/pi/minecraft/api/venv/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=/home/pi/minecraft-server/api
+Environment="PATH=/home/pi/minecraft-server/api/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 # Use Python from virtual environment
-ExecStart=/home/pi/minecraft/api/venv/bin/python /home/pi/minecraft/api/server.py
+ExecStart=/home/pi/minecraft-server/api/venv/bin/python /home/pi/minecraft-server/api/server.py
 Restart=on-failure
 RestartSec=10
-StandardOutput=append:/home/pi/minecraft/logs/api-server.log
-StandardError=append:/home/pi/minecraft/logs/api-server.log
+StandardOutput=append:/home/pi/minecraft-server/logs/api-server.log
+StandardError=append:/home/pi/minecraft-server/logs/api-server.log
 
 # Security settings
 NoNewPrivileges=true

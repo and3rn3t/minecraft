@@ -10,6 +10,7 @@ config/*.json
 config/audit.log
 !config/README.md
 !config/*.conf.example
+!config/nginx-minecraft.conf
 
 # Temporary files
 *.log

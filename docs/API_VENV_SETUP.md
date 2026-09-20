@@ -54,13 +54,13 @@ deactivate
 The systemd service (`minecraft-api.service`) is already configured to use the virtual environment:
 
 ```ini
-ExecStart=/home/pi/minecraft/api/venv/bin/python /home/pi/minecraft/api/server.py
-Environment="PATH=/home/pi/minecraft/api/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/pi/minecraft-server/api/venv/bin/python /home/pi/minecraft-server/api/server.py
+Environment="PATH=/home/pi/minecraft-server/api/venv/bin:/usr/local/bin:/usr/bin:/bin"
 ```
 
 **Important**: Make sure the path in the service file matches your project location:
 
-- Default: `/home/pi/minecraft/api/venv`
+- Default: `/home/pi/minecraft-server/api/venv`
 - If different: Update the service file paths
 
 ## Updating Dependencies
