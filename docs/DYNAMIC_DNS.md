@@ -499,13 +499,13 @@ chmod 600 config/ddns.conf
 
 Once DDNS is configured, players can connect using your domain:
 
-```
+```text
 minecraft.yourdomain.duckdns.org:25565
 ```
 
 Or if using default port:
 
-```
+```text
 minecraft.yourdomain.duckdns.org
 ```
 

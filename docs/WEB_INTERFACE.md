@@ -125,7 +125,7 @@ View and manage players:
 
 ### Project Structure
 
-```
+```text
 web/
 ├── src/
 │   ├── components/      # Reusable UI components

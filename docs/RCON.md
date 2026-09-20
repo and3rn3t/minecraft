@@ -120,7 +120,7 @@ Start an interactive RCON session:
 
 This opens a command prompt where you can send multiple commands:
 
-```
+```text
 RCON> list
 There are 2 of a max of 10 players online: Player1, Player2
 

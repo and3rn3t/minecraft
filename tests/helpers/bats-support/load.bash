@@ -5,4 +5,3 @@ bats_load_library() {
     # Minimal implementation
     return 0
 }
-

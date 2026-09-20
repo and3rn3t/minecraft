@@ -365,6 +365,7 @@ pip install b2sdk
    ```
 
 2. Edit `config/cloud-backup-s3.conf`:
+
    ```bash
    AWS_ACCESS_KEY_ID="your-access-key-id"
    AWS_SECRET_ACCESS_KEY="your-secret-access-key"
@@ -441,6 +442,7 @@ pip install b2sdk
    ```
 
 2. Edit `config/cloud-backup-b2.conf`:
+
    ```bash
    B2_KEY_ID="your-key-id"
    B2_APPLICATION_KEY="your-application-key"

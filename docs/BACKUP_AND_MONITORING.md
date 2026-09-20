@@ -145,6 +145,7 @@ fi
 ```
 
 Health checks verify:
+
 - Container is running
 - Java process is active
 - Server port is listening
@@ -164,6 +165,7 @@ Export metrics in Prometheus format:
 ```
 
 The exporter provides these metrics:
+
 - `minecraft_server_up` - Server status (1 = up, 0 = down)
 - `minecraft_server_cpu_usage_percent` - CPU usage
 - `minecraft_server_memory_usage_bytes` - Memory usage
@@ -192,6 +194,7 @@ scrape_configs:
 ## Logs
 
 Monitoring and backup logs are stored in:
+
 - `logs/backup-scheduler.log` - Backup scheduler logs
 - `logs/monitor.log` - Monitoring logs (if configured)
 
@@ -200,11 +203,13 @@ Monitoring and backup logs are stored in:
 ### Backups Not Running
 
 1. Check if the scheduler script is executable:
+
    ```bash
    ls -l scripts/backup-scheduler.sh
    ```
 
 2. Check cron/systemd logs:
+
    ```bash
    # For cron
    grep CRON /var/log/syslog
@@ -214,6 +219,7 @@ Monitoring and backup logs are stored in:
    ```
 
 3. Verify configuration file exists:
+
    ```bash
    cat config/backup-schedule.conf
    ```
@@ -221,16 +227,19 @@ Monitoring and backup logs are stored in:
 ### Metrics Not Collecting
 
 1. Ensure the server is running:
+
    ```bash
    ./scripts/manage.sh status
    ```
 
 2. Check if metrics directory exists:
+
    ```bash
    ls -la metrics/
    ```
 
 3. Run monitoring manually to see errors:
+
    ```bash
    ./scripts/monitor.sh
    ```
@@ -238,16 +247,19 @@ Monitoring and backup logs are stored in:
 ### Health Check Failing
 
 1. Check server status:
+
    ```bash
    docker ps | grep minecraft-server
    ```
 
 2. Check container logs:
+
    ```bash
    docker logs minecraft-server
    ```
 
 3. Verify Java process:
+
    ```bash
    docker exec minecraft-server pgrep -f java
    ```
@@ -290,4 +302,3 @@ KEEP_DAILY_DAYS=3
 KEEP_WEEKLY_DAYS=14
 KEEP_MONTHLY_DAYS=180
 ```
-

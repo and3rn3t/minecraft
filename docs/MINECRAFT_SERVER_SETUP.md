@@ -207,7 +207,7 @@ sudo systemctl restart minecraft.service
 
 ## Management Commands
 
-### Using systemd:
+### Using systemd
 
 ```bash
 # Start server
@@ -226,7 +226,7 @@ sudo systemctl status minecraft.service
 sudo journalctl -u minecraft.service -f
 ```
 
-### Using Docker Compose:
+### Using Docker Compose
 
 ```bash
 cd ~/minecraft-server
@@ -244,7 +244,7 @@ docker compose logs -f
 docker compose restart
 ```
 
-### Using Management Script:
+### Using Management Script
 
 ```bash
 cd ~/minecraft-server

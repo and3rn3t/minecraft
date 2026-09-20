@@ -9,4 +9,3 @@ requests==2.33.0
 pyotp==2.9.0
 qrcode[pil]==7.4.2
 croniter==2.0.1
-

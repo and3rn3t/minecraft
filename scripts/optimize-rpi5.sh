@@ -160,4 +160,3 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     sleep 5
     sudo reboot
 fi
-

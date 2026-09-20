@@ -208,9 +208,11 @@ limiter = Limiter(
    Expected: Access denied
 
 3. **Rate Limiting**:
+
    ```bash
    for i in {1..100}; do curl -X POST http://localhost:8080/api/server/command ...; done
    ```
+
    Expected: Rate limit after 30 requests
 
 ### Automated Testing

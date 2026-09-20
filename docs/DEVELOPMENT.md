@@ -5,6 +5,7 @@ This guide provides information for developers contributing to the Minecraft Ser
 ## Development Environment Setup
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - Git
 - A text editor (VS Code recommended)
@@ -13,18 +14,21 @@ This guide provides information for developers contributing to the Minecraft Ser
 ### Initial Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/and3rn3t/minecraft.git
    cd minecraft
    ```
 
 2. **Install pre-commit hooks** (optional but recommended)
+
    ```bash
    pip install pre-commit
    pre-commit install
    ```
 
 3. **Copy environment file**
+
    ```bash
    cp .env.example .env
    # Edit .env with your settings
@@ -39,6 +43,7 @@ This guide provides information for developers contributing to the Minecraft Ser
 ### Making Changes
 
 1. **Create a feature branch**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -49,18 +54,21 @@ This guide provides information for developers contributing to the Minecraft Ser
    - Update documentation
 
 3. **Test your changes**
+
    ```bash
    make test  # Run all tests
    make build # Build Docker image
    ```
 
 4. **Commit your changes**
+
    ```bash
    git add .
    git commit -m "Add feature: description"
    ```
 
 5. **Push and create PR**
+
    ```bash
    git push origin feature/your-feature-name
    # Create PR on GitHub
@@ -69,6 +77,7 @@ This guide provides information for developers contributing to the Minecraft Ser
 ### Testing
 
 #### Local Testing
+
 ```bash
 # Test shell scripts
 bash -n manage.sh
@@ -84,6 +93,7 @@ make logs
 ```
 
 #### Automated Testing
+
 - CI runs on every push and PR
 - Check GitHub Actions for test results
 - Fix any failing tests before requesting review
@@ -91,6 +101,7 @@ make logs
 ## Code Standards
 
 ### Shell Scripts
+
 - Use `#!/bin/bash` shebang
 - 4-space indentation
 - Quote all variables: `"$VAR"`
@@ -99,12 +110,14 @@ make logs
 - Include usage/help functions
 
 ### YAML Files
+
 - 2-space indentation
 - Use environment variables
 - Keep lines under 120 characters
 - Validate with `docker compose config`
 
 ### Documentation
+
 - Markdown format
 - Clear, concise language
 - Include code examples
@@ -112,7 +125,7 @@ make logs
 
 ## Project Structure
 
-```
+```text
 minecraft/
 ├── .github/          # GitHub workflows and templates
 ├── .vscode/          # VS Code settings
@@ -157,6 +170,7 @@ minecraft/
 ## Debugging
 
 ### Server Issues
+
 ```bash
 # View logs
 make logs
@@ -172,6 +186,7 @@ docker logs minecraft-server
 ```
 
 ### Script Issues
+
 ```bash
 # Run with debug output
 bash -x manage.sh start
@@ -186,6 +201,7 @@ shellcheck manage.sh
 ## Performance Testing
 
 ### Benchmarking
+
 ```bash
 # Monitor resources
 htop
@@ -224,4 +240,3 @@ vcgencmd measure_temp
 ---
 
 Happy coding! 🎮⛏️
-

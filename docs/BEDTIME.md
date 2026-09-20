@@ -9,7 +9,7 @@ announced rather than something a parent did.
 
 ## What players see
 
-```
+```text
 [30 minutes until bedtime]     title, with a bossbar appearing
 [10 minutes until bedtime]
 [5 minutes until bedtime]
@@ -77,7 +77,7 @@ morning that matters, which is why it defaults to Friday and Saturday.
 `GET /api/bedtime` needs `server.view`, so a read-only account can watch the
 countdown. The three controls need `server.control`.
 
-```
+```text
 GET  /api/bedtime
 POST /api/bedtime/extend
 POST /api/bedtime/skip

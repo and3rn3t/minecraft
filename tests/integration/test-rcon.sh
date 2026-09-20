@@ -28,4 +28,3 @@ teardown() {
 @test "rcon-client test connection works" {
     skip "Requires rcon-client.sh and running server"
 }
-

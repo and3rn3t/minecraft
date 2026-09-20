@@ -78,4 +78,3 @@ echo -e "\n${BLUE}=== Current Status ===${NC}"
 docker ps --filter "name=minecraft-server" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
 
 echo -e "\n${BLUE}Done!${NC}"
-

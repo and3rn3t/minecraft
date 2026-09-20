@@ -10,7 +10,7 @@ OAuth allows users to sign in using their Google or Apple accounts instead of cr
 
 OAuth settings are stored in `config/oauth.conf`. The file uses a simple key-value format:
 
-```
+```env
 APPLE_CLIENT_ID=your-value-here
 APPLE_TEAM_ID=your-value-here
 ```
@@ -20,7 +20,7 @@ APPLE_TEAM_ID=your-value-here
 ### Prerequisites
 
 1. **Apple Developer Account** - You need a paid Apple Developer account ($99/year)
-2. **Access to Apple Developer Portal** - https://developer.apple.com/account
+2. **Access to Apple Developer Portal** - <https://developer.apple.com/account>
 
 ### Step 1: Create a Services ID
 

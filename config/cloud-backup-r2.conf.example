@@ -34,4 +34,3 @@ AUTO_UPLOAD="false"
 # Set to "true" to delete local backup after successful upload
 # WARNING: This removes local backup, keep R2 as only copy
 AUTO_DELETE_LOCAL="false"
-

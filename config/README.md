@@ -4,7 +4,7 @@ This directory contains additional configuration files for the Minecraft server.
 
 ## Structure
 
-```
+```text
 config/
 ├── backup-schedule.conf    # Backup scheduling configuration
 ├── backup-retention.conf   # Backup retention policies
@@ -18,7 +18,7 @@ config/
 
 Configure automatic backup schedules. Example:
 
-```
+```env
 SCHEDULE=daily
 TIME=03:00
 ENABLED=true
@@ -28,7 +28,7 @@ ENABLED=true
 
 Configure backup retention policies. Example:
 
-```
+```env
 KEEP_DAILY=7
 KEEP_WEEKLY=4
 KEEP_MONTHLY=12
@@ -39,7 +39,7 @@ MAX_BACKUPS=50
 
 Configure monitoring and metrics. Example:
 
-```
+```env
 ENABLED=true
 METRICS_PORT=9090
 ALERT_THRESHOLD_TPS=18
@@ -50,7 +50,7 @@ ALERT_THRESHOLD_MEMORY=90
 
 Override specific server.properties values. Example:
 
-```
+```env
 MAX_PLAYERS=15
 VIEW_DISTANCE=12
 ```

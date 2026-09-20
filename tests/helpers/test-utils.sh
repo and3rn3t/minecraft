@@ -182,4 +182,3 @@ assert_dir_exists() {
     fi
     return 0
 }
-

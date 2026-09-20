@@ -44,6 +44,7 @@ The REST API provides HTTP endpoints for:
    ```
 
 4. **Test API**:
+
    ```bash
    curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/health
    ```

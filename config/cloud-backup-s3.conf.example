@@ -46,4 +46,3 @@ AUTO_DELETE_LOCAL="false"
 # S3 Server-Side Encryption (optional)
 # Set to "true" to enable AES256 encryption
 S3_ENCRYPTION="true"
-

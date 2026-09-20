@@ -4,7 +4,7 @@ This document outlines the web UI testing strategy and coverage for the Minecraf
 
 ## Test Structure
 
-```
+```text
 web/src/
 ├── pages/
 │   └── __tests__/

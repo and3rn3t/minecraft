@@ -6,7 +6,7 @@ maps the directory.
 
 ## Layout
 
-```
+```text
 tests/
 ├── api/            pytest suite for the Flask API — run from THIS directory
 │                   (tests/api/pytest.ini holds the coverage flags and markers)

@@ -246,4 +246,3 @@ if [ -f "$PROJECT_DIR/scripts/check-services.sh" ]; then
     echo -e "\n${BLUE}Running health check...${NC}"
     "$PROJECT_DIR/scripts/check-services.sh" || true
 fi
-

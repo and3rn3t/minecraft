@@ -27,4 +27,3 @@ teardown() {
 @test "plugin-manager enables/disables plugins" {
     skip "Requires plugin-manager.sh"
 }
-

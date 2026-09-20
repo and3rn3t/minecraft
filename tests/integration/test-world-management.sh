@@ -33,4 +33,3 @@ teardown() {
 @test "world-manager monitors world sizes" {
     skip "Requires world-manager.sh"
 }
-

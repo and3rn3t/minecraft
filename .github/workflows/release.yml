@@ -85,7 +85,8 @@ jobs:
 
             ## Installation
 
-            See [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/INSTALL.md) for setup instructions.
+            See [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/INSTALL.md)
+            for setup instructions.
 
             ## Documentation
 

@@ -6,7 +6,7 @@ This guide shows you how to set up automatic deployment so that when you push co
 
 **Complete Flow:**
 
-```
+```text
 Code Push → CI Builds Image → Push to GHCR → Pi Pulls & Restarts
 ```
 
@@ -231,14 +231,15 @@ git push origin main
 
 1. **GitHub Actions** (2-5 minutes):
 
-   ```
+   ```text
    ✅ Tests pass
    ✅ Build Docker image (ARM64)
    ✅ Push to ghcr.io/and3rn3t/minecraft-server:latest
    ```
 
 2. **Raspberry Pi** (within 1 hour):
-   ```
+
+   ```text
    ✅ Timer triggers (or on next boot)
    ✅ Pulls latest image from registry
    ✅ Restarts container with new image

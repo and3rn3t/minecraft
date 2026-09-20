@@ -276,6 +276,7 @@ docker compose up -d
    ```
 
 3. Check permissions:
+
    ```bash
    ls -la /home/pi/minecraft
    ```
@@ -295,6 +296,7 @@ docker compose up -d
    ```
 
 3. Check API config:
+
    ```bash
    cat config/api.conf
    ```
@@ -320,6 +322,7 @@ docker compose up -d
    ```
 
 4. Check nginx error logs:
+
    ```bash
    sudo tail -f /var/log/nginx/minecraft-web-error.log
    ```
@@ -340,6 +343,7 @@ docker compose up -d
    ```
 
 3. Fix permissions if needed:
+
    ```bash
    chmod -R 777 data/ backups/ plugins/
    ```

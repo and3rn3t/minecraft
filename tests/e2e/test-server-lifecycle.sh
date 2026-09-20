@@ -52,4 +52,3 @@ teardown() {
     # run "${MANAGE_SCRIPT}" restart
     # [ "$status" -eq 0 ]
 }
-

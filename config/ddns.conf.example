@@ -50,4 +50,3 @@ DDNS_IP_CHECK_URL=https://api.ipify.org
 
 # Verify SSL certificates (default: true)
 DDNS_VERIFY_SSL=true
-

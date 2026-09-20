@@ -406,7 +406,7 @@ docker exec minecraft-server java -version    # Java inside the container
 
 1. **Check TPS** (in-game):
 
-   ```
+   ```text
    /forge tps
    # Should be 20 TPS
    ```

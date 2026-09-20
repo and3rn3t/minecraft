@@ -295,6 +295,7 @@ For better performance and longevity:
    ```
 
 4. **Move Minecraft data**:
+
    ```bash
    sudo mv ~/minecraft-server/data /mnt/ssd/
    ln -s /mnt/ssd/data ~/minecraft-server/data

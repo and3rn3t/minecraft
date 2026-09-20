@@ -36,4 +36,3 @@ AUTO_DELETE_LOCAL="false"
 # B2 Lifecycle Rules (optional)
 # Configure in B2 dashboard for automatic file deletion/archiving
 # This script does not manage lifecycle rules
-

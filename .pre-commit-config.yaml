@@ -3,9 +3,14 @@
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        # Markdown uses a trailing two-space run as a hard line break
+        # (.editorconfig sets trim_trailing_whitespace = false for *.md for the
+        # same reason). Without this flag the hook strips those breaks and
+        # several docs render as one run-on paragraph instead of a list.
+        args: ["--markdown-linebreak-ext=md"]
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
@@ -20,7 +25,7 @@ repos:
         args: ["--fix=lf"]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
+    rev: v0.11.0.1-1
     hooks:
       - id: shellcheck
         # Matches scripts/lint.sh. .shellcheckrc sets enable=all, so without a
@@ -29,13 +34,13 @@ repos:
         args: ["-x", "-S", "error"]
 
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.33.0
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: ["-d", "{extends: default, rules: {line-length: {max: 120}}}"]
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.38.0
+    rev: v0.49.1
     hooks:
       - id: markdownlint
         args: ["--fix"]
@@ -44,7 +49,7 @@ repos:
   # it here means a placeholder that trips the entropy rules is caught before
   # it is pushed rather than by a failed check.
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.21.2
+    rev: v8.30.0
     hooks:
       - id: gitleaks
 
@@ -52,12 +57,12 @@ repos:
   # place those settings live. Passing them here as well is how the editor and
   # the hook drift apart.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.16.8
     hooks:
       - id: ruff
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.4
+    rev: v1.7.12
     hooks:
       - id: actionlint
 
@@ -65,8 +70,12 @@ repos:
     hooks:
       - id: docker-compose-check
         name: Check docker-compose.yml
-        entry: docker-compose
-        args: ["config", "--quiet"]
+        # Reuses the same v2-preferred, v1-fallback detection as the
+        # Makefile's $(COMPOSE) and scripts/lib/common.sh's compose() helper,
+        # rather than hard-coding the v2 form: the runner image only has v2,
+        # but a contributor's machine may only have the legacy binary, and
+        # this hook should not be stricter than the rest of the project.
+        entry: bash -c 'source scripts/lib/common.sh && compose config --quiet'
         language: system
         pass_filenames: false
         always_run: true
