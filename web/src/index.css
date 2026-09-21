@@ -214,3 +214,34 @@ body {
   @apply border-t-[#FFB74D] border-l-[#FFB74D] border-r-[#F57C00] border-b-[#F57C00];
   background: linear-gradient(135deg, #f57c00 0%, #ffb74d 100%);
 }
+
+/* Toast.jsx hardcodes text-white on the message and close button for every
+   type, but white on this gradient's lighter stop (#FFB74D) is ~1.7:1 —
+   nowhere near the 4.5:1 AA needs, and even the darker stop (#F57C00) only
+   reaches ~2.7:1. Dark text over this hue clears both easily (~12:1 and
+   ~7.8:1). Unlayered so it wins over the text-white utility regardless of
+   source order, same as the focus-visible rule above. */
+.toast-warning p,
+.toast-warning button {
+  color: #3e2723;
+}
+
+.toast-warning button:hover {
+  color: #212121;
+}
+
+/* Respect a system-level request to minimize motion: shrink every
+   animation and transition to effectively nothing rather than disabling
+   them individually per component (the shimmer loop, toast slide-in,
+   status-dot pulse, hover scales, ...). Scroll behavior too, since Logs'
+   auto-scroll uses `scrollIntoView({ behavior: 'smooth' })`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
