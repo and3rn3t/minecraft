@@ -4,34 +4,47 @@
 # placeholder credentials that live in the tests and the documentation, each
 # scoped as narrowly as it can be so a credential that really did leak is still
 # reported. Every entry was checked by hand before being listed.
+#
+# These are all per-rule allowlists (nested under [[rules]] with a bare `id`,
+# rather than top-level [[allowlists]] blocks) because a top-level allowlist
+# does not apply to findings from the extended default ruleset in gitleaks
+# 8.24.3 (the version pinned in .github/workflows/reusable-gitleaks.yml) — it
+# silently never suppresses anything, verified by reproducing every one of
+# these placeholders as a live "leak" against that exact binary with a
+# top-level allowlist in place. Per-rule allowlists on the specific rule ID
+# that actually fires are the form this version honors.
 
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Placeholder keys in the test suite"
+[[rules]]
+id = "generic-api-key"
+
+[rules.allowlist]
 regexTarget = "match"
 regexes = [
-  # tests/api/*: the dummy key every API-key fixture authenticates with.
+  # tests/api/* and web/src/**/__tests__/*: the dummy key API-key fixtures
+  # authenticate with (Python) or mock a create-key response with (JS).
   '''test-api-key-1234567890+''',
-  # The "mc_" prefix marks the made-up keys in the tests and in the examples in
-  # docs/API_KEYS.md. No real key can match: generate_api_key() draws 32
-  # characters from an alphabet of letters and digits only, so a generated key
-  # can never contain an underscore.
+  # The "mc_" prefix marks the made-up keys in the tests and in the examples
+  # in docs/API_KEYS.md. No real key can match: generate_api_key() draws 32
+  # characters from an alphabet of letters and digits only, so a generated
+  # key can never contain an underscore.
   '''mc_[A-Za-z0-9]+''',
+  # Dummy DuckDNS token in docs/DYNAMIC_DNS.md's setup instructions.
+  '''abc123-def456-ghi789''',
 ]
 
-[[allowlists]]
-description = "curl examples using the literal placeholder YOUR_API_KEY"
-condition = "AND"
-paths = ['''docs/API\.md''', '''docs/ANALYTICS\.md''']
-regexes = ['''YOUR_API_KEY''']
+[[rules]]
+id = "curl-auth-header"
 
-[[allowlists]]
-description = "Dummy DuckDNS token in the setup instructions"
-condition = "AND"
-paths = ['''docs/DYNAMIC_DNS\.md''']
-regexes = ['''abc123-def456-ghi789''']
+[rules.allowlist]
+regexTarget = "match"
+regexes = [
+  # curl examples in docs/API.md and docs/ANALYTICS.md using the literal
+  # placeholder YOUR_API_KEY.
+  '''YOUR_API_KEY''',
+]
 
 [[allowlists]]
 description = "Bare PEM header in the Apple OAuth instructions, with no key material after it"
