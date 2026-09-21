@@ -1,5 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from '../components/ui/Table';
 import { api } from '../services/api';
 
 const Users = () => {
@@ -16,21 +31,6 @@ const Users = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  // Clear messages after 5 seconds
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
 
   const loadData = async () => {
     try {
@@ -128,47 +128,38 @@ const Users = () => {
     }
   };
 
-  const getRoleColor = role => {
+  const getRoleBadgeStatus = role => {
     switch (role) {
       case 'admin':
-        return 'bg-[#C62828] text-white';
+        return 'danger';
       case 'operator':
-        return 'bg-minecraft-water text-white';
-      case 'user':
-        return 'bg-minecraft-stone text-white';
+        return 'info';
       default:
-        return 'bg-minecraft-stone text-white';
+        return 'neutral';
     }
   };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-minecraft text-minecraft-grass-light leading-tight">
-          USER MANAGEMENT
-        </h1>
-      </div>
+      <PageHeader title="USER MANAGEMENT" />
 
       {/* Error/Success messages */}
-      {error && (
-        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {success && (
-        <div className="bg-minecraft-grass border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <Alert tone="success" autoDismiss={5000} onDismiss={() => setSuccess(null)}>
           {success}
-        </div>
+        </Alert>
       )}
 
       {/* Role Selection Modal */}
-      {showRoleModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="card-minecraft p-6 w-full max-w-md">
-            <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 leading-tight">
-              CHANGE ROLE FOR {showRoleModal.username.toUpperCase()}
-            </h2>
+      <Modal
+        open={!!showRoleModal}
+        onClose={() => setShowRoleModal(null)}
+        title={showRoleModal ? `CHANGE ROLE FOR ${showRoleModal.username.toUpperCase()}` : ''}
+      >
+        {showRoleModal && (
+          <>
             <p className="text-[10px] font-minecraft text-minecraft-text-dark mb-4">
               CURRENT ROLE: {showRoleModal.currentRole.toUpperCase()}
             </p>
@@ -193,139 +184,107 @@ const Users = () => {
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowRoleModal(null)} className="btn-minecraft w-full text-[10px]">
+            <Button className="w-full" onClick={() => setShowRoleModal(null)}>
               CANCEL
-            </button>
-          </div>
-        </div>
-      )}
+            </Button>
+          </>
+        )}
+      </Modal>
 
       {/* Users Table */}
-      <div className="card-minecraft p-6">
+      <Card padding="lg">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING USERS...
           </div>
         ) : users.length === 0 ? (
-          <div className="text-minecraft-text-dark text-center py-8">
-            <p className="text-sm font-minecraft mb-2">NO USERS FOUND</p>
-          </div>
+          <EmptyState icon="👤" title="No users found" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-[#5D4037]">
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    USERNAME
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    ROLE
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    EMAIL
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    STATUS
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    CREATED
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    ACTIONS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, index) => (
-                  <tr
-                    key={user.username || `user-${index}`}
-                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt"
-                  >
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
-                      {user.username}
-                      {user.username === currentUser?.username && (
-                        <span className="ml-2 text-[8px] text-minecraft-text-dark">(YOU)</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-1 text-[8px] font-minecraft ${getRoleColor(user.role)}`}
+          <Table caption="Registered users">
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Username</TableHeaderCell>
+                <TableHeaderCell>Role</TableHeaderCell>
+                <TableHeaderCell>Email</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Created</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.map((user, index) => (
+                <TableRow key={user.username || `user-${index}`} className="hover:bg-minecraft-dirt">
+                  <TableCell>
+                    {user.username}
+                    {user.username === currentUser?.username && (
+                      <span className="ml-2 text-[8px] text-minecraft-text-dark">(YOU)</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge status={getRoleBadgeStatus(user.role)}>
+                      {(user.role || 'user').toUpperCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-minecraft-text-dark">
+                    {user.email || <span className="italic">NO EMAIL</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Badge status={user.enabled ? 'success' : 'danger'}>
+                      {user.enabled ? '✓ ENABLED' : '✗ DISABLED'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-minecraft-text-dark">
+                    {formatDate(user.created)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          setShowRoleModal({
+                            username: user.username,
+                            currentRole: user.role,
+                          })
+                        }
+                        disabled={
+                          updating === user.username ||
+                          deleting === user.username ||
+                          user.username === currentUser?.username
+                        }
                       >
-                        {(user.role || 'user').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
-                      {user.email || <span className="italic">NO EMAIL</span>}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-1 text-[8px] font-minecraft ${
-                          user.enabled
-                            ? 'bg-minecraft-grass text-white'
-                            : 'bg-[#C62828] text-white'
-                        }`}
+                        CHANGE ROLE
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleToggle(user.username, user.enabled)}
+                        disabled={
+                          updating === user.username ||
+                          deleting === user.username ||
+                          user.username === currentUser?.username
+                        }
                       >
-                        {user.enabled ? '✓ ENABLED' : '✗ DISABLED'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
-                      {formatDate(user.created)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() =>
-                            setShowRoleModal({
-                              username: user.username,
-                              currentRole: user.role,
-                            })
-                          }
-                          disabled={
-                            updating === user.username ||
-                            deleting === user.username ||
-                            user.username === currentUser?.username
-                          }
-                          className="btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          CHANGE ROLE
-                        </button>
-                        <button
-                          onClick={() => handleToggle(user.username, user.enabled)}
-                          disabled={
-                            updating === user.username ||
-                            deleting === user.username ||
-                            user.username === currentUser?.username
-                          }
-                          className={`btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed ${
-                            user.enabled ? '' : 'bg-minecraft-grass'
-                          }`}
-                        >
-                          {updating === user.username
-                            ? '...'
-                            : user.enabled
-                              ? 'DISABLE'
-                              : 'ENABLE'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user.username)}
-                          disabled={
-                            updating === user.username ||
-                            deleting === user.username ||
-                            user.username === currentUser?.username
-                          }
-                          className="btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {deleting === user.username ? 'DELETING...' : 'DELETE'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        {updating === user.username ? '...' : user.enabled ? 'DISABLE' : 'ENABLE'}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDelete(user.username)}
+                        disabled={
+                          updating === user.username ||
+                          deleting === user.username ||
+                          user.username === currentUser?.username
+                        }
+                      >
+                        {deleting === user.username ? 'DELETING...' : 'DELETE'}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
 
       {/* Info */}
       {users.length > 0 && (
