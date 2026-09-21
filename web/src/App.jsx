@@ -26,10 +26,11 @@ const DynamicDNS = lazy(() => import('./pages/DynamicDNS'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component for Suspense fallback
 const PageLoading = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-900">
+  <div className="min-h-screen flex items-center justify-center bg-minecraft-background">
     <div className="text-minecraft-text-light font-minecraft text-sm">LOADING...</div>
   </div>
 );
@@ -292,6 +293,16 @@ function App() {
                   </Suspense>
                 </Layout>
               </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all: an unknown URL previously rendered nothing at all */}
+          <Route
+            path="*"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <NotFound />
+              </Suspense>
             }
           />
         </Routes>
