@@ -53,7 +53,7 @@ describe('API Service', () => {
       localStorage.setItem('api_key', 'test-key');
       await api.getStatus();
 
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/status', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/status', expect.objectContaining({ params: {} }));
     });
   });
 
@@ -103,7 +103,7 @@ describe('API Service', () => {
       const result = await api.getEventTypes();
 
       expect(result.types).toEqual(['chat', 'death']);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/events/types', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/events/types', expect.objectContaining({ params: {} }));
     });
 
     it('serves a repeat call from cache', async () => {
@@ -154,9 +154,10 @@ describe('API Service', () => {
 
       await api.getDeathsLeaderboard(3);
 
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/deaths/leaderboard', {
-        params: { limit: 3 },
-      });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
+        '/deaths/leaderboard',
+        expect.objectContaining({ params: { limit: 3 } })
+      );
     });
 
     it('serves a repeat call from cache', async () => {
@@ -227,7 +228,7 @@ describe('API Service', () => {
       });
 
       await api.listBackups();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/backups', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/backups', expect.objectContaining({ params: {} }));
     });
   });
 
@@ -238,10 +239,10 @@ describe('API Service', () => {
       });
 
       await api.getLogs(100);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/logs', {
-        params: { lines: 100 },
-        signal: undefined,
-      });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
+        '/logs',
+        expect.objectContaining({ params: { lines: 100 } })
+      );
     });
   });
 
@@ -252,7 +253,7 @@ describe('API Service', () => {
       });
 
       const result = await api.getPlayers();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/players', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/players', expect.objectContaining({ params: {} }));
       expect(result.players).toEqual(['Player1']);
     });
   });
@@ -264,7 +265,7 @@ describe('API Service', () => {
       });
 
       const result = await api.getMetrics();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/metrics', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/metrics', expect.objectContaining({ params: {} }));
       expect(result.metrics.cpu_percent).toBe('50');
     });
   });
@@ -276,7 +277,7 @@ describe('API Service', () => {
       });
 
       const result = await api.listWorlds();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/worlds', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/worlds', expect.objectContaining({ params: {} }));
       expect(result.worlds).toEqual(['world']);
     });
   });
@@ -288,7 +289,7 @@ describe('API Service', () => {
       });
 
       const result = await api.listPlugins();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/plugins', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/plugins', expect.objectContaining({ params: {} }));
       expect(result.plugins).toEqual(['Plugin1']);
     });
   });
@@ -300,7 +301,7 @@ describe('API Service', () => {
       });
 
       const result = await api.listConfigFiles();
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files', expect.objectContaining({ params: {} }));
       expect(result.files).toHaveLength(1);
     });
 
@@ -310,7 +311,7 @@ describe('API Service', () => {
       });
 
       const result = await api.getConfigFile('server.properties');
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files/server.properties', { params: {} });
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/config/files/server.properties', expect.objectContaining({ params: {} }));
       expect(result.content).toBe('# config');
     });
 

@@ -32,6 +32,13 @@ export function usePolling(fetchFn, intervalMs = 5000, deps = []) {
   const controllerRef = useRef(null);
   const consecutiveErrorsRef = useRef(0);
   const runTickRef = useRef(() => {});
+  // Identifies which effect run's scheduling chain is current. React 18
+  // StrictMode's dev-mode double-invoke (mount -> cleanup -> remount, all
+  // synchronous) resets mountedRef back to true before the *first* mount's
+  // `fetchData().then(scheduleNext)` settles, so that stale call can't tell
+  // it's stale from mountedRef alone. It can still check its captured epoch
+  // against the current one, since only a genuinely new effect run bumps it.
+  const epochRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     controllerRef.current?.abort();
@@ -60,9 +67,11 @@ export function usePolling(fetchFn, intervalMs = 5000, deps = []) {
 
   useEffect(() => {
     mountedRef.current = true;
+    const epoch = ++epochRef.current;
+    const isCurrent = () => epoch === epochRef.current;
 
     const scheduleNext = () => {
-      if (intervalMs <= 0 || !mountedRef.current) {
+      if (intervalMs <= 0 || !mountedRef.current || !isCurrent()) {
         return;
       }
       const backoff = Math.min(2 ** consecutiveErrorsRef.current, MAX_BACKOFF_MULTIPLIER);
@@ -70,6 +79,9 @@ export function usePolling(fetchFn, intervalMs = 5000, deps = []) {
     };
 
     const runTick = async () => {
+      if (!isCurrent()) {
+        return;
+      }
       if (document.visibilityState !== 'hidden') {
         await fetchData();
       }
@@ -77,7 +89,11 @@ export function usePolling(fetchFn, intervalMs = 5000, deps = []) {
     };
     runTickRef.current = runTick;
 
-    fetchData().then(scheduleNext);
+    fetchData().then(() => {
+      if (isCurrent()) {
+        scheduleNext();
+      }
+    });
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && mountedRef.current) {

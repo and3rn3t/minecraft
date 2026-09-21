@@ -2,9 +2,9 @@ import axios from 'axios';
 import {
   clearAllCache,
   getCachedResponse,
-  getPendingRequest,
   setCachedResponse,
   setPendingRequest,
+  subscribeToPendingRequest,
 } from '../utils/apiCache';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -49,11 +49,11 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper function to make cached GET requests. `signal` only ever aborts the
-// axios call this invocation actually issues; a caller that merely joins an
-// in-flight request from another consumer never aborts that shared promise,
-// so one component unmounting can't fail a fetch another component is still
-// waiting on.
+// Helper function to make cached GET requests. `signal` lets this specific
+// call stop waiting early, but never cancels the underlying network request
+// on behalf of any other caller sharing it (see subscribeToPendingRequest) —
+// two components polling the same endpoint can't have one's unmount cancel
+// the fetch the other is still waiting on.
 async function cachedGet(url, params = {}, cacheTTL = 5000, signal) {
   // Check cache first
   const cached = getCachedResponse(url, 'GET', params);
@@ -61,23 +61,26 @@ async function cachedGet(url, params = {}, cacheTTL = 5000, signal) {
     return cached;
   }
 
-  // Check for pending request (deduplication)
-  const pending = getPendingRequest(url, 'GET', params);
-  if (pending) {
-    return pending;
+  // Join an already in-flight request for this key, if there is one
+  const joined = subscribeToPendingRequest(url, 'GET', params, signal);
+  if (joined) {
+    return joined;
   }
 
-  // Make request
-  const requestPromise = apiClient.get(url, { params, signal }).then(response => {
+  // Nothing pending: issue the request ourselves, behind our own internal
+  // controller (never an external caller's signal directly).
+  const controller = new AbortController();
+  const requestPromise = apiClient.get(url, { params, signal: controller.signal }).then(response => {
     // Cache successful responses
     setCachedResponse(url, 'GET', params, response.data, cacheTTL);
     return response.data;
   });
 
-  // Track pending request
-  setPendingRequest(url, 'GET', params, requestPromise, signal);
-
-  return requestPromise;
+  // Track pending request, then subscribe to our own request the same way
+  // any joiner would — so our own `signal` behaves consistently whether or
+  // not someone else joins in before this settles.
+  setPendingRequest(url, 'GET', params, requestPromise, controller);
+  return subscribeToPendingRequest(url, 'GET', params, signal);
 }
 
 // Helper function to clear cache after mutations.
