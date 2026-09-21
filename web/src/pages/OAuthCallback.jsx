@@ -105,10 +105,14 @@ const OAuthCallback = () => {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-minecraft-background">
       <div className="text-center">
-        <div className="animate-spin text-4xl mb-4">⏳</div>
-        <p className="text-gray-400">Completing authentication...</p>
+        <div className="animate-spin text-4xl mb-4" aria-hidden="true">
+          ⏳
+        </div>
+        <p className="text-[10px] font-minecraft text-minecraft-text-dark">
+          COMPLETING AUTHENTICATION...
+        </p>
       </div>
     </div>
   );
