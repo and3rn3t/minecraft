@@ -41,9 +41,15 @@ id = "curl-auth-header"
 [rules.allowlist]
 regexTarget = "match"
 regexes = [
-  # curl examples in docs/API.md and docs/ANALYTICS.md using the literal
-  # placeholder YOUR_API_KEY.
+  # curl examples in docs/API.md (YOUR_API_KEY) and docs/ANALYTICS.md
+  # (your-api-key) using their own literal placeholder text.
   '''YOUR_API_KEY''',
+  '''your-api-key''',
+  # The docs/API_KEYS.md curl example authenticates with the same made-up
+  # "mc_..." key described above — this rule matches the header's value
+  # directly rather than the surrounding assignment, so it needs its own
+  # copy of the pattern.
+  '''mc_[A-Za-z0-9]+''',
 ]
 
 [[allowlists]]
