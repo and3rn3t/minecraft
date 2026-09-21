@@ -79,20 +79,32 @@ export function getPendingRequest(url, method = 'GET', params = {}) {
 }
 
 /**
- * Set pending request promise
+ * Set pending request promise. `signal`, if given, is the AbortSignal the
+ * request itself was issued with.
  */
-export function setPendingRequest(url, method = 'GET', params = {}, promise) {
+export function setPendingRequest(url, method = 'GET', params = {}, promise, signal) {
   const key = getCacheKey(url, method, params);
   pendingRequests.set(key, promise);
 
-  // Clean up when promise resolves/rejects
-  promise
-    .then(() => {
+  // Only remove the entry if it's still this exact promise — a newer call
+  // for the same key may already have replaced it by the time this fires.
+  const clearIfCurrent = () => {
+    if (pendingRequests.get(key) === promise) {
       pendingRequests.delete(key);
-    })
-    .catch(() => {
-      pendingRequests.delete(key);
-    });
+    }
+  };
+
+  // Clean up when the promise settles...
+  promise.then(clearIfCurrent, clearIfCurrent);
+
+  // ...and also the instant it's aborted, synchronously, rather than only
+  // once the resulting rejection has propagated (a later microtask). A
+  // caller that aborts and immediately retries — which is exactly what
+  // React 18 StrictMode's dev-mode double-invoke of effects does to
+  // usePolling — can otherwise re-enter cachedGet before the doomed
+  // promise has unregistered itself, and get handed back a promise that's
+  // already going to reject, even though its own signal was never aborted.
+  signal?.addEventListener('abort', clearIfCurrent, { once: true });
 }
 
 /**

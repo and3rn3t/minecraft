@@ -75,7 +75,7 @@ async function cachedGet(url, params = {}, cacheTTL = 5000, signal) {
   });
 
   // Track pending request
-  setPendingRequest(url, 'GET', params, requestPromise);
+  setPendingRequest(url, 'GET', params, requestPromise, signal);
 
   return requestPromise;
 }
