@@ -66,7 +66,7 @@ describe('ApiKeys', () => {
 
   it('creates a key and shows it once, in its own dialog', async () => {
     api.api.listApiKeys.mockResolvedValue({ keys: [] });
-    api.api.createApiKey.mockResolvedValue({ key: 'mc_live_abc123', message: 'Created' });
+    api.api.createApiKey.mockResolvedValue({ key: 'mc_abc123def456', message: 'Created' });
     const user = userEvent.setup();
     // user-event's own setup() installs its clipboard emulation, overwriting
     // anything set up before it — so this has to come after.
@@ -85,11 +85,11 @@ describe('ApiKeys', () => {
     await waitFor(() => {
       expect(api.api.createApiKey).toHaveBeenCalledWith('Webhook', '', 'user');
       expect(screen.getByRole('dialog', { name: /new api key created/i })).toBeInTheDocument();
-      expect(screen.getByText('mc_live_abc123')).toBeInTheDocument();
+      expect(screen.getByText('mc_abc123def456')).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole('button', { name: /copy/i }));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('mc_live_abc123');
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('mc_abc123def456');
 
     await user.click(screen.getByRole('button', { name: /saved the key/i }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
