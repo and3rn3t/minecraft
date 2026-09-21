@@ -199,6 +199,10 @@ const FileBrowser = () => {
                     }`}
                     onClick={() => handleFileClick(file)}
                     onKeyDown={e => {
+                      // Enter/Space on the nested Download/Delete buttons
+                      // bubbles up here too — only act when the row itself
+                      // is the target, not a descendant control.
+                      if (e.target !== e.currentTarget) return;
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         handleFileClick(file);

@@ -9,6 +9,18 @@ const TONE_CLASS = {
   info: 'bg-minecraft-info border-minecraft-info-dark',
 };
 
+// bg-minecraft-warning (#F57C00) is too light for the white text every
+// other tone uses — the same contrast failure already fixed for
+// .toast-warning in index.css (white lands ~2.7:1 there; AA needs 4.5:1).
+// Dark text clears it easily (~7.8:1) and matches that fix's color.
+const TONE_TEXT_CLASS = {
+  warning: 'text-[#3E2723]',
+};
+
+const TONE_DISMISS_CLASS = {
+  warning: 'text-[#3E2723]/80 hover:text-[#3E2723]',
+};
+
 /**
  * A page-level banner. Replaces 7 different error-banner recipes and 2
  * different success-banner recipes found across the app — only 3 of the 7
@@ -30,6 +42,7 @@ export function Alert({ tone = 'info', children, onDismiss, autoDismiss, action,
       className={cn(
         'card-minecraft mb-6 flex items-center justify-between gap-4 p-4 text-white',
         TONE_CLASS[tone],
+        TONE_TEXT_CLASS[tone],
         className
       )}
     >
@@ -41,7 +54,7 @@ export function Alert({ tone = 'info', children, onDismiss, autoDismiss, action,
             type="button"
             onClick={onDismiss}
             aria-label="Dismiss"
-            className="font-minecraft text-lg text-white/80 hover:text-white"
+            className={cn('font-minecraft text-lg', TONE_DISMISS_CLASS[tone] ?? 'text-white/80 hover:text-white')}
           >
             ×
           </button>
