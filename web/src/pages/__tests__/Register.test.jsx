@@ -34,7 +34,7 @@ describe('Register', () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Confirm Password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /register/i })).toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe('Register', () => {
     });
 
     const usernameInput = screen.getByLabelText(/Username/i);
-    const passwordInput = screen.getByLabelText(/^Password$/i);
+    const passwordInput = screen.getByLabelText(/^Password/i);
     const confirmPasswordInput = screen.getByLabelText(/Confirm Password/i);
     const submitButton = screen.getByRole('button', { name: /register/i });
 
@@ -70,7 +70,7 @@ describe('Register', () => {
     renderComponent();
 
     const usernameInput = screen.getByLabelText(/Username/i);
-    const passwordInput = screen.getByLabelText(/^Password$/i);
+    const passwordInput = screen.getByLabelText(/^Password/i);
     const confirmPasswordInput = screen.getByLabelText(/Confirm Password/i);
     const submitButton = screen.getByRole('button', { name: /register/i });
 
@@ -96,7 +96,7 @@ describe('Register', () => {
 
     const usernameInput = screen.getByLabelText(/Username/i);
     const emailInput = screen.getByLabelText(/Email/i);
-    const passwordInput = screen.getByLabelText(/^Password$/i);
+    const passwordInput = screen.getByLabelText(/^Password/i);
     const confirmPasswordInput = screen.getByLabelText(/Confirm Password/i);
     const submitButton = screen.getByRole('button', { name: /register/i });
 

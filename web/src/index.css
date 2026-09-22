@@ -3,8 +3,13 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Press Start 2P', monospace;
-  line-height: 1.8;
+  /* Body face by default — readable at the small sizes most of the app
+     renders text at. Press Start 2P (the display face, `font-minecraft`)
+     is a blocky pixel font meant for headings, nav and buttons; using it
+     as the *body* font made copy, tables and logs hard to scan. */
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  line-height: 1.4;
   font-weight: 400;
 
   color-scheme: dark;
@@ -13,9 +18,9 @@
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  /* Disable font smoothing for pixelated look */
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: unset;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* For icons/sprites, not text. */
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-optimize-contrast;
@@ -54,16 +59,6 @@ body {
   }
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
@@ -94,19 +89,6 @@ body {
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.2),
       0 2px 4px rgba(0, 0, 0, 0.2);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-minecraft:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    animation: shimmer 1.5s infinite;
   }
 
   .btn-minecraft-primary {
@@ -117,19 +99,6 @@ body {
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.2),
       0 2px 4px rgba(92, 184, 92, 0.3);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-minecraft-primary:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-    animation: shimmer 1.5s infinite;
   }
 
   .btn-minecraft-danger {
@@ -140,27 +109,17 @@ body {
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.2),
       0 2px 4px rgba(198, 40, 40, 0.3);
-    position: relative;
-    overflow: hidden;
   }
 
-  .btn-minecraft-danger:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    animation: shimmer 1.5s infinite;
-  }
-
+  /* No animation here — it used to fade in on every mount (65 uses), which
+     under a 5s poll reads as flicker rather than an entrance. Opt in with
+     the Card primitive's `animateIn` prop (adds Tailwind's animate-fadeIn)
+     where a real one-time entrance is wanted. */
   .card-minecraft {
     @apply bg-[#6D4C41] border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#5D4037] border-b-[#5D4037];
     box-shadow:
       inset 0 0 0 1px rgba(0, 0, 0, 0.3),
       0 4px 6px rgba(0, 0, 0, 0.2);
-    animation: fadeIn 0.3s ease-out;
     @apply transition-shadow duration-200;
   }
 
@@ -182,6 +141,19 @@ body {
     background-size: 1000px 100%;
     animation: shimmer 2s infinite;
   }
+}
+
+/* Keyboard focus. Outside @layer so it beats the focus:outline-none the
+   button/input classes above apply for the mouse case — un-layered CSS
+   always wins over anything inside a @layer, regardless of source order.
+   .btn-minecraft* had no focus state at all before this; .input-minecraft
+   had only a subtle border-color shift on two edges. */
+.btn-minecraft:focus-visible,
+.btn-minecraft-primary:focus-visible,
+.btn-minecraft-danger:focus-visible,
+.input-minecraft:focus-visible {
+  outline: 2px solid #ffee58;
+  outline-offset: 2px;
 }
 
 /* Pixelated scrollbar */
@@ -241,4 +213,35 @@ body {
 .toast-warning {
   @apply border-t-[#FFB74D] border-l-[#FFB74D] border-r-[#F57C00] border-b-[#F57C00];
   background: linear-gradient(135deg, #f57c00 0%, #ffb74d 100%);
+}
+
+/* Toast.jsx hardcodes text-white on the message and close button for every
+   type, but white on this gradient's lighter stop (#FFB74D) is ~1.7:1 —
+   nowhere near the 4.5:1 AA needs, and even the darker stop (#F57C00) only
+   reaches ~2.7:1. Dark text over this hue clears both easily (~12:1 and
+   ~7.8:1). Unlayered so it wins over the text-white utility regardless of
+   source order, same as the focus-visible rule above. */
+.toast-warning p,
+.toast-warning button {
+  color: #3e2723;
+}
+
+.toast-warning button:hover {
+  color: #212121;
+}
+
+/* Respect a system-level request to minimize motion: shrink every
+   animation and transition to effectively nothing rather than disabling
+   them individually per component (the shimmer loop, toast slide-in,
+   status-dot pulse, hover scales, ...). Scroll behavior too, since Logs'
+   auto-scroll uses `scrollIntoView({ behavior: 'smooth' })`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

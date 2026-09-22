@@ -89,7 +89,7 @@ const ConfigEditor = ({ filename, content: initialContent, onSave, onCancel }) =
       <div className="flex-1 bg-minecraft-background-dark overflow-hidden border-2 border-[#5D4037]">
         <div className="flex h-full">
           {/* Line numbers */}
-          <div className="w-12 bg-minecraft-dirt-DEFAULT text-minecraft-text-dark font-minecraft text-[10px] text-right pr-2 py-3 overflow-y-auto select-none border-r-2 border-[#5D4037]">
+          <div className="w-12 bg-minecraft-dirt text-minecraft-text-dark font-minecraft text-[10px] text-right pr-2 py-3 overflow-y-auto select-none border-r-2 border-[#5D4037]">
             {content.split('\n').map((_, index) => (
               <div key={`line-${index}`} className="leading-6">
                 {index + 1}
@@ -113,7 +113,7 @@ const ConfigEditor = ({ filename, content: initialContent, onSave, onCancel }) =
       </div>
 
       {/* Footer */}
-      <div className="bg-minecraft-dirt-DEFAULT px-4 py-2 text-[8px] font-minecraft text-minecraft-text-dark flex justify-between border-t-2 border-[#5D4037]">
+      <div className="bg-minecraft-dirt px-4 py-2 text-[8px] font-minecraft text-minecraft-text-dark flex justify-between border-t-2 border-[#5D4037]">
         <span>LANGUAGE: {getLanguage().toUpperCase()}</span>
         <span>{content.split('\n').length} LINES</span>
       </div>

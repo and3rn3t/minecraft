@@ -1,4 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Input, Select } from '../components/ui/FormField';
+import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
 const Scheduler = () => {
@@ -136,121 +143,87 @@ const Scheduler = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        COMMAND SCHEDULER
-      </h1>
+      <PageHeader
+        title="COMMAND SCHEDULER"
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+          >
+            + CREATE SCHEDULE
+          </Button>
+        }
+      />
 
-      {message && (
-        <div className="card-minecraft p-4 mb-6 bg-minecraft-grass-DEFAULT text-white">
-          <div className="text-[10px] font-minecraft">{message}</div>
-        </div>
-      )}
+      {message && <Alert tone="success">{message}</Alert>}
 
-      {error && (
-        <div className="card-minecraft p-4 mb-6 bg-[#C62828] text-white">
-          <div className="text-[10px] font-minecraft">{error}</div>
-        </div>
-      )}
-
-      <div className="mb-6">
-        <button
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-          className="btn-minecraft-primary text-[10px]"
-        >
-          + CREATE SCHEDULE
-        </button>
-      </div>
+      {error && <ErrorState message={error} />}
 
       {showForm && (
-        <div className="card-minecraft p-6 mb-6">
+        <Card padding="lg" className="mb-6">
           <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
             {editingSchedule ? 'EDIT SCHEDULE' : 'CREATE SCHEDULE'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                COMMAND
-              </label>
-              <input
-                type="text"
-                value={formData.command}
-                onChange={e => setFormData({ ...formData, command: e.target.value })}
-                required
-                placeholder="e.g. say Server restart in 5 minutes"
-                className="input-minecraft w-full text-[10px]"
-              />
-            </div>
+            <Input
+              label="COMMAND"
+              type="text"
+              value={formData.command}
+              onChange={e => setFormData({ ...formData, command: e.target.value })}
+              required
+              placeholder="e.g. say Server restart in 5 minutes"
+            />
 
-            <div>
-              <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                SCHEDULE TYPE
-              </label>
-              <select
-                value={formData.type}
-                onChange={e => setFormData({ ...formData, type: e.target.value })}
-                className="input-minecraft w-full text-[10px]"
-              >
-                <option value="interval">Interval (Every X minutes)</option>
-                <option value="daily">Daily (At specific time)</option>
-                <option value="weekly">Weekly (On specific day)</option>
-              </select>
-            </div>
+            <Select
+              label="SCHEDULE TYPE"
+              value={formData.type}
+              onChange={e => setFormData({ ...formData, type: e.target.value })}
+            >
+              <option value="interval">Interval (Every X minutes)</option>
+              <option value="daily">Daily (At specific time)</option>
+              <option value="weekly">Weekly (On specific day)</option>
+            </Select>
 
             {formData.type === 'interval' && (
-              <div>
-                <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                  INTERVAL (MINUTES)
-                </label>
-                <input
-                  type="number"
-                  value={formData.interval_minutes}
-                  onChange={e =>
-                    setFormData({ ...formData, interval_minutes: Number(e.target.value) })
-                  }
-                  min={1}
-                  required
-                  className="input-minecraft w-full text-[10px]"
-                />
-              </div>
+              <Input
+                label="INTERVAL (MINUTES)"
+                type="number"
+                value={formData.interval_minutes}
+                onChange={e =>
+                  setFormData({ ...formData, interval_minutes: Number(e.target.value) })
+                }
+                min={1}
+                required
+              />
             )}
 
             {(formData.type === 'daily' || formData.type === 'weekly') && (
-              <div>
-                <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                  RUN TIME (HH:MM)
-                </label>
-                <input
-                  type="time"
-                  value={formData.run_time}
-                  onChange={e => setFormData({ ...formData, run_time: e.target.value })}
-                  required
-                  className="input-minecraft w-full text-[10px]"
-                />
-              </div>
+              <Input
+                label="RUN TIME (HH:MM)"
+                type="time"
+                value={formData.run_time}
+                onChange={e => setFormData({ ...formData, run_time: e.target.value })}
+                required
+              />
             )}
 
             {formData.type === 'weekly' && (
-              <div>
-                <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                  DAY OF WEEK
-                </label>
-                <select
-                  value={formData.day_of_week}
-                  onChange={e => setFormData({ ...formData, day_of_week: Number(e.target.value) })}
-                  className="input-minecraft w-full text-[10px]"
-                >
-                  <option value={0}>Monday</option>
-                  <option value={1}>Tuesday</option>
-                  <option value={2}>Wednesday</option>
-                  <option value={3}>Thursday</option>
-                  <option value={4}>Friday</option>
-                  <option value={5}>Saturday</option>
-                  <option value={6}>Sunday</option>
-                </select>
-              </div>
+              <Select
+                label="DAY OF WEEK"
+                value={formData.day_of_week}
+                onChange={e => setFormData({ ...formData, day_of_week: Number(e.target.value) })}
+              >
+                <option value={0}>Monday</option>
+                <option value={1}>Tuesday</option>
+                <option value={2}>Wednesday</option>
+                <option value={3}>Thursday</option>
+                <option value={4}>Friday</option>
+                <option value={5}>Saturday</option>
+                <option value={6}>Sunday</option>
+              </Select>
             )}
 
             <div className="flex items-center gap-2">
@@ -270,54 +243,46 @@ const Scheduler = () => {
             </div>
 
             <div className="flex gap-2">
-              <button
-                type="submit"
-                className="btn-minecraft-primary text-[10px]"
-                disabled={loading}
-              >
+              <Button type="submit" variant="primary" disabled={loading}>
                 {editingSchedule ? 'UPDATE' : 'CREATE'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
                   resetForm();
                 }}
-                className="btn-minecraft text-[10px]"
               >
                 CANCEL
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="card-minecraft p-4">
+      <Card padding="md">
         {loading && !schedules.length ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING...
           </div>
         ) : schedules.length === 0 ? (
-          <div className="text-center py-8 text-minecraft-text-dark text-[10px] font-minecraft">
-            NO SCHEDULES. CREATE ONE ABOVE.
-          </div>
+          <EmptyState icon="⏰" title="No schedules" hint="Create one above" />
         ) : (
           <div className="space-y-2">
             {schedules.map(schedule => (
-              <div
+              <Card
                 key={schedule.id}
-                className={`p-4 border-2 ${
-                  schedule.enabled
-                    ? 'border-minecraft-grass-DEFAULT bg-minecraft-dirt-DEFAULT'
-                    : 'border-minecraft-stone-DEFAULT bg-minecraft-dirt-DEFAULT opacity-50'
+                padding="md"
+                className={`bg-minecraft-dirt ${
+                  schedule.enabled ? 'border-minecraft-grass' : 'border-minecraft-stone opacity-50'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-minecraft text-minecraft-text-light">
-                        {schedule.enabled ? '✓' : '✗'}
-                      </span>
+                      <Badge status={schedule.enabled ? 'success' : 'neutral'}>
+                        {schedule.enabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
                       <code className="text-[10px] font-minecraft text-minecraft-water-light">
                         {schedule.command}
                       </code>
@@ -330,25 +295,19 @@ const Scheduler = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(schedule)}
-                      className="btn-minecraft text-[10px]"
-                    >
+                    <Button size="sm" onClick={() => handleEdit(schedule)}>
                       EDIT
-                    </button>
-                    <button
-                      onClick={() => handleDelete(schedule.id)}
-                      className="btn-minecraft text-[10px] bg-[#C62828]"
-                    >
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(schedule.id)}>
                       DELETE
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,4 +1,20 @@
 import { useEffect, useState } from 'react';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Input, Select, Textarea } from '../components/ui/FormField';
+import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from '../components/ui/Table';
 import { api } from '../services/api';
 
 const ApiKeys = () => {
@@ -19,21 +35,6 @@ const ApiKeys = () => {
   useEffect(() => {
     loadKeys();
   }, []);
-
-  // Clear messages after 5 seconds
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
 
   const loadKeys = async () => {
     try {
@@ -177,254 +178,170 @@ const ApiKeys = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-minecraft text-minecraft-grass-light leading-tight">
-          API KEYS
-        </h1>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="btn-minecraft-primary text-[10px] flex items-center gap-2"
-        >
-          <span>🔑</span>
-          CREATE API KEY
-        </button>
-      </div>
+      <PageHeader
+        title="API KEYS"
+        actions={
+          <Button variant="primary" onClick={() => setShowCreateForm(true)} icon="🔑">
+            CREATE API KEY
+          </Button>
+        }
+      />
 
       {/* Error/Success messages */}
-      {error && (
-        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {success && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <Alert tone="success" autoDismiss={5000} onDismiss={() => setSuccess(null)}>
           {success}
-        </div>
+        </Alert>
       )}
 
-      {/* New Key Display Modal */}
-      {newKeyValue && (
-        <div className="bg-[#F57C00] border-2 border-[#E65100] p-6 mb-6 card-minecraft">
-          <h3 className="text-sm font-minecraft mb-4 text-white leading-tight">
-            ⚠️ NEW API KEY CREATED
-          </h3>
-          <p className="text-[10px] font-minecraft text-white mb-4">
-            <strong>IMPORTANT:</strong> SAVE THIS API KEY SECURELY. IT WILL NOT BE SHOWN AGAIN.
-          </p>
-          <div className="bg-minecraft-background-dark border-2 border-[#5D4037] p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <code className="text-xs font-minecraft text-white break-all">{newKeyValue}</code>
-              <button
-                onClick={() => copyToClipboard(newKeyValue)}
-                className="ml-4 btn-minecraft text-[8px] whitespace-nowrap"
-              >
-                COPY
-              </button>
-            </div>
+      {/* New Key Display */}
+      <Modal open={!!newKeyValue} onClose={closeCreateForm} title="⚠️ NEW API KEY CREATED">
+        <p className="text-[10px] font-minecraft text-minecraft-text-light mb-4">
+          <strong>Important:</strong> save this API key securely. It will not be shown again.
+        </p>
+        <Card padding="md" className="bg-minecraft-background-dark mb-4">
+          <div className="flex items-center justify-between">
+            <code className="text-xs font-minecraft text-minecraft-text-light break-all">
+              {newKeyValue}
+            </code>
+            <Button size="sm" className="ml-4 whitespace-nowrap" onClick={() => copyToClipboard(newKeyValue)}>
+              COPY
+            </Button>
           </div>
-          <button onClick={closeCreateForm} className="btn-minecraft-primary text-[10px]">
-            I&apos;VE SAVED THE KEY
-          </button>
-        </div>
-      )}
+        </Card>
+        <Button variant="primary" onClick={closeCreateForm}>
+          I&apos;VE SAVED THE KEY
+        </Button>
+      </Modal>
 
-      {/* Create Form Modal */}
-      {showCreateForm && !newKeyValue && (
-        <div className="card-minecraft p-6 mb-6">
-          <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 leading-tight">
-            CREATE NEW API KEY
-          </h2>
-          <form onSubmit={handleCreateKey} className="space-y-4">
-            <div>
-              <label
-                htmlFor="key-name"
-                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-              >
-                KEY NAME <span className="text-[#C62828]">*</span>
-              </label>
-              <input
-                id="key-name"
-                type="text"
-                value={newKeyName}
-                onChange={e => setNewKeyName(e.target.value)}
-                required
-                className="input-minecraft w-full"
-                placeholder="e.g., Webhook Integration"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="key-description"
-                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-              >
-                DESCRIPTION (OPTIONAL)
-              </label>
-              <textarea
-                id="key-description"
-                value={newKeyDescription}
-                onChange={e => setNewKeyDescription(e.target.value)}
-                rows={3}
-                className="input-minecraft w-full"
-                placeholder="Describe what this API key will be used for"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="key-role"
-                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-              >
-                ACCESS LEVEL
-              </label>
-              <select
-                id="key-role"
-                value={newKeyRole}
-                onChange={e => setNewKeyRole(e.target.value)}
-                className="input-minecraft w-full"
-              >
-                <option value="user">USER — READ ONLY</option>
-                <option value="operator">OPERATOR — CONTROL THE SERVER</option>
-                <option value="admin">ADMIN — EVERYTHING, INCLUDING USERS AND KEYS</option>
-              </select>
-              <p className="mt-2 text-[8px] font-minecraft text-minecraft-text-dark">
-                A KEY ON A PHONE OR IN A BROWSER SHOULD BE THE SMALLEST LEVEL THAT WORKS.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={creating}
-                className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {creating ? 'CREATING...' : 'CREATE KEY'}
-              </button>
-              <button
-                type="button"
-                onClick={closeCreateForm}
-                disabled={creating}
-                className="btn-minecraft text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                CANCEL
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Create Form */}
+      <Modal
+        open={showCreateForm && !newKeyValue}
+        onClose={closeCreateForm}
+        title="CREATE NEW API KEY"
+      >
+        <form onSubmit={handleCreateKey} className="space-y-4">
+          <Input
+            label="KEY NAME"
+            type="text"
+            value={newKeyName}
+            onChange={e => setNewKeyName(e.target.value)}
+            required
+            placeholder="e.g., Webhook Integration"
+          />
+          <Textarea
+            label="DESCRIPTION (OPTIONAL)"
+            value={newKeyDescription}
+            onChange={e => setNewKeyDescription(e.target.value)}
+            rows={3}
+            placeholder="Describe what this API key will be used for"
+          />
+          <Select
+            label="ACCESS LEVEL"
+            value={newKeyRole}
+            onChange={e => setNewKeyRole(e.target.value)}
+            hint="A key on a phone or in a browser should be the smallest level that works."
+          >
+            <option value="user">USER — READ ONLY</option>
+            <option value="operator">OPERATOR — CONTROL THE SERVER</option>
+            <option value="admin">ADMIN — EVERYTHING, INCLUDING USERS AND KEYS</option>
+          </Select>
+          <div className="flex gap-2">
+            <Button type="submit" variant="primary" disabled={creating}>
+              {creating ? 'CREATING...' : 'CREATE KEY'}
+            </Button>
+            <Button type="button" onClick={closeCreateForm} disabled={creating}>
+              CANCEL
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* API Keys Table */}
-      <div className="card-minecraft p-6">
+      <Card padding="lg">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING API KEYS...
           </div>
         ) : keys.length === 0 ? (
-          <div className="text-minecraft-text-dark text-center py-8">
-            <p className="text-sm font-minecraft mb-2">NO API KEYS FOUND</p>
-            <p className="text-[10px] font-minecraft">CREATE AN API KEY TO GET STARTED</p>
-          </div>
+          <EmptyState icon="🔑" title="No API keys found" hint="Create an API key to get started" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-[#5D4037]">
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    NAME
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    KEY ID
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    DESCRIPTION
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    ACCESS
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    STATUS
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    CREATED
-                  </th>
-                  <th className="text-left py-3 px-4 text-[10px] font-minecraft text-minecraft-text-light uppercase">
-                    ACTIONS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {keys.map((key, index) => (
-                  <tr
-                    key={key.id || `key-${index}`}
-                    className="border-b-2 border-[#5D4037] hover:bg-minecraft-dirt-DEFAULT"
-                  >
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-light">
-                      {key.name}
-                    </td>
-                    <td className="py-3 px-4">
-                      <code className="text-[10px] font-minecraft text-minecraft-text-dark">
-                        {key.id}
-                      </code>
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
-                      {key.description || <span className="italic">NO DESCRIPTION</span>}
-                    </td>
-                    <td className="py-3 px-4">
-                      <select
-                        value={key.role || 'user'}
-                        onChange={e => handleRescope(key.id, e.target.value)}
-                        disabled={rescoping === key.id || deleting === key.id}
-                        aria-label={`Access level for ${key.name}`}
-                        className="input-minecraft text-[8px] disabled:opacity-50"
+          <Table caption="API keys">
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Key ID</TableHeaderCell>
+                <TableHeaderCell>Description</TableHeaderCell>
+                <TableHeaderCell>Access</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Created</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {keys.map((key, index) => (
+                <TableRow key={key.id || `key-${index}`} className="hover:bg-minecraft-dirt">
+                  <TableCell>{key.name}</TableCell>
+                  <TableCell>
+                    <code className="text-[10px] font-minecraft text-minecraft-text-dark">
+                      {key.id}
+                    </code>
+                  </TableCell>
+                  <TableCell className="text-minecraft-text-dark">
+                    {key.description || <span className="italic">NO DESCRIPTION</span>}
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      value={key.role || 'user'}
+                      onChange={e => handleRescope(key.id, e.target.value)}
+                      disabled={rescoping === key.id || deleting === key.id}
+                      aria-label={`Access level for ${key.name}`}
+                      className="input-minecraft text-[8px] disabled:opacity-50"
+                    >
+                      <option value="user">USER</option>
+                      <option value="operator">OPERATOR</option>
+                      <option value="admin">ADMIN</option>
+                    </select>
+                  </TableCell>
+                  <TableCell>
+                    <Badge status={key.enabled ? 'success' : 'danger'}>
+                      {key.enabled ? '✓ ENABLED' : '✗ DISABLED'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-minecraft-text-dark">
+                    {formatDate(key.created)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleToggle(key.id, key.enabled)}
+                        disabled={toggling === key.id || deleting === key.id}
                       >
-                        <option value="user">USER</option>
-                        <option value="operator">OPERATOR</option>
-                        <option value="admin">ADMIN</option>
-                      </select>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-1 text-[8px] font-minecraft ${
-                          key.enabled
-                            ? 'bg-minecraft-grass-DEFAULT text-white'
-                            : 'bg-[#C62828] text-white'
-                        }`}
+                        {toggling === key.id ? '...' : key.enabled ? 'DISABLE' : 'ENABLE'}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDelete(key.id)}
+                        disabled={toggling === key.id || deleting === key.id}
                       >
-                        {key.enabled ? '✓ ENABLED' : '✗ DISABLED'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-minecraft text-[10px] text-minecraft-text-dark">
-                      {formatDate(key.created)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleToggle(key.id, key.enabled)}
-                          disabled={toggling === key.id || deleting === key.id}
-                          className={`btn-minecraft text-[8px] disabled:opacity-50 disabled:cursor-not-allowed ${
-                            !key.enabled ? 'bg-minecraft-grass-DEFAULT' : ''
-                          }`}
-                        >
-                          {toggling === key.id ? '...' : key.enabled ? 'DISABLE' : 'ENABLE'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(key.id)}
-                          disabled={toggling === key.id || deleting === key.id}
-                          className="btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {deleting === key.id ? 'DELETING...' : 'DELETE'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        {deleting === key.id ? 'DELETING...' : 'DELETE'}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
 
       {/* Info */}
       {keys.length > 0 && (
-        <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+        <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
           <strong>INFO:</strong> {keys.length} API KEY{keys.length !== 1 ? 'S' : ''} AVAILABLE. API
           KEYS ALLOW PROGRAMMATIC ACCESS TO THE SERVER. KEEP THEM SECURE AND ROTATE THEM REGULARLY.
         </div>

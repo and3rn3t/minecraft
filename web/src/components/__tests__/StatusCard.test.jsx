@@ -21,7 +21,7 @@ describe('StatusCard', () => {
       <StatusCard title="Test" value="Value" status="success" icon="🟢" />
     );
 
-    const statusDot = container.querySelector('.bg-minecraft-grass-DEFAULT');
+    const statusDot = container.querySelector('.bg-minecraft-grass');
     expect(statusDot).not.toBeNull();
     expect(statusDot).toBeInstanceOf(HTMLElement);
   });

@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Textarea } from '../components/ui/FormField';
+import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
 const DynamicDNS = () => {
@@ -81,78 +86,65 @@ const DynamicDNS = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        DYNAMIC DNS
-      </h1>
+      <PageHeader title="DYNAMIC DNS" />
 
       {/* Error/Success messages */}
-      {error && (
-        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {success && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <Alert tone="success" autoDismiss={5000} onDismiss={() => setSuccess(null)}>
           {success}
-        </div>
+        </Alert>
       )}
 
       {/* Status Card */}
-      <div className="card-minecraft p-6 mb-6">
+      <Card padding="lg" className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-sm font-minecraft text-minecraft-text-light uppercase">
             DDNS STATUS
           </h2>
-          <button
-            onClick={handleUpdate}
-            disabled={updating}
-            className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button variant="primary" onClick={handleUpdate} disabled={updating}>
             {updating ? 'UPDATING...' : 'UPDATE NOW'}
-          </button>
+          </Button>
         </div>
-        {status && status.status && (
+        {status?.status && (
           <div className="font-minecraft text-[10px] text-minecraft-text-light whitespace-pre-line">
             {status.status}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Configuration Editor */}
       {config && (
-        <div className="card-minecraft p-6">
+        <Card padding="lg">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-minecraft text-minecraft-text-light uppercase">
               CONFIGURATION
             </h2>
             {config.is_example && (
-              <span className="text-[8px] font-minecraft text-[#F57C00]">USING EXAMPLE CONFIG</span>
+              <span className="text-[8px] font-minecraft text-minecraft-warning">
+                USING EXAMPLE CONFIG
+              </span>
             )}
           </div>
-          <textarea
+          <Textarea
+            aria-label="DDNS configuration"
             value={config.content || ''}
             onChange={e => setConfig({ ...config, content: e.target.value })}
-            className="input-minecraft w-full h-96 font-mono text-[10px]"
+            className="h-96 font-mono text-[10px]"
             spellCheck={false}
           />
           <div className="mt-4 flex gap-2">
-            <button
-              onClick={handleSaveConfig}
-              disabled={saving}
-              className="btn-minecraft-primary text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <Button variant="primary" onClick={handleSaveConfig} disabled={saving}>
               {saving ? 'SAVING...' : 'SAVE CONFIGURATION'}
-            </button>
-            <button onClick={loadData} className="btn-minecraft text-[10px]">
-              RELOAD
-            </button>
+            </Button>
+            <Button onClick={loadData}>RELOAD</Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Info */}
-      <div className="mt-4 bg-minecraft-water-DEFAULT/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
+      <div className="mt-4 bg-minecraft-water/30 border-2 border-minecraft-water-dark p-3 text-[10px] font-minecraft text-minecraft-text-light">
         <strong>INFO:</strong> DYNAMIC DNS AUTOMATICALLY UPDATES YOUR DNS RECORDS WHEN YOUR PUBLIC
         IP ADDRESS CHANGES. CONFIGURE YOUR PROVIDER SETTINGS ABOVE AND ENABLE DDNS TO START
         AUTOMATIC UPDATES.

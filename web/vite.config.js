@@ -40,11 +40,12 @@ export default defineConfig({
         manualChunks: {
           // Separate vendor chunks for better caching
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'chart-vendor': ['recharts'],
           'socket-vendor': ['socket.io-client'],
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    // Left at Vite's default (500kb): recharts (381KB) used to trip this and
+    // the limit was raised to silence it rather than fix it. Now that it's
+    // gone, keep the default so a future regression actually warns.
   },
 });

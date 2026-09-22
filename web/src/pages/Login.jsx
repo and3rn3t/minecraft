@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // import OAuthButtons from '../components/OAuthButtons'; // Disabled for future development
 import { useToast } from '../components/ToastContainer';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/FormField';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
@@ -45,8 +48,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-minecraft-background-DEFAULT p-4">
-      <div className="card-minecraft p-8 w-full max-w-md animate-fadeIn shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-minecraft-background p-4">
+      <Card padding="lg" animateIn className="w-full max-w-md p-8 shadow-2xl">
         <div className="text-center mb-8">
           <h1 className="text-xl lg:text-2xl font-minecraft text-minecraft-grass-light mb-2 leading-tight drop-shadow-lg">
             MINECRAFT ADMIN
@@ -55,71 +58,40 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="username"
-              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-            >
-              USERNAME
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-              className="input-minecraft w-full"
-              placeholder="Enter username"
-            />
-          </div>
+          <Input
+            label="USERNAME"
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            required
+            placeholder="Enter username"
+          />
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-            >
-              PASSWORD
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              className="input-minecraft w-full"
-              placeholder="Enter password"
-            />
-          </div>
+          <Input
+            label="PASSWORD"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            placeholder="Enter password"
+          />
 
           {requires2FA && (
-            <div>
-              <label
-                htmlFor="totp"
-                className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-              >
-                2FA CODE
-              </label>
-              <input
-                id="totp"
-                type="text"
-                value={totpToken}
-                onChange={e => setTotpToken(e.target.value.replaceAll(/\D/g, '').slice(0, 6))}
-                required
-                className="input-minecraft w-full"
-                placeholder="000000"
-                maxLength={6}
-                autoComplete="one-time-code"
-              />
-            </div>
+            <Input
+              label="2FA CODE"
+              type="text"
+              value={totpToken}
+              onChange={e => setTotpToken(e.target.value.replaceAll(/\D/g, '').slice(0, 6))}
+              required
+              placeholder="000000"
+              maxLength={6}
+              autoComplete="one-time-code"
+            />
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-minecraft-primary w-full text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button type="submit" variant="primary" className="w-full" disabled={loading}>
             {loading ? 'LOGGING IN...' : 'LOGIN'}
-          </button>
+          </Button>
         </form>
 
         {/* OAuth buttons disabled for future development */}
@@ -129,7 +101,7 @@ const Login = () => {
           DON&apos;T HAVE AN ACCOUNT?{' '}
           <Link
             to="/register"
-            className="text-minecraft-grass-light hover:text-minecraft-grass-DEFAULT"
+            className="text-minecraft-grass-light hover:text-minecraft-grass"
           >
             REGISTER HERE
           </Link>
@@ -140,7 +112,7 @@ const Login = () => {
             CONTINUE WITH API KEY
           </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

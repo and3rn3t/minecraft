@@ -227,6 +227,10 @@ jobs:
         working-directory: web
         run: npm run lint
 
+      - name: Build
+        working-directory: web
+        run: npm run build
+
       - name: Run Vitest tests
         working-directory: web
         run: npm run test:ci

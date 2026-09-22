@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
+import { ErrorState } from '../components/ui/Alert';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
 const Worlds = () => {
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadWorlds();
@@ -13,8 +19,10 @@ const Worlds = () => {
     try {
       const data = await api.listWorlds();
       setWorlds(data.worlds || []);
-    } catch (error) {
-      console.error('Failed to load worlds:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load worlds:', err);
+      setError('Could not load worlds.');
     } finally {
       setLoading(false);
     }
@@ -22,26 +30,21 @@ const Worlds = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        WORLD MANAGEMENT
-      </h1>
+      <PageHeader title="WORLD MANAGEMENT" />
 
-      <div className="card-minecraft p-6">
+      {error && <ErrorState message={error} onRetry={loadWorlds} />}
+
+      <Card padding="lg">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING WORLDS...
           </div>
-        ) : worlds.length === 0 ? (
-          <div className="text-minecraft-text-dark text-center py-8 text-[10px] font-minecraft">
-            NO WORLDS FOUND
-          </div>
+        ) : error ? null : worlds.length === 0 ? (
+          <EmptyState icon="🗺️" title="NO WORLDS FOUND" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {worlds.map(world => (
-              <div
-                key={world.name}
-                className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4"
-              >
+              <Card key={world.name} padding="md">
                 <h3 className="text-sm font-minecraft text-minecraft-text-light mb-1 leading-tight">
                   {world.name}
                   {world.active && (
@@ -52,16 +55,18 @@ const Worlds = () => {
                   {world.type} · {world.size}
                 </p>
                 <div className="flex gap-2 mt-4">
-                  <button className="flex-1 btn-minecraft-primary text-[8px]" disabled={world.active}>
+                  <Button variant="primary" size="sm" className="flex-1" disabled={world.active}>
                     SWITCH
-                  </button>
-                  <button className="flex-1 btn-minecraft text-[8px]">BACKUP</button>
+                  </Button>
+                  <Button size="sm" className="flex-1">
+                    BACKUP
+                  </Button>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

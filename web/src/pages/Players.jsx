@@ -3,6 +3,12 @@ import { api } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useToast } from '../components/ToastContainer';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ErrorState } from '../components/ui/Alert';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const Players = () => {
   const [kickingPlayer, setKickingPlayer] = useState(null);
@@ -16,8 +22,11 @@ const Players = () => {
     error: pollingError,
     refetch,
   } = usePolling(
-    useCallback(async () => {
-      const [playersData, opsData] = await Promise.all([api.getPlayers(), api.getOps()]);
+    useCallback(async signal => {
+      const [playersData, opsData] = await Promise.all([
+        api.getPlayers(signal),
+        api.getOps(signal),
+      ]);
       return {
         players: playersData.players || [],
         opNames: new Set((opsData.operators || []).map(op => op.name)),
@@ -83,35 +92,22 @@ const Players = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        PLAYER MANAGEMENT
-      </h1>
+      <PageHeader title="PLAYER MANAGEMENT" />
 
-      {pollingError && (
-        <div className="card-minecraft p-4 mb-6 flex items-center justify-between gap-4">
-          <p className="text-[10px] font-minecraft text-red-400 leading-relaxed">
-            FAILED TO LOAD PLAYERS
-          </p>
-          <button onClick={refetch} className="btn-minecraft-danger text-[8px] shrink-0">
-            RETRY
-          </button>
-        </div>
-      )}
+      {pollingError && <ErrorState message="Failed to load players" onRetry={refetch} />}
 
-      <div className="card-minecraft p-6">
-        <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
-          ONLINE PLAYERS ({players.length})
+      <Card padding="lg">
+        <h2 className="mb-4 text-sm font-minecraft uppercase text-minecraft-text-light">
+          Online Players ({players.length})
         </h2>
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING...
           </div>
         ) : players.length === 0 ? (
-          <div className="text-minecraft-text-dark text-center py-8 text-[10px] font-minecraft">
-            NO PLAYERS ONLINE
-          </div>
+          <EmptyState icon="💤" title="No players online" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {players.map((player, index) => {
               const isOp = opNames.has(player);
               const isToggling = opPlayerName === player;
@@ -120,42 +116,39 @@ const Players = () => {
                 opButtonLabel = '...';
               }
               return (
-                <div
-                  key={`${player}-${index}`}
-                  className="bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037] p-4 flex flex-col gap-2"
-                >
+                <Card key={`${player}-${index}`} padding="md" className="flex flex-col gap-2 bg-minecraft-dirt">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-minecraft text-minecraft-text-light">
                       {player}
                     </span>
-                    {isOp && (
-                      <span className="text-[8px] font-minecraft text-minecraft-grass-light">
-                        OP
-                      </span>
-                    )}
+                    {isOp && <Badge status="success">OP</Badge>}
                   </div>
                   <div className="flex gap-2">
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="flex-1"
                       onClick={() => handleToggleOp(player, isOp)}
                       disabled={isToggling}
-                      className="flex-1 btn-minecraft-primary text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {opButtonLabel}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      className="flex-1"
                       onClick={() => handleKick(player)}
                       disabled={kickingPlayer === player}
-                      className="flex-1 btn-minecraft-danger text-[8px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {kickingPlayer === player ? 'KICKING...' : 'KICK'}
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

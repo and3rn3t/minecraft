@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // import OAuthButtons from '../components/OAuthButtons'; // Disabled for future development
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { ErrorState } from '../components/ui/Alert';
+import { Input } from '../components/ui/FormField';
 import { useAuth } from '../contexts/AuthContext';
 
 const Register = () => {
@@ -57,8 +61,8 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-minecraft-background-DEFAULT">
-      <div className="card-minecraft p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-minecraft-background">
+      <Card padding="lg" className="w-full max-w-md p-8">
         <h1 className="text-xl font-minecraft text-minecraft-grass-light mb-6 text-center leading-tight">
           MINECRAFT ADMIN
         </h1>
@@ -66,95 +70,51 @@ const Register = () => {
           REGISTER
         </h2>
 
-        {error && (
-          <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-            {error}
-          </div>
-        )}
+        {error && <ErrorState message={error} />}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="username"
-              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-            >
-              USERNAME
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-              minLength={3}
-              maxLength={32}
-              className="input-minecraft w-full"
-              placeholder="Enter username (3-32 characters)"
-            />
-          </div>
+          <Input
+            label="USERNAME"
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            required
+            minLength={3}
+            maxLength={32}
+            placeholder="Enter username (3-32 characters)"
+          />
 
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-            >
-              EMAIL (OPTIONAL)
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="input-minecraft w-full"
-              placeholder="Enter email"
-            />
-          </div>
+          <Input
+            label="EMAIL (OPTIONAL)"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="Enter email"
+          />
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-            >
-              PASSWORD
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="input-minecraft w-full"
-              placeholder="Enter password (min 8 characters)"
-            />
-          </div>
+          <Input
+            label="PASSWORD"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            minLength={8}
+            placeholder="Enter password (min 8 characters)"
+          />
 
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-[10px] font-minecraft text-minecraft-text-light mb-2"
-            >
-              CONFIRM PASSWORD
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              required
-              minLength={8}
-              className="input-minecraft w-full"
-              placeholder="Confirm password"
-            />
-          </div>
+          <Input
+            label="CONFIRM PASSWORD"
+            type="password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            required
+            minLength={8}
+            placeholder="Confirm password"
+          />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-minecraft-primary w-full text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button type="submit" variant="primary" className="w-full" disabled={loading}>
             {loading ? 'REGISTERING...' : 'REGISTER'}
-          </button>
+          </Button>
         </form>
 
         {/* OAuth buttons disabled for future development */}
@@ -164,12 +124,12 @@ const Register = () => {
           ALREADY HAVE AN ACCOUNT?{' '}
           <Link
             to="/login"
-            className="text-minecraft-grass-light hover:text-minecraft-grass-DEFAULT"
+            className="text-minecraft-grass-light hover:text-minecraft-grass"
           >
             LOGIN HERE
           </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

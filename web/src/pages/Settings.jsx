@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Alert, ErrorState } from '../components/ui/Alert';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/FormField';
+import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
 /*
@@ -110,11 +116,9 @@ const Settings = () => {
     if (apiKey) {
       localStorage.setItem('api_key', apiKey);
       setMessage('API key saved!');
-      setTimeout(() => setMessage(null), 3000);
     } else {
       localStorage.removeItem('api_key');
       setMessage('API key removed!');
-      setTimeout(() => setMessage(null), 3000);
     }
   };
 
@@ -246,25 +250,19 @@ const Settings = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        SETTINGS
-      </h1>
+      <PageHeader title="SETTINGS" />
 
       {/* Messages */}
       {message && (
-        <div className="bg-minecraft-grass-DEFAULT border-2 border-minecraft-grass-dark p-4 mb-6 text-white text-[10px] font-minecraft">
+        <Alert tone="success" autoDismiss={5000} onDismiss={() => setMessage(null)}>
           {message}
-        </div>
+        </Alert>
       )}
 
-      {error && (
-        <div className="bg-[#C62828] border-2 border-[#B71C1C] p-4 mb-6 text-white text-[10px] font-minecraft">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {/* Account Settings */}
-      <div className="card-minecraft p-6 max-w-2xl mb-6">
+      <Card padding="lg" className="max-w-2xl mb-6">
         <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
           ACCOUNT INFORMATION
         </h2>
@@ -287,28 +285,20 @@ const Settings = () => {
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Two-Factor Authentication */}
-      <div className="card-minecraft p-6 max-w-2xl mb-6">
+      <Card padding="lg" className="max-w-2xl mb-6">
         <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
           TWO-FACTOR AUTHENTICATION
         </h2>
 
         {twoFactorStatus && (
-          <div className="mb-4">
-            <div className="text-[10px] font-minecraft mb-2">
-              <span className="text-minecraft-text-dark">STATUS:</span>{' '}
-              <span
-                className={
-                  twoFactorStatus.enabled
-                    ? 'text-minecraft-grass-light'
-                    : 'text-minecraft-text-light'
-                }
-              >
-                {twoFactorStatus.enabled ? 'ENABLED' : 'DISABLED'}
-              </span>
-            </div>
+          <div className="mb-4 flex items-center gap-2 text-[10px] font-minecraft">
+            <span className="text-minecraft-text-dark">STATUS:</span>
+            <Badge status={twoFactorStatus.enabled ? 'success' : 'neutral'}>
+              {twoFactorStatus.enabled ? 'ENABLED' : 'DISABLED'}
+            </Badge>
           </div>
         )}
 
@@ -328,39 +318,33 @@ const Settings = () => {
             )}
             <div className="text-[10px] font-minecraft text-minecraft-text-dark">
               Or enter this secret manually:{' '}
-              <code className="bg-minecraft-dirt-DEFAULT px-2 py-1">{twoFactorSetup.secret}</code>
+              <code className="bg-minecraft-dirt px-2 py-1">{twoFactorSetup.secret}</code>
             </div>
-            <div>
-              <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                ENTER VERIFICATION CODE
-              </label>
-              <input
-                type="text"
-                value={twoFactorToken}
-                onChange={e => setTwoFactorToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                maxLength={6}
-                className="input-minecraft w-full"
-                autoComplete="one-time-code"
-              />
-            </div>
+            <Input
+              label="ENTER VERIFICATION CODE"
+              type="text"
+              value={twoFactorToken}
+              onChange={e => setTwoFactorToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              maxLength={6}
+              autoComplete="one-time-code"
+            />
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="primary"
                 onClick={handleVerify2FA}
                 disabled={loading || twoFactorToken.length !== 6}
-                className="btn-minecraft-primary text-[10px] disabled:opacity-50"
               >
                 VERIFY & ENABLE
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   setTwoFactorSetup(null);
                   setTwoFactorToken('');
                 }}
-                className="btn-minecraft text-[10px]"
               >
                 CANCEL
-              </button>
+              </Button>
             </div>
           </div>
         ) : twoFactorStatus?.enabled ? (
@@ -368,41 +352,32 @@ const Settings = () => {
             <div className="text-[10px] font-minecraft text-minecraft-text-light">
               2FA is currently enabled. To disable it, enter your password below.
             </div>
-            <div>
-              <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-                PASSWORD
-              </label>
-              <input
-                type="password"
-                value={disablePassword}
-                onChange={e => setDisablePassword(e.target.value)}
-                placeholder="Enter password to disable 2FA"
-                className="input-minecraft w-full"
-              />
-            </div>
-            <button
+            <Input
+              label="PASSWORD"
+              type="password"
+              value={disablePassword}
+              onChange={e => setDisablePassword(e.target.value)}
+              placeholder="Enter password to disable 2FA"
+            />
+            <Button
+              variant="danger"
               onClick={handleDisable2FA}
               disabled={loading || !disablePassword}
-              className="btn-minecraft-danger text-[10px] disabled:opacity-50"
             >
               DISABLE 2FA
-            </button>
+            </Button>
           </div>
         ) : (
           <div>
             <div className="text-[10px] font-minecraft text-minecraft-text-light mb-4">
               Two-factor authentication adds an extra layer of security to your account.
             </div>
-            <button
-              onClick={handleSetup2FA}
-              disabled={loading}
-              className="btn-minecraft-primary text-[10px] disabled:opacity-50"
-            >
+            <Button variant="primary" onClick={handleSetup2FA} disabled={loading}>
               SETUP 2FA
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* OAuth Account Linking - Disabled for future development */}
       {/* <div className="card-minecraft p-6 max-w-2xl mb-6">
@@ -412,7 +387,7 @@ const Settings = () => {
 
         <div className="space-y-4">
           {/* Google */}
-      {/* <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
+      {/* <div className="flex items-center justify-between p-4 bg-minecraft-dirt border-2 border-[#5D4037]">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6" viewBox="0 0 24 24">
                 <path
@@ -459,7 +434,7 @@ const Settings = () => {
           </div> */}
 
       {/* Apple */}
-      {/* <div className="flex items-center justify-between p-4 bg-minecraft-dirt-DEFAULT border-2 border-[#5D4037]">
+      {/* <div className="flex items-center justify-between p-4 bg-minecraft-dirt border-2 border-[#5D4037]">
             <div className="flex items-center gap-3">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -493,31 +468,25 @@ const Settings = () => {
       </div> */}
 
       {/* API Configuration */}
-      <div className="card-minecraft p-6 max-w-2xl">
+      <Card padding="lg" className="max-w-2xl">
         <h2 className="text-sm font-minecraft text-minecraft-text-light mb-4 uppercase">
           API CONFIGURATION
         </h2>
 
-        <div className="mb-4">
-          <label className="block text-[10px] font-minecraft text-minecraft-text-light mb-2">
-            API KEY
-          </label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder="ENTER YOUR API KEY"
-            className="input-minecraft w-full"
-          />
-          <p className="text-[10px] font-minecraft text-minecraft-text-dark mt-2">
-            GET YOUR API KEY BY RUNNING: ./scripts/api-key-manager.sh create
-          </p>
-        </div>
+        <Input
+          label="API KEY"
+          type="password"
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+          placeholder="ENTER YOUR API KEY"
+          hint="Get your API key by running: ./scripts/api-key-manager.sh create"
+          className="mb-4"
+        />
 
-        <button onClick={handleSaveApiKey} className="btn-minecraft-primary text-[10px]">
+        <Button variant="primary" onClick={handleSaveApiKey}>
           SAVE API KEY
-        </button>
-      </div>
+        </Button>
+      </Card>
     </div>
   );
 };

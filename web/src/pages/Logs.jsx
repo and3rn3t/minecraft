@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+import { ErrorState } from '../components/ui/Alert';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Input } from '../components/ui/FormField';
+import { StatusPill } from '../components/ui/Badge';
+import { PageHeader } from '../components/ui/PageHeader';
 import { VirtualList } from '../components/VirtualList';
 import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../services/api';
@@ -7,6 +14,7 @@ import { api } from '../services/api';
 const Logs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState('');
   const [connected, setConnected] = useState(false);
@@ -123,8 +131,10 @@ const Logs = () => {
     try {
       const data = await api.getLogs(200);
       setLogs(data.logs || []);
-    } catch (error) {
-      console.error('Failed to load logs:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load logs:', err);
+      setError('Could not load logs.');
     } finally {
       setLoading(false);
     }
@@ -149,51 +159,46 @@ const Logs = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-minecraft text-minecraft-grass-light mb-8 leading-tight">
-        SERVER LOGS
-      </h1>
+      <PageHeader title="SERVER LOGS" />
+
+      {error && <ErrorState message={error} onRetry={refreshLogs} />}
 
       {/* Controls */}
-      <div className="card-minecraft p-4 mb-6 flex gap-4 items-center flex-wrap">
-        <input
+      <Card padding="md" className="mb-6 flex flex-wrap items-center gap-4">
+        <Input
           type="text"
           placeholder="FILTER LOGS..."
+          aria-label="Filter logs"
           value={filter}
           onChange={e => setFilter(e.target.value)}
-          className="input-minecraft flex-1 min-w-[200px]"
+          className="min-w-[200px] flex-1"
         />
         <label className="flex items-center gap-2 cursor-pointer text-[10px] font-minecraft text-minecraft-text-light">
           <input
             type="checkbox"
             checked={autoScroll}
             onChange={e => setAutoScroll(e.target.checked)}
-            className="w-4 h-4"
+            className="h-4 w-4"
           />
           <span>AUTO-SCROLL</span>
         </label>
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 ${connected ? 'bg-minecraft-grass-DEFAULT' : 'bg-minecraft-stone-DEFAULT'}`}
-            title={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
-            style={{ imageRendering: 'pixelated' }}
-          />
-          <span className="text-[10px] font-minecraft text-minecraft-text-dark">
-            {useWebSocket ? (connected ? 'LIVE' : 'CONNECTING...') : 'POLLING'}
-          </span>
-        </div>
-        <button onClick={refreshLogs} className="btn-minecraft text-[10px]">
-          REFRESH
-        </button>
-      </div>
+        <StatusPill
+          status={connected ? 'success' : 'neutral'}
+          title={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
+        >
+          {useWebSocket ? (connected ? 'LIVE' : 'CONNECTING...') : 'POLLING'}
+        </StatusPill>
+        <Button onClick={refreshLogs}>REFRESH</Button>
+      </Card>
 
       {/* Log Display */}
-      <div className="card-minecraft p-4">
+      <Card padding="md">
         {loading ? (
           <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
             LOADING LOGS...
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="text-minecraft-text-dark text-center py-8">NO LOGS FOUND</div>
+          <EmptyState icon="📜" title="No logs found" />
         ) : filteredLogs.length > 100 ? (
           // Use virtual scrolling for large lists
           <VirtualList
@@ -201,9 +206,9 @@ const Logs = () => {
             renderItem={(log, index) => (
               <div
                 key={`log-${index}-${log.substring(0, 50)}`}
-                className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT font-minecraft text-[10px] ${
+                className={`py-1 px-2 hover:bg-minecraft-dirt font-minecraft text-[10px] ${
                   log.includes('ERROR') || log.includes('WARN')
-                    ? 'text-[#C62828]'
+                    ? 'text-minecraft-danger'
                     : log.includes('INFO')
                       ? 'text-minecraft-water-light'
                       : 'text-minecraft-text-light'
@@ -223,9 +228,9 @@ const Logs = () => {
             {filteredLogs.map((log, index) => (
               <div
                 key={`log-${index}-${log.substring(0, 50)}`}
-                className={`py-1 px-2 hover:bg-minecraft-dirt-DEFAULT ${
+                className={`py-1 px-2 hover:bg-minecraft-dirt ${
                   log.includes('ERROR') || log.includes('WARN')
-                    ? 'text-[#C62828]'
+                    ? 'text-minecraft-danger'
                     : log.includes('INFO')
                       ? 'text-minecraft-water-light'
                       : 'text-minecraft-text-light'
@@ -237,7 +242,7 @@ const Logs = () => {
             <div ref={logEndRef} />
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

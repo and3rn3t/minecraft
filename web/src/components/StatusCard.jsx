@@ -3,7 +3,7 @@ import { memo } from 'react';
 const StatusCard = ({ title, value, status, icon, subtitle, onClick, index = 0 }) => {
   const statusColors = {
     success: {
-      bg: 'bg-minecraft-grass-DEFAULT',
+      bg: 'bg-minecraft-grass',
       light: 'bg-minecraft-grass-light',
       border: 'border-minecraft-grass-light',
       glow: 'shadow-[0_0_15px_rgba(124,179,66,0.3)]',
@@ -21,7 +21,7 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick, index = 0 }
       glow: 'shadow-[0_0_15px_rgba(245,124,0,0.3)]',
     },
     info: {
-      bg: 'bg-minecraft-water-DEFAULT',
+      bg: 'bg-minecraft-water',
       light: 'bg-minecraft-water-light',
       border: 'border-minecraft-water-light',
       glow: 'shadow-[0_0_15px_rgba(33,150,243,0.3)]',
