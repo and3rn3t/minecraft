@@ -482,8 +482,14 @@ armour stand wearing that player's head (`player_head` with their name), the
 armour they were wearing, holding the weapon they used, posed mid-swing, on a
 plinth with a plaque.
 
-The `advancement` event already carries everything needed. The statue spot
-comes from a list of plinth coordinates the API fills in order. After a year,
+The `advancement` event says who and what, but not what they were wearing
+or holding: it carries only the player and the advancement name. The handler
+has to capture the rest itself, over RCON, as soon as the event arrives —
+`data get entity <player> Inventory` for the armour slots and
+`SelectedItem` for the weapon on 1.20.4 (1.21.5 moved player armour into an
+`equipment` compound, so check the field names against the version F7 picks)
+— before they change gear. The statue spot comes from a list of plinth
+coordinates the API fills in order. After a year,
 spawn is a gallery of everything they have done, with their own faces on it.
 
 ---
@@ -598,8 +604,9 @@ Most complete themselves — the stats files from
 "did he mine 64 iron" and "did he reach the End" — and pay out automatically,
 in emeralds for H5's shop or a custom item, through F6's delivery queue.
 Build challenges get a parent "approve" button. W1's daily quests post here
-too, so there is one list of things to do rather than two. Lighter than the Oracle's daily quests, fully under parental
-control, and needs no model at all.
+too, so there is one list of things to do rather than two. The board itself
+is fully under parental control and needs no model at all, so it can ship
+before W1 does.
 
 ---
 
