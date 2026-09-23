@@ -20,7 +20,8 @@ Silas.
 Every item carries a feasibility rating, which is about this hardware and this
 setup rather than about difficulty in general:
 
-- **Green** — works on the Pi 5, on vanilla 1.20.4, with what is already in the repo.
+- **Green** — works on the Pi 5, on vanilla (1.20.4 today; see F7), with what
+  is already in the repo.
 - **Yellow** — works, but with a real constraint: extra RAM, extra hardware, a
   server-type change, or the work belongs on the Mac rather than the Pi.
 - **Red** — don't, or not yet. These live in [Ruled out](#ruled-out).
@@ -67,23 +68,27 @@ see.
 ## Build order
 
 Roughly the next year of evenings, ordered so that each step makes the next one
-cheaper.
+cheaper. Every open item appears in exactly one row; rows are grouped by the
+plumbing they share, so each row is mostly content on top of the row before.
 
 | Order | Items | Why here |
 | --- | --- | --- |
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
-| 2 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 3 | F3, P2 | Datapack pipeline plus family advancements, visible in the game's own UI |
-| 4 | M2, M1 | Map and time-lapse, rendered on the Mac, zero cost to the Pi |
-| 5 | F6, W4, T3, M5 | The book pipeline: F6 builds the items, then the Gazette, mail and the time capsule all share it |
-| 6 | W2 | The Invention Forge, once the datapack validator can be trusted |
-| 7 | H1, H2, H3 | House and game wired to each other |
-| 8 | R1 | Geyser, if tablets matter — consider pulling this much earlier |
-| 9 | F4, M3, T1, H4, T4 | The big physical projects. F4 comes first in this row: T1 serves its pack through it |
+| 2 | F7 | The biggest visible change for the least code — happy ghasts, trial chambers — and it must come before any datapack, because pack formats and item syntax change across it. R1 wants it too |
+| 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
+| 4 | F3, P2, W7, W8, M6 | The datapack pipeline, then the first packs. W8 and M6 both extend the Hall of Deaths' death handling, so build them together |
+| 5 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
+| 6 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
+| 7 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
+| 8 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
+| 9 | H1, H2, H3 | House and game wired to each other |
+| 10 | R1 | Geyser — but see the gate below |
+| 11 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
-**R1 (cross-play) is the one to reconsider first.** If the kids have iPads it
-changes when and where they can play at all, which outranks anything else on
-this list.
+**One decision gate: do the boys play on iPads?** If yes, R1 moves to order 3,
+straight after F7. Cross-play changes when and where they can play at all,
+which outranks anything else here, and Geyser tracks current Java releases, so
+it needs F7 first regardless.
 
 ---
 
@@ -93,28 +98,39 @@ Plumbing that several features below depend on. Three are done and described in
 [EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md) and
 [PLAYER_STATS.md](PLAYER_STATS.md) rather than repeated here.
 
-### F6. One place that builds items — Green, build it with W4
+### F7. Catch up to current Minecraft — Yellow, and decide it early
 
-Three features hand a player an item: the Gazette book (W4), mail (T3) and the
-time capsule (M5). All three need `/give` with the item's contents attached,
-and **1.20.5 replaced item NBT with components**, so the syntax differs by
-server version:
+The server defaults to **1.20.4**, which is now a long way behind the game the
+boys see on YouTube. Everything added since is missing from their world:
 
-```text
-1.20.4   /give @p written_book{title:"...",author:"...",pages:['...']}
-1.20.5+  /give @p written_book[written_book_content={title:"...",author:"...",pages:['...']}]
-```
+- **Trial chambers, the breeze and the mace** (1.21) — a new dungeon type built
+  for exactly this age, with a weapon whose whole point is falling on things.
+- **Bundles** (1.21.2) and **the Pale Garden with the creaking** (1.21.4).
+- **The happy ghast** (1.21.6) — a giant friendly ghast you can put a harness
+  on and fly with four players riding it. On its own this is a reason to
+  upgrade.
+- **Copper golems** (1.21.9) that sort chests for you.
 
-Write one module that takes a book and returns the command for the running
-server, detecting the version rather than assuming it, and have all three
-features call it. One place to change when the server is upgraded, instead of
-three.
+It matters for this roadmap as much as for the game. 1.20.5 moved items to
+components, 1.21 made **enchantments data-driven**, and 1.21.4 lets a datapack
+point any item at a custom model. Together they turn W2 (the Invention Forge)
+from "a recipe that renames a vanilla item" into genuinely new items with new
+enchantments, and T1's textures stop needing the CustomModelData workaround.
+The Java side is already done: the image runs Temurin 25.
 
-**Build it as the first commit of W4, not before.** Nothing constructs items
-today, so a module written now would be guessing at what the three callers
-need, and would be wrong in the way abstractions written without a caller
-usually are. The constraint is recorded here so W4 starts with it rather than
-discovering it.
+Yellow because upgrading a world is one-way. The procedure:
+
+1. Take a verified backup and push it offsite.
+2. Boot a copy of that backup on the new version on the Mac first (the same
+   trick as M4's rewind), walk around, check the bases.
+3. Bump `MINECRAFT_VERSION`, pre-generate a ring around spawn so the new
+   biomes and structures exist where they will actually be found, and upgrade.
+
+Do it **before F3**, and before R1. Datapacks carry a `pack_format` that changes almost every
+release, and item syntax changed at 1.20.5, so every datapack and every F6 book
+written against 1.20.4 would need rewriting afterwards. Pick the newest release
+that has been out a couple of weeks when the work starts, not whatever is
+named here.
 
 ### F3. A datapack pipeline — Green
 
@@ -132,7 +148,51 @@ Build `scripts/datapack-manager.sh` with `create`, `list`, `enable`, `disable`,
 - `DELETE /api/datapacks/<name>`
 
 Keep the family datapack in git so every change is revertible. F3 unblocks P1,
-P2, P5, W2 and most of T1.
+P2, P5, P7, P8, W2, W7, W8, T7 and most of T1.
+
+### F8. Scoreboards, teams and bossbars — Green
+
+Six features run a game with a score, a side or a timer: co-op goals (P3),
+Raid Night (P5), Manhunt (P7), the Arcade (P8), Build Battles (P9) and the
+expanding world (P10). Build one module for objectives, sidebar display, teams
+(colours, prefixes, friendly fire), bossbars and titles, with endpoints the
+dashboard can drive, before the second of those games rather than after the
+fifth.
+
+Bedtime mode already drives a bossbar, so factor that code out rather than
+writing a second. Titles are partly covered by
+`scripts/announcement-manager.sh`; extend it rather than replace it. This
+replaces the scoreboard, team, bossbar and title rows the management backlog
+used to carry.
+
+### F6. Items and delivery — Green, build it with W4
+
+Six features hand a player something: the Gazette book (W4), mail (T3), the
+time capsule (M5), chore pay (H5), bounty rewards (P11) and anything the
+Oracle (W1) awards. All of them need two things, and should share both.
+
+**Building the item.** `/give` with the contents attached, and **1.20.5
+replaced item NBT with components**, so the syntax differs by server version:
+
+```text
+1.20.4   /give @p written_book{title:"...",author:"...",pages:['...']}
+1.20.5+  /give @p written_book[written_book_content={title:"...",author:"...",pages:['...']}]
+```
+
+If F7 has landed, only the second form is needed and version detection can be
+skipped. If it hasn't, detect the version rather than assuming it.
+
+**Delivering it.** The recipient is usually offline when the item is created —
+a Sunday-morning Gazette, a letter from Mom, a chore paid during school. Keep
+a small persistent queue per player and drain it on the `join` event, with a
+title and a sound so arriving mail feels like an event. A full inventory
+leaves the item queued rather than dropping it on the floor.
+
+**Build it as the first commit of W4, not before.** Nothing constructs items
+today, so a module written now would be guessing at what the callers need,
+and would be wrong in the way abstractions written without a caller usually
+are. The constraint is recorded here so W4 starts with it rather than
+discovering it.
 
 ### F4. Resource pack hosting — Green
 
@@ -166,8 +226,9 @@ and anything else subscribed. Push the chat event onto a queue and answer from a
 worker, the way `api/hall_of_deaths.py` already announces from a worker thread.
 
 Give it a personality and a job: it knows the server's history from the event
-log, it remembers what each kid was building last week, it hands out a daily
-quest, it answers "how do I make a beacon" without either of them alt-tabbing to
+log, it remembers what each kid was building last week, it posts a daily
+quest to P11's bounty board rather than keeping a quest system of its own, it
+answers "how do I make a beacon" without either of them alt-tabbing to
 a wiki.
 
 **Guardrails, because this is aimed at children.** Pin a system prompt that
@@ -239,6 +300,41 @@ Shortcut that starts the server and reads status wants `server.control` and
 `server.view` and nothing else — not the `admin` role, and not a key shared with
 the dashboard.
 
+### W7. Lucky blocks — Green
+
+The single most requested thing on any server kids run. A special block —
+a player head with a gold "?" texture needs no resource pack at all — and
+breaking it rolls a loot table: a diamond sword, a stack of cake, a pig
+wearing a saddle, a lightning strike, an anvil falling from the sky, a
+charged creeper named "Oops".
+
+Pure datapack: a `minecraft.mined:minecraft.player_head` scoreboard stat
+catches the break, a tick function finds the dropped head by its custom data
+and swaps it for a roll of a weighted random loot table. Tune the
+table so the good outcomes win about 70% of the time and the funny ones cover
+most of the rest; nothing should wipe a base. Give it a crafting recipe so
+lucky blocks are earned rather than spawned, and add a **Lucky Block Race**
+to the P8 arcade.
+
+Outcomes can be written by the boys themselves from a dashboard form, which
+turns it into a thing they designed rather than a thing they downloaded.
+
+### W8. Graves — Green
+
+Losing a whole inventory to lava is the fastest way to end an evening in
+tears. `keepInventory` fixes that but removes all tension; graves are the
+middle ground. When a player dies, their items go into a grave marker at the
+spot, only they can open it, and the Hall of Deaths announcement gains a
+clickable line with the coordinates.
+
+A datapack does this on vanilla. The event bus already knows about every
+death, and the log line lacks coordinates, but
+`data get entity <player> LastDeathLocation` over RCON supplies them, so the
+API side is small: store the location alongside the obituary. Worth deciding
+up front: after 30 real minutes the grave opens to everyone (so a sibling can
+rescue it), and after a day the items drop normally. The epitaph from
+`api/epitaphs.py` can go on a sign above the grave.
+
 ---
 
 ## Tier 2 — The house and the game talk to each other
@@ -299,6 +395,21 @@ E-ink over SPI is fine.
 This is also the repo's one completely untouched area: nothing here drives
 anything physical today.
 
+### H5. Chores for emeralds — Green
+
+The `family` repo already knows which chores are done. When a parent ticks one
+off, the player gets paid in game: emeralds to spend at a family trader
+villager at spawn, whose offers are set with `/summon villager` and custom
+`Offers` NBT (or components after F7). Put the rare stuff — a mending book,
+a saddle, the cool armour trim templates — behind that shop, so real-world
+effort buys real in-game value.
+
+Two details make it work. Payment must survive the player being offline, so
+it goes through F6's delivery queue, the same one T3's mail uses.
+And a parent approves each payment on the dashboard rather than it firing
+automatically, so it stays a reward and never becomes something to negotiate
+with a script.
+
 ---
 
 ## Tier 3 — Memory and spectacle
@@ -350,6 +461,37 @@ No datapack needed: store the book's contents as JSON and schedule the `/give`
 through the existing command scheduler. Technically the smallest item in this
 document, and probably the one that matters most in five years.
 
+### M6. The pet cemetery — Green
+
+Kids grieve dogs. Vanilla logs the death of any **named** entity —
+`Named entity Wolf['Biscuit'/…] died: Biscuit was slain by Skeleton` — so a
+tamed wolf, cat, parrot or horse with a name tag already produces a log line
+nobody reads.
+
+Add a `pet_death` type to the event bus's parser, give it an obituary in the
+Hall of Deaths with its own section, and build a small cemetery in game: each
+pet gets a gravestone sign with the name, owner, date and epitaph. Announce it
+gently rather than with the comedy tone the player obituaries use. This will
+matter more to them than it looks like it should.
+
+### M7. The Hall of Champions — Green
+
+Statues at spawn. When someone earns a milestone advancement — kills the Ender
+Dragon, beats the Wither, finds an ancient city — the API builds a statue: an
+armour stand wearing that player's head (`player_head` with their name), the
+armour they were wearing, holding the weapon they used, posed mid-swing, on a
+plinth with a plaque.
+
+The `advancement` event says who and what, but not what they were wearing
+or holding: it carries only the player and the advancement name. The handler
+has to capture the rest itself, over RCON, as soon as the event arrives —
+`data get entity <player> Inventory` for the armour slots and
+`SelectedItem` for the weapon on 1.20.4 (1.21.5 moved player armour into an
+`equipment` compound, so check the field names against the version F7 picks)
+— before they change gear. The statue spot comes from a list of plinth
+coordinates the API fills in order. After a year,
+spawn is a gallery of everything they have done, with their own faces on it.
+
 ---
 
 ## Tier 4 — Structured play
@@ -381,7 +523,7 @@ brothers contribute. Completing one unlocks a reward for both. Escalate toward
 real-world prizes: finish the tier, get pizza night. Cooperation with a payout
 beats competition for siblings.
 
-Wants the scoreboard tooling in the [management backlog](#scoreboards-and-teams).
+Runs on F8. P10 is its reward track: build the two together.
 
 ### P4. The Expedition World — Green
 
@@ -404,6 +546,67 @@ evenings and announced in the Gazette all week.
 Automatic firework shows, cake, custom titles and themed loot on birthdays and
 holidays. `scripts/command-scheduler.py` already handles date-based scheduling,
 so this is content, not engineering.
+
+### P7. Manhunt — Dad versus the boys — Green
+
+The format they already watch on YouTube: one speedrunner tries to beat the
+Ender Dragon, the hunters chase them with a compass that always points at
+their target. Here it is two brothers against Dad, or Dad as the runner and
+both of them hunting.
+
+A datapack gives each hunter a lodestone compass whose target a tick function
+updates to the runner's position every second; the dashboard picks the teams,
+resets a fresh world from a template and runs the timer. Results go in the
+Gazette. Runs on F8, and the reset is P4's template-world machinery.
+
+### P8. The Arcade — Green
+
+A permanent minigame hub, next to spawn rather than in a temporary world: a
+boat race with lap timers, spleef, TNT run, an elytra ring course, a parkour
+tower with checkpoints. Each is a command-block or datapack build with a
+scoreboard timer.
+
+The admin-portal half is what makes it last: every run is recorded, the
+dashboard keeps a **records board** per game with each kid's personal best,
+and a new record gets a server-wide title and a line in the Gazette. Beating
+your brother's lap time by 0.4 seconds is a reason to play for weeks.
+
+### P9. Build Battles with family voting — Green
+
+Every Saturday a theme — from a list or from the Oracle: "a treehouse", "a
+volcano lair", "the Pi's home as a castle". Each builder gets an identical
+plot, a timer on the bossbar, and creative mode inside the plot boundary.
+
+When time is up the dashboard shows a screenshot or map render of each plot
+and **the grown-ups vote from their phones** — Mom and grandparents included,
+through a no-login link with a one-time code that can do nothing but vote. The winner's build goes to the
+Museum (M4) and on the front page of the Gazette.
+
+### P10. The expanding world — Green
+
+Start a new world with a small world border, say 500 blocks. It grows only
+when the family hits co-op goals (P3): every thousand blocks mined together,
+every boss beaten, every village saved. The border animates outwards with an
+announcement and a firework show at spawn, and everyone rushes to see what
+was just revealed.
+
+It turns the whole world into a progression system with a single vanilla
+command. Promotes the world border manager in the backlog from P3 to P2.
+
+### P11. The bounty board — Green
+
+Parents post challenges from the dashboard: "mine 64 iron", "tame a horse",
+"reach the End", "build a bridge over the river". Each shows up in game on a
+physical board at spawn and as a `/trigger bounties` list.
+
+Most complete themselves — the stats files from
+[PLAYER_STATS.md](PLAYER_STATS.md) and the `advancement` event already answer
+"did he mine 64 iron" and "did he reach the End" — and pay out automatically,
+in emeralds for H5's shop or a custom item, through F6's delivery queue.
+Build challenges get a parent "approve" button. W1's daily quests post here
+too, so there is one list of things to do rather than two. The board itself
+is fully under parental control and needs no model at all, so it can ship
+before W1 does.
 
 ---
 
@@ -443,6 +646,46 @@ switch worlds, grant a kit, trigger an event.
 Physical objects that do things in a video game is a category of magic that
 lands extremely well at this age.
 
+### T5. Real photos on the walls — Yellow
+
+Upload a family photo on the dashboard and it appears in game as map art in
+item frames: the dog on the wall of their base, a holiday snapshot in the
+Museum. Resize to a grid of 128×128 tiles, quantise each tile to the map
+colour palette with dithering, write each as a `map_<n>.dat`, then `/give`
+the filled maps.
+
+Yellow because the server holds the map counter in memory: write map files
+only while the server is stopped (the nightly backup window works), or claim
+IDs by having RCON create blank maps first and overwrite those files. Cheaper
+than T2's pixel art in blocks and much prettier, but fixed to the size of an
+item frame wall.
+
+### T6. The server list talks — Green
+
+The first thing they see is the multiplayer screen, and it can say something.
+Regenerate `motd` and `server-icon.png` on every restart: "Silas is 3
+diamonds ahead", "7 days since anyone fell in lava", "Build Battle tomorrow:
+volcano lair", with the icon swapped for a holiday version or the latest
+champion's face.
+
+Both are read only at startup, so this rides the existing restart schedule.
+The server icon manager in the backlog is half of it already. Minutes of work
+once written, and it makes the server feel alive before they have even
+joined.
+
+### T7. Design-a-world — Yellow
+
+Datapacks can define world generation: taller mountains, floating islands,
+oceans of lava, a world that is all mushroom fields. Give the dashboard a
+page of friendly sliders and presets — "how tall are mountains", "how much
+ocean", "which biomes" — that writes a worldgen datapack, then hands it to
+`scripts/world-manager.sh` to create the world.
+
+Yellow for the Pi: exotic terrain is expensive to generate, so pre-generate a
+modest area on the Mac, copy it across and cap the world border (P10 fits
+naturally). The result is a world whose shape they chose, which is a
+different feeling from any seed.
+
 ---
 
 ## Tier 6 — Reach
@@ -464,6 +707,8 @@ everything above.
 
 "Silas just got his first diamond." Event bus plus ntfy, Pushover or APNs. Cheap,
 and it keeps the adults connected to what is happening without hovering.
+The weekly digest is the Gazette (W4) rendered for parents, so build it from
+the same data rather than as a second report.
 
 ---
 
@@ -479,19 +724,15 @@ blocking anything; pick them up when one is in the way.
 | Gamerule manager | P2 | `scripts/gamerule-manager.sh` plus `GET`/`PUT /api/gamerules/<rule>`; get, set, list, presets, validation |
 | Entity management | P2 | Mob caps, tracking range, density; `GET /api/entities/stats`, `POST /api/entities/optimize` |
 | Chunk management | P2 | Pre-generation for performance, loading radius, chunk stats and cleanup |
-| World border manager | P3 | Centre, size, damage, knockback, animated changes |
+| World border manager | P2 | Centre, size, damage, knockback, animated changes; needed by P10 (the expanding world) |
 | Spawn protection manager | P3 | Radius and behaviour |
-| Server icon manager | P3 | Set from file, generate from image, validate 64×64 PNG |
+| Server icon manager | P2 | Set from file, generate from image, validate 64×64 PNG; half of T6 |
 | Structure generation control | P3 | Enable/disable structures, spawn rates, custom templates |
 
 ### Scoreboards and teams
 
-| Item | Priority | Notes |
-| --- | --- | --- |
-| Scoreboard manager | P2 | Objectives, sidebar display, presets; needed by P3 (co-op goals) |
-| Team manager | P2 | Colours, prefixes, friendly fire, collision, membership |
-| Bossbar manager | P2 | Progress bars for events and timers; needed by P5 (Raid Night). Bedtime mode already drives one — factor that code out rather than writing a second |
-| Title / actionbar manager | P2 | Partly covered by `scripts/announcement-manager.sh`; extend rather than replace |
+Moved to [F8](#f8-scoreboards-teams-and-bossbars--green): six games on this
+roadmap depend on it, so it is a foundation rather than backlog.
 
 ### Player and automation
 
@@ -502,7 +743,7 @@ blocking anything; pick them up when one is in the way.
 | Player note system | P2 | Admin notes on a player, categorised and timestamped |
 | Player teleport history | P2 | Saved locations, back/return, teleport requests |
 | Automated world maintenance | P2 | Entity cleanup, chunk optimisation, lag-spike detection, backup before maintenance |
-| Server event manager | P2 | Scheduled tournaments and contests with registration and reward distribution. Overlaps P4/P5 — build those first and generalise if a pattern emerges |
+| Server event manager | P2 | Scheduled tournaments and contests with registration and reward distribution. Overlaps P4, P5 and P9 — build those first and generalise if a pattern emerges |
 | Weather and time scheduling | P3 | Superseded in spirit by H3; build only the parts H3 doesn't cover |
 | Recipe and loot table managers | P3 | Mostly free once F3 exists |
 
