@@ -15,3 +15,19 @@
 #
 # Generate one with: python3 -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=
+
+# --- ALLOWED_ORIGINS is NOT read from this file ---
+# CORS is controlled by the ALLOWED_ORIGINS environment variable, not by a
+# key in api.conf (api/server.py reads it via os.environ, before this file
+# is even parsed). Set it where the API process actually runs -- for the
+# systemd deployment, that's an Environment= line in
+# systemd/minecraft-api.service, e.g.:
+#
+#   Environment="ALLOWED_ORIGINS=https://minecraft.yourdomain.com"
+#
+# It defaults to "*" (every origin) if unset, which flask-cors combines with
+# this API's cookie-based auth (supports_credentials=True) to effectively
+# allow any website to make authenticated requests against it. That default
+# is fine on a trusted local network; set this explicitly before exposing
+# the API beyond one -- the server logs a warning on startup if it's left
+# at "*". Comma-separate multiple origins if you need more than one.
