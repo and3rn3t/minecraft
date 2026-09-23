@@ -20,10 +20,24 @@ SECRET_KEY=
 # CORS is controlled by the ALLOWED_ORIGINS environment variable, not by a
 # key in api.conf (api/server.py reads it via os.environ, before this file
 # is even parsed). Set it where the API process actually runs -- for the
-# systemd deployment, that's an Environment= line in
-# systemd/minecraft-api.service, e.g.:
+# systemd deployment, that's an Environment= line for minecraft-api.service.
 #
+# Don't add it to systemd/minecraft-api.service directly: that file is
+# reinstalled from this repo on every `scripts/update-codebase.sh` pull
+# (it copies systemd/*.service over whatever's in /etc/systemd/system/), so
+# a local edit there is silently lost on the next update. Use an override
+# instead, which layers on top and survives that:
+#
+#   sudo mkdir -p /etc/systemd/system/minecraft-api.service.d
+#   sudo tee /etc/systemd/system/minecraft-api.service.d/override.conf <<'EOF'
+#   [Service]
 #   Environment="ALLOWED_ORIGINS=https://minecraft.yourdomain.com"
+#   EOF
+#   sudo systemctl daemon-reload
+#   sudo systemctl restart minecraft-api.service
+#
+# (`sudo systemctl edit minecraft-api.service` does the same thing via an
+# editor, if you'd rather not paste a heredoc.)
 #
 # It defaults to "*" (every origin) if unset, which flask-cors combines with
 # this API's cookie-based auth (supports_credentials=True) to effectively

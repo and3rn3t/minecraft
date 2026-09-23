@@ -7,17 +7,31 @@
 # admin panel (see docs/SECURITY_HARDENING.md's "Cloudflare Tunnel
 # Deployment" section for the full walkthrough).
 #
-# One-time setup (run once, as the user that will run cloudflared):
+# One-time setup (run as the `pi` user, not root -- steps 1-2 write into
+# ~/.cloudflared, which needs to mean /home/pi/.cloudflared):
 #   1. cloudflared tunnel login
 #   2. cloudflared tunnel create minecraft-admin
 #      -> prints a TUNNEL-UUID and writes ~/.cloudflared/<TUNNEL-UUID>.json
 #   3. cloudflared tunnel route dns minecraft-admin minecraft.yourdomain.com
 #      -> creates the DNS record Cloudflare uses to route to this tunnel
 #   4. Copy this file to ~/.cloudflared/config.yml and fill in the two
-#      placeholders below with the values `tunnel create` printed.
-#   5. cloudflared service install
-#      -> installs and starts cloudflared as a systemd service that reads
-#         this config file and reconnects automatically on boot/crash
+#      placeholders below with the values `tunnel create` printed. Validate
+#      it with: cloudflared tunnel --config ~/.cloudflared/config.yml
+#      ingress validate
+#   5. `sudo cloudflared service install` looks for a config in a fixed
+#      list of paths (see its own error if you skip this step), and since
+#      it runs as root, `~/.cloudflared` there means /root/.cloudflared --
+#      not this file. Make it visible from there first:
+#        sudo mkdir -p /etc/cloudflared
+#        sudo ln -s /home/pi/.cloudflared/config.yml /etc/cloudflared/config.yml
+#      (a symlink, not a copy -- so there's one file to edit later, not two
+#      that can quietly drift apart). *Then* run:
+#        sudo cloudflared service install
+#      which installs and starts cloudflared as a systemd service (running
+#      as root) that follows the symlink and reconnects automatically on
+#      boot/crash. The credentials-file path below stays under
+#      /home/pi/.cloudflared/ either way -- root can read a 600 file it
+#      doesn't own, so there's no need to move or duplicate that one.
 #
 # Verify with: cloudflared tunnel info minecraft-admin
 # and:         curl -I https://minecraft.yourdomain.com/api/health
