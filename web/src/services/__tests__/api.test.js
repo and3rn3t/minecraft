@@ -433,6 +433,7 @@ describe('API Service', () => {
         redirect_uri: 'http://localhost/oauth/callback',
         id_token: null,
         user: null,
+        state: null,
       });
     });
 

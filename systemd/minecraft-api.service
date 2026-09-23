@@ -10,6 +10,11 @@ Group=pi
 WorkingDirectory=/home/pi/minecraft-server/api
 Environment="PATH=/home/pi/minecraft-server/api/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
+# Restricts CORS to your actual frontend origin(s); defaults to "*" (every
+# origin) if unset, which combined with this API's cookie-based auth means
+# any website could make authenticated requests against it. Comma-separate
+# multiple origins. See config/api.conf.example for details.
+# Environment="ALLOWED_ORIGINS=https://minecraft.yourdomain.com"
 # Use Python from virtual environment
 ExecStart=/home/pi/minecraft-server/api/venv/bin/python /home/pi/minecraft-server/api/server.py
 Restart=on-failure
@@ -20,6 +25,41 @@ StandardError=append:/home/pi/minecraft-server/logs/api-server.log
 # Security settings
 NoNewPrivileges=true
 PrivateTmp=true
+
+# ProtectSystem=strict makes the whole filesystem read-only to this process
+# except ReadWritePaths=. The service's entire footprint -- scripts/,
+# config/, logs/, backups/, data/, and the docker-compose calls it shells
+# out to -- lives under one directory, so that's what's granted; anywhere
+# else on the Pi (/etc, /usr, other users' homes) stays unwritable even if
+# the API process is compromised. Not narrowed further than that: the app's
+# file browser, RCON/script/docker subprocess calls, and backup jobs touch
+# enough of the tree under here that a tighter allowlist would need
+# real-hardware testing to get right without breaking something (see
+# AGENTS.md's hardware-testing note) -- left for a follow-up pass, along
+# with SystemCallFilter= and MemoryDenyWriteExecute= (the latter is a known
+# friction point with eventlet/greenlet's stack-switching on some
+# platforms, so it isn't included here either).
+ProtectSystem=strict
+ReadWritePaths=/home/pi/minecraft-server
+
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+RemoveIPC=true
+PrivateDevices=true
+# INET/INET6 for HTTP and outbound OAuth calls, loopback RCON; AF_UNIX for
+# routine interpreter/logging use.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# The service runs as an unprivileged user already (User=pi above) and
+# doesn't need any Linux capability -- this drops whatever it might
+# otherwise inherit.
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target

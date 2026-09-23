@@ -53,6 +53,7 @@ const OAuthCallback = () => {
               type: 'OAUTH_CALLBACK',
               code,
               id_token: idToken,
+              state,
               provider,
               user,
             },

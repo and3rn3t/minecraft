@@ -40,7 +40,7 @@ const OAuthButtons = () => {
           }
 
           if (event.data.type === 'OAUTH_CALLBACK') {
-            handleOAuthCallback(event.data.code, 'google', redirectUri);
+            handleOAuthCallback(event.data.code, 'google', redirectUri, null, null, event.data.state);
             window.removeEventListener('message', messageListener);
             popup.close();
           }
@@ -95,7 +95,8 @@ const OAuthButtons = () => {
                 'apple',
                 redirectUri,
                 event.data.id_token,
-                event.data.user
+                event.data.user,
+                event.data.state
               );
               window.removeEventListener('message', messageListener);
             } catch (error) {
@@ -134,14 +135,15 @@ const OAuthButtons = () => {
     provider,
     redirectUri,
     idToken = null,
-    userData = null
+    userData = null,
+    state = null
   ) => {
     try {
       let result;
       if (provider === 'google') {
-        result = await api.googleOAuthCallback(code, redirectUri);
+        result = await api.googleOAuthCallback(code, redirectUri, state);
       } else if (provider === 'apple') {
-        result = await api.appleOAuthCallback(code, redirectUri, idToken, userData);
+        result = await api.appleOAuthCallback(code, redirectUri, idToken, userData, state);
       }
 
       if (result && result.success) {

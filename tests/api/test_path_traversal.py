@@ -199,9 +199,7 @@ class TestConfigValidate:
 
     @pytest.mark.parametrize("payload", TRAVERSAL_PAYLOADS[:6])
     def test_validate_refuses_anything_not_on_the_allowlist(self, client, auth, payload):
-        response = client.post(
-            f"/api/config/files/{payload}/validate", headers=auth, json={"content": "a: 1"}
-        )
+        response = client.post(f"/api/config/files/{payload}/validate", headers=auth, json={"content": "a: 1"})
 
         assert response.status_code in (308, 400, 403, 404)
         assert not _leaked(response)
@@ -319,9 +317,7 @@ class TestAuditLogDoesNotStoreSecrets:
         # credential trips the secret scanners, and the test only needs a
         # value it can later assert is absent from the log.
         secret_key = "mc_" + uuid.uuid4().hex + uuid.uuid4().hex[:8]
-        monkeypatch.setitem(
-            api_module.API_KEYS, secret_key, {"name": "dashboard", "enabled": True, "role": "admin"}
-        )
+        monkeypatch.setitem(api_module.API_KEYS, secret_key, {"name": "dashboard", "enabled": True, "role": "admin"})
         audit_log = tmp_path / "audit.log"
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
 
@@ -345,9 +341,8 @@ class TestAuditLogDoesNotStoreSecrets:
     def test_passwords_are_not_written_to_the_audit_log(self, client, auth, tmp_path, monkeypatch):
         """An audited route that receives a password must not record it.
 
-        This drives POST /api/users rather than registration: registration does
-        not audit at all, so asserting against its (absent) audit entry proved
-        nothing.
+        This drives POST /api/users rather than registration -- either audits
+        now, but this one doesn't also need REGISTRATION_ENABLED wired up.
         """
         audit_log = tmp_path / "audit.log"
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)

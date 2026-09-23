@@ -181,6 +181,8 @@ class TestPermissionEndpoints:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/permissions")
         assert response.status_code == 200
@@ -195,6 +197,8 @@ class TestPermissionEndpoints:
 
         with client.session_transaction() as session:
             session["username"] = "operator"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/permissions")
         assert response.status_code == 200
@@ -214,6 +218,8 @@ class TestPermissionEndpoints:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/roles")
         assert response.status_code == 200
@@ -232,6 +238,8 @@ class TestUserManagementPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/users")
         # Regular user should not have users.view permission
@@ -242,6 +250,8 @@ class TestUserManagementPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/users")
         assert response.status_code == 200
@@ -253,6 +263,8 @@ class TestUserManagementPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put(
             "/api/users/testuser/role",
@@ -275,6 +287,8 @@ class TestUserManagementPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put(
             "/api/users/testuser/role",
@@ -294,6 +308,8 @@ class TestServerControlPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run"):
             response = client.post("/api/server/start")
@@ -305,6 +321,8 @@ class TestServerControlPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "operator"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
             from unittest.mock import MagicMock
@@ -323,6 +341,8 @@ class TestServerControlPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stdout=b"")
@@ -339,6 +359,8 @@ class TestBackupPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/backup")
         # Regular user should not have backup.create permission
@@ -349,6 +371,8 @@ class TestBackupPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "operator"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
             from unittest.mock import MagicMock
@@ -367,6 +391,8 @@ class TestBackupPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
             from unittest.mock import MagicMock
@@ -389,6 +415,8 @@ class TestAPIKeyPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/keys")
         # Regular user should not have api_keys.view permission
@@ -409,6 +437,8 @@ class TestAPIKeyPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.get("/api/keys")
         assert response.status_code == 200
@@ -420,6 +450,8 @@ class TestAPIKeyPermissions:
 
         with client.session_transaction() as session:
             session["username"] = "operator"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post(
             "/api/keys",
@@ -597,6 +629,8 @@ class TestCreateUser:
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/users", json={"username": "silas", "password": "a-long-password"})
 
@@ -611,6 +645,8 @@ class TestCreateUser:
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post(
             "/api/users",
@@ -624,6 +660,8 @@ class TestCreateUser:
         """Creating accounts needs users.manage, which an operator lacks"""
         with client.session_transaction() as session:
             session["username"] = "operator"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/users", json={"username": "sneaky", "password": "a-long-password"})
 
@@ -634,6 +672,8 @@ class TestCreateUser:
         """Nor may an ordinary account, which is the escalation that matters"""
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post(
             "/api/users",
@@ -653,6 +693,8 @@ class TestCreateUser:
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post(
             "/api/users",
@@ -667,6 +709,8 @@ class TestCreateUser:
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/users", json={"username": "admin", "password": "a-long-password"})
 
@@ -678,6 +722,8 @@ class TestCreateUser:
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/users", json={"username": "silas", "password": "short"})
 
@@ -689,6 +735,8 @@ class TestCreateUser:
         self._mock_hashing(monkeypatch)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         too_short = client.post("/api/users", json={"username": "ab", "password": "a-long-password"})
         assert too_short.status_code == 400
@@ -696,15 +744,15 @@ class TestCreateUser:
         too_long = client.post("/api/users", json={"username": "a" * 33, "password": "a-long-password"})
         assert too_long.status_code == 400
 
-    def test_a_failed_save_does_not_leave_the_user_behind(
-        self, client, admin_user, temp_users_file, monkeypatch
-    ):
+    def test_a_failed_save_does_not_leave_the_user_behind(self, client, admin_user, temp_users_file, monkeypatch):
         """A user that could not be persisted must not linger in memory,
         where it would work until the next restart and then vanish."""
         self._mock_hashing(monkeypatch)
         monkeypatch.setattr(api_module, "save_users", lambda: False)
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/users", json={"username": "silas", "password": "a-long-password"})
 
@@ -719,6 +767,8 @@ class TestAPIKeyScopeManagement:
         """Creating a key without saying what it is for must not mint an admin"""
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/keys", json={"name": "shortcut"})
         assert response.status_code == 201
@@ -730,6 +780,8 @@ class TestAPIKeyScopeManagement:
         """An unrecognised role is a bad request, not a silent default"""
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/keys", json={"name": "bad", "role": "superuser"})
         assert response.status_code == 400
@@ -738,6 +790,8 @@ class TestAPIKeyScopeManagement:
         """A misspelled permission is rejected rather than dropped quietly"""
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.post("/api/keys", json={"name": "bad", "permissions": ["server.viwe"]})
         assert response.status_code == 400
@@ -749,6 +803,8 @@ class TestAPIKeyScopeManagement:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put(f"/api/keys/{test_key}", json={"role": "user"})
         assert response.status_code == 200
@@ -766,6 +822,8 @@ class TestAPIKeyScopeManagement:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         listed_id = json.loads(client.get("/api/keys").data)["keys"][0]["id"]
         assert "..." in listed_id
@@ -789,12 +847,16 @@ class TestAPIKeyScopeManagement:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.delete("/api/keys/mc_shared_prefix")
         assert response.status_code == 404
         assert len(api_module.API_KEYS) == 2
 
-    def test_rescope_rolls_back_a_failed_save(self, client, admin_user, temp_users_file, temp_api_keys_file, monkeypatch):
+    def test_rescope_rolls_back_a_failed_save(
+        self, client, admin_user, temp_users_file, temp_api_keys_file, monkeypatch
+    ):
         """A scope that could not be written must not stay live in this process"""
         test_key = "test-api-key-123456789012345678901234567890"  # gitleaks:allow
         api_module.API_KEYS[test_key] = {"name": "legacy", "enabled": True, "role": "admin"}
@@ -802,6 +864,8 @@ class TestAPIKeyScopeManagement:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put(f"/api/keys/{test_key}", json={"role": "user"})
 
@@ -815,6 +879,8 @@ class TestAPIKeyScopeManagement:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put(f"/api/keys/{test_key}", json={})
         assert response.status_code == 400
@@ -837,6 +903,8 @@ class TestUserEnableDisable:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put("/api/users/testuser/enable")
         assert response.status_code == 403
@@ -855,6 +923,8 @@ class TestUserEnableDisable:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put("/api/users/testuser/enable")
         assert response.status_code == 200
@@ -874,6 +944,8 @@ class TestUserEnableDisable:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         response = client.put("/api/users/testuser/disable")
         assert response.status_code == 200
@@ -888,6 +960,8 @@ class TestUserEnableDisable:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         # Try to disable the only admin
         if admin_count == 1:
@@ -906,6 +980,8 @@ class TestConfigFilePermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         # Regular user should have config.view permission
         with patch("api.server.subprocess.run") as mock_run:
@@ -924,6 +1000,8 @@ class TestConfigFilePermissions:
 
         with client.session_transaction() as session:
             session["username"] = "user"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         # Regular user should not have config.edit permission
         response = client.post(
@@ -937,6 +1015,8 @@ class TestConfigFilePermissions:
 
         with client.session_transaction() as session:
             session["username"] = "operator"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         # Operator should not have config.edit permission either
         response = client.post(
@@ -950,6 +1030,8 @@ class TestConfigFilePermissions:
 
         with client.session_transaction() as session:
             session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         # Admin should have config.edit permission
         # This will fail if file doesn't exist, but permission check should pass

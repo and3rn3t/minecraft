@@ -1,0 +1,37 @@
+# cloudflared tunnel config -- routes a public hostname to this Pi's nginx
+# (config/nginx-minecraft.conf) without forwarding any port on your router.
+# cloudflared makes an outbound-only connection to Cloudflare's edge, which
+# terminates TLS for the tunnel hostname and proxies traffic down that
+# connection to the `service:` below; nothing needs to accept inbound
+# connections from the WAN, so this is the recommended way to expose the
+# admin panel (see docs/SECURITY_HARDENING.md's "Cloudflare Tunnel
+# Deployment" section for the full walkthrough).
+#
+# One-time setup (run once, as the user that will run cloudflared):
+#   1. cloudflared tunnel login
+#   2. cloudflared tunnel create minecraft-admin
+#      -> prints a TUNNEL-UUID and writes ~/.cloudflared/<TUNNEL-UUID>.json
+#   3. cloudflared tunnel route dns minecraft-admin minecraft.yourdomain.com
+#      -> creates the DNS record Cloudflare uses to route to this tunnel
+#   4. Copy this file to ~/.cloudflared/config.yml and fill in the two
+#      placeholders below with the values `tunnel create` printed.
+#   5. cloudflared service install
+#      -> installs and starts cloudflared as a systemd service that reads
+#         this config file and reconnects automatically on boot/crash
+#
+# Verify with: cloudflared tunnel info minecraft-admin
+# and:         curl -I https://minecraft.yourdomain.com/api/health
+
+tunnel: REPLACE-WITH-YOUR-TUNNEL-UUID
+credentials-file: /home/pi/.cloudflared/REPLACE-WITH-YOUR-TUNNEL-UUID.json
+
+ingress:
+  # nginx listens on 127.0.0.1:80 (config/nginx-minecraft.conf) -- cloudflared
+  # runs on the same Pi, so this reaches it over loopback. Cloudflare has
+  # already terminated TLS by this point; this hop is plaintext HTTP but
+  # never leaves the machine.
+  - hostname: minecraft.yourdomain.com
+    service: http://localhost:80
+  # Required catch-all: any request for a hostname not explicitly listed
+  # above gets a 404 rather than being routed anywhere.
+  - service: http_status:404

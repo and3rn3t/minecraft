@@ -184,6 +184,74 @@ All notable changes to this project will be documented in this file.
   before this are kept as `admin` with a startup warning, and can be narrowed
   from the API Keys page or with the new `PUT /api/keys/<key_id>`.
 
+- **Apple Sign In accepted a forged login as any user.** `apple_oauth_callback()`
+  and the account-linking path both decoded the Apple ID token with
+  `verify_signature=False` and trusted its `sub` claim outright, so anyone who
+  could POST to `/api/auth/oauth/apple/callback` could self-sign a JWT naming
+  an arbitrary user and be logged in as them. `verify_apple_id_token()` now
+  verifies the signature against Apple's published JWKS
+  (`https://appleid.apple.com/auth/keys`) plus audience, issuer and expiry.
+- **No rate limiting on any auth endpoint.** Login, registration, 2FA
+  verify/disable, and both OAuth providers' URL/callback/link routes had no
+  throttling at all — passwords and TOTP codes were guessable with no limit.
+  Flask-Limiter now caps login at 5/minute + 20/hour per IP, 2FA and the
+  OAuth callback/link routes at 10/minute, registration at 10/hour, and
+  OAuth URL generation at 30/minute; nginx adds an independent second layer
+  on `/api/auth/*`. Both layers key on the visitor's IP, which behind the
+  documented Cloudflare Tunnel would otherwise always be cloudflared's own
+  loopback address — nginx now recovers the real one from Cloudflare's
+  `CF-Connecting-IP` header via `ngx_http_realip_module` before either layer
+  sees it, and `api/server.py`'s `ProxyFix` trusts that corrected hop.
+- **CORS defaulted to `*` with credentials allowed.** Combined with
+  `supports_credentials=True`, this let any site make authenticated requests
+  against the API — flask-cors reflects the request's `Origin` instead of a
+  literal `*` once credentials are in play. The server now warns loudly on
+  startup if `ALLOWED_ORIGINS` is still unset.
+- **The session cookie had no `Secure`/`SameSite` flags, and nothing checked
+  CSRF.** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY` and
+  `SESSION_COOKIE_SAMESITE="Strict"` are now set explicitly, and a
+  synchronizer-token CSRF check is enforced on state-changing requests
+  authenticated via the session cookie. The Bearer-JWT path is checked
+  *before* the session cookie specifically so that the panel's own traffic
+  (same-origin, so the cookie rides along automatically alongside the
+  Bearer token it actually authenticates with) never gets routed through
+  the CSRF check the SPA never learned to answer — a cross-site page can
+  still only ever get the cookie sent for it, never a valid `Authorization`
+  header, so this doesn't weaken the protection itself. The OAuth
+  authorization flow (both login *and* account-linking) also gained a
+  `state` parameter, closing a separate CSRF gap where nothing stopped an
+  attacker from feeding their own OAuth code/id_token to a victim's
+  browser; since that depends on the session cookie surviving between the
+  authorization-URL request and the callback, the frontend's API client
+  now sends credentials on cross-origin requests too (the documented local
+  dev setup is cross-origin between Vite and Flask).
+- **Breaking: `?api_key=...` in the URL is no longer accepted.** It leaked
+  into nginx access logs, browser history, and any `Referer` header a
+  follow-on request sends. The `X-API-Key` header is now the only accepted
+  form — a request still using the query parameter gets a 401 instead of
+  being authenticated. `docs/API.md` updated to match.
+- **Login, logout, registration, 2FA and OAuth events were never audited**,
+  despite `docs/SECURITY_HARDENING.md` claiming otherwise. `log_audit_event()`
+  is now called from all of them (never logging the password itself).
+- **Security headers tightened, and now actually reach the page that loads
+  the app.** `Content-Security-Policy` moved from a bare `default-src 'self'`
+  to explicit per-directive rules (no inline/eval scripts, `frame-ancestors
+  'none'`), a `Permissions-Policy` header was added, and the deprecated,
+  no-longer-meaningful `X-XSS-Protection` header was dropped — but these
+  were only ever set on Flask's own JSON responses, never on `index.html` or
+  the JS/CSS bundle nginx serves directly from disk, which is what a
+  browser actually enforces CSP against. `config/nginx-minecraft.conf` now
+  carries the same headers on its static-file locations too.
+- **`systemd/minecraft-api.service` sandboxing**: added `ProtectSystem=strict`
+  (scoped to the service's own directory via `ReadWritePaths=`),
+  `CapabilityBoundingSet=`, and several other namespace/kernel-protection
+  directives, on top of the `NoNewPrivileges`/`PrivateTmp` that were already
+  there.
+- Added a documented path to exposing the admin panel to the internet via a
+  Cloudflare Tunnel (`config/cloudflared-config.yml.example`,
+  `docs/SECURITY_HARDENING.md`) rather than a direct port-forward — nginx now
+  binds to `127.0.0.1` only.
+
 <!-- Everything from here down is released history, which repeats
      "### Added" and friends within a single version. It is not being
      rewritten. MD024 stays on for [Unreleased] above, which is the section
