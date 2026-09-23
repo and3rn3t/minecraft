@@ -73,7 +73,7 @@ Before this, **no auth endpoint had any rate limiting at all** -- passwords, TOT
 ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 ```
 
-For the systemd deployment, set it in `systemd/minecraft-api.service`'s `Environment=` block (see the commented example already there).
+For the systemd deployment, set it via a systemd override (`sudo systemctl edit minecraft-api.service`) rather than editing `systemd/minecraft-api.service` directly -- that file is reinstalled from the repo on every `scripts/update-codebase.sh` pull, which would silently discard a direct edit. See `config/api.conf.example` for the exact commands.
 
 ### 5. Secure Secret Key Management
 

@@ -14,7 +14,13 @@ Environment="PYTHONUNBUFFERED=1"
 # origin) if unset, which combined with this API's cookie-based auth means
 # any website could make authenticated requests against it. Comma-separate
 # multiple origins. See config/api.conf.example for details.
-# Environment="ALLOWED_ORIGINS=https://minecraft.yourdomain.com"
+#
+# Don't uncomment and edit this line in place: this file gets reinstalled
+# from the repo on every `scripts/update-codebase.sh` pull, which would
+# silently discard a local edit here. Set it via a systemd override instead
+# (`sudo systemctl edit minecraft-api.service`, or see
+# config/api.conf.example for the exact commands) -- that layers on top and
+# survives the next update.
 # Use Python from virtual environment
 ExecStart=/home/pi/minecraft-server/api/venv/bin/python /home/pi/minecraft-server/api/server.py
 Restart=on-failure
