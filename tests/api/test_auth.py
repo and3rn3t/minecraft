@@ -629,6 +629,32 @@ class TestCsrfProtection:
         )
         assert response.status_code != 403
 
+    def test_bearer_token_wins_over_a_stray_session_cookie(self, client, temp_users_file, mock_jwt):
+        """Regression test: the web panel is same-origin behind nginx, so
+        the browser attaches the session cookie to *every* request --
+        including ones the panel is authenticating with its Bearer token.
+        require_auth must check the Bearer token before the session cookie,
+        or every mutating panel action after login 403s on a missing CSRF
+        header the panel never even knows to send."""
+        if not mock_jwt:
+            pytest.skip("jwt not available")
+
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+        # A session cookie is present too (e.g. left over from the login
+        # request that also minted the Bearer token) but carries no CSRF
+        # token -- if the session branch won, this would 403.
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+
+        response = client.post(
+            "/api/users",
+            json={"username": "new", "password": "password123", "role": "user"},
+            headers={"Authorization": "Bearer token_testuser"},
+        )
+        assert response.status_code == 201
+
 
 class TestAuthAuditLogging:
     """login/register/logout/2FA weren't audited at all before this --

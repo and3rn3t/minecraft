@@ -167,6 +167,14 @@ app = Flask(__name__)
 # request.is_secure for anything scheme-dependent, without trusting headers
 # an internet client could forge directly against Flask (there's no path to
 # Flask that skips nginx).
+#
+# This one hop is only actually the real client's IP, though, if nginx's
+# own $remote_addr is correct first -- behind the documented Cloudflare
+# Tunnel deployment, nginx's literal peer is always cloudflared on
+# 127.0.0.1, so config/nginx-minecraft.conf recovers the real visitor IP
+# via Cloudflare's CF-Connecting-IP header (see its `real_ip_header`
+# comment) before it ever builds the X-Forwarded-For chain read here.
+# Without that, every visitor would look identical to Flask-Limiter.
 from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -1047,15 +1055,17 @@ def require_auth(f):
             else:
                 return jsonify({"error": "Invalid API key"}), 401
 
-        # Check session
-        if "username" in session:
-            if _csrf_check_failed():
-                return jsonify({"error": "Missing or invalid CSRF token"}), 403
-            request.user = session.get("username")
-            request.user_info = USERS.get(session.get("username"), {})
-            return f(*args, **kwargs)
-
-        # Check JWT token
+        # Check JWT token before the session cookie. The web panel is
+        # same-origin behind nginx, so the browser attaches the session
+        # cookie to every request automatically -- including ones where the
+        # panel is deliberately authenticating with its Bearer token
+        # instead. If the session branch were checked first, every such
+        # request would be forced through the CSRF check below even though
+        # a valid, non-forgeable Bearer credential was already presented,
+        # which breaks every mutating panel action once a cookie exists
+        # from the same login. A Bearer token can't be attached by a
+        # cross-site page the way a cookie can, so trusting it here doesn't
+        # weaken the CSRF protection the cookie path still needs.
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
@@ -1064,6 +1074,14 @@ def require_auth(f):
                 request.user = username
                 request.user_info = USERS.get(username, {})
                 return f(*args, **kwargs)
+
+        # Check session
+        if "username" in session:
+            if _csrf_check_failed():
+                return jsonify({"error": "Missing or invalid CSRF token"}), 403
+            request.user = session.get("username")
+            request.user_info = USERS.get(session.get("username"), {})
+            return f(*args, **kwargs)
 
         return jsonify({"error": "Authentication required"}), 401
 
@@ -1645,6 +1663,11 @@ def link_oauth_account(provider):
     code = data.get("code")
     redirect_uri = data.get("redirect_uri")
     id_token = data.get("id_token")
+    state = data.get("state")
+
+    if not _verify_oauth_state(state):
+        log_audit_event(username, "oauth_link_failure", {"provider": provider, "reason": "state_mismatch"})
+        return jsonify({"error": "Invalid or expired OAuth state"}), 400
 
     try:
         if provider == "google":

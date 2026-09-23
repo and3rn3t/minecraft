@@ -149,6 +149,41 @@ class TestOAuthLink:
         )
         assert response.status_code == 400
 
+    def test_link_oauth_rejects_missing_state(self, client, mock_auth_session):
+        """Account linking must verify `state` too, the same as login --
+        otherwise an attacker's own OAuth response could be fed to a
+        logged-in victim's browser and linked to the victim's account."""
+        response = client.post(
+            "/api/auth/oauth/google/link",
+            json={"code": "test", "redirect_uri": "http://localhost/callback"},
+        )
+        assert response.status_code == 400
+        assert "state" in response.get_json().get("error", "").lower()
+
+    def test_link_oauth_rejects_wrong_state(self, client, mock_auth_session, oauth_state):
+        response = client.post(
+            "/api/auth/oauth/google/link",
+            json={"code": "test", "redirect_uri": "http://localhost/callback", "state": "a-guessed-value"},
+        )
+        assert response.status_code == 400
+        assert "state" in response.get_json().get("error", "").lower()
+
+    def test_link_oauth_accepts_correct_state(self, client, mock_auth_session, oauth_state, temp_oauth_config):
+        """With the right state, the request should get *past* the state
+        check -- proven here by reaching (and failing at) the token
+        exchange instead of being rejected for a bad state."""
+        from unittest.mock import MagicMock, patch
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MagicMock(status_code=400)
+            response = client.post(
+                "/api/auth/oauth/google/link",
+                json={"code": "test", "redirect_uri": "http://localhost/callback", "state": oauth_state},
+            )
+
+        assert response.status_code == 400
+        assert "state" not in response.get_json().get("error", "").lower()
+
 
 class TestOAuthUnlink:
     """Tests for POST /api/auth/oauth/<provider>/unlink endpoint"""
