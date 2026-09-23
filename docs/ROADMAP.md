@@ -73,13 +73,15 @@ cheaper.
 | --- | --- | --- |
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
 | 2 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 3 | F3, P2 | Datapack pipeline plus family advancements, visible in the game's own UI |
+| 2½ | F7 | Decide the game version before writing a single datapack — pack formats and item syntax both change across it |
+| 3 | F3, P2, W8, W7 | Datapack pipeline plus family advancements, graves and lucky blocks, all visible in the game's own UI |
 | 4 | M2, M1 | Map and time-lapse, rendered on the Mac, zero cost to the Pi |
 | 5 | F6, W4, T3, M5 | The book pipeline: F6 builds the items, then the Gazette, mail and the time capsule all share it |
 | 6 | W2 | The Invention Forge, once the datapack validator can be trusted |
 | 7 | H1, H2, H3 | House and game wired to each other |
 | 8 | R1 | Geyser, if tablets matter — consider pulling this much earlier |
 | 9 | F4, M3, T1, H4, T4 | The big physical projects. F4 comes first in this row: T1 serves its pack through it |
+| Any time after 3 | P7, P8, P9, P10, P11, H5, M6, M7, T5, T6, T7 | Self-contained once the datapack pipeline exists; pick whichever the boys are asking for that month |
 
 **R1 (cross-play) is the one to reconsider first.** If the kids have iPads it
 changes when and where they can play at all, which outranks anything else on
@@ -144,6 +146,40 @@ vanilla.
 
 Wants `scripts/resource-pack-manager.sh` (set URL, upload, compute hash,
 enable/disable) and `GET`/`POST`/`DELETE /api/resourcepack`.
+
+### F7. Catch up to current Minecraft — Yellow, and decide it early
+
+The server defaults to **1.20.4**, which is now a long way behind the game the
+boys see on YouTube. Everything added since is missing from their world:
+
+- **Trial chambers, the breeze and the mace** (1.21) — a new dungeon type built
+  for exactly this age, with a weapon whose whole point is falling on things.
+- **Bundles** (1.21.2) and **the Pale Garden with the creaking** (1.21.4).
+- **The happy ghast** (1.21.6) — a giant friendly ghast you can put a harness
+  on and fly with four players riding it. On its own this is a reason to
+  upgrade.
+- **Copper golems** (1.21.9) that sort chests for you.
+
+It matters for this roadmap as much as for the game. 1.20.5 moved items to
+components, 1.21 made **enchantments data-driven**, and 1.21.4 lets a datapack
+point any item at a custom model. Together they turn W2 (the Invention Forge)
+from "a recipe that renames a vanilla item" into genuinely new items with new
+enchantments, and T1's textures stop needing the CustomModelData workaround.
+The Java side is already done: the image runs Temurin 25.
+
+Yellow because upgrading a world is one-way. The procedure:
+
+1. Take a verified backup and push it offsite.
+2. Boot a copy of that backup on the new version on the Mac first (the same
+   trick as M4's rewind), walk around, check the bases.
+3. Bump `MINECRAFT_VERSION`, pre-generate a ring around spawn so the new
+   biomes and structures exist where they will actually be found, and upgrade.
+
+Do it **before F3**. Datapacks carry a `pack_format` that changes almost every
+release, and item syntax changed at 1.20.5, so every datapack and every F6 book
+written against 1.20.4 would need rewriting afterwards. Pick the newest release
+that has been out a couple of weeks when the work starts, not whatever is
+named here.
 
 ---
 
@@ -239,6 +275,41 @@ Shortcut that starts the server and reads status wants `server.control` and
 `server.view` and nothing else — not the `admin` role, and not a key shared with
 the dashboard.
 
+### W7. Lucky blocks — Green
+
+The single most requested thing on any server kids run. A special block —
+a player head with a gold "?" texture needs no resource pack at all — and
+breaking it rolls a loot table: a diamond sword, a stack of cake, a pig
+wearing a saddle, a lightning strike, an anvil falling from the sky, a
+charged creeper named "Oops".
+
+Pure datapack: a `minecraft.mined:minecraft.player_head` scoreboard stat
+catches the break, a tick function finds the dropped head by its custom data
+and swaps it for a roll of a weighted random loot table. Tune the
+table so the good outcomes win about 70% of the time and the funny ones cover
+most of the rest; nothing should wipe a base. Give it a crafting recipe so
+lucky blocks are earned rather than spawned, and add a **Lucky Block Race**
+to the P8 arcade.
+
+Outcomes can be written by the boys themselves from a dashboard form, which
+turns it into a thing they designed rather than a thing they downloaded.
+
+### W8. Graves — Green
+
+Losing a whole inventory to lava is the fastest way to end an evening in
+tears. `keepInventory` fixes that but removes all tension; graves are the
+middle ground. When a player dies, their items go into a grave marker at the
+spot, only they can open it, and the Hall of Deaths announcement gains a
+clickable line with the coordinates.
+
+A datapack does this on vanilla. The event bus already knows about every
+death, and the log line lacks coordinates, but
+`data get entity <player> LastDeathLocation` over RCON supplies them, so the
+API side is small: store the location alongside the obituary. Worth deciding
+up front: after 30 real minutes the grave opens to everyone (so a sibling can
+rescue it), and after a day the items drop normally. The epitaph from
+`api/epitaphs.py` can go on a sign above the grave.
+
 ---
 
 ## Tier 2 — The house and the game talk to each other
@@ -299,6 +370,21 @@ E-ink over SPI is fine.
 This is also the repo's one completely untouched area: nothing here drives
 anything physical today.
 
+### H5. Chores for emeralds — Green
+
+The `family` repo already knows which chores are done. When a parent ticks one
+off, the player gets paid in game: emeralds to spend at a family trader
+villager at spawn, whose offers are set with `/summon villager` and custom
+`Offers` NBT (or components after F7). Put the rare stuff — a mending book,
+a saddle, the cool armour trim templates — behind that shop, so real-world
+effort buys real in-game value.
+
+Two details make it work. Payment must survive the player being offline, so
+queue it and deliver on the next `join` event, the same shape T3's mail needs.
+And a parent approves each payment on the dashboard rather than it firing
+automatically, so it stays a reward and never becomes something to negotiate
+with a script.
+
 ---
 
 ## Tier 3 — Memory and spectacle
@@ -349,6 +435,31 @@ you on a real date a year from now.
 No datapack needed: store the book's contents as JSON and schedule the `/give`
 through the existing command scheduler. Technically the smallest item in this
 document, and probably the one that matters most in five years.
+
+### M6. The pet cemetery — Green
+
+Kids grieve dogs. Vanilla logs the death of any **named** entity —
+`Named entity Wolf['Biscuit'/…] died: Biscuit was slain by Skeleton` — so a
+tamed wolf, cat, parrot or horse with a name tag already produces a log line
+nobody reads.
+
+Add a `pet_death` type to the event bus's parser, give it an obituary in the
+Hall of Deaths with its own section, and build a small cemetery in game: each
+pet gets a gravestone sign with the name, owner, date and epitaph. Announce it
+gently rather than with the comedy tone the player obituaries use. This will
+matter more to them than it looks like it should.
+
+### M7. The Hall of Champions — Green
+
+Statues at spawn. When someone earns a milestone advancement — kills the Ender
+Dragon, beats the Wither, finds an ancient city — the API builds a statue: an
+armour stand wearing that player's head (`player_head` with their name), the
+armour they were wearing, holding the weapon they used, posed mid-swing, on a
+plinth with a plaque.
+
+The `advancement` event already carries everything needed. The statue spot
+comes from a list of plinth coordinates the API fills in order. After a year,
+spawn is a gallery of everything they have done, with their own faces on it.
 
 ---
 
@@ -405,6 +516,66 @@ Automatic firework shows, cake, custom titles and themed loot on birthdays and
 holidays. `scripts/command-scheduler.py` already handles date-based scheduling,
 so this is content, not engineering.
 
+### P7. Manhunt — Dad versus the boys — Green
+
+The format they already watch on YouTube: one speedrunner tries to beat the
+Ender Dragon, the hunters chase them with a compass that always points at
+their target. Here it is two brothers against Dad, or Dad as the runner and
+both of them hunting.
+
+A datapack gives each hunter a lodestone compass whose target a tick function
+updates to the runner's position every second; the dashboard picks the teams,
+resets a fresh world from a template and runs the timer. Results go in the
+Gazette. Uses the team and bossbar tooling in the
+[management backlog](#scoreboards-and-teams).
+
+### P8. The Arcade — Green
+
+A permanent minigame hub, next to spawn rather than in a temporary world: a
+boat race with lap timers, spleef, TNT run, an elytra ring course, a parkour
+tower with checkpoints. Each is a command-block or datapack build with a
+scoreboard timer.
+
+The admin-portal half is what makes it last: every run is recorded, the
+dashboard keeps a **records board** per game with each kid's personal best,
+and a new record gets a server-wide title and a line in the Gazette. Beating
+your brother's lap time by 0.4 seconds is a reason to play for weeks.
+
+### P9. Build Battles with family voting — Green
+
+Every Saturday a theme — from a list or from the Oracle: "a treehouse", "a
+volcano lair", "the Pi's home as a castle". Each builder gets an identical
+plot, a timer on the bossbar, and creative mode inside the plot boundary.
+
+When time is up the dashboard shows a screenshot or map render of each plot
+and **the grown-ups vote from their phones** — Mom and grandparents included,
+through a no-login link with a one-time code that can do nothing but vote. The winner's build goes to the
+Museum (M4) and on the front page of the Gazette.
+
+### P10. The expanding world — Green
+
+Start a new world with a small world border, say 500 blocks. It grows only
+when the family hits co-op goals (P3): every thousand blocks mined together,
+every boss beaten, every village saved. The border animates outwards with an
+announcement and a firework show at spawn, and everyone rushes to see what
+was just revealed.
+
+It turns the whole world into a progression system with a single vanilla
+command. Promotes the world border manager in the backlog from P3 to P2.
+
+### P11. The bounty board — Green
+
+Parents post challenges from the dashboard: "mine 64 iron", "tame a horse",
+"reach the End", "build a bridge over the river". Each shows up in game on a
+physical board at spawn and as a `/trigger bounties` list.
+
+Most complete themselves — the stats files from
+[PLAYER_STATS.md](PLAYER_STATS.md) and the `advancement` event already answer
+"did he mine 64 iron" and "did he reach the End" — and pay out automatically,
+in emeralds for H5's shop or a custom item. Build challenges get a parent
+"approve" button. Lighter than the Oracle's daily quests, fully under parental
+control, and needs no model at all.
+
 ---
 
 ## Tier 5 — Make it theirs
@@ -443,6 +614,46 @@ switch worlds, grant a kit, trigger an event.
 Physical objects that do things in a video game is a category of magic that
 lands extremely well at this age.
 
+### T5. Real photos on the walls — Yellow
+
+Upload a family photo on the dashboard and it appears in game as map art in
+item frames: the dog on the wall of their base, a holiday snapshot in the
+Museum. Resize to a grid of 128×128 tiles, quantise each tile to the map
+colour palette with dithering, write each as a `map_<n>.dat`, then `/give`
+the filled maps.
+
+Yellow because the server holds the map counter in memory: write map files
+only while the server is stopped (the nightly backup window works), or claim
+IDs by having RCON create blank maps first and overwrite those files. Cheaper
+than T2's pixel art in blocks and much prettier, but fixed to the size of an
+item frame wall.
+
+### T6. The server list talks — Green
+
+The first thing they see is the multiplayer screen, and it can say something.
+Regenerate `motd` and `server-icon.png` on every restart: "Silas is 3
+diamonds ahead", "7 days since anyone fell in lava", "Build Battle tomorrow:
+volcano lair", with the icon swapped for a holiday version or the latest
+champion's face.
+
+Both are read only at startup, so this rides the existing restart schedule.
+The server icon manager in the backlog is half of it already. Minutes of work
+once written, and it makes the server feel alive before they have even
+joined.
+
+### T7. Design-a-world — Yellow
+
+Datapacks can define world generation: taller mountains, floating islands,
+oceans of lava, a world that is all mushroom fields. Give the dashboard a
+page of friendly sliders and presets — "how tall are mountains", "how much
+ocean", "which biomes" — that writes a worldgen datapack, then hands it to
+`scripts/world-manager.sh` to create the world.
+
+Yellow for the Pi: exotic terrain is expensive to generate, so pre-generate a
+modest area on the Mac, copy it across and cap the world border (P10 fits
+naturally). The result is a world whose shape they chose, which is a
+different feeling from any seed.
+
 ---
 
 ## Tier 6 — Reach
@@ -479,7 +690,7 @@ blocking anything; pick them up when one is in the way.
 | Gamerule manager | P2 | `scripts/gamerule-manager.sh` plus `GET`/`PUT /api/gamerules/<rule>`; get, set, list, presets, validation |
 | Entity management | P2 | Mob caps, tracking range, density; `GET /api/entities/stats`, `POST /api/entities/optimize` |
 | Chunk management | P2 | Pre-generation for performance, loading radius, chunk stats and cleanup |
-| World border manager | P3 | Centre, size, damage, knockback, animated changes |
+| World border manager | P2 | Centre, size, damage, knockback, animated changes; needed by P10 (the expanding world) |
 | Spawn protection manager | P3 | Radius and behaviour |
 | Server icon manager | P3 | Set from file, generate from image, validate 64×64 PNG |
 | Structure generation control | P3 | Enable/disable structures, spawn rates, custom templates |
