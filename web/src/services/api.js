@@ -356,30 +356,33 @@ export const api = {
     return response.data;
   },
 
-  async googleOAuthCallback(code, redirectUri) {
+  async googleOAuthCallback(code, redirectUri, state = null) {
     const response = await apiClient.post('/auth/oauth/google/callback', {
       code,
       redirect_uri: redirectUri,
+      state,
     });
     return response.data;
   },
 
-  async appleOAuthCallback(code, redirectUri, idToken, userData) {
+  async appleOAuthCallback(code, redirectUri, idToken, userData, state = null) {
     const response = await apiClient.post('/auth/oauth/apple/callback', {
       code,
       redirect_uri: redirectUri,
       id_token: idToken,
       user: userData,
+      state,
     });
     return response.data;
   },
 
-  async linkOAuthAccount(provider, code, redirectUri, idToken = null, userData = null) {
+  async linkOAuthAccount(provider, code, redirectUri, idToken = null, userData = null, state = null) {
     const response = await apiClient.post(`/auth/oauth/${provider}/link`, {
       code,
       redirect_uri: redirectUri,
       id_token: idToken,
       user: userData,
+      state,
     });
     return response.data;
   },
