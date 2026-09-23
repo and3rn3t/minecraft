@@ -293,6 +293,15 @@ _CSP = "; ".join(
 @app.after_request
 def security_headers(response):
     """Add security headers to all responses"""
+    # config/nginx-minecraft.conf's `location = /oauth/callback` adds this
+    # same set of headers unconditionally, covering both the GET (SPA) and
+    # POST (proxied here) cases in one place -- nginx's `add_header`
+    # doesn't replace an upstream header of the same name, it appends
+    # another copy of it, so setting these here too would duplicate every
+    # one of them on this route specifically.
+    if request.path == "/oauth/callback":
+        response.headers.pop("Server", None)
+        return response
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

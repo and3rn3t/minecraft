@@ -61,3 +61,26 @@ class TestSecurityHeaders:
         script_src = next(part.strip() for part in csp.split(";") if part.strip().startswith("script-src"))
         assert "unsafe-inline" not in script_src
         assert "unsafe-eval" not in script_src
+
+    def test_oauth_callback_relay_gets_none_of_these_headers_from_flask(self, client):
+        """config/nginx-minecraft.conf's `location = /oauth/callback` adds
+        this same header set unconditionally, covering both the GET (SPA)
+        and POST (proxied to apple_oauth_form_post_relay) cases in one
+        place. nginx's add_header appends rather than replaces an existing
+        header of the same name on a proxied response, so if Flask also
+        set these here, every one of them would be duplicated on this one
+        route. Regression test for exactly that: confirmed live against a
+        real nginx + a fake upstream replicating this hook's old
+        (unconditional) behavior before this test/fix existed."""
+        response = client.post("/oauth/callback", data={"code": "abc", "state": "xyz"})
+
+        assert response.status_code == 302
+        for header in (
+            "X-Content-Type-Options",
+            "X-Frame-Options",
+            "Strict-Transport-Security",
+            "Content-Security-Policy",
+            "Referrer-Policy",
+            "Permissions-Policy",
+        ):
+            assert header not in response.headers, f"{header} should be left to nginx for this route"
