@@ -408,3 +408,80 @@ class TestAppleOAuthCallback:
         data = json.loads(response.data)
         assert data["success"] is True
         assert "apple:real-apple-user-id" in api_module.USERS[data["user"]["username"]]["oauth_providers"]
+
+
+class TestAppleFormPostRelay:
+    """Tests for POST /oauth/callback (api/server.py's
+    apple_oauth_form_post_relay).
+
+    Apple requires response_mode=form_post whenever the requested scope
+    includes name/email, which get_oauth_url's Apple branch always does --
+    so Apple POSTs the OAuth result to the redirect_uri instead of
+    redirecting with it in the URL. The SPA's callback page only reads the
+    URL's query string, so without this relay, every Apple sign-in would
+    silently fail with the page unable to see anything Apple sent. This
+    receives that POST and re-issues it as a redirect to the same path
+    with the same fields as query params instead, matching what Google's
+    flow already looks like to the frontend.
+
+    config/nginx-minecraft.conf is what actually routes POST requests for
+    this exact path here in production (GET goes to the SPA) -- not
+    covered by these tests, which exercise the Flask route directly.
+    """
+
+    def test_relays_all_apple_fields_into_the_redirect_query_string(self, client):
+        response = client.post(
+            "/oauth/callback",
+            data={
+                "code": "auth-code-value",
+                "state": "state-value",
+                "id_token": "id-token-value",
+                "user": '{"name":{"firstName":"Test"},"email":"test@example.com"}',
+            },
+        )
+        assert response.status_code == 302
+        location = response.headers["Location"]
+        assert location.startswith("/oauth/callback?")
+        assert "code=auth-code-value" in location
+        assert "state=state-value" in location
+        assert "id_token=id-token-value" in location
+        # The JSON in `user` must survive being round-tripped through a
+        # query string -- the frontend's OAuthCallback.jsx does
+        # decodeURIComponent(...) then JSON.parse(...) on it.
+        query = location.split("?", 1)[1]
+        from urllib.parse import parse_qs
+
+        parsed = parse_qs(query)
+        assert json.loads(parsed["user"][0]) == {
+            "name": {"firstName": "Test"},
+            "email": "test@example.com",
+        }
+
+    def test_relays_only_the_fields_apple_actually_sent(self, client):
+        """No `user` field on a returning user's sign-in (Apple only sends
+        it once) -- the relay must not invent one."""
+        response = client.post(
+            "/oauth/callback",
+            data={"code": "auth-code-value", "state": "state-value", "id_token": "id-token-value"},
+        )
+        assert response.status_code == 302
+        assert "user=" not in response.headers["Location"]
+
+    def test_relays_apple_error_response(self, client):
+        """A user declining consent, or any other Apple-side error, also
+        arrives via form_post -- must reach the SPA's error handling too."""
+        response = client.post(
+            "/oauth/callback",
+            data={"error": "user_cancelled_authorize", "state": "state-value"},
+        )
+        assert response.status_code == 302
+        location = response.headers["Location"]
+        assert "error=user_cancelled_authorize" in location
+        assert "state=state-value" in location
+
+    def test_get_request_is_not_handled_by_this_route(self, client):
+        """GET isn't registered for this route at all -- nginx is what
+        sends GET requests for this same path to the SPA in production;
+        this just confirms Flask itself doesn't also answer GET here."""
+        response = client.get("/oauth/callback")
+        assert response.status_code == 405

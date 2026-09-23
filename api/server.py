@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, redirect, request, session
 
 # Optional CORS support
 try:
@@ -1820,6 +1820,39 @@ def unlink_oauth_account(provider):
     )
 
 
+@app.route("/oauth/callback", methods=["POST"])
+@auth_rate_limit("10/minute")
+def apple_oauth_form_post_relay():
+    """Relay Apple's form_post OAuth response into the SPA's callback route.
+
+    Apple *requires* response_mode=form_post whenever the requested scope
+    includes name/email (get_oauth_url's Apple branch always requests
+    "name email", to get the user's email address) -- meaning Apple POSTs
+    the result to the redirect_uri instead of redirecting with it in the
+    URL. The SPA's callback page (web/src/pages/OAuthCallback.jsx) only
+    ever reads the URL's query string via useSearchParams(); it has no way
+    to see a POST body. Without this, the page would load with nothing in
+    it and show "No authorization code received" for every Apple sign-in.
+
+    This receives the POST and re-issues it as a 302 redirect to the same
+    path with the same fields in the query string instead, which the
+    existing client-side handling already expects -- it's exactly what
+    Google's flow already looks like, since Google redirects with query
+    params directly and never needed this relay.
+
+    Only reached for POST: config/nginx-minecraft.conf routes POST requests
+    for this exact path here specifically; GET (a real visitor navigating
+    here, or the redirect target of *this* handler) is served by the SPA.
+    """
+    data = request.form
+    params = {}
+    for key in ("code", "state", "id_token", "user", "error", "error_description"):
+        value = data.get(key)
+        if value:
+            params[key] = value
+    return redirect(f"/oauth/callback?{urllib.parse.urlencode(params)}")
+
+
 @app.route("/api/auth/oauth/apple/callback", methods=["POST"])
 @auth_rate_limit("10/minute")
 def apple_oauth_callback():
@@ -2710,9 +2743,7 @@ def create_schedule():
             _save_schedules(schedule_data)
 
         username = get_username_from_request()
-        log_audit_event(
-            username, "scheduler.create", {"schedule_id": schedule["id"], "command": command}
-        )
+        log_audit_event(username, "scheduler.create", {"schedule_id": schedule["id"], "command": command})
 
         return jsonify({"success": True, "schedule": schedule}), 201
     except Exception as e:
@@ -2739,9 +2770,7 @@ def _set_schedule_enabled(schedule_id, enabled):
     try:
         with _schedule_lock():
             schedule_data = _load_schedules()
-            target = next(
-                (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
-            )
+            target = next((s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None)
             if target is None:
                 return jsonify({"error": "Schedule not found"}), 404
 
@@ -2789,9 +2818,7 @@ def _update_schedule_locked(schedule_id, data):
     """Body of the update endpoint, run while holding the schedule lock."""
     schedule_data = _load_schedules()
 
-    schedule = next(
-        (s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None
-    )
+    schedule = next((s for s in schedule_data.get("schedules", []) if s.get("id") == schedule_id), None)
     if not schedule:
         return jsonify({"error": "Schedule not found"}), 404
 
@@ -3926,6 +3953,7 @@ CONFIG_ALLOWED_PATHS = {
     "update-check.conf": PROJECT_ROOT / "config" / "update-check.conf",
     "ddns.conf": PROJECT_ROOT / "config" / "ddns.conf",
 }
+
 
 # File Browser - Allowed directories (for security)
 def describe_yaml_error(error):
