@@ -167,7 +167,8 @@ const Settings = () => {
                 event.data.code,
                 redirectUri,
                 event.data.id_token,
-                event.data.user
+                event.data.user,
+                event.data.state
               );
 
               if (result.success) {

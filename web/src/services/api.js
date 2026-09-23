@@ -14,6 +14,15 @@ const API_KEY = import.meta.env.VITE_API_KEY || localStorage.getItem('api_key');
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  // The OAuth login flow depends on the Flask session cookie surviving
+  // between GET /auth/oauth/<provider>/url (which mints a one-time `state`
+  // into the session) and the callback POST that verifies it -- same-origin
+  // requests carry cookies automatically, but the documented dev setup
+  // (Vite on :5173 calling the API on :8080) is cross-origin, where axios
+  // drops cookies unless told otherwise. The API's CORS config already
+  // allows credentials (see ALLOWED_ORIGINS in api/server.py), so this is
+  // the other half of that.
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     ...(API_KEY && { 'X-API-Key': API_KEY }),
