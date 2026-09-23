@@ -61,17 +61,14 @@ The API supports three authentication methods. All endpoints (except `/api/healt
 
 ### 1. API Key (Recommended for Automation)
 
-**Header Method** (Recommended):
-
 ```bash
 curl -H "X-API-Key: YOUR_API_KEY" http://localhost:8080/api/status
 ```
 
-**Query Parameter Method**:
-
-```bash
-curl http://localhost:8080/api/status?api_key=YOUR_API_KEY
-```
+The header is the only accepted form. A `?api_key=YOUR_API_KEY` query parameter
+used to work too, but was removed: it leaks the key into nginx access logs,
+shell history, and any `Referer` header a follow-on request sends. A request
+using it now gets a 401 instead of being authenticated.
 
 ### 2. Bearer Token (JWT)
 
