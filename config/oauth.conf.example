@@ -1,16 +1,39 @@
 # OAuth Configuration
-# Copy this file to oauth.conf and fill in your OAuth credentials
+# Copy this file to oauth.conf and fill in your OAuth credentials.
+#
+# Neither provider's redirect URI below is read by api/server.py -- the
+# frontend computes it dynamically per request (getRedirectUri() in
+# web/src/components/OAuthButtons.jsx: `${protocol}//${host}/oauth/callback`)
+# and sends it explicitly with every OAuth call. What matters is that the
+# *provider's* console has the exact same URL registered -- your real
+# admin-panel origin in production (e.g.
+# https://minecraft-admin.yourdomain.com/oauth/callback), and
+# http://localhost:5173/oauth/callback for local dev against the Vite
+# server (see web/vite.config.js's `server.port`).
 
 # Google OAuth Configuration
 # Get these from: https://console.cloud.google.com/apis/credentials
+# (create an OAuth 2.0 Client ID of type "Web application")
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:3000/oauth/callback
+GOOGLE_REDIRECT_URI=https://minecraft-admin.yourdomain.com/oauth/callback
 
 # Apple OAuth Configuration
-# Get these from: https://developer.apple.com/account/resources/identifiers/list
-APPLE_CLIENT_ID=your-apple-client-id
-APPLE_TEAM_ID=your-apple-team-id
-APPLE_KEY_ID=your-apple-key-id
-APPLE_PRIVATE_KEY=your-apple-private-key-content
-APPLE_REDIRECT_URI=http://localhost:3000/oauth/callback
+# Get this from: https://developer.apple.com/account/resources/identifiers/list
+# -- create a Services ID (not an App ID), enable "Sign In with Apple" on
+# it, and configure it with your admin-panel domain and the redirect URI
+# above. That Services ID's identifier (a reverse-DNS-style string, e.g.
+# com.yourdomain.minecraft-admin) is APPLE_CLIENT_ID below.
+#
+# APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_PRIVATE_KEY are NOT read by
+# api/server.py -- this app's Apple flow only ever verifies the ID token
+# Apple hands back (against Apple's own published JWKS), it never does a
+# server-to-server token exchange, so none of the signing-key machinery
+# those three normally support is needed. Left here as placeholders in
+# case that ever changes; don't spend time generating a Sign In with Apple
+# key for this app as it stands today.
+APPLE_CLIENT_ID=your-apple-services-id
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY=
+APPLE_REDIRECT_URI=https://minecraft-admin.yourdomain.com/oauth/callback

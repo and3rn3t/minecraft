@@ -251,6 +251,22 @@ All notable changes to this project will be documented in this file.
   Cloudflare Tunnel (`config/cloudflared-config.yml.example`,
   `docs/SECURITY_HARDENING.md`) rather than a direct port-forward — nginx now
   binds to `127.0.0.1` only.
+- **Apple Sign In never actually reached the app.** Apple requires
+  `response_mode=form_post` whenever the requested scope includes
+  name/email (this app's Apple flow always requests both), meaning Apple
+  POSTs the callback result instead of redirecting with it in the URL —
+  and the SPA's callback page only ever reads the URL's query string, with
+  no way to see a POST body. Every Apple sign-in would load that page with
+  nothing on it. `POST /oauth/callback` (`apple_oauth_form_post_relay()`
+  in `api/server.py`) now catches that POST and re-issues it as a redirect
+  to the same path with the same fields as query params, which the
+  existing client-side handling already expects; `config/nginx-minecraft.conf`
+  routes POST requests for that exact path there specifically, leaving GET
+  to the SPA as before. Also fixed `config/oauth.conf.example`, which
+  implied `APPLE_TEAM_ID`/`APPLE_KEY_ID`/`APPLE_PRIVATE_KEY` were required
+  — none of the three are read anywhere in the Apple flow, which only
+  verifies the ID token Apple hands back and never does a server-to-server
+  exchange; only `APPLE_CLIENT_ID` (the Services ID) matters.
 
 <!-- Everything from here down is released history, which repeats
      "### Added" and friends within a single version. It is not being
