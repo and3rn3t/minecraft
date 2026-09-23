@@ -208,6 +208,25 @@ def isolated_test_env(tmp_path, monkeypatch):
     return test_env
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Clear Flask-Limiter's in-memory counters before every test.
+
+    The limiter (api/server.py's `limiter`) is a single module-level object
+    shared by the whole pytest process, since flask-limiter's default
+    storage is per-process, not per-request. Without this, one test's calls
+    to a rate-limited route (e.g. /api/auth/login) count toward the same
+    limit as every other test that hits it, so unrelated tests start seeing
+    429s depending on run order. Resetting keeps each test's view of the
+    limiter's counters independent, while tests that specifically want to
+    exercise the 429 path still can (see test_auth.py's rate-limit tests).
+    """
+    import api.server as api_module
+
+    if api_module.limiter is not None:
+        api_module.limiter.reset()
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Hook to suppress Flask context cleanup errors during teardown"""

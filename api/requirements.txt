@@ -3,9 +3,10 @@ flask-cors==6.0.0
 flask-socketio==5.6.1
 eventlet==0.40.3
 bcrypt==4.1.2
-pyjwt==2.13.0
+pyjwt[crypto]==2.13.0  # [crypto] pulls in `cryptography`, needed for RS256 (Apple ID token verification)
 authlib==1.6.12
 requests==2.33.0
 pyotp==2.9.0
 qrcode[pil]==7.4.2
 croniter==2.0.1
+flask-limiter==4.1.1

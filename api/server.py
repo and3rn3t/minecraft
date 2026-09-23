@@ -31,6 +31,21 @@ except ImportError:
     CORS_AVAILABLE = False
     CORS = None  # Placeholder for type checking
 
+# Optional rate limiting support (brute-force protection on auth endpoints).
+# The hand-rolled `rate_limit`/`is_rate_limit_exceeded` further below predates
+# this and stays in place for the one route it already covers; anything new
+# uses this, since per-minute counters shared safely across a threaded server
+# are exactly what Flask-Limiter is for.
+try:
+    from flask_limiter import Limiter  # type: ignore[import-untyped]
+    from flask_limiter.util import get_remote_address  # type: ignore[import-untyped]
+
+    LIMITER_AVAILABLE = True
+except ImportError:
+    LIMITER_AVAILABLE = False
+    Limiter = None
+    get_remote_address = None
+
 # Optional WebSocket support
 try:
     import eventlet  # type: ignore[import-untyped]
@@ -143,9 +158,32 @@ except ImportError:
 
 
 app = Flask(__name__)
+
+# nginx (config/nginx-minecraft.conf) is the only thing that ever talks to
+# this process directly -- Flask otherwise sees every request as coming from
+# nginx's own loopback address and scheme, not the real client's. Trusting
+# exactly one proxy hop's X-Forwarded-* headers (which nginx already sets)
+# fixes request.remote_addr for rate limiting (Flask-Limiter keys on it) and
+# request.is_secure for anything scheme-dependent, without trusting headers
+# an internet client could forge directly against Flask (there's no path to
+# Flask that skips nginx).
+from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # SECRET_KEY is resolved further down, once config/api.conf has been read.
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
+
+# The session cookie authenticates state-changing requests (see require_auth
+# below), so it needs the same hardening any auth cookie does: HttpOnly so
+# client-side JS/XSS can't read it, Secure so it's never sent over plain
+# HTTP, SameSite=Strict so a cross-site request never carries it at all. The
+# CSRF check in require_auth is defense in depth on top of SameSite, for
+# browsers that don't enforce SameSite=Strict (or don't yet).
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 
 # Rate limiting storage (in-memory, use Redis in production)
 RATE_LIMIT_STORAGE = {}
@@ -175,16 +213,85 @@ else:
         return response
 
 
+def _warn_if_cors_wildcard_with_credentials(allowed_origins):
+    """Warn loudly if CORS is wide open while credentials are allowed.
+
+    A wildcard origin combined with credentialed requests (session cookies,
+    or the Authorization/X-API-Key headers CORS treats as credentialed) lets
+    any site make authenticated calls against this API -- flask-cors
+    reflects the request's actual Origin instead of a literal "*" once
+    supports_credentials=True, so "*" doesn't mean "no site" here, it means
+    "every site". Fine on a trusted local network; not once this is
+    reachable from the internet.
+    """
+    if allowed_origins == ["*"]:
+        warnings.warn(
+            "ALLOWED_ORIGINS is unset (defaulting to '*') while CORS allows credentials. "
+            "Set the ALLOWED_ORIGINS environment variable to your actual frontend origin(s) "
+            "before exposing this API beyond a trusted local network -- see "
+            "config/api.conf.example.",
+            stacklevel=2,
+        )
+
+
+_warn_if_cors_wildcard_with_credentials(ALLOWED_ORIGINS)
+
+# Rate limiting for brute-force-prone auth endpoints (login, register, 2FA,
+# OAuth), applied per route below via @auth_rate_limit(...).
+# storage_uri="memory://" is fine for this app's single-process deployment;
+# a multi-worker/gunicorn setup would need a shared backend (e.g. Redis)
+# instead, since in-memory counters aren't shared across processes.
+if LIMITER_AVAILABLE:
+    limiter = Limiter(get_remote_address, app=app, storage_uri="memory://", default_limits=[])
+else:
+    limiter = None
+
+
+def auth_rate_limit(limit_string):
+    """Rate-limit decorator for auth routes; a no-op if Flask-Limiter isn't installed."""
+
+    def decorator(f):
+        if limiter is None:
+            return f
+        return limiter.limit(limit_string)(f)
+
+    return decorator
+
+
+_CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        # The React build uses inline `style={{...}}` props in a number of
+        # places (actual `style="..."` attributes at runtime, not a
+        # separate stylesheet), so style-src needs 'unsafe-inline' -- there
+        # are no inline *scripts* or eval() anywhere in web/src, so
+        # script-src stays tight.
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        # Same-origin API + Socket.IO calls only -- nginx proxies /api and
+        # /socket.io on the same origin as the built frontend (see
+        # config/nginx-minecraft.conf), nothing here calls out cross-origin.
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+    ]
+)
+
+
 # Add security headers to all responses
 @app.after_request
 def security_headers(response):
     """Add security headers to all responses"""
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["Content-Security-Policy"] = _CSP
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Opt out of browser features this app has no use for.
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     # Remove server header
     response.headers.pop("Server", None)
     return response
@@ -393,7 +500,8 @@ def require_api_key(f):
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
+        # Header only -- see the matching comment in require_auth.
+        api_key = request.headers.get("X-API-Key")
 
         if not api_key:
             return jsonify({"error": "API key required"}), 401
@@ -579,6 +687,49 @@ def verify_token(token):
         return None
 
 
+# Cached client for Apple's public signing keys (https://appleid.apple.com/auth/keys).
+# Built lazily so importing this module never makes a network call, and reused across
+# requests so verifying an Apple ID token doesn't refetch the JWKS every login.
+_apple_jwk_client = None
+
+
+def _get_apple_jwk_client():
+    global _apple_jwk_client
+    if _apple_jwk_client is None:
+        _apple_jwk_client = jwt.PyJWKClient("https://appleid.apple.com/auth/keys")
+    return _apple_jwk_client
+
+
+def verify_apple_id_token(id_token):
+    """Verify an Apple Sign In ID token and return its decoded claims.
+
+    Checks the RS256 signature against Apple's published JWKS, plus audience
+    (our OAuth client id) and issuer. Returns None if the token is missing,
+    expired, mis-scoped, or simply not signed by Apple. Callers must never
+    trust an Apple ID token's claims (e.g. `sub`, `email`) without going
+    through this first -- a caller-supplied id_token is untrusted input.
+    """
+    if not JWT_AVAILABLE:
+        return None
+    client_id = OAUTH_CONFIG["apple"].get("client_id")
+    if not client_id:
+        return None
+    try:
+        signing_key = _get_apple_jwk_client().get_signing_key_from_jwt(id_token)
+        return jwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=client_id,
+            issuer="https://appleid.apple.com",
+        )
+    except jwt.PyJWTError:
+        return None
+    except Exception as e:
+        app.logger.error(f"Failed to verify Apple ID token: {e}")
+        return None
+
+
 def generate_totp_secret():
     """Generate a TOTP secret for 2FA"""
     if not TOTP_AVAILABLE:
@@ -642,8 +793,8 @@ def log_audit_event(username, action, details=None, ip_address=None):
 
 def get_username_from_request():
     """Get username from request (API key, session, or token)"""
-    # Check API key
-    api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
+    # Check API key. Header only -- see the matching comment in require_auth.
+    api_key = request.headers.get("X-API-Key")
     if api_key and api_key in API_KEYS:
         return f"api_key:{API_KEYS[api_key].get('name', 'unknown')}"
 
@@ -837,6 +988,35 @@ def require_permission(permission):
     return decorator
 
 
+def _issue_csrf_token():
+    """Generate a fresh CSRF token, store it in the session, and return it.
+
+    Call this everywhere a session cookie gets created (login, register,
+    OAuth callbacks) so the response can hand the token to the client for it
+    to echo back via X-CSRF-Token on later mutating requests.
+    """
+    token = secrets.token_urlsafe(32)
+    session["csrf_token"] = token
+    return token
+
+
+def _csrf_check_failed():
+    """True if the current request is session-cookie-authenticated, mutating,
+    and missing/wrong the CSRF token -- see require_auth's session branch.
+
+    Only the session-cookie path needs this: a browser attaches cookies to a
+    cross-site request automatically (that's the CSRF vector), but never
+    attaches a custom header or an Authorization/X-API-Key value on its own,
+    so the Bearer-JWT and API-key paths aren't exploitable the same way and
+    don't need a token.
+    """
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return False
+    expected = session.get("csrf_token")
+    provided = request.headers.get("X-CSRF-Token")
+    return not expected or not provided or not secrets.compare_digest(expected, provided)
+
+
 def require_auth(f):
     """Decorator to require user authentication (session, token, or API key)"""
 
@@ -849,8 +1029,10 @@ def require_auth(f):
             if provider not in ["google", "apple"]:
                 return jsonify({"error": "Invalid OAuth provider"}), 400
 
-        # Check API key first (for backward compatibility)
-        api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
+        # Check API key first (for backward compatibility). Header only --
+        # a key in the URL (?api_key=...) leaks into nginx access logs,
+        # browser history, and any Referer header a follow-on request sends.
+        api_key = request.headers.get("X-API-Key")
         if api_key:
             if api_key in API_KEYS and API_KEYS[api_key].get("enabled", True):
                 key_info = API_KEYS[api_key]
@@ -867,6 +1049,8 @@ def require_auth(f):
 
         # Check session
         if "username" in session:
+            if _csrf_check_failed():
+                return jsonify({"error": "Missing or invalid CSRF token"}), 403
             request.user = session.get("username")
             request.user_info = USERS.get(session.get("username"), {})
             return f(*args, **kwargs)
@@ -887,6 +1071,7 @@ def require_auth(f):
 
 
 @app.route("/api/auth/register", methods=["POST"])
+@auth_rate_limit("10/hour")
 def register():
     """Register a new user"""
     if USERS and not REGISTRATION_ENABLED:
@@ -952,8 +1137,11 @@ def register():
 
     # Create session or token
     session["username"] = username
+    csrf_token = _issue_csrf_token()
 
     token = generate_token(username) if JWT_AVAILABLE else None
+
+    log_audit_event(username, "user_registered", {"role": USERS[username]["role"]})
 
     return jsonify(
         {
@@ -961,11 +1149,13 @@ def register():
             "message": "User registered successfully",
             "user": {"username": username, "role": USERS[username]["role"]},
             "token": token,
+            "csrf_token": csrf_token,
         }
     )
 
 
 @app.route("/api/auth/login", methods=["POST"])
+@auth_rate_limit("5/minute;20/hour")
 def login():
     """Login user"""
     data = request.get_json() or {}
@@ -981,16 +1171,23 @@ def login():
 
     # Check if user exists
     if username not in USERS:
+        # Deliberately the same audit action/detail shape as a wrong password
+        # below -- which of the two it was isn't exposed to the client, and
+        # keeping the audit log symmetric avoids that leaking some other way
+        # (e.g. by timing, if a reader correlates action names to log lines).
+        log_audit_event(username, "login_failure", {"reason": "unknown_username_or_password"})
         return jsonify({"error": "Invalid username or password"}), 401
 
     user = USERS[username]
 
     # Check if user is enabled
     if not user.get("enabled", True):
+        log_audit_event(username, "login_failure", {"reason": "account_disabled"})
         return jsonify({"error": "Account disabled"}), 401
 
     # Verify password
     if not verify_password(password, user["password_hash"]):
+        log_audit_event(username, "login_failure", {"reason": "unknown_username_or_password"})
         return jsonify({"error": "Invalid username or password"}), 401
 
     # Check if 2FA is enabled
@@ -1006,12 +1203,16 @@ def login():
             return jsonify({"error": "2FA not available"}), 500
 
         if not verify_totp(totp_secret, totp_token):
+            log_audit_event(username, "login_failure", {"reason": "invalid_2fa_token"})
             return jsonify({"error": "Invalid 2FA token"}), 401
 
     # Create session or token
     session["username"] = username
+    csrf_token = _issue_csrf_token()
 
     token = generate_token(username) if JWT_AVAILABLE else None
+
+    log_audit_event(username, "login_success", {"method": "password"})
 
     return jsonify(
         {
@@ -1019,6 +1220,7 @@ def login():
             "message": "Login successful",
             "user": {"username": username, "role": user.get("role", "user")},
             "token": token,
+            "csrf_token": csrf_token,
         }
     )
 
@@ -1026,11 +1228,15 @@ def login():
 @app.route("/api/auth/logout", methods=["POST"])
 def logout():
     """Logout user"""
+    if "username" in session:
+        log_audit_event(session["username"], "logout")
     session.pop("username", None)
+    session.pop("csrf_token", None)
     return jsonify({"success": True, "message": "Logged out successfully"})
 
 
 @app.route("/api/auth/2fa/setup", methods=["POST"])
+@auth_rate_limit("10/hour")
 @require_auth
 def setup_2fa():
     """Setup 2FA for current user"""
@@ -1067,6 +1273,7 @@ def setup_2fa():
 
 
 @app.route("/api/auth/2fa/verify", methods=["POST"])
+@auth_rate_limit("10/minute")
 @require_auth
 def verify_2fa_setup():
     """Verify 2FA setup with token"""
@@ -1093,6 +1300,7 @@ def verify_2fa_setup():
         user["totp_enabled"] = True
         if not save_users():
             return jsonify({"error": "Failed to save user"}), 500
+        log_audit_event(username, "2fa_enabled")
         return jsonify(
             {
                 "success": True,
@@ -1100,10 +1308,12 @@ def verify_2fa_setup():
             }
         )
     else:
+        log_audit_event(username, "2fa_verify_failed")
         return jsonify({"error": "Invalid token"}), 401
 
 
 @app.route("/api/auth/2fa/disable", methods=["POST"])
+@auth_rate_limit("10/minute")
 @require_auth
 def disable_2fa():
     """Disable 2FA for current user"""
@@ -1121,6 +1331,7 @@ def disable_2fa():
 
     # Verify password
     if not verify_password(password, user["password_hash"]):
+        log_audit_event(username, "2fa_disable_failed", {"reason": "invalid_password"})
         return jsonify({"error": "Invalid password"}), 401
 
     # Disable 2FA
@@ -1129,6 +1340,8 @@ def disable_2fa():
 
     if not save_users():
         return jsonify({"error": "Failed to save user"}), 500
+
+    log_audit_event(username, "2fa_disabled")
 
     return jsonify(
         {
@@ -1173,6 +1386,19 @@ def get_current_user():
     )
 
 
+@app.route("/api/auth/csrf-token", methods=["GET"])
+@require_auth
+def get_csrf_token():
+    """Return the CSRF token for the current session, minting one if needed.
+
+    Only meaningful for session-cookie auth (see require_auth /
+    _csrf_check_failed); Bearer-JWT and API-key clients don't send this
+    header and don't need to, since only the cookie path is CSRF-checked.
+    """
+    token = session.get("csrf_token") or _issue_csrf_token()
+    return jsonify({"csrf_token": token})
+
+
 # OAuth Configuration
 OAUTH_CONFIG_FILE = PROJECT_ROOT / "config" / "oauth.conf"
 OAUTH_CONFIG = {
@@ -1207,7 +1433,34 @@ if OAUTH_CONFIG_FILE.exists():
 
 
 # OAuth Endpoints
+def _issue_oauth_state():
+    """Generate a fresh OAuth state nonce and stash it in the session.
+
+    get_oauth_url() embeds this in the provider's authorization URL; the
+    provider echoes it back on the redirect to our callback, and
+    _verify_oauth_state() checks it there. Without this, nothing stops an
+    attacker from starting their own OAuth flow, capturing the resulting
+    code/id_token, and feeding it to a victim's browser -- the victim's
+    session would then link (or log in as) an identity the attacker
+    controls. session-based (not a signed cookie of its own) since the
+    whole flow already runs in the same browser session that requested the
+    URL in the first place.
+    """
+    state = secrets.token_urlsafe(24)
+    session["oauth_state"] = state
+    return state
+
+
+def _verify_oauth_state(provided_state):
+    """True if provided_state matches the one this session's
+    get_oauth_url() call issued. Consumes it either way (one-shot), so a
+    replayed or guessed value can't be reused across multiple callbacks."""
+    expected = session.pop("oauth_state", None)
+    return bool(expected) and bool(provided_state) and secrets.compare_digest(expected, provided_state)
+
+
 @app.route("/api/auth/oauth/<provider>/url", methods=["GET"])
+@auth_rate_limit("30/minute")
 def get_oauth_url(provider):
     """Get OAuth authorization URL"""
     if provider not in ["google", "apple"]:
@@ -1217,6 +1470,8 @@ def get_oauth_url(provider):
     redirect_uri = request.args.get("redirect_uri")
     if not redirect_uri:
         return jsonify({"error": "Redirect URI required"}), 400
+
+    state = _issue_oauth_state()
 
     if provider == "google":
         if not OAUTH_CONFIG["google"].get("client_id"):
@@ -1230,6 +1485,7 @@ def get_oauth_url(provider):
             "scope": scope,
             "access_type": "offline",
             "prompt": "consent",
+            "state": state,
         }
         auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
         return jsonify({"url": auth_url})
@@ -1244,6 +1500,7 @@ def get_oauth_url(provider):
             "response_type": "code",
             "scope": "name email",
             "response_mode": "form_post",
+            "state": state,
         }
         auth_url = f"https://appleid.apple.com/auth/authorize?{urllib.parse.urlencode(params)}"
         return jsonify({"url": auth_url})
@@ -1252,6 +1509,7 @@ def get_oauth_url(provider):
 
 
 @app.route("/api/auth/oauth/google/callback", methods=["POST"])
+@auth_rate_limit("10/minute")
 def google_oauth_callback():
     """Handle Google OAuth callback"""
     try:
@@ -1262,9 +1520,14 @@ def google_oauth_callback():
     data = request.get_json()
     code = data.get("code")
     redirect_uri = data.get("redirect_uri")
+    state = data.get("state")
 
     if not code or not redirect_uri:
         return jsonify({"error": "Code and redirect_uri required"}), 400
+
+    if not _verify_oauth_state(state):
+        log_audit_event("unknown", "oauth_login_failure", {"provider": "google", "reason": "state_mismatch"})
+        return jsonify({"error": "Invalid or expired OAuth state"}), 400
 
     if not OAUTH_CONFIG["google"].get("client_id") or not OAUTH_CONFIG["google"].get("client_secret"):
         return jsonify({"error": "Google OAuth not configured"}), 500
@@ -1282,6 +1545,7 @@ def google_oauth_callback():
 
         token_response = requests.post(token_url, data=token_data, timeout=10)
         if token_response.status_code != 200:
+            log_audit_event("unknown", "oauth_login_failure", {"provider": "google", "reason": "code_exchange_failed"})
             return jsonify({"error": "Failed to exchange code for token"}), 400
 
         token_json = token_response.json()
@@ -1344,7 +1608,10 @@ def google_oauth_callback():
 
         # Create session or token
         session["username"] = username
+        csrf_token = _issue_csrf_token()
         token = generate_token(username) if JWT_AVAILABLE else None
+
+        log_audit_event(username, "oauth_login_success", {"provider": "google"})
 
         return jsonify(
             {
@@ -1352,15 +1619,18 @@ def google_oauth_callback():
                 "message": "OAuth login successful",
                 "user": {"username": username, "role": USERS[username].get("role", "user")},
                 "token": token,
+                "csrf_token": csrf_token,
             }
         )
 
     except Exception as e:
         app.logger.error(f"OAuth callback error: {e}")
+        log_audit_event("unknown", "oauth_login_failure", {"provider": "google", "reason": "internal_error"})
         return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route("/api/auth/oauth/<provider>/link", methods=["POST"])
+@auth_rate_limit("10/minute")
 @require_auth
 def link_oauth_account(provider):
     """Link OAuth account to existing user"""
@@ -1454,8 +1724,9 @@ def link_oauth_account(provider):
             if not JWT_AVAILABLE:
                 return jsonify({"error": "JWT library required for Apple OAuth"}), 500
 
-            # Decode JWT token without verification
-            decoded = jwt.decode(id_token, options={"verify_signature": False})
+            decoded = verify_apple_id_token(id_token)
+            if decoded is None:
+                return jsonify({"error": "Invalid ID token from Apple"}), 401
             apple_id = decoded.get("sub")
 
             if not apple_id:
@@ -1527,23 +1798,31 @@ def unlink_oauth_account(provider):
 
 
 @app.route("/api/auth/oauth/apple/callback", methods=["POST"])
+@auth_rate_limit("10/minute")
 def apple_oauth_callback():
     """Handle Apple OAuth callback"""
     data = request.get_json()
     id_token = data.get("id_token")
+    state = data.get("state")
 
     if not id_token:
         return jsonify({"error": "ID token required"}), 400
+
+    if not _verify_oauth_state(state):
+        log_audit_event("unknown", "oauth_login_failure", {"provider": "apple", "reason": "state_mismatch"})
+        return jsonify({"error": "Invalid or expired OAuth state"}), 400
 
     if not OAUTH_CONFIG["apple"].get("client_id"):
         return jsonify({"error": "Apple OAuth not configured"}), 500
 
     try:
-        # Decode JWT token without verification
         if not JWT_AVAILABLE:
             return jsonify({"error": "JWT library required for Apple OAuth"}), 500
 
-        decoded = jwt.decode(id_token, options={"verify_signature": False})
+        decoded = verify_apple_id_token(id_token)
+        if decoded is None:
+            log_audit_event("unknown", "oauth_login_failure", {"provider": "apple", "reason": "invalid_id_token"})
+            return jsonify({"error": "Invalid ID token from Apple"}), 401
         apple_id = decoded.get("sub")
         email = decoded.get("email", "")
 
@@ -1586,7 +1865,10 @@ def apple_oauth_callback():
                 save_users()
 
         session["username"] = username
+        csrf_token = _issue_csrf_token()
         token = generate_token(username) if JWT_AVAILABLE else None
+
+        log_audit_event(username, "oauth_login_success", {"provider": "apple"})
 
         return jsonify(
             {
@@ -1594,11 +1876,13 @@ def apple_oauth_callback():
                 "message": "OAuth login successful",
                 "user": {"username": username, "role": USERS[username].get("role", "user")},
                 "token": token,
+                "csrf_token": csrf_token,
             }
         )
 
     except Exception as e:
         app.logger.error(f"Failed to process Apple OAuth: {e}")
+        log_audit_event("unknown", "oauth_login_failure", {"provider": "apple", "reason": "internal_error"})
         return jsonify({"error": "Internal server error"}), 500
 
 

@@ -49,8 +49,15 @@ def temp_users_file(tmp_path, monkeypatch):
 def mock_auth_session(client, temp_users_file):
     """Create authenticated session for testing"""
     # Set session using session_transaction, then allow tests to make requests
+    csrf_token = "test-csrf-token"
     with client.session_transaction() as session:
         session["username"] = "testuser"
+        session["csrf_token"] = csrf_token
+    # A session-authenticated mutating request must carry a matching
+    # X-CSRF-Token header (see require_auth's CSRF check in api/server.py).
+    # environ_base is merged into every request this client makes, so this
+    # covers all of them without touching each call site individually.
+    client.environ_base["HTTP_X_CSRF_TOKEN"] = csrf_token
     # Session persists across requests after the context exits
     yield client
 
@@ -172,3 +179,197 @@ class TestOAuthUnlink:
         assert response.status_code == 400
         data = json.loads(response.data)
         assert "last authentication method" in data.get("error", "").lower()
+
+
+def _generate_rsa_keypair():
+    """A fresh throwaway RSA keypair standing in for Apple's real signing key."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return private_pem, public_pem
+
+
+@pytest.fixture
+def rsa_keypair():
+    """A single throwaway RSA keypair, generated once per test."""
+    return _generate_rsa_keypair()
+
+
+def _sign_rs256(private_pem, claims):
+    import jwt as pyjwt
+
+    return pyjwt.encode(claims, private_pem, algorithm="RS256")
+
+
+def _fake_jwk_client(public_pem=None, raises=False):
+    """A stand-in for jwt.PyJWKClient that serves a fixed public key (or
+    always fails, simulating "no matching/reachable key") instead of making a
+    real network call to appleid.apple.com."""
+
+    class _FakeSigningKey:
+        key = public_pem
+
+    class _FakeJWKClient:
+        def get_signing_key_from_jwt(self, token):
+            if raises:
+                raise Exception("no matching signing key")
+            return _FakeSigningKey()
+
+    return _FakeJWKClient()
+
+
+class TestVerifyAppleIdToken:
+    """Unit tests for verify_apple_id_token (api/server.py).
+
+    Added after an audit found the previous implementation decoded Apple ID
+    tokens with verify_signature=False, trusting the `sub` claim of any
+    caller-supplied JWT outright -- a full authentication bypass, since
+    anyone could POST a self-signed token naming an arbitrary user and be
+    logged in as them.
+    """
+
+    def test_returns_none_when_apple_not_configured(self, monkeypatch):
+        import api.server as api_module
+
+        monkeypatch.setitem(api_module.OAUTH_CONFIG["apple"], "client_id", "")
+        assert api_module.verify_apple_id_token("whatever") is None
+
+    def test_rejects_token_signed_with_wrong_key(self, temp_oauth_config, monkeypatch):
+        """The forged-login attack: a token signed by a key that isn't the
+        one our (fake) Apple JWKS endpoint actually serves must be rejected,
+        even though its claims look legitimate. Uses two distinct keypairs --
+        one for the attacker's forged signature, one served as "Apple's" key
+        -- so this fails closed unless the signatures genuinely mismatch."""
+        import api.server as api_module
+
+        attacker_private_pem, _ = _generate_rsa_keypair()
+        _, real_public_pem = _generate_rsa_keypair()
+        forged_token = _sign_rs256(
+            attacker_private_pem,
+            {"sub": "attacker-chosen-id", "aud": "test-apple-client-id", "iss": "https://appleid.apple.com"},
+        )
+
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=real_public_pem))
+
+        assert api_module.verify_apple_id_token(forged_token) is None
+
+    def test_rejects_unreachable_or_unknown_key(self, temp_oauth_config, monkeypatch):
+        import api.server as api_module
+
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
+        assert api_module.verify_apple_id_token("not-even-a-real-jwt") is None
+
+    def test_accepts_correctly_signed_token(self, temp_oauth_config, rsa_keypair, monkeypatch):
+        import api.server as api_module
+
+        private_pem, public_pem = rsa_keypair
+        token = _sign_rs256(
+            private_pem,
+            {"sub": "real-apple-user-id", "aud": "test-apple-client-id", "iss": "https://appleid.apple.com"},
+        )
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+
+        decoded = api_module.verify_apple_id_token(token)
+        assert decoded is not None
+        assert decoded["sub"] == "real-apple-user-id"
+
+    def test_rejects_wrong_audience(self, temp_oauth_config, rsa_keypair, monkeypatch):
+        import api.server as api_module
+
+        private_pem, public_pem = rsa_keypair
+        token = _sign_rs256(
+            private_pem,
+            {"sub": "real-apple-user-id", "aud": "someone-elses-client-id", "iss": "https://appleid.apple.com"},
+        )
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+
+        assert api_module.verify_apple_id_token(token) is None
+
+    def test_rejects_expired_token(self, temp_oauth_config, rsa_keypair, monkeypatch):
+        import time
+
+        import api.server as api_module
+
+        private_pem, public_pem = rsa_keypair
+        token = _sign_rs256(
+            private_pem,
+            {
+                "sub": "real-apple-user-id",
+                "aud": "test-apple-client-id",
+                "iss": "https://appleid.apple.com",
+                "exp": int(time.time()) - 60,
+            },
+        )
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+
+        assert api_module.verify_apple_id_token(token) is None
+
+
+@pytest.fixture
+def oauth_state(client):
+    """Seed the session with a known OAuth state, mirroring what
+    GET /api/auth/oauth/<provider>/url does via _issue_oauth_state(), so
+    tests that POST a callback can supply a state that verify_oauth_state()
+    accepts. Without this every callback is rejected before it even reaches
+    the ID-token/code checks -- see _verify_oauth_state in api/server.py."""
+    token = "test-oauth-state-token"
+    with client.session_transaction() as session:
+        session["oauth_state"] = token
+    return token
+
+
+class TestAppleOAuthCallback:
+    """Integration tests for POST /api/auth/oauth/apple/callback."""
+
+    def test_callback_rejects_forged_token(self, client, temp_oauth_config, temp_users_file, oauth_state, monkeypatch):
+        import api.server as api_module
+
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
+
+        response = client.post(
+            "/api/auth/oauth/apple/callback", json={"id_token": "forged.token.value", "state": oauth_state}
+        )
+        assert response.status_code == 401
+
+    def test_callback_rejects_missing_state(self, client, temp_oauth_config, temp_users_file):
+        response = client.post("/api/auth/oauth/apple/callback", json={"id_token": "whatever"})
+        assert response.status_code == 400
+
+    def test_callback_rejects_wrong_state(self, client, temp_oauth_config, temp_users_file, oauth_state):
+        response = client.post(
+            "/api/auth/oauth/apple/callback", json={"id_token": "whatever", "state": "a-guessed-value"}
+        )
+        assert response.status_code == 400
+
+    def test_callback_accepts_correctly_signed_token(
+        self, client, temp_oauth_config, temp_users_file, oauth_state, rsa_keypair, monkeypatch
+    ):
+        import api.server as api_module
+
+        private_pem, public_pem = rsa_keypair
+        token = _sign_rs256(
+            private_pem,
+            {
+                "sub": "real-apple-user-id",
+                "email": "newapple@example.com",
+                "aud": "test-apple-client-id",
+                "iss": "https://appleid.apple.com",
+            },
+        )
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+
+        response = client.post("/api/auth/oauth/apple/callback", json={"id_token": token, "state": oauth_state})
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is True
+        assert "apple:real-apple-user-id" in api_module.USERS[data["user"]["username"]]["oauth_providers"]

@@ -291,6 +291,47 @@ class TestUserLogin:
             assert "token" in data or session.get("username") == "testuser"
 
 
+class TestLoginRateLimit:
+    """Tests for rate limiting on POST /api/auth/login.
+
+    Before this, nothing throttled login attempts at all -- a password could
+    be brute-forced with no limit. login() is decorated
+    @auth_rate_limit("5/minute;20/hour"); this exercises the per-minute
+    limit. The autouse `_reset_rate_limiter` fixture in conftest.py clears
+    the limiter's counters before every test, so this test's requests don't
+    leak into (or get polluted by) any other test's.
+    """
+
+    def test_login_returns_429_after_limit_exceeded(self, client, temp_users_file, mock_bcrypt):
+        import api.server as api_module
+
+        if api_module.limiter is None:
+            pytest.skip("Flask-Limiter not installed")
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        # Wrong credentials on purpose -- the limiter counts the request
+        # itself, regardless of whether the login succeeds.
+        for _ in range(5):
+            response = client.post("/api/auth/login", json={"username": "nope", "password": "nope"})
+            assert response.status_code == 401
+
+        response = client.post("/api/auth/login", json={"username": "nope", "password": "nope"})
+        assert response.status_code == 429
+
+    def test_login_succeeds_within_limit(self, client, temp_users_file, mock_bcrypt):
+        import api.server as api_module
+
+        if api_module.limiter is None:
+            pytest.skip("Flask-Limiter not installed")
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        for _ in range(4):
+            response = client.post("/api/auth/login", json={"username": "nope", "password": "nope"})
+            assert response.status_code == 401
+
+
 class TestUserLogout:
     """Tests for POST /api/auth/logout endpoint"""
 
@@ -427,3 +468,246 @@ class TestSecretKeyResolution:
         from api.server import SECRET_KEY
 
         assert app.config["SECRET_KEY"] == SECRET_KEY
+
+
+class TestApiKeyHeaderOnly:
+    """An API key is no longer accepted via ?api_key=... -- it leaks into
+    nginx access logs, browser history, and any Referer header a follow-on
+    request sends. Only the X-API-Key header works now."""
+
+    def test_query_string_api_key_is_rejected(self, client, mock_api_keys):
+        response = client.get(f"/api/auth/me?api_key={mock_api_keys}")
+        assert response.status_code == 401
+
+    def test_header_api_key_still_works(self, client, mock_api_keys):
+        response = client.get("/api/auth/me", headers={"X-API-Key": mock_api_keys})
+        assert response.status_code == 200
+
+
+class TestSessionCookieHardening:
+    """Tests that the session cookie issued at login carries the flags an
+    auth cookie needs: HttpOnly (unreadable by client-side JS/XSS), Secure
+    (never sent over plain HTTP), SameSite=Strict (never sent cross-site)."""
+
+    def test_login_sets_hardened_session_cookie(self, client, temp_users_file, mock_bcrypt, mock_jwt, monkeypatch):
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {
+            "username": "testuser",
+            "password_hash": "hashed_password123",
+            "role": "user",
+            "enabled": True,
+        }
+        monkeypatch.setattr("api.server.verify_password", lambda password, hashed: password == "password123")
+
+        response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
+        assert response.status_code == 200
+
+        set_cookie_headers = response.headers.getlist("Set-Cookie")
+        session_cookie = next((h for h in set_cookie_headers if h.startswith("session=")), None)
+        assert session_cookie is not None, set_cookie_headers
+        assert "HttpOnly" in session_cookie
+        assert "Secure" in session_cookie
+        assert "SameSite=Strict" in session_cookie
+
+
+class TestCsrfProtection:
+    """Tests for the CSRF check folded into require_auth's session branch
+    (api/server.py). Only session-cookie-authenticated, state-changing
+    requests are checked -- a browser attaches cookies to a cross-site
+    request automatically, which is the CSRF vector; it never attaches a
+    custom header or an Authorization/X-API-Key value on its own, so the
+    Bearer-JWT and API-key auth paths don't need this."""
+
+    def test_login_response_includes_csrf_token(self, client, temp_users_file, mock_bcrypt, mock_jwt, monkeypatch):
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {
+            "username": "testuser",
+            "password_hash": "hashed_password123",
+            "role": "user",
+            "enabled": True,
+        }
+        monkeypatch.setattr("api.server.verify_password", lambda password, hashed: password == "password123")
+
+        response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
+        data = json.loads(response.data)
+        assert data.get("csrf_token")
+
+    def test_session_authenticated_mutation_without_token_is_rejected(self, client, temp_users_file):
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+            session["csrf_token"] = "the-real-token"
+
+        # No X-CSRF-Token header at all -- e.g. a cross-site request, which
+        # carries the cookie automatically but can't read or set this header.
+        response = client.post("/api/users", json={"username": "new", "password": "password123", "role": "user"})
+        assert response.status_code == 403
+
+    def test_session_authenticated_mutation_with_wrong_token_is_rejected(self, client, temp_users_file):
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+            session["csrf_token"] = "the-real-token"
+
+        response = client.post(
+            "/api/users",
+            json={"username": "new", "password": "password123", "role": "user"},
+            headers={"X-CSRF-Token": "a-guessed-token"},
+        )
+        assert response.status_code == 403
+
+    def test_session_authenticated_mutation_with_correct_token_succeeds(self, client, temp_users_file, mock_bcrypt):
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+            session["csrf_token"] = "the-real-token"
+
+        response = client.post(
+            "/api/users",
+            json={"username": "new", "password": "password123", "role": "user"},
+            headers={"X-CSRF-Token": "the-real-token"},
+        )
+        assert response.status_code == 201
+
+    def test_session_authenticated_get_does_not_need_csrf_token(self, client, temp_users_file):
+        """A read-only request carries no CSRF risk, so it isn't checked --
+        this also has to hold so a client can fetch its own token in the
+        first place (see get_csrf_token / GET /api/auth/csrf-token)."""
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+            session["csrf_token"] = "the-real-token"
+
+        response = client.get("/api/auth/me")
+        assert response.status_code == 200
+
+    def test_csrf_token_endpoint_returns_the_session_token(self, client, temp_users_file):
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+            session["csrf_token"] = "the-real-token"
+
+        response = client.get("/api/auth/csrf-token")
+        assert response.status_code == 200
+        assert json.loads(response.data)["csrf_token"] == "the-real-token"
+
+    def test_bearer_token_auth_does_not_require_csrf_token(self, client, temp_users_file, mock_jwt):
+        """A Bearer token is never attached by a browser automatically, so
+        this path is not CSRF-exploitable and isn't checked."""
+        if not mock_jwt:
+            pytest.skip("jwt not available")
+
+        import api.server as api_module
+
+        api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
+
+        response = client.post(
+            "/api/users",
+            json={"username": "new", "password": "password123", "role": "user"},
+            headers={"Authorization": "Bearer token_testuser"},
+        )
+        assert response.status_code != 403
+
+
+class TestAuthAuditLogging:
+    """login/register/logout/2FA weren't audited at all before this --
+    log_audit_event() (api/server.py) existed and was used elsewhere, but
+    never called from any /api/auth/* route, despite
+    docs/SECURITY_HARDENING.md claiming auth success/failure was tracked."""
+
+    def test_login_success_is_audited(self, client, temp_users_file, mock_bcrypt, mock_jwt, monkeypatch, tmp_path):
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        audit_log = tmp_path / "audit.log"
+        monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
+        api_module.USERS["testuser"] = {
+            "username": "testuser",
+            "password_hash": "hashed_password123",
+            "role": "user",
+            "enabled": True,
+        }
+        monkeypatch.setattr("api.server.verify_password", lambda password, hashed: password == "password123")
+
+        response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
+        assert response.status_code == 200
+
+        written = audit_log.read_text()
+        assert "login_success" in written
+        assert "testuser" in written
+        assert "password123" not in written
+
+    def test_login_failure_is_audited(self, client, temp_users_file, mock_bcrypt, monkeypatch, tmp_path):
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        audit_log = tmp_path / "audit.log"
+        monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
+
+        response = client.post("/api/auth/login", json={"username": "nope", "password": "wrong"})
+        assert response.status_code == 401
+
+        written = audit_log.read_text()
+        assert "login_failure" in written
+        assert "wrong" not in written
+
+    def test_logout_is_audited(self, client, temp_users_file, monkeypatch, tmp_path):
+        import api.server as api_module
+
+        audit_log = tmp_path / "audit.log"
+        monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
+        with client.session_transaction() as session:
+            session["username"] = "testuser"
+
+        response = client.post("/api/auth/logout")
+        assert response.status_code == 200
+
+        written = audit_log.read_text()
+        assert "logout" in written
+        assert "testuser" in written
+
+    def test_registration_is_audited_without_leaking_the_password(
+        self, client, temp_users_file, mock_bcrypt, mock_jwt, monkeypatch, tmp_path
+    ):
+        if not mock_bcrypt:
+            pytest.skip("bcrypt not available")
+
+        import api.server as api_module
+
+        audit_log = tmp_path / "audit.log"
+        monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
+
+        response = client.post(
+            "/api/auth/register", json={"username": "newuser", "password": "correcthorsebatterystaple"}
+        )
+        assert response.status_code == 200
+
+        written = audit_log.read_text()
+        assert "user_registered" in written
+        assert "newuser" in written
+        assert "correcthorsebatterystaple" not in written
