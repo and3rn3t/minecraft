@@ -43,7 +43,8 @@ running_image_id() {
 # Function to get the image id the service's tag points at now
 target_image_id() {
     local image
-    image="$(compose config --images "$SERVICE_NAME" 2>/dev/null | head -1)"
+    # One service in the project, so the project's image list is its image
+    image="$(compose config --images 2>/dev/null | head -1)"
     [ -n "$image" ] || return 1
     docker image inspect --format '{{.Id}}' "$image" 2>/dev/null
 }
@@ -71,6 +72,11 @@ fetch_image() {
 # Function to pull and conditionally restart
 run_update() {
     cd "$PROJECT_DIR" || return 1
+
+    if ! take_update_lock; then
+        log_info "A deploy is changing the server right now; checking again next run"
+        return 0
+    fi
 
     if ! server_is_running; then
         # A stopped server was stopped for a reason: bedtime, maintenance, or a

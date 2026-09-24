@@ -43,10 +43,14 @@ Every five minutes, `scripts/deploy-agent.sh run`:
    | `api/` or `systemd/` | The API is restarted and must answer `/api/health` within 60 seconds |
    | `systemd/` | Unit files are installed and systemd is reloaded |
    | `config/nginx-minecraft.conf` | `nginx -t`, then a reload if the config is valid |
-   | `Dockerfile`, compose files, `server.properties`, `scripts/start.sh` | The image is pulled or rebuilt, and the game server restarts **only when nobody is online** |
+   | `Dockerfile`, compose files, `scripts/start.sh`, `scripts/download-server.sh` | The image is pulled or rebuilt, and the game server restarts **only when nobody is online** |
+   | `server.properties`, `eula.txt` | Nothing. These only seed a new world: the live copies are in `data/`, which the admin panel edits |
    | Anything else (docs, tests) | Nothing restarts |
 
-5. Writes the result to the audit log (`deploy.success`, `deploy.rollback`,
+5. Records the commit as deployed. The next run diffs from that record, not
+   from wherever the checkout is, so a `git pull` by hand or a run that died
+   half-way is finished properly rather than called up to date.
+6. Writes the result to the audit log (`deploy.success`, `deploy.rollback`,
    `deploy.server_restart`), and sends a push notification if one is configured.
 
 ### What it will not do
@@ -78,7 +82,8 @@ deploys, so the Pi needs it once before it can take over.
 
 ```bash
 cd ~/minecraft-server
-git pull                    # brings in scripts/deploy-agent.sh and its units
+git pull                                  # brings in scripts/deploy-agent.sh and its units
+scripts/deploy-agent.sh since ORIG_HEAD   # so the first run applies what that pull brought in
 git status                  # on branch main, nothing modified
 sudo -n true && echo ok     # passwordless sudo, which Raspberry Pi OS gives `pi` by default
 ls api/venv/bin/pip         # the API's virtualenv; if missing, run scripts/setup-api-venv.sh
@@ -166,6 +171,7 @@ sudo systemctl enable --now minecraft-update.timer
 ```bash
 scripts/deploy-agent.sh status                  # last deploy, a failed commit, a waiting restart
 scripts/deploy-agent.sh check                   # what the next run would do
+scripts/deploy-agent.sh since ORIG_HEAD         # after pulling by hand: have the next run apply that pull
 journalctl -u minecraft-deploy.service -n 50    # what recent runs did
 sudo systemctl start minecraft-deploy.service   # deploy now instead of waiting
 sudo systemctl stop minecraft-deploy.timer      # pause deploys, e.g. while testing on the Pi

@@ -226,3 +226,18 @@ assert_docker_called_with() {
     assert_success
     assert_docker_called_with "up -d"
 }
+
+@test "run waits while a deploy holds the update lock" {
+    # deploy-agent.sh holds the same lock while it rebuilds and recreates the
+    # container; the two must never do that at the same time
+    echo "image-b" > "$STATE_DIR/new-image"
+    mkdir -p .deploy
+    exec 8>.deploy/lock
+    flock -n 8
+
+    run scripts/auto-update.sh run
+    exec 8>&-
+    assert_success
+    assert_line "A deploy is changing the server"
+    assert_docker_not_called_with "up -d"
+}

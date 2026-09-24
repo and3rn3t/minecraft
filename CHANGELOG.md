@@ -15,7 +15,12 @@ All notable changes to this project will be documented in this file.
   the game server image. A failed web build or health check rolls back to the
   previous commit and that commit is not retried. The game server is never
   restarted while anyone is online, and a stopped server is left stopped.
-  Deploys and rollbacks go to the audit log and, optionally, to ntfy. It is off
+  Each run diffs from the last commit it finished applying rather than from
+  the checkout, so a `git pull` by hand or a run that died half-way is
+  completed on the next run; `deploy-agent.sh since ORIG_HEAD` hands a manual
+  pull to it. It shares a lock with `auto-update.sh`, so the two never rebuild
+  or recreate the container at the same time. Deploys and rollbacks go to the
+  audit log and, optionally, to ntfy. It is off
   until `minecraft-deploy.timer` is enabled; see
   [docs/AUTO_DEPLOYMENT_SETUP.md](docs/AUTO_DEPLOYMENT_SETUP.md). CI now
   uploads the built panel as a `web-dist` artifact on pushes to `main` for it.

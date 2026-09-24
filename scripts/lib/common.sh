@@ -63,6 +63,16 @@ container_running() {
     docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$name"
 }
 
+# Take the lock that serialises everything that changes the running server:
+# scripts/deploy-agent.sh and scripts/auto-update.sh both hold it, so one never
+# pulls, rebuilds or recreates the container while the other is mid-way.
+# Held on fd 9 until the calling script exits. Fails when it is already held.
+take_update_lock() {
+    mkdir -p "${PROJECT_DIR}/.deploy"
+    exec 9>"${PROJECT_DIR}/.deploy/lock"
+    flock -n 9
+}
+
 # Print how many players are online. Fails when the server does not answer,
 # which callers should treat as "unknown", not as "empty". PLAYER_COUNT_CMD
 # replaces the probe, for tests.

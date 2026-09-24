@@ -61,15 +61,21 @@ AUDIT_LOG_FILE="${AUDIT_LOG_FILE:-${PROJECT_DIR}/config/audit.log}"
 SERVICE_NAME="minecraft"
 
 # Paths whose change means the game server's image or container config changed.
-IMAGE_PATHS_RE='^(Dockerfile|docker-compose[^/]*\.ya?ml|scripts/download-server\.sh|scripts/start\.sh|server\.properties|eula\.txt)$'
+# Not server.properties or eula.txt, although the Dockerfile copies them in:
+# ./data is mounted over /minecraft/server, so the live copies are the ones in
+# data/, which the admin panel edits. The tracked files only seed a new world.
+IMAGE_PATHS_RE='^(Dockerfile|docker-compose[^/]*\.ya?ml|scripts/download-server\.sh|scripts/start\.sh)$'
 
 usage() {
-    echo "Usage: $0 {run|check|status}"
+    echo "Usage: $0 {run|check|status|since <commit>}"
     echo ""
     echo "Commands:"
-    echo "  run     - Deploy the newest green commit, if there is one"
-    echo "  check   - Say what a run would do, change nothing"
-    echo "  status  - Show the last deploy, any failed commit and any deferred restart"
+    echo "  run             - Deploy the newest green commit, if there is one"
+    echo "  check           - Say what a run would do, change nothing"
+    echo "  status          - Show the last deploy, any failed commit and any deferred restart"
+    echo "  since <commit>  - Treat <commit> as the last one applied, so the next run"
+    echo "                    applies everything after it (after a pull by hand:"
+    echo "                    '$0 since ORIG_HEAD')"
     exit 1
 }
 
@@ -320,16 +326,32 @@ find_target() {
         return 1
     fi
 
-    FROM="$(git rev-parse HEAD)"
+    local head
+    head="$(git rev-parse HEAD)"
     TO="$(git rev-parse "${DEPLOY_REMOTE}/${DEPLOY_BRANCH}")"
     RUN_ID="-"
+
+    # Deploy from the last commit that was fully applied, not from HEAD. HEAD
+    # can be ahead of it: a `git pull` by hand, or a run that died after the
+    # fast-forward. Diffing from HEAD would call that "up to date" and never
+    # restart what the pull changed.
+    FROM="$(last_deployed)"
+    if [ -z "$FROM" ]; then
+        # First run: take the checkout as it stands as the starting point
+        FROM="$head"
+        [ "${DRY_RUN:-false}" = true ] || record_deployed "$FROM" "starting point"
+    elif ! git merge-base --is-ancestor "$FROM" "$head" 2>/dev/null; then
+        log_warn "The last deploy ($(short "$FROM")) is not in this checkout's history; starting from $(short "$head")"
+        FROM="$head"
+        [ "${DRY_RUN:-false}" = true ] || record_deployed "$FROM" "starting point"
+    fi
 
     if [ "$FROM" = "$TO" ]; then
         log_info "Up to date at $(short "$FROM")"
         return 1
     fi
 
-    if ! git merge-base --is-ancestor "$FROM" "$TO"; then
+    if ! git merge-base --is-ancestor "$head" "$TO"; then
         log_warn "The checkout has commits that are not on ${DEPLOY_REMOTE}/${DEPLOY_BRANCH}; not deploying"
         return 1
     fi
@@ -366,6 +388,17 @@ find_target() {
     return 0
 }
 
+# Function to print the last commit that was fully deployed, if one is recorded
+last_deployed() {
+    [ -f "$DEPLOYED_FILE" ] || return 0
+    awk 'NR == 1 { print $1 }' "$DEPLOYED_FILE"
+}
+
+# Function to record a commit as fully deployed
+record_deployed() {
+    echo "$1 $(date -u +%Y-%m-%dT%H:%M:%SZ) $2" >"$DEPLOYED_FILE"
+}
+
 # Function to put everything back the way it was before this deploy
 rollback() {
     local reason="$1"
@@ -397,10 +430,11 @@ run_deploy() {
     cd "$PROJECT_DIR" || return 1
     mkdir -p "$STATE_DIR"
 
-    # One run at a time; a slow web build must not overlap the next tick
-    exec 9>"${STATE_DIR}/lock"
-    if ! flock -n 9; then
-        log_info "Another deploy is running"
+    # One run at a time, shared with auto-update.sh: a slow web build must not
+    # overlap the next tick, and the hourly image check must not recreate the
+    # container while this is rebuilding it
+    if ! take_update_lock; then
+        log_info "Another deploy or image update is running"
         return 0
     fi
 
@@ -427,7 +461,9 @@ run_deploy() {
     grep -qE "$IMAGE_PATHS_RE" <<<"$changed" && IMAGE_CHANGED=true
 
     log_info "Deploying $(short "$FROM") -> $(short "$TO")"
-    git merge --quiet --ff-only "$TO"
+    if [ "$(git rev-parse HEAD)" != "$TO" ]; then
+        git merge --quiet --ff-only "$TO"
+    fi
 
     local new_web="${STATE_DIR}/web-dist.new"
     if [ "$WEB_CHANGED" = true ]; then
@@ -480,7 +516,7 @@ run_deploy() {
     [ "$IMAGE_CHANGED" = true ] && parts+=(server)
     local summary="${parts[*]:-no service changes}"
 
-    echo "$TO $(date -u +%Y-%m-%dT%H:%M:%SZ) ${summary}" >"$DEPLOYED_FILE"
+    record_deployed "$TO" "$summary"
     audit "deploy.success" "{\"from\": \"$FROM\", \"to\": \"$TO\", \"applied\": \"$summary\"}"
     notify "Deployed $(short "$TO"): ${summary}"
     log_success "Deployed $(short "$TO") (${summary})"
@@ -488,6 +524,7 @@ run_deploy() {
 
 check_deploy() {
     cd "$PROJECT_DIR" || return 1
+    DRY_RUN=true
     mkdir -p "$STATE_DIR"
     if find_target; then
         log_info "Would deploy $(short "$FROM") -> $(short "$TO"), which touches:"
@@ -497,6 +534,24 @@ check_deploy() {
         log_info "A game server restart is waiting for the server to be empty"
     fi
     return 0
+}
+
+# Function to set the starting point by hand, e.g. after a `git pull` that
+# nothing has applied yet
+set_since() {
+    cd "$PROJECT_DIR" || return 1
+    local sha
+    if ! sha="$(git rev-parse --verify --quiet "${1:-}^{commit}")"; then
+        log_error "Not a commit: ${1:-(none given)}"
+        return 1
+    fi
+    if ! git merge-base --is-ancestor "$sha" HEAD; then
+        log_error "$(short "$sha") is not in the history of the checkout"
+        return 1
+    fi
+    mkdir -p "$STATE_DIR"
+    record_deployed "$sha" "set by hand"
+    log_success "The next run applies everything after $(short "$sha")"
 }
 
 show_status() {
@@ -525,6 +580,9 @@ main() {
             ;;
         status)
             show_status
+            ;;
+        since)
+            set_since "${2:-}"
             ;;
         *)
             usage

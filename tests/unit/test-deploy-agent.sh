@@ -376,3 +376,51 @@ Description=changed"
     assert_line "api/server.py"
     [ "$(pi_head)" = "$before" ]
 }
+
+@test "run finishes applying a pull made by hand" {
+    # HEAD moves without the agent: a `git pull` on the Pi, or a run that died
+    # after the fast-forward. Diffing from HEAD would call this up to date.
+    deploy run
+    push_change api/server.py "print('api v2')"
+    git -C "$PI" pull -q
+
+    deploy run
+    assert_success
+    assert_line "Deployed"
+    assert_called "systemctl restart minecraft-api.service"
+}
+
+@test "since ORIG_HEAD makes the first run apply the pull that installed the agent" {
+    push_change api/server.py "print('api v2')"
+    git -C "$PI" pull -q
+
+    deploy since ORIG_HEAD
+    assert_success
+
+    deploy run
+    assert_success
+    assert_called "systemctl restart minecraft-api.service"
+}
+
+@test "since rejects something that is not a commit" {
+    deploy since not-a-commit
+    assert_failure
+    assert_line "Not a commit"
+}
+
+@test "run does not touch the game server for server.properties" {
+    # ./data is mounted over the image's copy, so there is nothing to apply
+    push_change server.properties "motd=changed"
+
+    deploy run
+    assert_success
+    assert_not_called "compose pull"
+    assert_not_called "compose build"
+    [ ! -f "$PI/.deploy/pending-server-restart" ]
+}
+
+@test "check records nothing, even on the first run" {
+    deploy check
+    assert_success
+    [ ! -f "$PI/.deploy/last-deploy" ]
+}
