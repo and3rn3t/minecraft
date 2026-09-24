@@ -29,6 +29,7 @@ cd "$PROJECT_DIR" || exit 1
 echo -e "${BLUE}Checking git status...${NC}"
 CURRENT_BRANCH=$(git branch --show-current)
 CURRENT_COMMIT=$(git log -1 --oneline)
+PRE_PULL_SHA=$(git rev-parse HEAD)
 
 echo -e "Current branch: ${CURRENT_BRANCH}"
 echo -e "Current commit: ${CURRENT_COMMIT}"
@@ -68,7 +69,10 @@ echo -e "\n${BLUE}Recent changes:${NC}"
 git log --oneline -5
 
 # Check what files changed
-CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+# Everything the pull brought in, not just its last commit: a pull of several
+# commits used to compare only HEAD~1, so a web/ or api/ change in an earlier
+# one was never rebuilt.
+CHANGED_FILES=$(git diff --name-only "$PRE_PULL_SHA" HEAD 2>/dev/null || echo "")
 WEB_CHANGED=false
 API_CHANGED=false
 DOCKER_CHANGED=false

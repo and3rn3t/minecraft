@@ -235,6 +235,17 @@ jobs:
         working-directory: web
         run: npm run test:ci
 
+      # The Pi's deploy agent (scripts/deploy-agent.sh) downloads this rather
+      # than running npm on the Pi, when it has a token to fetch it with and
+      # no build-time settings of its own in web/.env*.
+      - name: Upload web build for the Pi
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 30
+
   # Playwright browser tests. These drive a real browser against a running
   # stack, so they are kept off the pull-request path and run on a schedule or
   # on demand instead. See the `on:` block above.

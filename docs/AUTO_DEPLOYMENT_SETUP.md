@@ -1,378 +1,227 @@
-# Automatic Docker Image Deployment Setup
+# Automatic Deployment
 
-This guide shows you how to set up automatic deployment so that when you push code to GitHub, the Docker image is automatically built, pushed to the registry, and pulled by your Raspberry Pi.
+Push to `main`, and within a few minutes the Pi is running it: the API, the web
+panel, the systemd units and the game server, each updated only when a commit
+actually changed it.
 
-## Overview
+## What runs where
 
-**Complete Flow:**
+The Pi runs two kinds of thing, and they update differently:
+
+| Part | Runs from | Kept current by |
+| --- | --- | --- |
+| Game server | A Docker image | `minecraft-update.timer` (hourly) and the deploy agent |
+| API (`api/`), web panel (`web/`), systemd units, nginx config | The git checkout in `~/minecraft-server` | The deploy agent, `minecraft-deploy.timer` (every 5 minutes) |
+
+Before the deploy agent, only the image had any automation, so every change to
+the API or the panel meant logging in to pull and rebuild by hand.
+
+## How a deploy works
+
+The Pi pulls; nothing pushes into the house. There is no inbound port to open
+and no CI runner on the machine that holds the world and its backups.
 
 ```text
-Code Push → CI Builds Image → Push to GHCR → Pi Pulls & Restarts
+push to main -> CI runs -> the Pi notices the new commit
+             -> CI passed? -> fast-forward -> apply what changed
+                                           -> healthy? keep it : roll back
 ```
 
-## Prerequisites
+Every five minutes, `scripts/deploy-agent.sh run`:
 
-1. GitHub repository with Actions enabled
-2. Raspberry Pi with Docker installed
-3. GitHub Personal Access Token (for Pi to pull images)
+1. Fetches `main`. If there is no new commit, it stops there.
+2. Asks GitHub whether that commit's `main.yml` run passed. Still running means
+   wait for the next tick. Failed means it is never deployed.
+3. Fast-forwards the checkout and works out what changed across **every**
+   commit since the last deploy, not just the newest one.
+4. Applies only what changed:
 
-## Step 1: Enable Image Pushing in CI
+   | Changed | What happens |
+   | --- | --- |
+   | `web/` | The panel is built (or downloaded from CI) into a staging directory, then swapped in once the API is healthy. nginx serves it from disk, so no reload is needed |
+   | `api/requirements.txt` | The API's virtualenv is updated |
+   | `api/` or `systemd/` | The API is restarted and must answer `/api/health` within 60 seconds |
+   | `systemd/` | Unit files are installed and systemd is reloaded |
+   | `config/nginx-minecraft.conf` | `nginx -t`, then a reload if the config is valid |
+   | `Dockerfile`, compose files, `server.properties`, `scripts/start.sh` | The image is pulled or rebuilt, and the game server restarts **only when nobody is online** |
+   | Anything else (docs, tests) | Nothing restarts |
 
-The CI workflow is already configured to push images on `main` branch commits. Verify in `.github/workflows/main.yml`:
+5. Writes the result to the audit log (`deploy.success`, `deploy.rollback`,
+   `deploy.server_restart`), and sends a push notification if one is configured.
 
-- ✅ Builds Docker image
-- ✅ Pushes to `ghcr.io/and3rn3t/minecraft-server:latest` on main branch
-- ✅ Uses GitHub token for authentication
+### What it will not do
 
-**What happens:**
+- **Restart the game while someone is playing.** It asks the server how many
+  players are online (the same status ping the multiplayer screen uses). If
+  anyone is on, or the server does not answer, the restart waits and is tried
+  again on every run until the server is empty.
+- **Start a server that was stopped.** A server stopped for bedtime or
+  maintenance stays stopped, and starts on the new version whenever it is next
+  started.
+- **Deploy over local edits.** If a tracked file was edited on the Pi, it logs
+  that and does nothing until the edit is committed or discarded.
+- **Deploy anything but `main`.** If the checkout is on another branch because
+  you are testing something, it leaves it alone.
+- **Retry a commit that failed.** If the web build fails, dependencies fail to
+  install, or the API fails its health check, the checkout goes back to the
+  previous commit, and whatever was restarted is restarted on the old code.
+  That commit is skipped from then on. The next commit is tried as normal.
 
-- Every push to `main` triggers a build
-- Image is pushed to GitHub Container Registry
-- Available at: `ghcr.io/and3rn3t/minecraft-server:latest`
+## Setting it up
 
-## Step 2: Configure Raspberry Pi to Pull from Registry
+Everything here runs on the Pi, as the `pi` user, in `~/minecraft-server`.
 
-### Option A: Use Registry-Based docker-compose.yml
+### 1. Check the prerequisites
 
-1. **On your Raspberry Pi**, update `docker-compose.yml`:
+This is the last pull you do by hand: the agent is part of the code it
+deploys, so the Pi needs it once before it can take over.
 
 ```bash
 cd ~/minecraft-server
-
-# Backup current file
-cp docker-compose.yml docker-compose.yml.local
-
-# Use registry-based configuration
-cp docker-compose.registry.yml docker-compose.yml
+git pull                    # brings in scripts/deploy-agent.sh and its units
+git status                  # on branch main, nothing modified
+sudo -n true && echo ok     # passwordless sudo, which Raspberry Pi OS gives `pi` by default
+ls api/venv/bin/pip         # the API's virtualenv; if missing, run scripts/setup-api-venv.sh
 ```
 
-Or manually edit `docker-compose.yml` to change:
+The agent uses `sudo -n` to restart the API, install units and reload nginx.
+`-n` means it fails instead of waiting for a password, so a missing sudo rule
+shows up as a failed step in the log rather than a hung deploy. To allow only
+what it needs instead of full sudo, see [Narrower sudo](#narrower-sudo).
 
-```yaml
-# FROM:
-services:
-  minecraft:
-    build:
-      context: .
-      dockerfile: Dockerfile
+If `git status` shows local edits, commit them or move them out first. If you
+had copied `docker-compose.registry.yml` over `docker-compose.yml`, undo that
+with `git checkout docker-compose.yml` and follow step 4 instead.
 
-# TO:
-services:
-  minecraft:
-    image: ghcr.io/and3rn3t/minecraft-server:latest
-    pull_policy: always
-```
+### 2. Configure it (optional)
 
-### Option B: Keep Building Locally (Fallback)
-
-If you want to keep building locally but have the option to pull:
-
-```yaml
-services:
-  minecraft:
-    # Try to pull first, fall back to building
-    image: ghcr.io/and3rn3t/minecraft-server:latest
-    pull_policy: always
-    build:
-      context: .
-      dockerfile: Dockerfile
-```
-
-## Step 3: Set Up Registry Authentication
-
-The Raspberry Pi needs to authenticate to pull from GitHub Container Registry.
-
-### Create GitHub Personal Access Token
-
-1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Generate new token with:
-   - **Name**: `Raspberry Pi Docker Pull`
-   - **Expiration**: Choose appropriate (or no expiration)
-   - **Scopes**: `read:packages` (minimum needed)
-
-### Configure Docker Login on Pi
-
-**Option A: Manual Login (One-time)**
+It works with no configuration. To change anything, copy the example:
 
 ```bash
-# On Raspberry Pi
-echo "YOUR_GITHUB_TOKEN" | docker login ghcr.io -u and3rn3t --password-stdin
+cp config/deploy.conf.example config/deploy.conf
+nano config/deploy.conf
 ```
 
-**Option B: Store Token Securely**
+| Setting | Default | Why you would change it |
+| --- | --- | --- |
+| `DEPLOY_GITHUB_TOKEN` | empty | Needed if the repository is private. On a public one it also lets the Pi download CI's web build rather than running `npm` itself. Use a fine-grained token for this one repository with **Actions: read** and **Contents: read**, nothing else |
+| `DEPLOY_NTFY_URL` | empty | Push notifications for deploys and rollbacks, e.g. `https://ntfy.sh/<a-long-random-topic>` |
+| `DEPLOY_REQUIRE_CI` | `true` | Leave it on. Off means a broken commit reaches the Pi in five minutes |
+| `DEPLOY_BRANCH` | `main` | To follow a different branch |
+
+`config/deploy.conf` is gitignored, so the token never leaves the Pi.
+
+The web panel is always built on the Pi, even with a token, when `web/.env`
+(or `.env.production`) exists. Vite bakes those `VITE_*` settings, such as the
+API URL, into the bundle at build time, and CI does not have them.
+
+### 3. Turn it on
 
 ```bash
-# Create token file (restrict permissions)
-echo "YOUR_GITHUB_TOKEN" | sudo tee /root/.docker/github_token
-sudo chmod 600 /root/.docker/github_token
-
-# Login using token file
-cat /root/.docker/github_token | docker login ghcr.io -u and3rn3t --password-stdin
-```
-
-**Option C: Use Docker Credential Helper (Recommended)**
-
-```bash
-# Install credential helper
-sudo apt-get install -y docker-credential-helpers
-
-# Configure
-mkdir -p ~/.docker
-cat > ~/.docker/config.json << EOF
-{
-  "auths": {
-    "ghcr.io": {}
-  },
-  "credsStore": "pass"
-}
-EOF
-
-# Store token using pass (or use another credential helper)
-```
-
-## Step 4: Set Up Auto-Pull Service
-
-### Install Systemd Service
-
-1. **Copy service file to Pi:**
-
-```bash
-# On Raspberry Pi
-cd ~/minecraft-server
-sudo cp systemd/minecraft.service /etc/systemd/system/
+sudo cp systemd/minecraft-deploy.service systemd/minecraft-deploy.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable minecraft.service
+
+# See what the first run would do, without doing it
+scripts/deploy-agent.sh check
+
+sudo systemctl enable --now minecraft-deploy.timer
 ```
 
-2. **Update service to use registry-based compose:**
+### 4. Keep the game server image current
 
-Edit `/etc/systemd/system/minecraft.service` and ensure `WorkingDirectory` points to your minecraft-server directory.
+The hourly `minecraft-update.timer` brings the game server onto a new image,
+with the same rule as above: never while someone is playing.
 
-### Option A: Pull Only on Boot
+The image can come from either place:
 
-The service will pull the latest image when the Pi boots:
+- **Built on the Pi** (the default `docker-compose.yml`). When a deploy changes
+  the `Dockerfile` or anything the image copies in, the agent rebuilds it.
+- **Pulled from the registry.** CI publishes
+  `ghcr.io/and3rn3t/minecraft-server:latest` on every push to `main`, which
+  saves the Pi from building anything. Select it with one line in `.env`
+  (gitignored), rather than by copying files over tracked ones, so the
+  checkout stays clean for the agent:
+
+  ```bash
+  echo "COMPOSE_FILE=docker-compose.registry.yml" >> .env
+  ```
+
+  If the package is private, log the Pi in once with a classic token that has
+  only `read:packages`:
+
+  ```bash
+  echo "YOUR_TOKEN" | docker login ghcr.io -u and3rn3t --password-stdin
+  ```
+
+Then enable the hourly check:
 
 ```bash
-# Service is already configured to pull on start
-sudo systemctl start minecraft.service
-sudo systemctl status minecraft.service
-```
-
-### Option B: Periodic Auto-Updates (Recommended)
-
-Set up a timer to periodically check for updates:
-
-```bash
-# Copy timer and service files
-sudo cp systemd/minecraft-update.service /etc/systemd/system/
-sudo cp systemd/minecraft-update.timer /etc/systemd/system/
-
-# Enable and start timer
+sudo cp systemd/minecraft-update.service systemd/minecraft-update.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable minecraft-update.timer
-sudo systemctl start minecraft-update.timer
-
-# Check timer status
-sudo systemctl status minecraft-update.timer
-sudo systemctl list-timers | grep minecraft
+sudo systemctl enable --now minecraft-update.timer
 ```
 
-**Timer Schedule:**
-
-- Checks 5 minutes after boot
-- Then checks every hour
-- Random delay (0-5 min) to avoid thundering herd
-
-## Step 5: Verify Deployment
-
-### Test Manual Pull
+## Day to day
 
 ```bash
-# On Raspberry Pi
-cd ~/minecraft-server
-docker compose pull
-docker compose up -d
+scripts/deploy-agent.sh status                  # last deploy, a failed commit, a waiting restart
+scripts/deploy-agent.sh check                   # what the next run would do
+journalctl -u minecraft-deploy.service -n 50    # what recent runs did
+sudo systemctl start minecraft-deploy.service   # deploy now instead of waiting
+sudo systemctl stop minecraft-deploy.timer      # pause deploys, e.g. while testing on the Pi
 ```
 
-### Check Image Source
-
-```bash
-# Verify image is from registry
-docker images | grep minecraft-server
-
-# Should show:
-# ghcr.io/and3rn3t/minecraft-server   latest   ...
-```
-
-### Test Auto-Update
-
-1. Push a commit to main branch
-2. Wait for CI to build and push (check GitHub Actions)
-3. On Pi, manually trigger update:
-
-```bash
-sudo systemctl start minecraft-update.service
-```
-
-Or wait for the timer (checks every hour).
-
-## Complete Workflow Example
-
-### Developer Workflow
-
-```bash
-# 1. Make changes
-git add .
-git commit -m "Update server configuration"
-git push origin main
-```
-
-### What Happens Automatically
-
-1. **GitHub Actions** (2-5 minutes):
-
-   ```text
-   ✅ Tests pass
-   ✅ Build Docker image (ARM64)
-   ✅ Push to ghcr.io/and3rn3t/minecraft-server:latest
-   ```
-
-2. **Raspberry Pi** (within 1 hour):
-
-   ```text
-   ✅ Timer triggers (or on next boot)
-   ✅ Pulls latest image from registry
-   ✅ Restarts container with new image
-   ```
-
-### Manual Trigger (Immediate Update)
-
-If you want to update immediately without waiting:
-
-```bash
-# On Raspberry Pi
-sudo systemctl start minecraft-update.service
-
-# Or manually
-cd ~/minecraft-server
-docker compose pull
-docker compose up -d --force-recreate
-```
-
-## Monitoring Updates
-
-### Check Update Log
-
-```bash
-# View update service logs
-sudo journalctl -u minecraft-update.service -f
-
-# View update log file
-tail -f /var/log/minecraft-update.log
-```
-
-### Check Current Image
-
-```bash
-# See what image is running
-docker inspect minecraft-server | grep Image
-
-# Compare with registry
-docker pull ghcr.io/and3rn3t/minecraft-server:latest --dry-run
-```
-
-### Check for Updates
-
-```bash
-# See if local image is outdated
-docker images ghcr.io/and3rn3t/minecraft-server:latest
-
-# Pull to see if there's a newer version
-docker compose pull
-```
+Deploys also appear in the admin panel's audit log as the user `deploy-agent`.
 
 ## Troubleshooting
 
-### Image Pull Fails with 403
+**"Tracked files have local edits; not deploying."** Something in the checkout
+was edited on the Pi. `git status` shows what. Commit it to a branch and push,
+or `git checkout -- <file>` to discard it. Settings belong in gitignored files
+(`config/*.conf`, `.env`, `web/.env`), and edits to a systemd unit belong in a
+drop-in (`sudo systemctl edit minecraft-api.service`), which survives the
+units being reinstalled.
 
-**Problem**: Authentication failed
+**"Could not read CI status."** GitHub did not answer, or the repository is
+private and `DEPLOY_GITHUB_TOKEN` is not set. It tries again on the next run.
 
-**Solution**:
+**"failed to deploy before; waiting for a newer commit."** The last deploy
+rolled back. `journalctl -u minecraft-deploy.service` shows why, and
+`logs/api-server.log` shows why the API would not start. Push a fix; the new
+commit is tried automatically.
 
-```bash
-# Re-authenticate
-echo "YOUR_TOKEN" | docker login ghcr.io -u and3rn3t --password-stdin
+**"Game server update waiting: 2 player(s) online."** Working as intended. It
+restarts on the first run after everyone leaves.
 
-# Verify
-docker pull ghcr.io/and3rn3t/minecraft-server:latest
+**A web build on the Pi fails with out-of-memory.** Set `DEPLOY_GITHUB_TOKEN`
+and remove `web/.env` if it only holds defaults, so the Pi downloads CI's build
+instead.
+
+**Image pull fails with 403.** The Pi's `docker login` expired or was never
+done; repeat the login in step 4.
+
+## Narrower sudo
+
+Instead of full passwordless sudo for `pi`, allow just the commands the agent
+runs. Create it with `sudo visudo -f /etc/sudoers.d/minecraft-deploy`:
+
+```text
+pi ALL=(root) NOPASSWD: /usr/bin/systemctl restart minecraft-api.service, \
+    /usr/bin/systemctl daemon-reload, \
+    /usr/bin/systemctl reload nginx, \
+    /usr/sbin/nginx -t, \
+    /usr/bin/cp /home/pi/minecraft-server/systemd/* /etc/systemd/system/
 ```
 
-### Container Doesn't Update
+Be clear about what this buys. The `cp` rule is, in effect, root for the `pi`
+account: a unit file can run anything as root, and the wildcard does not pin
+which files are copied. So the narrower list guards against a script doing
+something by accident, not against someone who already controls `pi`. What
+keeps unreviewed code off the Pi is that the checkout only ever fast-forwards
+to commits on `main` that passed CI.
 
-**Problem**: Service pulls but container doesn't restart
+## Related
 
-**Solution**:
-
-```bash
-# Force recreate
-docker compose up -d --force-recreate
-
-# Or restart service
-sudo systemctl restart minecraft.service
-```
-
-### Registry Image Not Found
-
-**Problem**: Image doesn't exist in registry
-
-**Check**:
-
-1. Verify CI workflow completed successfully
-2. Check GitHub Actions logs
-3. Verify image exists: `docker pull ghcr.io/and3rn3t/minecraft-server:latest`
-
-### Timer Not Running
-
-**Problem**: Auto-update timer not active
-
-**Solution**:
-
-```bash
-# Check timer status
-sudo systemctl status minecraft-update.timer
-
-# Enable and start
-sudo systemctl enable minecraft-update.timer
-sudo systemctl start minecraft-update.timer
-
-# List all timers
-sudo systemctl list-timers
-```
-
-## Security Best Practices
-
-1. **Use Personal Access Token** - Not your GitHub password
-2. **Limit Token Scope** - Only `read:packages` permission
-3. **Rotate Tokens** - Change periodically
-4. **Use Private Registry** - If repository is private
-5. **Monitor Access** - Check GitHub audit logs
-
-## Advanced: Tag-Based Deployment
-
-For production, use specific tags instead of `latest`:
-
-```yaml
-# In docker-compose.yml
-image: ghcr.io/and3rn3t/minecraft-server:v1.4.0
-```
-
-Update the tag when you want to deploy a specific version.
-
-## Summary
-
-✅ **CI pushes images** on every main branch commit  
-✅ **Pi pulls automatically** via systemd timer (every hour)  
-✅ **Container restarts** with new image  
-✅ **Zero manual intervention** needed
-
-Your Raspberry Pi will now automatically stay up-to-date with the latest code!
+- [UPDATE_CODEBASE.md](UPDATE_CODEBASE.md) — updating by hand
+- [UPDATE_DOCKER_IMAGE.md](UPDATE_DOCKER_IMAGE.md) — the image build itself
+- [CI_CD.md](CI_CD.md) — what CI runs before a commit counts as green

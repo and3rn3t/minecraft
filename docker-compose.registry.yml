@@ -1,23 +1,33 @@
-# Docker Compose configuration for pulling images from registry
-# Use this when you want to pull pre-built images instead of building locally
+# Docker Compose configuration for pulling images from the registry instead of
+# building them on the Pi.
 #
-# To use: Copy this to docker-compose.yml or use:
-#   docker compose -f docker-compose.registry.yml up -d
-
-version: '3.8'
+# Select it without editing tracked files, so the deploy agent can still
+# fast-forward the checkout: put this line in .env (gitignored)
+#
+#   COMPOSE_FILE=docker-compose.registry.yml
+#
+# Keep everything below the image line identical to docker-compose.yml; it is
+# checked by tests/unit/test-compose-files.sh.
 
 services:
   minecraft:
-    # Pull from GitHub Container Registry instead of building
+    # Pulled from GitHub Container Registry instead of built here. CI publishes
+    # this tag on every push to main.
     image: ghcr.io/and3rn3t/minecraft-server:latest
-    pull_policy: always # Always pull latest image on start
+    # The update scripts pull explicitly (scripts/auto-update.sh,
+    # scripts/deploy-agent.sh), so `up` only needs to pull an image that is
+    # missing. `always` would make a boot with no network fail to start the
+    # server at all.
+    pull_policy: missing
     container_name: minecraft-server
     hostname: minecraft-server
     restart: on-failure
     ports:
       - '${SERVER_PORT:-25565}:25565'
-      # See docker-compose.yml for why RCON needs a host port and is bound to
-      # loopback only.
+      # RCON has no transport encryption and grants full command execution, so
+      # it's bound to loopback only. The API server (api/rcon.py) runs
+      # directly on the host and reaches it via 127.0.0.1, not the container
+      # network, which is why this needs a host port at all.
       - '127.0.0.1:${RCON_PORT:-25575}:25575'
     environment:
       - MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
@@ -27,6 +37,7 @@ services:
       - EULA=${EULA:-TRUE}
       - TZ=${TZ:-UTC}
       - SERVER_TYPE=${SERVER_TYPE:-vanilla}
+      - CONTAINER_MEMORY_LIMIT=${CONTAINER_MEMORY_LIMIT:-3G}
     volumes:
       - ./data:/minecraft/server
       - ./backups:/minecraft/backups
@@ -35,11 +46,18 @@ services:
     stdin_open: true
     tty: true
     healthcheck:
-      test: ['CMD-SHELL', 'pgrep -f java || exit 1']
+      # Probe the game port so "healthy" means the server accepts connections.
+      # Must be the exec form invoking bash: CMD-SHELL runs /bin/sh, which is
+      # dash on Jammy, and /dev/tcp is a bash-only redirection.
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/25565'
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      start_period: 180s
     networks:
       - minecraft-net
     logging:
@@ -50,7 +68,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${MEMORY_MAX:-2G}
+          # Must exceed MEMORY_MAX: the JVM needs roughly 0.5-1G beyond the
+          # heap for metaspace, thread stacks and direct buffers. Setting this
+          # equal to MEMORY_MAX is what causes the restart loop documented in
+          # docs/RESTART_LOOP_TROUBLESHOOTING.md.
+          memory: ${CONTAINER_MEMORY_LIMIT:-3G}
         reservations:
           memory: ${MEMORY_MIN:-1G}
 

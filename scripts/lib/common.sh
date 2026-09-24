@@ -62,3 +62,21 @@ container_running() {
     local name="${1:-minecraft-server}"
     docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$name"
 }
+
+# Print how many players are online. Fails when the server does not answer,
+# which callers should treat as "unknown", not as "empty". PLAYER_COUNT_CMD
+# replaces the probe, for tests.
+players_online() {
+    if [ -n "${PLAYER_COUNT_CMD:-}" ]; then
+        # Word splitting is intended: the override is a command line
+        # shellcheck disable=SC2086
+        $PLAYER_COUNT_CMD
+        return
+    fi
+    # A custom game port lives in .env, which systemd units do not load
+    local port="${SERVER_PORT:-}"
+    if [ -z "$port" ] && [ -f "${PROJECT_DIR}/.env" ]; then
+        port="$(sed -n 's/^SERVER_PORT=//p' "${PROJECT_DIR}/.env" | tail -1)"
+    fi
+    SERVER_PORT="${port:-25565}" python3 "${SCRIPTS_DIR}/player-count.py"
+}

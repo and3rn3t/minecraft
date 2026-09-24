@@ -34,6 +34,9 @@ desktop.ini
 *.sublime-project
 *.sublime-workspace
 
+# Deploy agent state (scripts/deploy-agent.sh)
+.deploy/
+
 # Docker volumes
 docker-volumes/
 

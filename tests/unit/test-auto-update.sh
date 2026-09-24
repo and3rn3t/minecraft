@@ -20,10 +20,19 @@ setup() {
     cd "$TEST_DIR" || exit 1
 
     # A stub docker whose behaviour each test controls through these files.
+    #   ps               - non-empty while the container is running
+    #   container-image  - the image id the running container was started from
+    #   image            - the image id the service's tag points at
+    #   new-image        - if present, what a pull moves the tag to
+    #   compose-config   - what `docker compose config` prints
+    #   players          - how many players the status ping reports
     STATE_DIR="$TEST_DIR/state"
     mkdir -p bin "$STATE_DIR"
     echo "running" > "$STATE_DIR/ps"
+    echo "image-a" > "$STATE_DIR/container-image"
     echo "image-a" > "$STATE_DIR/image"
+    printf 'services:\n  minecraft:\n    image: ghcr.io/example/minecraft-server:latest\n' > "$STATE_DIR/compose-config"
+    echo "0" > "$STATE_DIR/players"
     : > "$STATE_DIR/calls"
 
     cat > bin/docker <<STUB
@@ -36,8 +45,17 @@ case "\$*" in
     *"ps --status running"*)
         cat "$STATE_DIR/ps"
         ;;
-    *"images -q"*)
+    *"config --images"*)
+        echo "ghcr.io/example/minecraft-server:latest"
+        ;;
+    *"compose config"*)
+        cat "$STATE_DIR/compose-config"
+        ;;
+    "image inspect"*)
         cat "$STATE_DIR/image"
+        ;;
+    "inspect"*)
+        cat "$STATE_DIR/container-image"
         ;;
     *pull*)
         if [ -f "$STATE_DIR/new-image" ]; then
@@ -53,6 +71,7 @@ exit 0
 STUB
     chmod +x bin/docker
     export PATH="$TEST_DIR/bin:$PATH"
+    export PLAYER_COUNT_CMD="cat $STATE_DIR/players"
 }
 
 teardown() {
@@ -148,4 +167,62 @@ assert_docker_called_with() {
     run scripts/auto-update.sh check
     assert_success
     assert_docker_not_called_with "up -d"
+}
+
+@test "run addresses the compose service, not the container name" {
+    # The service is `minecraft`; `minecraft-server` is the container. Passing
+    # the container name to compose matched no service, so the script decided
+    # the server was stopped on every run and never updated anything.
+    run scripts/auto-update.sh run
+    assert_success
+    assert_docker_called_with "pull minecraft"
+    assert_docker_not_called_with "^compose .* minecraft-server$"
+}
+
+@test "run waits while anyone is online" {
+    echo "image-b" > "$STATE_DIR/new-image"
+    echo "2" > "$STATE_DIR/players"
+
+    run scripts/auto-update.sh run
+    assert_success
+    assert_line "2 player(s) online"
+    assert_docker_not_called_with "up -d"
+}
+
+@test "run waits when it cannot tell who is online" {
+    echo "image-b" > "$STATE_DIR/new-image"
+    export PLAYER_COUNT_CMD="false"
+
+    run scripts/auto-update.sh run
+    assert_success
+    assert_line "did not say who is online"
+    assert_docker_not_called_with "up -d"
+}
+
+@test "run applies a deferred update once the server is empty" {
+    # A previous run pulled image-b but someone was playing. Nothing new is
+    # pulled this time; the container is still behind its tag, so restart.
+    echo "image-b" > "$STATE_DIR/image"
+
+    run scripts/auto-update.sh run
+    assert_success
+    assert_line "New image found"
+    assert_docker_called_with "up -d"
+}
+
+@test "run does not pull an image that is built locally" {
+    printf 'services:\n  minecraft:\n    build:\n      context: .\n' > "$STATE_DIR/compose-config"
+
+    run scripts/auto-update.sh run
+    assert_success
+    assert_docker_not_called_with "pull"
+}
+
+@test "run restarts onto a locally rebuilt image" {
+    printf 'services:\n  minecraft:\n    build:\n      context: .\n' > "$STATE_DIR/compose-config"
+    echo "image-b" > "$STATE_DIR/image"
+
+    run scripts/auto-update.sh run
+    assert_success
+    assert_docker_called_with "up -d"
 }
