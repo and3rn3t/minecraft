@@ -424,3 +424,33 @@ Description=changed"
     assert_success
     [ ! -f "$PI/.deploy/last-deploy" ]
 }
+
+@test "a waiting game server restart is not applied from another branch" {
+    # compose up reads the compose files as the checkout has them now
+    echo 2 > "$STATE_DIR/players"
+    push_change Dockerfile "FROM example"
+    deploy run
+    [ -f "$PI/.deploy/pending-server-restart" ]
+
+    git -C "$PI" checkout -q -b experiment
+    echo 0 > "$STATE_DIR/players"
+    : > "$STATE_DIR/calls"
+    deploy run
+    assert_line "not a clean main"
+    assert_not_called "up -d"
+    [ -f "$PI/.deploy/pending-server-restart" ]
+}
+
+@test "a waiting game server restart is not applied over edited compose files" {
+    echo 2 > "$STATE_DIR/players"
+    push_change docker-compose.yml "services: {}"
+    deploy run
+    [ -f "$PI/.deploy/pending-server-restart" ]
+
+    echo "services: {edited: {}}" > "$PI/docker-compose.yml"
+    echo 0 > "$STATE_DIR/players"
+    : > "$STATE_DIR/calls"
+    deploy run
+    assert_line "not a clean main"
+    assert_not_called "up -d"
+}

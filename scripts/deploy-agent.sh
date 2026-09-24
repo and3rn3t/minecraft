@@ -176,6 +176,16 @@ server_is_running() {
 apply_pending_restart() {
     [ -f "$PENDING_FILE" ] || return 0
 
+    # `compose up` reads the compose files from the checkout as it is now. If
+    # someone has switched branch or edited them since the deploy that queued
+    # this restart, applying it would apply their work in progress instead.
+    local branch
+    branch="$(git symbolic-ref --short HEAD 2>/dev/null)" || branch=""
+    if [ "$branch" != "$DEPLOY_BRANCH" ] || ! git diff --quiet HEAD -- 'docker-compose*.yml' 'docker-compose*.yaml'; then
+        log_warn "Game server update waiting: the checkout is not a clean ${DEPLOY_BRANCH}"
+        return 0
+    fi
+
     if ! server_is_running; then
         # Stopped on purpose (bedtime, maintenance). It picks up the new image
         # and config whenever it is next started, so there is nothing to wait for.
