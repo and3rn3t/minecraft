@@ -1,0 +1,31 @@
+# Automatic deploy configuration
+#
+# Copy to config/deploy.conf and edit. The real file is gitignored, which
+# matters: it can hold a GitHub token. See docs/AUTO_DEPLOYMENT_SETUP.md.
+#
+# Nothing deploys until the timer is enabled:
+#   sudo systemctl enable --now minecraft-deploy.timer
+
+# Which branch the Pi follows.
+DEPLOY_BRANCH=main
+DEPLOY_REMOTE=origin
+
+# Only deploy commits whose CI run (this workflow file) passed. Turning this
+# off means a broken commit on main reaches the Pi within five minutes.
+DEPLOY_REQUIRE_CI=true
+DEPLOY_WORKFLOW=main.yml
+
+# Optional. A fine-grained GitHub token with read-only access to this one
+# repository: "Actions: read" and "Contents: read". Without it, CI status is
+# read anonymously (fine for a public repository), and the web panel is
+# built on the Pi instead of downloaded from CI. A private repository needs it.
+DEPLOY_GITHUB_TOKEN=
+
+# Optional. Push notifications for deploys and rollbacks, via ntfy
+# (https://ntfy.sh/your-topic or a self-hosted server).
+DEPLOY_NTFY_URL=
+
+# How long the API gets to pass its health check after a restart before the
+# deploy is rolled back, in seconds.
+DEPLOY_HEALTH_TIMEOUT=60
+DEPLOY_API_HEALTH_URL=http://127.0.0.1:8080/api/health

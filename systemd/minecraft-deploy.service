@@ -1,0 +1,22 @@
+[Unit]
+Description=Deploy the Newest Green Commit of the Minecraft Server Repo
+Documentation=file:///home/pi/minecraft-server/docs/AUTO_DEPLOYMENT_SETUP.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/minecraft-server
+# Settings (branch, GitHub token, notification URL) live in
+# config/deploy.conf, which the script reads itself; see
+# config/deploy.conf.example.
+ExecStart=/home/pi/minecraft-server/scripts/deploy-agent.sh run
+User=pi
+Group=pi
+# A web build on the Pi can take a few minutes; anything past this is stuck.
+TimeoutStartSec=20min
+# Deliberately no NoNewPrivileges=: restarting the API and installing units
+# go through `sudo -n`, which that setting would block.
+
+[Install]
+WantedBy=multi-user.target

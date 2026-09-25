@@ -182,57 +182,17 @@ docker compose pull
 docker compose up -d --force-recreate
 ```
 
-## Automatic Updates (Optional)
+## Automatic Updates
 
-### Set Up Cron Job for Daily Updates
+Use the deploy agent rather than scheduling this script. It follows `main`,
+deploys only commits that passed CI, applies every change since the last
+deploy, rolls back if the API fails its health check, and never restarts the
+game server while someone is playing. See
+[AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md).
 
-```bash
-# Edit crontab
-crontab -e
-
-# Add this line to update codebase daily at 3 AM
-0 3 * * * cd ~/minecraft-server && git pull && ./scripts/update-codebase.sh >> /var/log/codebase-update.log 2>&1
-```
-
-### Set Up Systemd Timer for Updates
-
-Create `/etc/systemd/system/minecraft-codebase-update.service`:
-
-```ini
-[Unit]
-Description=Update Minecraft Server Codebase
-After=network-online.target
-
-[Service]
-Type=oneshot
-WorkingDirectory=/home/pi/minecraft-server
-ExecStart=/bin/sh -c 'git pull && ./scripts/update-codebase.sh'
-User=pi
-Group=pi
-```
-
-Create `/etc/systemd/system/minecraft-codebase-update.timer`:
-
-```ini
-[Unit]
-Description=Update Codebase Daily
-Requires=minecraft-codebase-update.service
-
-[Timer]
-OnCalendar=daily
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable the timer:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable minecraft-codebase-update.timer
-sudo systemctl start minecraft-codebase-update.timer
-```
+This script asks questions when the checkout has local edits, so it is not
+safe to run from cron or a timer: it would wait for an answer that never
+comes.
 
 ## Verification
 
@@ -380,4 +340,4 @@ cd ~/minecraft-server && git status
 4. ✅ Rebuild if needed: `npm run build` (web)
 5. ✅ Restart services: `sudo systemctl restart <service>`
 
-For automated updates, use the `update-codebase.sh` script or set up a cron job/systemd timer.
+For automated updates, use the deploy agent: see [AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md).

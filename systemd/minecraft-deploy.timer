@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for New Commits to Deploy Every Five Minutes
+Requires=minecraft-deploy.service
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

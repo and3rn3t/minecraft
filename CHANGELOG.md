@@ -6,6 +6,28 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Automatic deploys to the Pi.** `scripts/deploy-agent.sh`, run every five
+  minutes by `systemd/minecraft-deploy.timer`, fast-forwards the Pi's checkout
+  to the newest commit on `main` that passed CI and applies only what changed
+  across every commit since the last deploy: it rebuilds or downloads the web
+  panel, reinstalls API dependencies, restarts the API and waits for its
+  health check, installs systemd units, reloads nginx, and rebuilds or pulls
+  the game server image. A failed web build or health check rolls back to the
+  previous commit and that commit is not retried. The game server is never
+  restarted while anyone is online, and a stopped server is left stopped.
+  Each run diffs from the last commit it finished applying rather than from
+  the checkout, so a `git pull` by hand or a run that died half-way is
+  completed on the next run; `deploy-agent.sh since ORIG_HEAD` hands a manual
+  pull to it. It shares a lock with `auto-update.sh`, so the two never rebuild
+  or recreate the container at the same time. Deploys and rollbacks go to the
+  audit log and, optionally, to ntfy. It is off
+  until `minecraft-deploy.timer` is enabled; see
+  [docs/AUTO_DEPLOYMENT_SETUP.md](docs/AUTO_DEPLOYMENT_SETUP.md). CI now
+  uploads the built panel as a `web-dist` artifact on pushes to `main` for it.
+- **`scripts/player-count.py`** reports how many players are online using the
+  server list ping, with no RCON password. It exits non-zero when the server
+  does not answer, so callers treat silence as "unknown" rather than "empty".
+
 - **`POST /api/server/properties/preset`** applies one of the performance
   presets in `scripts/server-properties-manager.sh` (`low-end`, `balanced`,
   `high-performance`), which set view distance, simulation distance, max
@@ -79,6 +101,29 @@ All notable changes to this project will be documented in this file.
   any more, because the counters are the game's own.
 
 ### Fixed
+
+- **The hourly image updater never updated anything.** `scripts/auto-update.sh`
+  passed the container name (`minecraft-server`) to compose commands that take
+  the service name (`minecraft`), so compose found no such service and the
+  script concluded the server was stopped on every run. Behind that, it
+  detected a new image by comparing `docker compose images` before and after
+  a pull, which reports the image the running container uses and so never
+  changes on a pull. It now compares the running container's image with the
+  image its tag points at, restarts only when nobody is online, and skips the
+  pull when the image is built locally.
+- **`docker-compose.registry.yml` had drifted from `docker-compose.yml`.** It
+  set the container's memory limit equal to the Java heap, which causes the
+  restart loop `docker-compose.yml` documents, and kept a health check that
+  reported healthy before the server accepted connections. It is now the main
+  file with only the image source changed, selected with `COMPOSE_FILE` in
+  `.env` rather than by copying it over a tracked file, and a test fails if the
+  two drift again.
+- **`scripts/update-codebase.sh` missed changes when a pull brought in more than
+  one commit.** It compared only the last commit with its parent, so a `web/` or
+  `api/` change in an earlier commit was never rebuilt or restarted. The
+  "automatic updates" recipes in `docs/UPDATE_CODEBASE.md` that scheduled it
+  are replaced by a pointer to the deploy agent: the script prompts when the
+  checkout has local edits, so it hangs when nobody is there to answer.
 
 - **Player statistics no longer inflate on every run** (#28).
   `scripts/player-stats-tracker.sh` scraped the server log with three regular
