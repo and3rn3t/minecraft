@@ -1,0 +1,134 @@
+#!/usr/bin/env bats
+# Unit tests for datapack-manager.sh
+
+load '../helpers/bats-support/load'
+load '../helpers/bats-assert/load'
+
+REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/../.." && pwd)"
+
+setup() {
+    TEST_DIR="$(mktemp -d)"
+    cd "$TEST_DIR" || exit 1
+
+    mkdir -p scripts data config
+    cp "${REPO_ROOT}/scripts/datapack-manager.sh" scripts/
+    cp -r "${REPO_ROOT}/scripts/lib" scripts/
+    chmod +x scripts/datapack-manager.sh
+
+    # A stub in place of the real rcon-client.sh, so enable/disable/reload can
+    # run to completion without a live server. Records that it was called so
+    # tests can assert on it.
+    cat > scripts/rcon-client.sh <<'EOF'
+#!/bin/bash
+echo "$@" >> "$(dirname "$0")/../rcon-calls.log"
+echo "reload stub ok"
+EOF
+    chmod +x scripts/rcon-client.sh
+
+    echo "level-name=world" > server.properties
+    mkdir -p data/world
+}
+
+teardown() {
+    rm -rf "$TEST_DIR"
+}
+
+@test "datapack-manager create scaffolds pack.mcmeta and advancement/function dirs" {
+    run scripts/datapack-manager.sh create family
+    assert_success
+
+    assert_file_exists "config/datapacks/family/pack.mcmeta"
+    assert_dir_exists "config/datapacks/family/data/family/advancement"
+    assert_dir_exists "config/datapacks/family/data/family/function"
+}
+
+@test "datapack-manager create rejects a name with spaces" {
+    run scripts/datapack-manager.sh create "not valid"
+    assert_failure
+}
+
+@test "datapack-manager create refuses to overwrite an existing datapack" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh create family
+    assert_failure
+    assert_line "already exists"
+}
+
+@test "datapack-manager list-json emits valid, parseable JSON" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh list-json
+    assert_success
+    echo "$output" | python3 -c "import json,sys; data=json.load(sys.stdin); assert isinstance(data, list)"
+}
+
+@test "datapack-manager list-json reports enabled=false before enable, true after" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh list-json
+    assert_line '"enabled":false'
+
+    scripts/datapack-manager.sh enable family
+
+    run scripts/datapack-manager.sh list-json
+    assert_line '"enabled":true'
+}
+
+@test "datapack-manager validate passes on a freshly created datapack" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh validate family
+    assert_success
+    assert_line "PASS"
+}
+
+@test "datapack-manager validate fails on broken JSON" {
+    scripts/datapack-manager.sh create family
+    echo '{not valid json' > config/datapacks/family/data/family/advancement/broken.json
+
+    run scripts/datapack-manager.sh validate family
+    assert_failure
+    assert_line "FAIL"
+    assert_line "broken.json"
+}
+
+@test "datapack-manager enable copies the tracked source into the current world and reloads" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh enable family
+    assert_success
+
+    assert_file_exists "data/world/datapacks/family/pack.mcmeta"
+    assert_line "Reloading datapacks"
+    assert_file_contains "rcon-calls.log" "reload"
+}
+
+@test "datapack-manager disable removes the deployed copy but keeps the tracked source" {
+    scripts/datapack-manager.sh create family
+    scripts/datapack-manager.sh enable family
+
+    run scripts/datapack-manager.sh disable family
+    assert_success
+
+    [ ! -d "data/world/datapacks/family" ]
+    assert_file_exists "config/datapacks/family/pack.mcmeta"
+}
+
+@test "datapack-manager disable errors when the datapack was never enabled" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh disable family
+    assert_failure
+    assert_line "not enabled"
+}
+
+@test "datapack-manager delete --yes backs up and removes the tracked source" {
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh delete family --yes
+    assert_success
+
+    [ ! -d "config/datapacks/family" ]
+    run bash -c "ls backups/datapack-family-*.tar.gz"
+    assert_success
+}
+
+@test "datapack-manager with no arguments prints usage and exits nonzero" {
+    run scripts/datapack-manager.sh
+    assert_failure
+    assert_line "Usage:"
+}

@@ -1,5 +1,9 @@
 # Minecraft Server Data
-data/
+# Anchored to the repo root: an unanchored "data/" also matches
+# config/datapacks/<name>/data/, which every datapack's own layout requires
+# (Mojang's format, not this repo's), silently excluding every tracked
+# datapack file.
+/data/
 backups/
 plugins/
 

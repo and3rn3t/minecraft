@@ -15,6 +15,25 @@ All notable changes to this project will be documented in this file.
 - **`PUT /api/scheduler/schedules/<id>/enable` and `/disable`**, so a schedule
   can be paused without deleting it. These existed only on the duplicate API
   that has been removed, so the web interface had no way to do it.
+- **`scripts/datapack-manager.sh`**, a `create`/`list`/`install`/`enable`/
+  `disable`/`validate`/`delete`/`reload` pipeline for vanilla datapacks, plus
+  `GET /api/datapacks`, `POST /api/datapacks/install`,
+  `PUT /api/datapacks/<name>/enable`/`disable` and `DELETE /api/datapacks/<name>`.
+  The tracked source of a datapack lives
+  at `config/datapacks/<name>/`; `enable` deploys it into the current world's
+  gitignored `data/<world>/datapacks/` and reloads, `disable` removes the
+  deployed copy without touching the tracked source. New `datapacks.view`/
+  `datapacks.manage` permissions, following the existing `plugins.*`
+  precedent. See [`docs/DATAPACKS.md`](docs/DATAPACKS.md).
+- **The family advancement tree**, the pipeline's first real datapack:
+  five custom advancements (First Diamond, Neighbors, Ten Thousand Blocks,
+  Sibling Rivalry, Night Shift) in their own tab in the game's own
+  advancements screen. Four are granted by datapack tick functions; Night
+  Shift is granted by RCON from a scheduled command, since a vanilla function
+  has no access to the real-world clock. See
+  [`docs/ADVANCEMENTS.md`](docs/ADVANCEMENTS.md) for how each one works and
+  the one-time setup (Dad's house coordinates, the Night Shift schedule) it
+  needs after enabling.
 
 ### Changed
 

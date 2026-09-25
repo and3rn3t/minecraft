@@ -285,6 +285,46 @@ export const api = {
     return cachedGet('/plugins', {}, 30000);
   },
 
+  // Datapacks
+  async listDatapacks() {
+    return cachedGet('/datapacks', {}, 10000);
+  },
+
+  async installDatapack({ name, url, file }) {
+    const formData = new FormData();
+    formData.append('name', name);
+    if (file) {
+      formData.append('file', file);
+    } else {
+      formData.append('url', url);
+    }
+    const response = await apiClient.post('/datapacks/install', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    invalidateCache();
+    return response.data;
+  },
+
+  async enableDatapack(name) {
+    const response = await apiClient.put(`/datapacks/${name}/enable`);
+    invalidateCache();
+    return response.data;
+  },
+
+  async disableDatapack(name) {
+    const response = await apiClient.put(`/datapacks/${name}/disable`);
+    invalidateCache();
+    return response.data;
+  },
+
+  async deleteDatapack(name) {
+    const response = await apiClient.delete(`/datapacks/${name}`);
+    invalidateCache();
+    return response.data;
+  },
+
   // Configuration files (cached for 30 seconds - rarely changes)
   async listConfigFiles() {
     return cachedGet('/config/files', {}, 30000);

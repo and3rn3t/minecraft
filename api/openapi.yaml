@@ -53,6 +53,8 @@ tags:
     description: World management
   - name: Plugins
     description: Plugin management
+  - name: Datapacks
+    description: Datapack pipeline (scripts/datapack-manager.sh) — install, enable, disable and reload vanilla datapacks
   - name: Configuration
     description: Configuration file management
   - name: Logs
@@ -842,6 +844,135 @@ paths:
                           type: boolean
                         version:
                           type: string
+
+  /api/datapacks:
+    get:
+      tags:
+        - Datapacks
+      summary: List datapacks
+      description: >
+        List datapacks tracked under config/datapacks/, with whether each is
+        currently deployed (enabled) into the active world's data/<world>/datapacks/.
+      operationId: listDatapacks
+      responses:
+        '200':
+          description: List of datapacks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datapacks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        enabled:
+                          type: boolean
+                        world:
+                          type: string
+                  count:
+                    type: integer
+
+  /api/datapacks/install:
+    post:
+      tags:
+        - Datapacks
+      summary: Install a datapack
+      description: >
+        Install a datapack from a zip URL or an uploaded zip file into
+        config/datapacks/<name>, then immediately deploy it into the current
+        world and run /reload.
+      operationId: installDatapack
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Datapack name (letters, numbers, underscores)
+                url:
+                  type: string
+                  description: Zip URL to download (mutually exclusive with file)
+                file:
+                  type: string
+                  format: binary
+                  description: Zip file to upload (mutually exclusive with url)
+              required:
+                - name
+      responses:
+        '200':
+          description: Datapack installed and enabled
+        '400':
+          description: Missing or conflicting name/url/file
+        '500':
+          description: Install failed
+
+  /api/datapacks/{name}/enable:
+    put:
+      tags:
+        - Datapacks
+      summary: Enable a datapack
+      description: Deploy a tracked datapack into the current world and run /reload
+      operationId: enableDatapack
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Datapack enabled
+        '500':
+          description: Enable failed
+
+  /api/datapacks/{name}/disable:
+    put:
+      tags:
+        - Datapacks
+      summary: Disable a datapack
+      description: >
+        Remove a datapack from the current world's data/<world>/datapacks/ and
+        run /reload. The tracked source under config/datapacks/<name> is not touched.
+      operationId: disableDatapack
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Datapack disabled
+        '500':
+          description: Disable failed
+
+  /api/datapacks/{name}:
+    delete:
+      tags:
+        - Datapacks
+      summary: Delete a datapack
+      description: >
+        Back up config/datapacks/<name> to backups/, remove it from the
+        current world if deployed, and delete the tracked source.
+      operationId: deleteDatapack
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Datapack deleted
+        '500':
+          description: Delete failed
 
   /api/logs:
     get:
