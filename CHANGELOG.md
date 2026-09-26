@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **`docs/LOCAL_TESTING.md`**: how to run a real vanilla server in Docker
+  locally (not the Pi) to test game features before they ship — building
+  and starting the image, enabling RCON, reloading a datapack and reading
+  the reload output for real errors, exercising a mechanic without a
+  connected player (a stand-in entity plus `execute as ... at ... run
+  function ...`), and running the API server against it. Written while
+  setting up exactly this to verify the Graves/Lucky Blocks datapack work,
+  which is what turned up the three RCON bugs below.
 - **Lucky Blocks, Graves, and the Pet Cemetery** (W7, W8, M6) — the first
   content built on the datapack pipeline beyond the family advancement tree.
   - **Lucky Blocks**: craft a player head, break it, roll a weighted loot
@@ -148,6 +156,55 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`api/rcon.py` could get its connection closed by the real Minecraft
+  server on the very first command.** `_send_command()` sent the command
+  packet and a second "sentinel" packet (used to detect the end of a
+  multi-packet response) back to back, with nothing read in between. Against
+  the fake RCON server `tests/api/test_rcon.py` uses, that's fine; against a
+  real vanilla 1.20.4 server, the two packets can be coalesced by the OS
+  into one write, and vanilla's own packet reader can't handle two framed
+  packets arriving in a single read — it drops the connection instead of
+  parsing both, deterministically, every time. Found by actually running a
+  command against a real server rather than only the test suite's mock one.
+  Fixed by reading the command's first response packet before sending the
+  sentinel, which forces a real round trip between the two writes and
+  removes the coalescing risk entirely, rather than papering over it with an
+  arbitrary delay.
+- **`scripts/rcon-client.sh`'s Python fallback reimplemented the RCON wire
+  protocol with two of its own bugs**: no length-prefix framing on the
+  packets it sent, and an auth-failure check that only tripped on a
+  suspiciously short reply instead of checking the protocol's own `-1`
+  request id — so it could report "Authentication failed" for reasons that
+  had nothing to do with authentication (exactly what the malformed packets
+  it was sending would provoke). `api/rcon.py`'s own docstring already
+  documented this exact class of bug in this script's *previous* approach;
+  this script's fallback had drifted into repeating it independently. Now
+  shells out to `api/rcon.py` instead of maintaining a second
+  implementation.
+- **`scripts/rcon-setup.sh` could silently generate an empty RCON
+  password.** `generate_password()` piped `/dev/urandom`'s raw binary
+  through `tr -dc` without forcing a `C` locale; under a UTF-8 locale, `tr`
+  can hit an invalid byte sequence partway through and exit early, and
+  because that failure was in the middle of a pipeline, `set -e` never saw
+  it. The result: `RCON_PASSWORD=` written to both `config/rcon.conf` and
+  `server.properties`, with no error shown. Fixed with `LC_ALL=C`, an
+  `openssl` fallback if the length still comes up short, and an explicit
+  error instead of continuing with a short/empty password.
+- **A generated RCON password containing `&` or `$` broke both consumers
+  that read it back.** `scripts/rcon-setup.sh`'s password alphabet included
+  both characters: `&` is a shell control operator even with no surrounding
+  whitespace (`a&b` tokenizes as three tokens), so `rcon-client.sh` sourcing
+  `config/rcon.conf`'s unquoted `RCON_PASSWORD=...` line could silently
+  truncate the password or run part of it as a command; `&` also means "the
+  whole match" in a sed replacement, which is how the same password gets
+  written into `server.properties`. `$` had the same problem for sourcing
+  (parameter expansion). Fixed by dropping both from the generated
+  alphabet — confirmed clean across 30 freshly generated passwords.
+- **`scripts/api-key-manager.sh` had the identical locale bug as
+  `rcon-setup.sh`'s password generator**, discovered while writing
+  `docs/LOCAL_TESTING.md`'s "create an API key" instructions and finding
+  they produced a 1-character key. Same fix: `LC_ALL=C` on the `tr`
+  pipeline, plus an `openssl` fallback.
 - **The hourly image updater never updated anything.** `scripts/auto-update.sh`
   passed the container name (`minecraft-server`) to compose commands that take
   the service name (`minecraft`), so compose found no such service and the

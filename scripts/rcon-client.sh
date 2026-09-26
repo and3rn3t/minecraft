@@ -80,50 +80,23 @@ send_rcon_command() {
         fi
     fi
 
-    # Fallback: use Python rcon library if available
+    # Fallback: api/rcon.py, over a fresh connection (this script is a
+    # one-shot CLI invocation, not the long-lived API process, so it can't
+    # share that module's persistent connection). It reads config/rcon.conf
+    # itself -- the same file this script already sourced above -- so
+    # nothing needs passing through.
+    #
+    # This used to be a Python heredoc reimplementing the RCON wire protocol
+    # inline, with two real bugs: no length-prefix framing on the packets it
+    # sent, and an auth-failure check that only tripped on a suspiciously
+    # short reply instead of checking the protocol's own -1 request id (so
+    # it could report "Authentication failed" for reasons that had nothing
+    # to do with authentication -- exactly what a malformed, unframed packet
+    # would provoke). api/rcon.py's own docstring documents this same class
+    # of bug in this script's *previous* approach; shelling out to it
+    # instead of maintaining a second implementation is the fix.
     if command -v python3 >/dev/null 2>&1; then
-        python3 <<EOF
-import socket
-import struct
-import sys
-
-def send_rcon_command(host, port, password, command):
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        sock.connect((host, port))
-
-        # Send authentication
-        auth_packet = struct.pack('<iii', 3, 0, len(password) + 2) + password.encode() + b'\x00\x00'
-        sock.send(auth_packet)
-
-        # Receive auth response
-        response = sock.recv(4096)
-        if len(response) < 4:
-            print("Authentication failed", file=sys.stderr)
-            return 1
-
-        # Send command
-        cmd_packet = struct.pack('<iii', 2, 0, len(command) + 2) + command.encode() + b'\x00\x00'
-        sock.send(cmd_packet)
-
-        # Receive response
-        response = sock.recv(4096)
-        if len(response) >= 10:
-            response_text = response[10:-2].decode('utf-8', errors='ignore')
-            print(response_text)
-            return 0
-        else:
-            print("No response", file=sys.stderr)
-            return 1
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-    finally:
-        sock.close()
-
-sys.exit(send_rcon_command("$RCON_HOST", $RCON_PORT, "$RCON_PASSWORD", "$command"))
-EOF
+        python3 "${PROJECT_DIR}/api/rcon.py" "$command"
         return $?
     fi
 
