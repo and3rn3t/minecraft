@@ -164,6 +164,21 @@ All notable changes to this project will be documented in this file.
   `server.properties`, with no error shown. Fixed with `LC_ALL=C`, an
   `openssl` fallback if the length still comes up short, and an explicit
   error instead of continuing with a short/empty password.
+- **A generated RCON password containing `&` or `$` broke both consumers
+  that read it back.** `scripts/rcon-setup.sh`'s password alphabet included
+  both characters: `&` is a shell control operator even with no surrounding
+  whitespace (`a&b` tokenizes as three tokens), so `rcon-client.sh` sourcing
+  `config/rcon.conf`'s unquoted `RCON_PASSWORD=...` line could silently
+  truncate the password or run part of it as a command; `&` also means "the
+  whole match" in a sed replacement, which is how the same password gets
+  written into `server.properties`. `$` had the same problem for sourcing
+  (parameter expansion). Fixed by dropping both from the generated
+  alphabet — confirmed clean across 30 freshly generated passwords.
+- **`scripts/api-key-manager.sh` had the identical locale bug as
+  `rcon-setup.sh`'s password generator**, discovered while writing
+  `docs/LOCAL_TESTING.md`'s "create an API key" instructions and finding
+  they produced a 1-character key. Same fix: `LC_ALL=C` on the `tr`
+  pipeline, plus an `openssl` fallback.
 - **The hourly image updater never updated anything.** `scripts/auto-update.sh`
   passed the container name (`minecraft-server`) to compose commands that take
   the service name (`minecraft`), so compose found no such service and the

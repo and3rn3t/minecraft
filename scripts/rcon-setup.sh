@@ -34,8 +34,16 @@ generate_password() {
     # (the pipeline's exit status is head's, not tr's, so `set -e` doesn't
     # catch it) and hand back an empty password that gets written to
     # rcon.conf and server.properties as-is.
+    #
+    # No "$" or "&": enable_rcon() below writes the result as an unquoted
+    # RCON_PASSWORD=$password line, which rcon-client.sh then sources, and
+    # also splices it into server.properties with sed. "$" triggers
+    # expansion on source; "&" is a shell control operator even with no
+    # surrounding whitespace ("a&b" tokenizes as "a", "&", "b") *and* means
+    # "the whole match" in a sed replacement -- either one silently mangles
+    # the password rather than failing loudly.
     if [ -c /dev/urandom ]; then
-        password="$(LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c "$length")"
+        password="$(LC_ALL=C tr -dc 'A-Za-z0-9!@#%^*' < /dev/urandom | head -c "$length")"
     fi
 
     if [ "${#password}" -lt "$length" ]; then

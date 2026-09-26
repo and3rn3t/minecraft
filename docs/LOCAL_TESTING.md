@@ -63,6 +63,14 @@ Most of what you'll want to test happens "as a player" (breaking a block,
 dying, taming a pet) and this environment has no Minecraft client. Two
 ways around that:
 
+The examples below name `family:tick/make_grave` and `family:tick/age_graves`
+— [Graves](GRAVES.md)'s functions, from a separate PR that may not be merged
+yet. If `family` on your checkout doesn't have them
+(`config/datapacks/family/data/family/functions/tick/` will tell you), swap
+in whatever downstream function your own feature calls instead; the
+technique — call it directly, standing in for a player — is the point, not
+these specific names.
+
 **Call the function directly**, standing in for the player with any entity
 you can summon (an armor stand works well — it won't wander off):
 
@@ -114,17 +122,30 @@ execute('forceload remove 100 100 100 100')
 
 ## Testing the API + RCON together
 
+`config/api-keys.json` is gitignored and won't exist on a fresh checkout —
+the API loads an empty key map when it's absent, so any request without a
+key you've created yourself gets rejected. Create one *before* starting the
+server; `api/server.py` only reads this file at startup, so a key created
+while it's already running won't be seen until it's restarted:
+
+```bash
+./scripts/api-key-manager.sh create local-test
+# API key created ... Key: <printed once -- copy it>
+```
+
+A key created this way has no role set yet, which `api/server.py` treats as
+admin the first time it starts after the key exists (logged as a warning,
+and narrowable later via `PUT /api/keys/<id>` if you want to test permission
+boundaries instead) — enough to exercise `.manage` endpoints with no extra
+step. Now start the server:
+
 ```bash
 source .venv/bin/activate  # or: python3 -m venv .venv && pip install -r api/requirements.txt
 ALLOWED_ORIGINS="http://localhost:5173" python3 api/server.py
 ```
 
-There's already a dev API key in `config/api-keys.json` (gitignored, role
-`user`). Bump it to `admin` locally if you need to exercise `.manage`
-endpoints:
-
 ```bash
-curl -H "X-API-Key: <key from config/api-keys.json>" http://localhost:8080/api/datapacks
+curl -H "X-API-Key: <key from the previous step>" http://localhost:8080/api/datapacks
 ```
 
 For the web panel: `cd web && npm run dev`, then open <http://localhost:5173>

@@ -22,12 +22,23 @@ mkdir -p "$(dirname "$API_KEYS_FILE")"
 # Function to generate API key
 generate_api_key() {
     # Generate 32-character random key
+    #
+    # /dev/urandom is raw binary, and tr under a UTF-8 locale tries to read
+    # it as multi-byte characters and dies with "Illegal byte sequence"
+    # partway through -- LC_ALL=C makes it treat the stream as single bytes
+    # instead, which is what -dc actually needs. Without this, tr fails
+    # silently (the pipeline's exit status is head's, not tr's, so `set -e`
+    # doesn't catch it) and hands back a key far shorter than 32 characters.
+    local key
     if [ -c /dev/urandom ]; then
-        tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
-        echo
-    else
-        openssl rand -hex 16
+        key="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)"
     fi
+
+    if [ "${#key}" -lt 32 ]; then
+        key="$(openssl rand -hex 16)"
+    fi
+
+    echo "$key"
 }
 
 # Function to load API keys
