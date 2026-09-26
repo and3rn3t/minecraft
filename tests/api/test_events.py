@@ -18,6 +18,7 @@ from api.events import (  # noqa: E402
     EVENT_COMMAND,
     EVENT_CONNECT,
     EVENT_DEATH,
+    EVENT_PET_DEATH,
     EVENT_JOIN,
     EVENT_LEAVE,
     EVENT_SERVER_READY,
@@ -156,6 +157,39 @@ class TestParsingDeaths:
 
     def test_ordinary_sentence_is_not_a_death(self):
         assert parse_line(line("Jonah is building something")) is None
+
+
+@pytest.mark.unit
+class TestParsingPetDeaths:
+    """A named (tamed) mob's death, logged to console but never broadcast."""
+
+    def test_named_wolf_death(self):
+        message = (
+            "Named entity EntityWolf['Biscuit'/99, uuid='238608e0-adfc-4fad-8e07-22dad27c9550', "
+            "l='ServerLevel[minecraft:overworld]', x=1.00, y=64.00, z=1.00, cpos=[0, 0], tl=1, "
+            "v=true, rR=null] died: Biscuit was slain by Skeleton"
+        )
+        event = parse_line(line(message))
+        assert event is not None
+        assert event.type == EVENT_PET_DEATH
+        assert event.player is None
+        assert event.data["entity_type"] == "EntityWolf"
+        assert event.data["name"] == "Biscuit"
+        assert event.data["cause"] == "was slain by Skeleton"
+
+    def test_cause_with_brackets_in_it(self):
+        """A weapon name in the cause ('using [Bow]') must not break the match."""
+        message = (
+            "Named entity EntityWolf['Biscuit'/99, uuid='abc', l='ServerLevel[minecraft:overworld]', "
+            "x=1.0, y=2.0, z=3.0, cpos=[0, 0], tl=1, v=true, rR=null] "
+            "died: Biscuit was slain by Skeleton using [Bow]"
+        )
+        event = parse_line(line(message))
+        assert event.data["cause"] == "was slain by Skeleton using [Bow]"
+
+    def test_an_ordinary_player_death_is_not_a_pet_death(self):
+        event = parse_line(line("Jonah was slain by Zombie"))
+        assert event.type == EVENT_DEATH
 
 
 @pytest.mark.unit
@@ -450,6 +484,7 @@ class TestEventsEndpoints:
             EVENT_JOIN,
             EVENT_LEAVE,
             EVENT_DEATH,
+            EVENT_PET_DEATH,
             EVENT_ADVANCEMENT,
             EVENT_COMMAND,
             EVENT_SERVER_READY,

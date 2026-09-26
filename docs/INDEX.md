@@ -61,6 +61,9 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [ANALYTICS.md](ANALYTICS.md) | Player and server analytics collection and reports |
 | [DATAPACKS.md](DATAPACKS.md) | Installing, enabling and reloading vanilla datapacks |
 | [ADVANCEMENTS.md](ADVANCEMENTS.md) | The family advancement tree and how each achievement is triggered |
+| [LUCKY_BLOCKS.md](LUCKY_BLOCKS.md) | Craft a player head, break it, roll a loot table |
+| [GRAVES.md](GRAVES.md) | Dropped items collected into a labeled chest, not scattered |
+| [PET_CEMETERY.md](PET_CEMETERY.md) | Gentle obituaries and gravestones for named pets |
 
 ---
 
