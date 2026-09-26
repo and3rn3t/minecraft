@@ -8,7 +8,7 @@
 # more than once in the same day.
 execute store result score #daytime family_temp run time query daytime
 
-execute if score #daytime family_temp matches 0..5 unless score #counted_today family_temp matches 1 run function family:tick/count_night
+execute if score #daytime family_temp matches 0..5 unless score #counted_today family_temp matches 1 run function family:tick/on_dawn
 execute if score #daytime family_temp matches 0..5 run scoreboard players set #counted_today family_temp 1
 execute if score #daytime family_temp matches 6.. run scoreboard players set #counted_today family_temp 0
 
