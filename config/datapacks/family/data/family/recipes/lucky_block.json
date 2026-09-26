@@ -18,6 +18,7 @@
     },
     "result": {
         "item": "minecraft:player_head",
-        "count": 1
+        "count": 1,
+        "nbt": "{display:{Name:'{\"text\":\"Lucky Block\",\"color\":\"gold\"}'}}"
     }
 }

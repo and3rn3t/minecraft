@@ -33,10 +33,21 @@
 # into a command argument, so which slot number gets written is a fixed
 # 27-way branch on family_grave_slot rather than a computed index --
 # verbose, but every line is obviously correct on its own.
+#
+# "distance=..3" alone would happily vacuum up anything else lying around
+# nearby too -- another player's deliberately dropped item, an older pile
+# that hasn't despawned yet -- not just what this death actually dropped.
+# "tag=!family_seen_item" narrows it to items that appeared since the last
+# tick tagged everything that existed then (tag_existing_items.mcfunction,
+# run at the end of every tick): a death's own drops are always untagged
+# the same tick they land, and anything that was already on the ground got
+# tagged on some earlier tick. The only gap is another entity dropping an
+# item on the exact same tick as the death, within 3 blocks -- rare enough
+# on a home server to accept rather than build ownership-tracking for.
 execute unless score @s family_grave_slot matches ..26 run return 1
-execute unless entity @e[type=item,distance=..3] run return 1
+execute unless entity @e[type=item,tag=!family_seen_item,distance=..3] run return 1
 
-tag @e[type=item,distance=..3,sort=nearest,limit=1] add family_vacuum_target
+tag @e[type=item,tag=!family_seen_item,distance=..3,sort=nearest,limit=1] add family_vacuum_target
 data modify storage family:temp Entry set from entity @e[tag=family_vacuum_target,limit=1] Item
 
 execute if score @s family_grave_slot matches 0 run data modify storage family:temp Entry.Slot set value 0b

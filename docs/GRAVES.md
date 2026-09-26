@@ -23,10 +23,16 @@ oversight: real per-player access control would need a plugin, which would
 mean leaving vanilla, which the rest of this roadmap depends on staying on.
 
 What *is* enforced is the part that doesn't need player identity: **after
-24 in-game days, the grave expires.** The chest (and whatever's still in it)
-and the sign are destroyed — `destroy` mode, so the contents drop loose
-rather than vanishing — clearing old graves out automatically instead of
-letting them accumulate forever.
+24 in-game days of loaded time, the grave expires.** The chest (and
+whatever's still in it) and the sign are destroyed — `destroy` mode, so the
+contents drop loose rather than vanishing — clearing old graves out
+automatically instead of letting them accumulate forever. "Loaded time"
+because the countdown only ticks down at dawn while the grave's chunk
+happens to be loaded (`@e` can't select entities in unloaded chunks) — a
+grave far from wherever players currently are can sit frozen well past 24
+real in-game days rather than expiring on the dot. Forceloading every
+outstanding grave's chunk forever to guarantee wall-clock accuracy wasn't
+worth it for something this low-stakes.
 
 ## How it works
 
@@ -46,12 +52,26 @@ on the dawn-detection already built for
 finds every outstanding grave by looking for that tag, decrements its
 countdown, and expires anything that reaches zero.
 
+A second death at the same spot — or a grave that hasn't expired yet — would
+make an unconditional `setblock` overwrite the existing chest instead of
+making a new one, silently destroying its contents and leaving two graves
+sharing one chest. `functions/tick/make_grave.mcfunction` checks for an
+occupied spot first and steps 2 blocks east, up to two times, before
+placing; three graves stacked on the exact same block is rare enough on a
+home server not to need more than that.
+
 **Collecting the dropped items.**
 `functions/tick/vacuum_grave_step.mcfunction` repeatedly finds the nearest
-dropped item within 3 blocks and moves its stack into the chest. Getting
-this right took three attempts against a real running server — the first
-two looked reasonable on paper and both turned out to be wrong in ways that
-only showed up by actually running them:
+dropped item within 3 blocks and moves its stack into the chest — but only
+items that appeared *this tick*, tracked with a `family_seen_item` tag that
+`functions/tick/tag_existing_items.mcfunction` applies to everything already
+on the ground at the end of every tick. Without that filter, "within 3
+blocks" would just as happily vacuum up someone else's deliberately dropped
+item, or an older pile that hasn't despawned, as the actual death drops.
+
+Getting the append itself right took three attempts against a real running
+server — the first two looked reasonable on paper and both turned out to be
+wrong in ways that only showed up by actually running them:
 
 1. `item replace block <pos> container.N from entity <item> contents` — the
    command the Minecraft Wiki's `/item` page describes for exactly this —

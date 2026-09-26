@@ -130,6 +130,27 @@ class TestGravestoneCommands:
         cemetery.record(PetDeath(entity_type="EntityWolf", name="Biscuit", cause="drowned"))
         assert any(cmd.startswith("setblock") and "oak_sign" in cmd for cmd in commands)
 
+    def test_lines_are_valid_json_text_components(self):
+        record = PetDeathRecord(
+            name="Biscuit",
+            species="dog",
+            cause="drowned",
+            category="drowning",
+            epitaph="x",
+            timestamp="2026-09-19T12:00:00+00:00",
+            plot=0,
+        )
+        commands = build_gravestone_commands(record)
+        sign_line = next(c for c in commands if "messages[0]" in c)
+        # front_text.messages stores a JSON text component, not a bare
+        # string -- a plain "value" would be accepted by /data but never
+        # render on the sign.
+        value = sign_line.split("set value ", 1)[1]
+        assert value.startswith('"')
+        assert value.endswith('"')
+        unescaped = value[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+        assert json.loads(unescaped) == {"text": "Biscuit"}
+
     def test_quotes_in_the_name_are_escaped_not_interpolated(self):
         record = PetDeathRecord(
             name='Biscuit "the good boy"',
@@ -142,7 +163,9 @@ class TestGravestoneCommands:
         )
         commands = build_gravestone_commands(record)
         sign_line = next(c for c in commands if "messages[0]" in c)
-        assert '\\"the good boy\\"' in sign_line
+        value = sign_line.split("set value ", 1)[1]
+        unescaped = value[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+        assert json.loads(unescaped) == {"text": 'Biscuit "the good boy"'}
 
 
 @pytest.mark.unit

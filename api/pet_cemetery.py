@@ -193,7 +193,11 @@ def build_gravestone_commands(record: PetDeathRecord) -> list[str]:
     ]
     commands = [f"setblock {x} {y} {z} minecraft:oak_sign"]
     for index, text in enumerate(lines):
-        escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+        # In 1.20.4, front_text.messages stores serialized JSON text
+        # components, not bare strings -- a plain "value" here would be
+        # accepted by /data but silently fail to render on the sign.
+        component = json.dumps({"text": text}, separators=(",", ":"))
+        escaped = component.replace("\\", "\\\\").replace('"', '\\"')
         commands.append(f'data modify block {x} {y} {z} front_text.messages[{index}] set value "{escaped}"')
     return commands
 

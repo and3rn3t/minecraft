@@ -30,6 +30,7 @@ The bus changes three things:
 | `join` | A player enters the world | |
 | `leave` | A player disconnects | |
 | `death` | A player dies | `cause`, `message` |
+| `pet_death` | A named (tamed or otherwise custom-named) mob dies | `entity_type`, `name`, `cause` — `player` is always `null`, the log line names no owner |
 | `advancement` | An advancement, challenge or goal is earned | `advancement` |
 | `command` | A player runs a slash command | `command` |
 | `server_ready` | The server finishes starting | `startup_time` |
