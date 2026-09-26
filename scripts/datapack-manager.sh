@@ -19,7 +19,10 @@ source "${SCRIPT_DIR}/lib/common.sh"
 
 DATAPACKS_SRC_DIR="${PROJECT_DIR}/config/datapacks"
 DATA_DIR="${PROJECT_DIR}/data"
-SERVER_PROPERTIES="${PROJECT_DIR}/server.properties"
+# Matches server-properties-manager.sh and performance-presets.sh: the file
+# the running server actually reads and writes lives under data/, not the
+# repo root.
+SERVER_PROPERTIES="${SERVER_PROPERTIES:-${DATA_DIR}/server.properties}"
 BACKUPS_DIR="${PROJECT_DIR}/backups"
 
 mkdir -p "$DATAPACKS_SRC_DIR"
@@ -75,10 +78,13 @@ create_datapack() {
         return 1
     fi
 
-    mkdir -p "${pack_dir}/data/${name}/advancement"
-    mkdir -p "${pack_dir}/data/${name}/function"
-    mkdir -p "${pack_dir}/data/${name}/loot_table"
-    mkdir -p "${pack_dir}/data/${name}/recipe"
+    # Plural directory names: pack_format 26 (1.20.4) predates 24w21a, the
+    # 1.21 snapshot that renamed these to singular. Get this wrong and
+    # Minecraft silently never discovers the pack's own content.
+    mkdir -p "${pack_dir}/data/${name}/advancements"
+    mkdir -p "${pack_dir}/data/${name}/functions"
+    mkdir -p "${pack_dir}/data/${name}/loot_tables"
+    mkdir -p "${pack_dir}/data/${name}/recipes"
 
     cat > "${pack_dir}/pack.mcmeta" <<EOF
 {
@@ -164,8 +170,20 @@ enable_datapack() {
     local target_dir="${DATA_DIR}/${current_world}/datapacks/${name}"
 
     mkdir -p "$(dirname "$target_dir")"
+
+    # Copy to a staging directory next to the target first, so a failed copy
+    # (disk full, permissions) can't leave a previously-working, already-live
+    # datapack deleted with nothing to replace it. The swap itself is just
+    # two renames, not a copy, so it's effectively instant either way.
+    local staging_dir="${target_dir}.new"
+    rm -rf "$staging_dir"
+    if ! cp -r "$source_dir" "$staging_dir"; then
+        log_error "Error: failed to stage ${name} for deployment; the previously enabled copy (if any) was left untouched"
+        rm -rf "$staging_dir"
+        return 1
+    fi
     rm -rf "$target_dir"
-    cp -r "$source_dir" "$target_dir"
+    mv "$staging_dir" "$target_dir"
 
     log_success "Enabled datapack: $name (world: $current_world)"
     reload_datapacks
@@ -190,16 +208,61 @@ disable_datapack() {
     reload_datapacks
 }
 
+# Reject obviously dangerous install URLs before anything downloads. This is
+# an admin-only endpoint (datapacks.manage), but the caller could be a
+# leaked API key rather than Matt, and without this check that key could
+# make the Pi fetch its own loopback services or other hosts on the home
+# network and save the response as a "datapack".
+#
+# This is scheme + literal-IP filtering, not full SSRF protection: it does
+# not resolve the hostname, so a public domain that later resolves to a
+# private address (DNS rebinding) is not caught. That would need curl's
+# --resolve pinned against a pre-resolved, re-checked address, which is more
+# than this admin convenience feature needs.
+_validate_download_url() {
+    local url="$1"
+
+    if [[ ! "$url" =~ ^https:// ]]; then
+        log_error "Error: only https:// URLs are allowed for datapack install"
+        return 1
+    fi
+
+    local host
+    host="$(printf '%s' "$url" | sed -E 's#^https://([^/:]+).*#\1#')"
+    if [[ "$host" =~ ^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.)|^(localhost|::1)$|\.local$ ]]; then
+        log_error "Error: refusing to fetch from a private/loopback host: $host"
+        return 1
+    fi
+}
+
+# Reject a zip whose member paths would write outside the extraction
+# directory (absolute paths, or ".." traversal) before anything is
+# extracted. Without this, a crafted archive can overwrite arbitrary files
+# writable by the API process -- pack.mcmeta only gets checked afterwards,
+# which is too late for anything a traversing entry already wrote.
+_validate_zip_members() {
+    local zip_path="$1"
+    local entry
+
+    while IFS= read -r entry; do
+        if [[ "$entry" == /* || "$entry" == *..* ]]; then
+            log_error "Error: unsafe path in archive: $entry"
+            return 1
+        fi
+    done < <(unzip -Z1 "$zip_path" 2>/dev/null)
+}
+
 # Download a file with whichever of curl/wget is available. Mirrors
-# mod-pack-installer.sh's download_file().
+# mod-pack-installer.sh's download_file(). Caller has already validated the
+# URL with _validate_download_url.
 _download_file() {
     local url="$1"
     local output="$2"
 
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL -o "$output" "$url"
+        curl -fsSL --proto '=https' --max-redirs 5 -o "$output" "$url"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q -O "$output" "$url"
+        wget -q --max-redirect=5 -O "$output" "$url"
     else
         log_error "Error: curl or wget required for downloads"
         return 1
@@ -259,6 +322,7 @@ install_datapack() {
     local zip_path="$file"
     local tmp_download=""
     if [ -n "$url" ]; then
+        _validate_download_url "$url" || return 1
         tmp_download="$(mktemp)-datapack.zip"
         log_info "Downloading $url"
         if ! _download_file "$url" "$tmp_download"; then
@@ -270,6 +334,11 @@ install_datapack() {
 
     if [ ! -f "$zip_path" ]; then
         log_error "Error: file not found: $zip_path"
+        [ -n "$tmp_download" ] && rm -f "$tmp_download"
+        return 1
+    fi
+
+    if ! _validate_zip_members "$zip_path"; then
         [ -n "$tmp_download" ] && rm -f "$tmp_download"
         return 1
     fi

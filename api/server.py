@@ -7,6 +7,7 @@ Provides HTTP API for remote server management
 import fcntl
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -3947,6 +3948,12 @@ def list_plugins():
     return jsonify({"plugins": plugins, "count": len(plugins)})
 
 
+# Mirrors datapack-manager.sh's _validate_name(). Checking it here too means
+# a bad name gets a clean 400 from the API instead of a generic 500 surfaced
+# from the script's own exit code.
+DATAPACK_NAME_RE = re.compile(r"^[a-zA-Z0-9_]+$")
+
+
 @app.route("/api/datapacks", methods=["GET"])
 @require_permission("datapacks.view")
 def list_datapacks():
@@ -3968,6 +3975,8 @@ def install_datapack():
     name = request.form.get("name", "").strip()
     if not name:
         return jsonify({"error": "Datapack name required"}), 400
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
 
     url = request.form.get("url", "").strip()
     upload = request.files.get("file")
@@ -4012,6 +4021,8 @@ def install_datapack():
 @require_permission("datapacks.manage")
 def enable_datapack(name):
     """Deploy a tracked datapack into the current world and reload"""
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
     stdout, stderr, code = run_script("datapack-manager.sh", "enable", name)
     if code != 0:
         return jsonify({"error": stderr or stdout or "Enable failed"}), 500
@@ -4022,6 +4033,8 @@ def enable_datapack(name):
 @require_permission("datapacks.manage")
 def disable_datapack(name):
     """Remove a datapack from the current world and reload, keeping its tracked source"""
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
     stdout, stderr, code = run_script("datapack-manager.sh", "disable", name)
     if code != 0:
         return jsonify({"error": stderr or stdout or "Disable failed"}), 500
@@ -4032,6 +4045,8 @@ def disable_datapack(name):
 @require_permission("datapacks.manage")
 def delete_datapack(name):
     """Back up and delete a datapack's tracked source (config/datapacks/<name>)"""
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
     stdout, stderr, code = run_script("datapack-manager.sh", "delete", name, "--yes")
     if code != 0:
         return jsonify({"error": stderr or stdout or "Delete failed"}), 500

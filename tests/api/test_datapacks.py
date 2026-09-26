@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Tests for the /api/datapacks endpoints (scripts/datapack-manager.sh)."""
 
+import io
 import json
+import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -118,6 +120,49 @@ class TestInstallDatapack:
             )
         assert response.status_code == 400
 
+    def test_install_rejects_invalid_name(self, client, mock_api_key):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/datapacks/install",
+                data={"name": "../../etc", "url": "https://example.com/family.zip"},
+                headers={"X-API-Key": mock_api_key},
+            )
+        assert response.status_code == 400
+
+    @patch("api.server.run_script")
+    def test_install_from_file_upload(self, mock_run_script, client, mock_api_key):
+        """The file-upload branch: a temp file is written, passed to the script, then cleaned up."""
+        mock_run_script.return_value = ("Installed datapack source: config/datapacks/family", "", 0)
+
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/datapacks/install",
+                data={
+                    "name": "family",
+                    "file": (io.BytesIO(b"PK\x03\x04fake zip bytes"), "family.zip"),
+                },
+                content_type="multipart/form-data",
+                headers={"X-API-Key": mock_api_key},
+            )
+
+        assert response.status_code == 200
+        args, kwargs = mock_run_script.call_args
+        assert args[:3] == ("datapack-manager.sh", "install", "family")
+        assert "--file" in args and "--yes" in args
+        # The temp file path passed to the script must not survive the request.
+        tmp_path = args[args.index("--file") + 1]
+        assert not os.path.exists(tmp_path)
+
+    def test_install_rejects_empty_filename(self, client, mock_api_key):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.post(
+                "/api/datapacks/install",
+                data={"name": "family", "file": (io.BytesIO(b""), "")},
+                content_type="multipart/form-data",
+                headers={"X-API-Key": mock_api_key},
+            )
+        assert response.status_code == 400
+
     @patch("api.server.run_script")
     def test_install_failure_returns_500(self, mock_run_script, client, mock_api_key):
         mock_run_script.return_value = ("", "Error: unknown option", 1)
@@ -153,6 +198,27 @@ class TestEnableDisableDeleteDatapack:
 
         assert response.status_code == 200
         mock_run_script.assert_called_once_with("datapack-manager.sh", "disable", "family")
+
+    @patch("api.server.run_script")
+    def test_enable_rejects_invalid_name(self, mock_run_script, client, mock_api_key):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.put("/api/datapacks/%2E%2E/enable", headers={"X-API-Key": mock_api_key})
+        assert response.status_code == 400
+        mock_run_script.assert_not_called()
+
+    @patch("api.server.run_script")
+    def test_disable_rejects_invalid_name(self, mock_run_script, client, mock_api_key):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.put("/api/datapacks/bad name/disable", headers={"X-API-Key": mock_api_key})
+        assert response.status_code == 400
+        mock_run_script.assert_not_called()
+
+    @patch("api.server.run_script")
+    def test_delete_rejects_invalid_name(self, mock_run_script, client, mock_api_key):
+        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+            response = client.delete("/api/datapacks/bad;name", headers={"X-API-Key": mock_api_key})
+        assert response.status_code == 400
+        mock_run_script.assert_not_called()
 
     @patch("api.server.run_script")
     def test_delete_success(self, mock_run_script, client, mock_api_key):

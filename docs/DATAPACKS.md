@@ -7,8 +7,9 @@ via `scripts/datapack-manager.sh` and the matching `/api/datapacks` endpoints.
 
 Datapacks are plain JSON. They work on **vanilla** Minecraft, hot-reload with
 `/reload`, and give you custom advancements, recipes, loot tables, predicates
-and functions — no plugin required. See
-[`ROADMAP.md`](ROADMAP.md#f3-a-datapack-pipeline--green) for why this exists.
+and functions — no plugin required. Originally roadmap item F3; see
+[`ROADMAP.md`](ROADMAP.md#where-this-stands) for where it now lives among the
+shipped work.
 
 The pipeline separates two locations on purpose:
 
@@ -27,7 +28,7 @@ and re-run `enable`.
 ## Quick Start
 
 ```bash
-# Scaffold a new datapack (pack.mcmeta + empty advancement/function/loot_table/recipe dirs)
+# Scaffold a new datapack (pack.mcmeta + empty advancements/functions/loot_tables/recipes dirs)
 ./scripts/datapack-manager.sh create mydatapack
 
 # See what's tracked and what's currently deployed in the active world
@@ -62,8 +63,9 @@ for you — an HTTP call to a permission-gated route is its own confirmation).
 ## API
 
 All routes require an API key with the `datapacks.view` permission for reads
-and `datapacks.manage` for writes — see [`RBAC.md`](RBAC.md). `.manage` is
-admin-only, matching `plugins.manage` and `worlds.manage`.
+and `datapacks.manage` for writes — see [`RBAC.md`](RBAC.md). The `user` and
+`operator` roles get `.view`; `.manage` is admin-only, matching
+`plugins.manage` and `worlds.manage`.
 
 | Route | Permission | Does |
 | --- | --- | --- |

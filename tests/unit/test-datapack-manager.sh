@@ -25,7 +25,12 @@ echo "reload stub ok"
 EOF
     chmod +x scripts/rcon-client.sh
 
-    echo "level-name=world" > server.properties
+    # The real path: data/server.properties, matching
+    # server-properties-manager.sh and performance-presets.sh. A repo-root
+    # server.properties (what this script used to read) must NOT be enough
+    # on its own -- see "reads the runtime server.properties, not a
+    # repo-root one" below.
+    echo "level-name=world" > data/server.properties
     mkdir -p data/world
 }
 
@@ -33,13 +38,13 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-@test "datapack-manager create scaffolds pack.mcmeta and advancement/function dirs" {
+@test "datapack-manager create scaffolds pack.mcmeta and advancements/functions dirs" {
     run scripts/datapack-manager.sh create family
     assert_success
 
     assert_file_exists "config/datapacks/family/pack.mcmeta"
-    assert_dir_exists "config/datapacks/family/data/family/advancement"
-    assert_dir_exists "config/datapacks/family/data/family/function"
+    assert_dir_exists "config/datapacks/family/data/family/advancements"
+    assert_dir_exists "config/datapacks/family/data/family/functions"
 }
 
 @test "datapack-manager create rejects a name with spaces" {
@@ -81,7 +86,7 @@ teardown() {
 
 @test "datapack-manager validate fails on broken JSON" {
     scripts/datapack-manager.sh create family
-    echo '{not valid json' > config/datapacks/family/data/family/advancement/broken.json
+    echo '{not valid json' > config/datapacks/family/data/family/advancements/broken.json
 
     run scripts/datapack-manager.sh validate family
     assert_failure
@@ -125,6 +130,17 @@ teardown() {
     [ ! -d "config/datapacks/family" ]
     run bash -c "ls backups/datapack-family-*.tar.gz"
     assert_success
+}
+
+@test "datapack-manager reads the runtime server.properties, not a repo-root one" {
+    echo "level-name=custom_world" > data/server.properties
+    mkdir -p data/custom_world
+    # A stale/decoy repo-root file must be ignored, not preferred.
+    echo "level-name=world" > server.properties
+
+    scripts/datapack-manager.sh create family
+    run scripts/datapack-manager.sh list-json
+    assert_line '"world":"custom_world"'
 }
 
 @test "datapack-manager with no arguments prints usage and exits nonzero" {

@@ -3,8 +3,9 @@
 A custom datapack advancement tab — `Family` — with five advancements that
 appear in the game's own advancements screen next to the vanilla ones. Built
 and shipped through [the datapack pipeline](DATAPACKS.md) as its first real
-content. See [`ROADMAP.md`](ROADMAP.md#p2-a-family-advancement-tree--green)
-for the original idea.
+content. Originally roadmap item P2; see
+[`ROADMAP.md`](ROADMAP.md#where-this-stands) for where it now lives among the
+shipped work.
 
 The source lives at `config/datapacks/family/`. Deploy it with:
 
@@ -17,7 +18,7 @@ The source lives at `config/datapacks/family/`. Deploy it with:
 | Advancement | Unlocks when | Mechanism |
 | --- | --- | --- |
 | **First Diamond** | You pick up a diamond | A real vanilla trigger (`minecraft:inventory_changed`) — no function needed |
-| **Neighbors** | You build within 50 blocks of Dad's house | A tick function checking distance against a hardcoded coordinate |
+| **Neighbors** | You're within 50 blocks of Dad's house | A tick function checking distance against a hardcoded coordinate (presence, not construction — see below) |
 | **Ten Thousand Blocks** | You've mined ~10,000 blocks (a curated common set, not literally every block) | A tick function summing per-block mined stats |
 | **Sibling Rivalry** | You and your brother are both online at dawn, three separate in-game days | A tick function detecting the daily dawn transition |
 | **Night Shift** | You're online at 9pm real time | Granted by RCON from a scheduled command, not by the datapack itself |
@@ -42,7 +43,7 @@ limitations shape every mechanism above:
 
 ### Neighbors: edit the coordinates once
 
-`config/datapacks/family/data/family/function/tick/check_neighbors.mcfunction`
+`config/datapacks/family/data/family/functions/tick/check_neighbors.mcfunction`
 has:
 
 ```mcfunction
@@ -56,6 +57,13 @@ deployed copy directly for testing) to pick up the change. `distance=..50`
 against literal coordinates is a true radial check — no macro needed for
 this one, since the comparison point is the one thing that has to be
 hardcoded anyway.
+
+This checks **presence**, not construction: it grants the moment a player is
+standing within 50 blocks, whether or not they've placed a single block
+there. A `minecraft:placed_block` trigger with a location predicate would
+check actual building instead, entirely without a function — worth
+revisiting if "walked past the house once" turns out to be too easy for the
+achievement to mean anything.
 
 ### Ten Thousand Blocks: the curated block list
 
