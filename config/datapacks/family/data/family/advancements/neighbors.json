@@ -1,0 +1,18 @@
+{
+    "parent": "family:root",
+    "display": {
+        "icon": {
+            "item": "minecraft:compass"
+        },
+        "title": "Neighbors",
+        "description": "Built within 50 blocks of Dad's house",
+        "frame": "goal",
+        "show_toast": true,
+        "announce_to_chat": true
+    },
+    "criteria": {
+        "granted_by_function": {
+            "trigger": "minecraft:impossible"
+        }
+    }
+}

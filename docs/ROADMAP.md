@@ -56,6 +56,8 @@ ahead of the dates written down:
 | Hall of Deaths | Done | [HALL_OF_DEATHS.md](HALL_OF_DEATHS.md) |
 | Bedtime mode | Done | [BEDTIME.md](BEDTIME.md) |
 | Player statistics from the game's own files | Done | [PLAYER_STATS.md](PLAYER_STATS.md) |
+| Datapack pipeline | Done | [DATAPACKS.md](DATAPACKS.md) |
+| Family advancement tree | Done | [ADVANCEMENTS.md](ADVANCEMENTS.md) |
 
 So the question this roadmap answers is no longer "what else should the admin
 panel do". It is: **what could this server do that no other Minecraft server
@@ -74,9 +76,9 @@ plumbing they share, so each row is mostly content on top of the row before.
 | Order | Items | Why here |
 | --- | --- | --- |
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
-| 2 | F7 | The biggest visible change for the least code — happy ghasts, trial chambers — and it must come before any datapack, because pack formats and item syntax change across it. R1 wants it too |
+| 2 | F7 | The biggest visible change for the least code — happy ghasts, trial chambers — and it must come before any new datapack work, because pack formats and item syntax change across it. R1 wants it too |
 | 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 4 | F3, P2, W7, W8, M6 | The datapack pipeline, then the first packs. W8 and M6 both extend the Hall of Deaths' death handling, so build them together |
+| 4 | W7, W8, M6 | The first content built on the datapack pipeline. W8 and M6 both extend the Hall of Deaths' death handling, so build them together |
 | 5 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
 | 6 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
 | 7 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
@@ -94,9 +96,9 @@ it needs F7 first regardless.
 
 ## Foundations
 
-Plumbing that several features below depend on. Three are done and described in
-[EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md) and
-[PLAYER_STATS.md](PLAYER_STATS.md) rather than repeated here.
+Plumbing that several features below depend on. Four are done and described in
+[EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md), [PLAYER_STATS.md](PLAYER_STATS.md)
+and [DATAPACKS.md](DATAPACKS.md) rather than repeated here.
 
 ### F7. Catch up to current Minecraft — Yellow, and decide it early
 
@@ -126,29 +128,12 @@ Yellow because upgrading a world is one-way. The procedure:
 3. Bump `MINECRAFT_VERSION`, pre-generate a ring around spawn so the new
    biomes and structures exist where they will actually be found, and upgrade.
 
-Do it **before F3**, and before R1. Datapacks carry a `pack_format` that changes almost every
-release, and item syntax changed at 1.20.5, so every datapack and every F6 book
-written against 1.20.4 would need rewriting afterwards. Pick the newest release
-that has been out a couple of weeks when the work starts, not whatever is
-named here.
-
-### F3. A datapack pipeline — Green
-
-Datapacks are the cheat code for this whole document. They are plain JSON in
-`data/<world>/datapacks/`, they work on **vanilla**, they hot-reload with
-`/reload`, and they give you custom advancements, recipes, loot tables,
-predicates and functions without a single plugin.
-
-Build `scripts/datapack-manager.sh` with `create`, `list`, `enable`, `disable`,
-`validate` and `reload`, plus the matching endpoints:
-
-- `GET /api/datapacks` — list
-- `POST /api/datapacks/install` — install from URL or file
-- `PUT /api/datapacks/<name>/enable` / `disable`
-- `DELETE /api/datapacks/<name>`
-
-Keep the family datapack in git so every change is revertible. F3 unblocks P1,
-P2, P5, P7, P8, W2, W7, W8, T7 and most of T1.
+Do it **before R1**, and before extending the family datapack any further.
+Datapacks carry a `pack_format` that changes almost every release, and item
+syntax changed at 1.20.5, so the family datapack ([ADVANCEMENTS.md](ADVANCEMENTS.md))
+and every F6 book written against 1.20.4 would need updating afterwards. Pick
+the newest release that has been out a couple of weeks when the work starts,
+not whatever is named here.
 
 ### F8. Scoreboards, teams and bossbars — Green
 
@@ -502,20 +487,6 @@ Claude writes a chain of riddle clues. A script picks real coordinates, places a
 loot chest at each, and delivers the first clue as a book. Each clue's answer is
 the next location. Difficulty tuned per kid.
 
-### P2. A family advancement tree — Green
-
-A custom datapack advancement tab with its own icon, appearing in the real
-advancements screen alongside the vanilla ones:
-
-- "Sibling Rivalry" — survive three nights with your brother
-- "Neighbors" — build within 50 blocks of Dad's house
-- "First Diamond"
-- "Ten Thousand Blocks"
-- "Night Shift" — play past 9pm (they will find this hilarious)
-
-Vanilla triggers cover most of it; location checks need a tick function. Because
-it appears in the game's own UI it reads as official rather than bolted on.
-
 ### P3. Sibling co-op goals — Green
 
 Shared, server-wide objectives on a scoreboard that only complete if both
@@ -738,14 +709,14 @@ roadmap depend on it, so it is a foundation rather than backlog.
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Advancement manager | P2 | List, grant, revoke, track progress; pairs with P2 (family tree) |
+| Advancement manager | P2 | List, grant, revoke, track progress; pairs with [ADVANCEMENTS.md](ADVANCEMENTS.md) (family tree) |
 | Command chain manager | P2 | Named, reusable command sequences with variables and conditional branching |
 | Player note system | P2 | Admin notes on a player, categorised and timestamped |
 | Player teleport history | P2 | Saved locations, back/return, teleport requests |
 | Automated world maintenance | P2 | Entity cleanup, chunk optimisation, lag-spike detection, backup before maintenance |
 | Server event manager | P2 | Scheduled tournaments and contests with registration and reward distribution. Overlaps P4, P5 and P9 — build those first and generalise if a pattern emerges |
 | Weather and time scheduling | P3 | Superseded in spirit by H3; build only the parts H3 doesn't cover |
-| Recipe and loot table managers | P3 | Mostly free once F3 exists |
+| Recipe and loot table managers | P3 | Mostly free now that [DATAPACKS.md](DATAPACKS.md)'s pipeline exists |
 
 ### Economy and rewards — P3, plugin-dependent
 

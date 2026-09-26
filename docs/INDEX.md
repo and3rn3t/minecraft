@@ -59,6 +59,8 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [BEDTIME.md](BEDTIME.md) | Scheduled, warned end to the evening |
 | [PLAYER_STATS.md](PLAYER_STATS.md) | Player counters read from the world's own stats files |
 | [ANALYTICS.md](ANALYTICS.md) | Player and server analytics collection and reports |
+| [DATAPACKS.md](DATAPACKS.md) | Installing, enabling and reloading vanilla datapacks |
+| [ADVANCEMENTS.md](ADVANCEMENTS.md) | The family advancement tree and how each achievement is triggered |
 
 ---
 

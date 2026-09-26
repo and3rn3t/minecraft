@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { path: '/backups', label: 'Backups', icon: '💾', category: 'server' },
   { path: '/worlds', label: 'Worlds', icon: '🌍', category: 'server' },
   { path: '/plugins', label: 'Plugins', icon: '🔌', category: 'server' },
+  { path: '/datapacks', label: 'Datapacks', icon: '📦', category: 'server' },
   { path: '/config', label: 'Config Files', icon: '📄', category: 'server' },
   { path: '/files', label: 'File Browser', icon: '📂', category: 'tools' },
   { path: '/ddns', label: 'Dynamic DNS', icon: '🌐', category: 'tools' },

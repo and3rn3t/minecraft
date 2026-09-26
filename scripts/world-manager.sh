@@ -16,7 +16,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DATA_DIR="${PROJECT_DIR}/data"
 WORLDS_DIR="${DATA_DIR}"
-SERVER_PROPERTIES="${PROJECT_DIR}/server.properties"
+# Matches server-properties-manager.sh and performance-presets.sh: the file
+# the running server actually reads and writes lives under data/, not the
+# repo root. Reading the wrong one only shows up once a world other than the
+# default "world" is switched to, which is why this went unnoticed.
+SERVER_PROPERTIES="${SERVER_PROPERTIES:-${DATA_DIR}/server.properties}"
 WORLD_CONFIG_DIR="${PROJECT_DIR}/config/worlds"
 WORLD_TEMPLATES_DIR="${PROJECT_DIR}/config/world-templates"
 

@@ -7,6 +7,7 @@ Provides HTTP API for remote server management
 import fcntl
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -855,6 +856,9 @@ PERMISSIONS = {
     # Plugin management
     "plugins.view": "View plugin list",
     "plugins.manage": "Manage plugins (install/remove/enable/disable)",
+    # Datapack management
+    "datapacks.view": "View datapack list",
+    "datapacks.manage": "Manage datapacks (install/remove/enable/disable)",
     # User management
     "users.view": "View user list",
     "users.manage": "Manage users (create/edit/delete/roles)",
@@ -882,6 +886,7 @@ ROLE_PERMISSIONS = {
         "players.view",
         "worlds.view",
         "plugins.view",
+        "datapacks.view",
         "logs.view",
         "metrics.view",
         "analytics.view",
@@ -901,6 +906,7 @@ ROLE_PERMISSIONS = {
         "players.manage",
         "worlds.view",
         "plugins.view",
+        "datapacks.view",
         "logs.view",
         "metrics.view",
         "settings.view",
@@ -3940,6 +3946,111 @@ def list_plugins():
         plugins = []
 
     return jsonify({"plugins": plugins, "count": len(plugins)})
+
+
+# Mirrors datapack-manager.sh's _validate_name(). Checking it here too means
+# a bad name gets a clean 400 from the API instead of a generic 500 surfaced
+# from the script's own exit code.
+DATAPACK_NAME_RE = re.compile(r"^[a-zA-Z0-9_]+$")
+
+
+@app.route("/api/datapacks", methods=["GET"])
+@require_permission("datapacks.view")
+def list_datapacks():
+    """List datapacks tracked under config/datapacks/, with enabled state for the current world"""
+    stdout, _, _ = run_script("datapack-manager.sh", "list-json")
+
+    try:
+        datapacks = json.loads(stdout) if stdout else []
+    except (ValueError, TypeError):
+        datapacks = []
+
+    return jsonify({"datapacks": datapacks, "count": len(datapacks)})
+
+
+@app.route("/api/datapacks/install", methods=["POST"])
+@require_permission("datapacks.manage")
+def install_datapack():
+    """Install a datapack from a URL or an uploaded zip, then deploy and reload it"""
+    name = request.form.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "Datapack name required"}), 400
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
+
+    url = request.form.get("url", "").strip()
+    upload = request.files.get("file")
+
+    if not url and not upload:
+        return jsonify({"error": "Provide either 'url' or a 'file' upload"}), 400
+    if url and upload:
+        return jsonify({"error": "Provide either 'url' or a 'file' upload, not both"}), 400
+
+    tmp_path = None
+    try:
+        if upload is not None:
+            if upload.filename == "":
+                return jsonify({"error": "No file selected"}), 400
+            fd, tmp_path = tempfile.mkstemp(suffix=".zip")
+            os.close(fd)
+            upload.save(tmp_path)
+            stdout, stderr, code = run_script(
+                "datapack-manager.sh", "install", name, "--file", tmp_path, "--yes", timeout=LONG_SCRIPT_TIMEOUT
+            )
+        else:
+            stdout, stderr, code = run_script(
+                "datapack-manager.sh", "install", name, "--url", url, "--yes", timeout=LONG_SCRIPT_TIMEOUT
+            )
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                # Best-effort cleanup of the uploaded temp file; the install
+                # itself already succeeded or failed above, so a leftover
+                # temp file here must not turn into a 500 of its own.
+                pass
+
+    if code != 0:
+        return jsonify({"error": stderr or stdout or "Install failed"}), 500
+
+    return jsonify({"success": True, "message": f"Datapack {name} installed and enabled", "output": stdout}), 200
+
+
+@app.route("/api/datapacks/<name>/enable", methods=["PUT"])
+@require_permission("datapacks.manage")
+def enable_datapack(name):
+    """Deploy a tracked datapack into the current world and reload"""
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
+    stdout, stderr, code = run_script("datapack-manager.sh", "enable", name)
+    if code != 0:
+        return jsonify({"error": stderr or stdout or "Enable failed"}), 500
+    return jsonify({"success": True, "message": f"Datapack {name} enabled"}), 200
+
+
+@app.route("/api/datapacks/<name>/disable", methods=["PUT"])
+@require_permission("datapacks.manage")
+def disable_datapack(name):
+    """Remove a datapack from the current world and reload, keeping its tracked source"""
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
+    stdout, stderr, code = run_script("datapack-manager.sh", "disable", name)
+    if code != 0:
+        return jsonify({"error": stderr or stdout or "Disable failed"}), 500
+    return jsonify({"success": True, "message": f"Datapack {name} disabled"}), 200
+
+
+@app.route("/api/datapacks/<name>", methods=["DELETE"])
+@require_permission("datapacks.manage")
+def delete_datapack(name):
+    """Back up and delete a datapack's tracked source (config/datapacks/<name>)"""
+    if not DATAPACK_NAME_RE.match(name):
+        return jsonify({"error": "Datapack name must contain only letters, numbers, and underscores"}), 400
+    stdout, stderr, code = run_script("datapack-manager.sh", "delete", name, "--yes")
+    if code != 0:
+        return jsonify({"error": stderr or stdout or "Delete failed"}), 500
+    return jsonify({"success": True, "message": f"Datapack {name} deleted"}), 200
 
 
 @app.errorhandler(404)

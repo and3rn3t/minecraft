@@ -1,0 +1,18 @@
+{
+    "parent": "family:root",
+    "display": {
+        "icon": {
+            "item": "minecraft:iron_sword"
+        },
+        "title": "Sibling Rivalry",
+        "description": "Survived three nights with your brother",
+        "frame": "challenge",
+        "show_toast": true,
+        "announce_to_chat": true
+    },
+    "criteria": {
+        "granted_by_function": {
+            "trigger": "minecraft:impossible"
+        }
+    }
+}
