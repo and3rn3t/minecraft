@@ -20,9 +20,9 @@ summon minecraft:marker ~ ~ ~ {Tags:["family_grave_marker","family_grave_new"]}
 
 execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run setblock ~ ~ ~ minecraft:chest
 execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run setblock ~ ~1 ~ minecraft:oak_sign
-execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run data modify block ~ ~1 ~ front_text.messages[0] set value "R.I.P."
-execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run data modify block ~ ~1 ~ front_text.messages[1] set value "A grave, unlocked."
-execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run data modify block ~ ~1 ~ front_text.messages[2] set value "Please don't loot it."
+execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run data modify block ~ ~1 ~ front_text.messages[0] set value '{"text":"R.I.P."}'
+execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run data modify block ~ ~1 ~ front_text.messages[1] set value '{"text":"A grave, unlocked."}'
+execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run data modify block ~ ~1 ~ front_text.messages[2] set value '{"text":"Please dont loot it."}'
 
 scoreboard players set @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] family_grave_slot 0
 execute as @e[type=marker,tag=family_grave_new,limit=1,sort=nearest] at @s run function family:tick/vacuum_grave_step

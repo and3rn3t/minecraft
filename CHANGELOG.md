@@ -24,12 +24,14 @@ All notable changes to this project will be documented in this file.
     `api/pet_cemetery.py` module (mirrors `api/hall_of_deaths.py`'s shape).
     See [`docs/PET_CEMETERY.md`](docs/PET_CEMETERY.md).
 
-  The item-vacuum command chain in Graves (`item replace ... contents`
-  against a fixed 27-way chest-slot branch, since 1.20.4 has no macros to
-  compute a slot index) is reasoned through carefully and checked against
-  the Minecraft Wiki, but not run against a live server in this
-  environment — flagged explicitly in `docs/GRAVES.md` as the
-  highest-risk-of-a-subtle-bug piece of this batch.
+  Graves' item-vacuum and sign-text mechanics were verified against a real
+  vanilla 1.20.4 server (see `docs/LOCAL_TESTING.md`), which caught two real
+  bugs the initial implementation had gotten wrong: `item replace ...
+  contents` (the command the Minecraft Wiki describes for copying a dropped
+  item into a container slot) doesn't exist on 1.20.4, and a chest's
+  `Items` list silently collapses duplicate entries unless each one's
+  `Slot` is set atomically alongside its `id`/`Count` rather than in a
+  follow-up command. Both fixed; see `docs/GRAVES.md` for the full story.
 
 - **Automatic deploys to the Pi.** `scripts/deploy-agent.sh`, run every five
   minutes by `systemd/minecraft-deploy.timer`, fast-forwards the Pi's checkout

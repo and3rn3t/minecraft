@@ -48,16 +48,40 @@ countdown, and expires anything that reaches zero.
 
 **Collecting the dropped items.**
 `functions/tick/vacuum_grave_step.mcfunction` repeatedly finds the nearest
-dropped item within 3 blocks and runs
-`item replace block <pos> container.N from entity <item> contents` — the
-vanilla command built for "take this entity's single held stack and put it
-in this container slot." Chests need each `Items` entry to carry an explicit
-slot number, and 1.20.4 has no macros to compute one dynamically from a
-stored score, so which slot gets used is a **fixed 27-way branch** (one
-`execute if score ... matches N run ...` per chest slot) rather than a
-computed index. Verbose, but every line is obviously correct standing alone,
-which was judged worth more here than a cleverer branch that's harder to
-verify without a live server.
+dropped item within 3 blocks and moves its stack into the chest. Getting
+this right took three attempts against a real running server — the first
+two looked reasonable on paper and both turned out to be wrong in ways that
+only showed up by actually running them:
+
+1. `item replace block <pos> container.N from entity <item> contents` — the
+   command the Minecraft Wiki's `/item` page describes for exactly this —
+   fails on this server with `Unknown slot 'contents'`. That slot name
+   appears to be a later addition than 1.20.4.
+2. `data modify block <pos> Items append from entity <item> Item` (no
+   explicit slot) *looks* like it works for one item, but doesn't actually
+   accumulate: a chest's `Items` list is re-derived from its live,
+   slot-indexed inventory on every access, and an entry with no `Slot`
+   field defaults to slot 0 — so a second append silently overwrites the
+   first instead of adding a second entry. Confirmed reproducible, not a
+   timing fluke: setting `Items[-1].Slot` in a *separate* follow-up command
+   doesn't fix it either, because the same revalidation already dropped the
+   previous entry the moment anything else touched the container.
+
+The fix: build the complete entry — `id`, `Count` and `Slot` all present at
+once — in a scratch NBT storage location first (`storage family:temp`,
+which has no such revalidation semantics), then commit it to the chest in
+one atomic `Items append from storage ...`. Chests need each `Items` entry
+to carry an explicit slot number, and 1.20.4 has no macros to compute one
+dynamically from a stored score, so which slot gets used is a **fixed
+27-way branch** (one `execute if score ... matches N run ...` per chest
+slot) rather than a computed index — verbose, but every line is obviously
+correct standing alone. `vacuum_grave_step.mcfunction`'s own comments carry
+this full story for the next time something here needs to change.
+
+**The sign** hit a similar surprise: `front_text.messages[N] set value
+"plain text"` silently does nothing for any index beyond the first — the
+value has to be a JSON text component, `'{"text":"plain text"}'`, or it
+doesn't persist at all despite the command reporting success.
 
 ## Known limitations
 
@@ -76,13 +100,24 @@ verify without a live server.
   original idea was a clickable coordinate in the in-game death
   announcement; `api/hall_of_deaths.py` wasn't touched to add this. A
   follow-up, not a gap in what shipped.
-- **Not verified against a live server.** The item-vacuum command chain in
-  particular (`item replace ... contents`, the 27-way slot branch, the
-  marker-based position anchoring) was researched and reasoned through
-  carefully — including confirming the exact commands against the Minecraft
-  Wiki — but this environment has no way to run a real Minecraft client
-  against it. This is the highest-risk-of-a-subtle-bug piece in this batch
-  of features; test it for real before trusting it in an actual game night.
+
+## Verified against a real server
+
+Every mechanic above — death detection, chest placement, the item vacuum
+(multiple items, distinct slots), the sign (all three lines), and expiry
+(chest and sign destroyed, contents dropped, marker removed) — was run
+against a real vanilla 1.20.4 server in Docker, not just reasoned through.
+That's what caught both bugs described above: neither one was visible from
+reading the code, only from running it. See
+[`LOCAL_TESTING.md`](LOCAL_TESTING.md) for how to stand up the same setup.
+
+The one thing not exercised end to end is a *real player* dying —
+verification used a stand-in entity (`execute as <entity> at <entity> run
+function family:tick/make_grave`) rather than an actual connected client,
+since this environment has no Minecraft client available. The death
+*detection* (the stat-comparison in `check_deaths.mcfunction`) is unverified
+against a real death for the same reason, though it reuses the exact
+technique already proven for Ten Thousand Blocks.
 
 ## Related
 
