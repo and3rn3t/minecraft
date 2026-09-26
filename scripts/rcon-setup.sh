@@ -25,14 +25,32 @@ RCON_CONFIG="${PROJECT_DIR}/config/rcon.conf"
 # Function to generate secure password
 generate_password() {
     local length=${1:-16}
-    # Generate random password using /dev/urandom
+    local password=""
+
+    # /dev/urandom is raw binary, and tr under a UTF-8 locale tries to read it
+    # as multi-byte characters and dies with "Illegal byte sequence" partway
+    # through -- LC_ALL=C makes it treat the stream as single bytes instead,
+    # which is what -dc actually needs. Without this, tr can fail silently
+    # (the pipeline's exit status is head's, not tr's, so `set -e` doesn't
+    # catch it) and hand back an empty password that gets written to
+    # rcon.conf and server.properties as-is.
     if [ -c /dev/urandom ]; then
-        tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c "$length"
-        echo
-    else
-        # Fallback for systems without /dev/urandom
-        openssl rand -base64 "$length" | tr -d "=+/" | cut -c1-"$length"
+        password="$(LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c "$length")"
     fi
+
+    if [ "${#password}" -lt "$length" ]; then
+        # Either /dev/urandom isn't a char device, or the tr pipeline above
+        # came up short for some other reason -- openssl is the fallback,
+        # not the primary method, since it needs to be installed separately.
+        password="$(openssl rand -base64 "$length" | tr -d "=+/" | cut -c1-"$length")"
+    fi
+
+    if [ "${#password}" -lt "$length" ]; then
+        echo -e "${RED}Error: could not generate a ${length}-character password${NC}" >&2
+        return 1
+    fi
+
+    echo "$password"
 }
 
 # Function to enable RCON
