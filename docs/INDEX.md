@@ -96,6 +96,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | Guide | What it covers |
 | --- | --- |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup and day-to-day workflow |
+| [LOCAL_TESTING.md](LOCAL_TESTING.md) | Running a real server in Docker locally to test game features |
 | [TESTING.md](TESTING.md) | Test layout, how to run each suite, coverage |
 | [WEB_UI_TESTING.md](WEB_UI_TESTING.md) | Vitest, MSW and Playwright specifics for `web/` |
 | [LINTING.md](LINTING.md) | ShellCheck, ESLint, flake8, yamllint |
