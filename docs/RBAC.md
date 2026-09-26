@@ -19,7 +19,7 @@ The system defines three default roles:
 - Manage users and roles
 - Manage API keys
 - Edit configuration files
-- Manage plugins and worlds
+- Manage plugins, worlds and datapacks
 - View logs and metrics
 - Manage players (whitelist, ban, op)
 
@@ -32,7 +32,7 @@ The system defines three default roles:
 - View backups
 - Manage players (whitelist, ban, op)
 - View logs and metrics
-- View worlds and plugins
+- View worlds, plugins and datapacks
 - View configuration files
 
 **Cannot:**
@@ -41,7 +41,7 @@ The system defines three default roles:
 - Manage users or roles
 - Manage API keys
 - Edit configuration files
-- Manage plugins or worlds
+- Manage plugins, worlds or datapacks
 
 ### User
 
@@ -51,7 +51,7 @@ The system defines three default roles:
 - View backups
 - View players
 - View logs and metrics
-- View worlds and plugins
+- View worlds, plugins and datapacks
 - View configuration files
 
 **Cannot:**
@@ -61,7 +61,7 @@ The system defines three default roles:
 - Manage users or roles
 - Manage API keys
 - Edit configuration files
-- Manage plugins or worlds
+- Manage plugins, worlds or datapacks
 - Manage players
 
 ## Permissions
@@ -103,6 +103,11 @@ The system defines the following permissions:
 
 - `plugins.view` - List plugins
 - `plugins.manage` - Install, update, enable, disable plugins
+
+### Datapack Permissions
+
+- `datapacks.view` - List datapacks
+- `datapacks.manage` - Install, enable, disable, delete datapacks
 
 ### Log Permissions
 

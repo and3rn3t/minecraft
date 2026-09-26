@@ -21,9 +21,10 @@ The pipeline separates two locations on purpose:
 
 `enable` copies from the first location to the second and runs `/reload`.
 `disable` removes the deployed copy and runs `/reload`; it never touches the
-tracked source. Nothing writes to `data/<world>/datapacks/` except `enable`
-and `disable` — don't edit a datapack there, edit it under `config/datapacks/`
-and re-run `enable`.
+tracked source. `delete` removes the deployed copy too (if enabled) before
+deleting the tracked source. Nothing writes to `data/<world>/datapacks/`
+except `enable`, `disable` and `delete` — don't edit a datapack there, edit
+it under `config/datapacks/` and re-run `enable`.
 
 ## Quick Start
 

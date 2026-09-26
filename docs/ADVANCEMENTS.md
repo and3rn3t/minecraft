@@ -23,11 +23,13 @@ The source lives at `config/datapacks/family/`. Deploy it with:
 | **Sibling Rivalry** | You and your brother are both online at dawn, three separate in-game days | A tick function detecting the daily dawn transition |
 | **Night Shift** | You're online at 9pm real time | Granted by RCON from a scheduled command, not by the datapack itself |
 
-Four of the five are granted explicitly by a datapack function calling
-`advancement grant @s only family:<name>`, using `minecraft:impossible` as
-the advancement's trigger — the standard pattern for a function-driven
-advancement: that trigger never fires on its own, so only the function's
-explicit grant can unlock it.
+Four of the five (everything except First Diamond) use `minecraft:impossible`
+as their trigger — the standard placeholder for an advancement that's meant
+to be granted from outside the normal trigger system, since that trigger
+never fires on its own. Of those four, three (Neighbors, Ten Thousand Blocks,
+Sibling Rivalry) are granted explicitly by a datapack function calling
+`advancement grant @s only family:<name>`. The fourth, Night Shift, is
+granted by RCON instead — see below.
 
 This isn't a stylistic choice — it's what 1.20.4 actually allows. Two
 limitations shape every mechanism above:
@@ -95,7 +97,7 @@ execute as @a run advancement grant @s only family:night_shift
 Set this up once — either through the web panel's scheduler page, or:
 
 ```bash
-curl -X POST http://localhost:5000/api/scheduler/schedules \
+curl -X POST http://localhost:8080/api/scheduler/schedules \
   -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
   -d '{
         "command": "execute as @a run advancement grant @s only family:night_shift",

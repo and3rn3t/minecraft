@@ -59,6 +59,59 @@ teardown() {
     assert_line "already exists"
 }
 
+@test "datapack-manager install rejects loopback/private URLs, including IPv6 and userinfo bypasses" {
+    for url in \
+        "http://example.com/x.zip" \
+        "https://127.0.0.1/x.zip" \
+        "https://[::1]/x.zip" \
+        "https://evil@127.0.0.1/x.zip" \
+        "https://[fe80::1]/x.zip" \
+        "https://192.168.1.5/x.zip" \
+        "https://myserver.local/x.zip"; do
+        run scripts/datapack-manager.sh install family --url "$url" --yes
+        assert_failure
+    done
+}
+
+@test "datapack-manager install rejects a zip with a path-traversal entry" {
+    mkdir -p evil/sneaky
+    (cd evil && echo '{"pack":{"pack_format":26,"description":"evil"}}' > pack.mcmeta && zip -q evil.zip pack.mcmeta)
+    python3 -c "
+import zipfile
+with zipfile.ZipFile('evil/evil.zip', 'a') as z:
+    z.writestr('../../../tmp/pwned.txt', 'pwned')
+"
+
+    run scripts/datapack-manager.sh install evil --file evil/evil.zip --yes
+    assert_failure
+    assert_line "unsafe path in archive"
+    [ ! -f "/tmp/pwned.txt" ]
+}
+
+@test "datapack-manager install leaves the existing pack untouched when the replacement archive is invalid" {
+    scripts/datapack-manager.sh create family
+    echo "ORIGINAL_MARKER" > config/datapacks/family/marker.txt
+    echo "not a real zip" > bad.zip
+
+    run scripts/datapack-manager.sh install family --file bad.zip --yes
+    assert_failure
+
+    run cat config/datapacks/family/marker.txt
+    assert_output "ORIGINAL_MARKER"
+}
+
+@test "datapack-manager delete aborts without deleting when the backup fails" {
+    scripts/datapack-manager.sh create family
+    mkdir -p backups
+    chmod 555 backups
+
+    run scripts/datapack-manager.sh delete family --yes
+    assert_failure
+
+    chmod 755 backups
+    assert_dir_exists "config/datapacks/family"
+}
+
 @test "datapack-manager list-json emits valid, parseable JSON" {
     scripts/datapack-manager.sh create family
     run scripts/datapack-manager.sh list-json

@@ -1,5 +1,5 @@
 # Runs once whenever this datapack loads (registered in
-# data/minecraft/tags/function/load.json). "scoreboard objectives add" fails
+# data/minecraft/tags/functions/load.json). "scoreboard objectives add" fails
 # loudly if the objective already exists, which is fine here: each line of a
 # function runs independently of the one before it, so a re-run on every
 # /reload just reports a harmless error for objectives that already exist.

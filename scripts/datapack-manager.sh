@@ -171,19 +171,31 @@ enable_datapack() {
 
     mkdir -p "$(dirname "$target_dir")"
 
-    # Copy to a staging directory next to the target first, so a failed copy
-    # (disk full, permissions) can't leave a previously-working, already-live
-    # datapack deleted with nothing to replace it. The swap itself is just
-    # two renames, not a copy, so it's effectively instant either way.
+    # Copy to a staging directory first, so a failed copy (disk full,
+    # permissions) can't touch the live pack at all. Then swap by moving the
+    # live directory aside rather than deleting it outright, so a `mv`
+    # failure on the second rename still has something to roll back to --
+    # there is never a moment where the target is simply gone with nothing
+    # in its place.
     local staging_dir="${target_dir}.new"
-    rm -rf "$staging_dir"
+    local backup_dir="${target_dir}.old"
+    rm -rf "$staging_dir" "$backup_dir"
     if ! cp -r "$source_dir" "$staging_dir"; then
         log_error "Error: failed to stage ${name} for deployment; the previously enabled copy (if any) was left untouched"
         rm -rf "$staging_dir"
         return 1
     fi
-    rm -rf "$target_dir"
-    mv "$staging_dir" "$target_dir"
+
+    if [ -d "$target_dir" ]; then
+        mv "$target_dir" "$backup_dir"
+    fi
+    if ! mv "$staging_dir" "$target_dir"; then
+        log_error "Error: failed to activate ${name}; rolling back"
+        rm -rf "$target_dir"
+        [ -d "$backup_dir" ] && mv "$backup_dir" "$target_dir"
+        return 1
+    fi
+    rm -rf "$backup_dir"
 
     log_success "Enabled datapack: $name (world: $current_world)"
     reload_datapacks
@@ -227,9 +239,35 @@ _validate_download_url() {
         return 1
     fi
 
+    local authority="${url#https://}"
+    authority="${authority%%/*}"
+
+    # Reject embedded credentials outright rather than trying to parse past
+    # them: "https://trusted.example@127.0.0.1/x" has an authority whose
+    # *real* host is everything after the last "@", which is exactly the
+    # kind of thing a naive parser (or a human skimming the URL) gets wrong.
+    if [[ "$authority" == *@* ]]; then
+        log_error "Error: URLs with embedded credentials are not allowed"
+        return 1
+    fi
+
     local host
-    host="$(printf '%s' "$url" | sed -E 's#^https://([^/:]+).*#\1#')"
-    if [[ "$host" =~ ^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.)|^(localhost|::1)$|\.local$ ]]; then
+    if [[ "$authority" == \[*\]* ]]; then
+        # Bracketed IPv6 literal, optionally followed by :port.
+        host="${authority#\[}"
+        host="${host%%]*}"
+    else
+        # host or host:port.
+        host="${authority%%:*}"
+    fi
+    # Portable lowercasing: ${var,,} is bash 4+ only, and this needs to run
+    # on the plain bash 3.2 that ships on macOS as well as the Pi's.
+    host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+
+    if [[ "$host" =~ ^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|0\.) ]] \
+        || [[ "$host" == "localhost" || "$host" == "::1" || "$host" == "0:0:0:0:0:0:0:1" ]] \
+        || [[ "$host" == fe80:* || "$host" == fc[0-9a-f][0-9a-f]:* || "$host" == fd[0-9a-f][0-9a-f]:* ]] \
+        || [[ "$host" == *.local ]]; then
         log_error "Error: refusing to fetch from a private/loopback host: $host"
         return 1
     fi
@@ -316,47 +354,65 @@ install_datapack() {
             log_warn "Install cancelled"
             return 1
         fi
-        rm -rf "$pack_dir"
+        # pack_dir is deliberately NOT removed here. It's only replaced once
+        # the new archive has downloaded, passed member-path validation,
+        # extracted, and been confirmed to have a pack.mcmeta -- otherwise a
+        # network failure or a bad zip destroys the previously working,
+        # git-tracked source with nothing to replace it.
     fi
 
+    # Everything downloaded and extracted lives under one throwaway
+    # directory, so cleanup on any failure path is a single rm -rf and a
+    # failed install can't leave a stray temp file behind (mktemp's own
+    # returned file, with a suffix appended after the fact to build a
+    # *different* path, was never itself cleaned up -- this sidesteps that
+    # by only ever using the path mktemp actually created).
+    local work_dir
+    work_dir="$(mktemp -d)"
+
     local zip_path="$file"
-    local tmp_download=""
     if [ -n "$url" ]; then
-        _validate_download_url "$url" || return 1
-        tmp_download="$(mktemp)-datapack.zip"
-        log_info "Downloading $url"
-        if ! _download_file "$url" "$tmp_download"; then
-            rm -f "$tmp_download"
+        if ! _validate_download_url "$url"; then
+            rm -rf "$work_dir"
             return 1
         fi
-        zip_path="$tmp_download"
+        zip_path="${work_dir}/download.zip"
+        log_info "Downloading $url"
+        if ! _download_file "$url" "$zip_path"; then
+            rm -rf "$work_dir"
+            return 1
+        fi
     fi
 
     if [ ! -f "$zip_path" ]; then
         log_error "Error: file not found: $zip_path"
-        [ -n "$tmp_download" ] && rm -f "$tmp_download"
+        rm -rf "$work_dir"
         return 1
     fi
 
     if ! _validate_zip_members "$zip_path"; then
-        [ -n "$tmp_download" ] && rm -f "$tmp_download"
+        rm -rf "$work_dir"
         return 1
     fi
 
-    mkdir -p "$pack_dir"
-    if ! unzip -q -o "$zip_path" -d "$pack_dir"; then
+    local staged_dir="${work_dir}/extracted"
+    mkdir -p "$staged_dir"
+    if ! unzip -q -o "$zip_path" -d "$staged_dir"; then
         log_error "Error: failed to extract $zip_path"
-        rm -rf "$pack_dir"
-        [ -n "$tmp_download" ] && rm -f "$tmp_download"
+        rm -rf "$work_dir"
         return 1
     fi
-    [ -n "$tmp_download" ] && rm -f "$tmp_download"
 
-    if [ ! -f "${pack_dir}/pack.mcmeta" ]; then
+    if [ ! -f "${staged_dir}/pack.mcmeta" ]; then
         log_error "Error: extracted archive has no pack.mcmeta at its root"
-        rm -rf "$pack_dir"
+        rm -rf "$work_dir"
         return 1
     fi
+
+    # Only now, with a verified-good pack staged, replace whatever was there.
+    rm -rf "$pack_dir"
+    mv "$staged_dir" "$pack_dir"
+    rm -rf "$work_dir"
 
     log_success "Installed datapack source: config/datapacks/${name}"
     enable_datapack "$name"
@@ -432,7 +488,11 @@ delete_datapack() {
     mkdir -p "$BACKUPS_DIR"
     local backup_name
     backup_name="datapack-${name}-$(date +%Y%m%d-%H%M%S)"
-    tar -czf "${BACKUPS_DIR}/${backup_name}.tar.gz" -C "$DATAPACKS_SRC_DIR" "$name" 2>/dev/null || true
+    if ! tar -czf "${BACKUPS_DIR}/${backup_name}.tar.gz" -C "$DATAPACKS_SRC_DIR" "$name"; then
+        log_error "Error: backup failed; not deleting ${name} (disk full or backups/ not writable?)"
+        rm -f "${BACKUPS_DIR}/${backup_name}.tar.gz"
+        return 1
+    fi
     log_info "Backed up to backups/${backup_name}.tar.gz"
 
     local current_world

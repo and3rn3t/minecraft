@@ -395,6 +395,16 @@ List installed plugins.
 }
 ```
 
+### Datapacks
+
+See [`DATAPACKS.md`](DATAPACKS.md) for the full pipeline this fronts.
+
+- `GET /api/datapacks` - List datapacks, with enabled state for the current world
+- `POST /api/datapacks/install` - Install from a `url` form field or a `file` upload, then enable
+- `PUT /api/datapacks/{name}/enable` - Deploy into the current world and reload
+- `PUT /api/datapacks/{name}/disable` - Remove from the current world and reload
+- `DELETE /api/datapacks/{name}` - Back up and delete the tracked source
+
 ### Configuration Files
 
 - `GET /api/config/files` - List configuration files
