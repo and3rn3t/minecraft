@@ -54,6 +54,7 @@ EVENT_CONNECT = "connect"
 EVENT_JOIN = "join"
 EVENT_LEAVE = "leave"
 EVENT_DEATH = "death"
+EVENT_PET_DEATH = "pet_death"
 EVENT_ADVANCEMENT = "advancement"
 EVENT_COMMAND = "command"
 EVENT_SERVER_READY = "server_ready"
@@ -65,6 +66,7 @@ ALL_EVENT_TYPES = (
     EVENT_JOIN,
     EVENT_LEAVE,
     EVENT_DEATH,
+    EVENT_PET_DEATH,
     EVENT_ADVANCEMENT,
     EVENT_COMMAND,
     EVENT_SERVER_READY,
@@ -166,6 +168,24 @@ _DEATH_PHRASES = (
     r"was stung to death by",
 )
 _DEATH_RE = re.compile(rf"^(?P<player>{_NAME}) (?P<cause>(?:{'|'.join(_DEATH_PHRASES)})\b.*)$")
+
+# A named (tamed, or otherwise custom-named) mob's death is logged to the
+# console but never broadcast to chat, in a format built around Java's
+# Entity.toString(): "Named entity EntityWolf['Biscuit'/99, uuid='...',
+# l='ServerLevel[...]', x=..., y=..., z=..., cpos=[...], tl=..., v=true,
+# rR=null] died: Biscuit was slain by Skeleton". The diagnostic fields
+# between the name and "died:" are matched non-greedily and unparsed, since
+# they vary by version and aren't needed -- only the entity's Java class
+# name, its custom name, and the death sentence are. The backreference to
+# the already-captured name (rather than reusing _NAME, which is scoped to
+# player username rules) is what lets the death-sentence cause be captured
+# without the name repeated in it, in the same shape _DEATH_RE produces for
+# players -- pet_cemetery.py reuses epitaphs.classify_cause/extract_culprit
+# on it unchanged.
+_PET_DEATH_RE = re.compile(
+    r"^Named entity (?P<entity_type>\S+)\['(?P<name>[^']+)'/\d+,.*?\] died: (?P=name) "
+    rf"(?P<cause>(?:{'|'.join(_DEATH_PHRASES)})\b.*)$"
+)
 
 
 @dataclass(frozen=True)
@@ -277,6 +297,21 @@ def parse_line(line: str) -> Optional[GameEvent]:
             timestamp=_now_iso(),
             player=death.group("player"),
             data={**base, "cause": death.group("cause"), "message": message},
+            raw=line,
+        )
+
+    pet_death = _PET_DEATH_RE.match(message)
+    if pet_death:
+        return GameEvent(
+            type=EVENT_PET_DEATH,
+            timestamp=_now_iso(),
+            player=None,
+            data={
+                **base,
+                "entity_type": pet_death.group("entity_type"),
+                "name": pet_death.group("name"),
+                "cause": pet_death.group("cause"),
+            },
             raw=line,
         )
 

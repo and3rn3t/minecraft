@@ -8,6 +8,20 @@ scoreboard objectives add family_blocks_mined dummy
 scoreboard objectives add family_nights_together dummy
 scoreboard objectives add family_temp dummy
 
+# Lucky Blocks (W7): a real vanilla stat catches every player_head break,
+# compared tick-to-tick the same way Ten Thousand Blocks watches its stats.
+scoreboard objectives add family_lucky_heads minecraft.mined:minecraft.player_head
+scoreboard objectives add family_lucky_prev dummy
+
+# Graves (W8): the real vanilla "deaths" stat, same tick-to-tick comparison.
+scoreboard objectives add family_deaths minecraft.custom:minecraft.deaths
+scoreboard objectives add family_deaths_prev dummy
+# Countdown (in-game days) and next-empty-chest-slot, both carried on each
+# grave's own marker entity, not a player objective -- a player can have
+# several graves outstanding at once.
+scoreboard objectives add family_grave_age dummy
+scoreboard objectives add family_grave_slot dummy
+
 # One scoreboard objective per block in the "Ten Thousand Blocks" curated
 # list (docs/ADVANCEMENTS.md explains why it's a curated list rather than
 # literally every block: vanilla has no single "mined, any block" stat).

@@ -6,6 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Lucky Blocks, Graves, and the Pet Cemetery** (W7, W8, M6) — the first
+  content built on the datapack pipeline beyond the family advancement tree.
+  - **Lucky Blocks**: craft a player head, break it, roll a weighted loot
+    table. Detected via tick-to-tick stat watching, the same technique Ten
+    Thousand Blocks uses — there is no vanilla advancement trigger for "a
+    specific block was mined." See
+    [`docs/LUCKY_BLOCKS.md`](docs/LUCKY_BLOCKS.md).
+  - **Graves**: a player's dropped items are gathered into a labeled chest
+    at the death spot instead of scattering, with a 24-in-game-day
+    auto-expiry. Ships as an unlocked chest and an honor system, not a real
+    per-player lock — vanilla has no such thing. See
+    [`docs/GRAVES.md`](docs/GRAVES.md).
+  - **Pet Cemetery**: named (tamed) pets get a gentle obituary and a real
+    gravestone, reusing `api.epitaphs`' cause classification but not its
+    comedic tone. New `pet_death` event type in `api/events.py`, new
+    `api/pet_cemetery.py` module (mirrors `api/hall_of_deaths.py`'s shape).
+    See [`docs/PET_CEMETERY.md`](docs/PET_CEMETERY.md).
+
+  The item-vacuum command chain in Graves (`item replace ... contents`
+  against a fixed 27-way chest-slot branch, since 1.20.4 has no macros to
+  compute a slot index) is reasoned through carefully and checked against
+  the Minecraft Wiki, but not run against a live server in this
+  environment — flagged explicitly in `docs/GRAVES.md` as the
+  highest-risk-of-a-subtle-bug piece of this batch.
+
 - **Automatic deploys to the Pi.** `scripts/deploy-agent.sh`, run every five
   minutes by `systemd/minecraft-deploy.timer`, fast-forwards the Pi's checkout
   to the newest commit on `main` that passed CI and applies only what changed
