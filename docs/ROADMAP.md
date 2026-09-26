@@ -58,6 +58,9 @@ ahead of the dates written down:
 | Player statistics from the game's own files | Done | [PLAYER_STATS.md](PLAYER_STATS.md) |
 | Datapack pipeline | Done | [DATAPACKS.md](DATAPACKS.md) |
 | Family advancement tree | Done | [ADVANCEMENTS.md](ADVANCEMENTS.md) |
+| Lucky Blocks | Done | [LUCKY_BLOCKS.md](LUCKY_BLOCKS.md) |
+| Graves | Done | [GRAVES.md](GRAVES.md) |
+| Pet Cemetery | Done | [PET_CEMETERY.md](PET_CEMETERY.md) |
 
 So the question this roadmap answers is no longer "what else should the admin
 panel do". It is: **what could this server do that no other Minecraft server
@@ -78,14 +81,13 @@ plumbing they share, so each row is mostly content on top of the row before.
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
 | 2 | F7 | The biggest visible change for the least code — happy ghasts, trial chambers — and it must come before any new datapack work, because pack formats and item syntax change across it. R1 wants it too |
 | 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 4 | W7, W8, M6 | The first content built on the datapack pipeline. W8 and M6 both extend the Hall of Deaths' death handling, so build them together |
-| 5 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
-| 6 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
-| 7 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
-| 8 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
-| 9 | H1, H2, H3 | House and game wired to each other |
-| 10 | R1 | Geyser — but see the gate below |
-| 11 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
+| 4 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
+| 5 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
+| 6 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
+| 7 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
+| 8 | H1, H2, H3 | House and game wired to each other |
+| 9 | R1 | Geyser — but see the gate below |
+| 10 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
 **One decision gate: do the boys play on iPads?** If yes, R1 moves to order 3,
 straight after F7. Cross-play changes when and where they can play at all,
@@ -285,41 +287,6 @@ Shortcut that starts the server and reads status wants `server.control` and
 `server.view` and nothing else — not the `admin` role, and not a key shared with
 the dashboard.
 
-### W7. Lucky blocks — Green
-
-The single most requested thing on any server kids run. A special block —
-a player head with a gold "?" texture needs no resource pack at all — and
-breaking it rolls a loot table: a diamond sword, a stack of cake, a pig
-wearing a saddle, a lightning strike, an anvil falling from the sky, a
-charged creeper named "Oops".
-
-Pure datapack: a `minecraft.mined:minecraft.player_head` scoreboard stat
-catches the break, a tick function finds the dropped head by its custom data
-and swaps it for a roll of a weighted random loot table. Tune the
-table so the good outcomes win about 70% of the time and the funny ones cover
-most of the rest; nothing should wipe a base. Give it a crafting recipe so
-lucky blocks are earned rather than spawned, and add a **Lucky Block Race**
-to the P8 arcade.
-
-Outcomes can be written by the boys themselves from a dashboard form, which
-turns it into a thing they designed rather than a thing they downloaded.
-
-### W8. Graves — Green
-
-Losing a whole inventory to lava is the fastest way to end an evening in
-tears. `keepInventory` fixes that but removes all tension; graves are the
-middle ground. When a player dies, their items go into a grave marker at the
-spot, only they can open it, and the Hall of Deaths announcement gains a
-clickable line with the coordinates.
-
-A datapack does this on vanilla. The event bus already knows about every
-death, and the log line lacks coordinates, but
-`data get entity <player> LastDeathLocation` over RCON supplies them, so the
-API side is small: store the location alongside the obituary. Worth deciding
-up front: after 30 real minutes the grave opens to everyone (so a sibling can
-rescue it), and after a day the items drop normally. The epitaph from
-`api/epitaphs.py` can go on a sign above the grave.
-
 ---
 
 ## Tier 2 — The house and the game talk to each other
@@ -446,19 +413,6 @@ No datapack needed: store the book's contents as JSON and schedule the `/give`
 through the existing command scheduler. Technically the smallest item in this
 document, and probably the one that matters most in five years.
 
-### M6. The pet cemetery — Green
-
-Kids grieve dogs. Vanilla logs the death of any **named** entity —
-`Named entity Wolf['Biscuit'/…] died: Biscuit was slain by Skeleton` — so a
-tamed wolf, cat, parrot or horse with a name tag already produces a log line
-nobody reads.
-
-Add a `pet_death` type to the event bus's parser, give it an obituary in the
-Hall of Deaths with its own section, and build a small cemetery in game: each
-pet gets a gravestone sign with the name, owner, date and epitaph. Announce it
-gently rather than with the comedy tone the player obituaries use. This will
-matter more to them than it looks like it should.
-
 ### M7. The Hall of Champions — Green
 
 Statues at spawn. When someone earns a milestone advancement — kills the Ender
@@ -534,8 +488,9 @@ Gazette. Runs on F8, and the reset is P4's template-world machinery.
 
 A permanent minigame hub, next to spawn rather than in a temporary world: a
 boat race with lap timers, spleef, TNT run, an elytra ring course, a parkour
-tower with checkpoints. Each is a command-block or datapack build with a
-scoreboard timer.
+tower with checkpoints, a **Lucky Block Race** (see
+[`docs/LUCKY_BLOCKS.md`](LUCKY_BLOCKS.md) for the block itself, already
+shipped). Each is a command-block or datapack build with a scoreboard timer.
 
 The admin-portal half is what makes it last: every run is recorded, the
 dashboard keeps a **records board** per game with each kid's personal best,

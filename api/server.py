@@ -139,6 +139,16 @@ except ImportError:
     DEATHS_AVAILABLE = False
     hall_of_deaths = None
 
+# Pet Cemetery. Gentle obituaries and gravestones for named (tamed) pets,
+# separate from the Hall of Deaths' comedic player obituaries by design.
+try:
+    from api import pet_cemetery
+
+    PET_CEMETERY_AVAILABLE = True
+except ImportError:
+    PET_CEMETERY_AVAILABLE = False
+    pet_cemetery = None
+
 # Bedtime mode. Warns, counts down, then closes the server for the night.
 try:
     from api import bedtime as bedtime_mode
@@ -5159,6 +5169,14 @@ def start_event_capture():
         # event processing behind each death.
         hall.start_worker()
         bus.subscribe(hall.handle_event)
+
+    if PET_CEMETERY_AVAILABLE:
+        # Same injection pattern as the hall above: the runner is passed in
+        # rather than imported, so the cemetery stays testable without RCON.
+        cemetery = pet_cemetery.get_cemetery(runner=_run_game_command)
+        cemetery.set_error_logger(app.logger.error)
+        cemetery.start_worker()
+        bus.subscribe(cemetery.handle_event)
 
     if BEDTIME_AVAILABLE:
         bed = bedtime_mode.get_bedtime(runner=_run_game_command, stopper=_stop_server_for_bedtime)
