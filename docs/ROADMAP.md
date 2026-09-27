@@ -62,6 +62,7 @@ ahead of the dates written down:
 | Graves | Done | [GRAVES.md](GRAVES.md) |
 | Pet Cemetery | Done | [PET_CEMETERY.md](PET_CEMETERY.md) |
 | Minecraft version, 1.20.4 -> 26.3 | Done | [../CHANGELOG.md](../CHANGELOG.md) |
+| The Oracle | Done | [ORACLE.md](ORACLE.md) |
 
 So the question this roadmap answers is no longer "what else should the admin
 panel do". It is: **what could this server do that no other Minecraft server
@@ -80,14 +81,13 @@ plumbing they share, so each row is mostly content on top of the row before.
 | Order | Items | Why here |
 | --- | --- | --- |
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
-| 2 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 3 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
-| 4 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
-| 5 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
-| 6 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
-| 7 | H1, H2, H3 | House and game wired to each other |
-| 8 | R1 | Geyser — but see the gate below |
-| 9 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
+| 2 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
+| 3 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
+| 4 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
+| 5 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
+| 6 | H1, H2, H3 | House and game wired to each other |
+| 7 | R1 | Geyser — but see the gate below |
+| 8 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
 **One decision gate: do the boys play on iPads?** If yes, R1 jumps to the
 front of the list, right after W6. Cross-play changes when and where they can
@@ -162,38 +162,6 @@ enable/disable) and `GET`/`POST`/`DELETE /api/resourcepack`.
 ---
 
 ## Tier 1 — Highest wow per hour
-
-### W1. The Oracle — a Claude-powered companion in chat — Green
-
-Kids type in chat, something answers. The event bus catches `chat`, the API
-calls the Claude API, the reply goes back via `tellraw` with coloured JSON text.
-
-Use `claude-haiku-4-5` for banter (fast and cheap) and `claude-sonnet-5` for
-anything that generates structure, like quests. Round trip lands around 2–4
-seconds, which reads as "the wizard is thinking" rather than as lag.
-
-**Do not call the model from the handler.** `EventBus.publish()` runs every
-handler synchronously, in registration order, on the log follower thread
-(`api/events.py:347`). A 2–4 second round trip inline would stall the bus for
-that long on every message, and with it the Hall of Deaths, bedtime enforcement
-and anything else subscribed. Push the chat event onto a queue and answer from a
-worker, the way `api/hall_of_deaths.py` already announces from a worker thread.
-
-Give it a personality and a job: it knows the server's history from the event
-log, it remembers what each kid was building last week, it posts a daily
-quest to P11's bounty board rather than keeping a quest system of its own, it
-answers "how do I make a beacon" without either of them alt-tabbing to
-a wiki.
-
-**Guardrails, because this is aimed at children.** Pin a system prompt that
-scopes it to Minecraft and kid-appropriate content, allowlist the player names
-that may invoke it, rate limit per player per minute, cap output tokens so a
-reply always fits a chat line, log every exchange through the existing
-`log_audit_event()`, and put a kill switch on the dashboard.
-
-The epitaph writer in `api/epitaphs.py` already defines the interface a
-language-model-backed writer plugs into; W1 is the first real implementation of
-it.
 
 ### W2. The Invention Forge — describe an item, the server creates it — Yellow
 
@@ -503,10 +471,14 @@ Most complete themselves — the stats files from
 [PLAYER_STATS.md](PLAYER_STATS.md) and the `advancement` event already answer
 "did he mine 64 iron" and "did he reach the End" — and pay out automatically,
 in emeralds for H5's shop or a custom item, through F6's delivery queue.
-Build challenges get a parent "approve" button. W1's daily quests post here
-too, so there is one list of things to do rather than two. The board itself
-is fully under parental control and needs no model at all, so it can ship
-before W1 does.
+Build challenges get a parent "approve" button. The board itself is fully
+under parental control and needs no model at all.
+
+The Oracle ([ORACLE.md](ORACLE.md), shipped) already generates quests
+on request and persists them to `data/oracle/quests.jsonl` — there is
+nowhere else for them to go yet. Once this board exists, it should read from
+that file rather than the Oracle keeping its own separate list, so there is
+one list of things to do rather than two.
 
 ---
 

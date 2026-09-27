@@ -79,11 +79,13 @@ async function cachedGet(url, params = {}, cacheTTL = 5000, signal) {
   // Nothing pending: issue the request ourselves, behind our own internal
   // controller (never an external caller's signal directly).
   const controller = new AbortController();
-  const requestPromise = apiClient.get(url, { params, signal: controller.signal }).then(response => {
-    // Cache successful responses
-    setCachedResponse(url, 'GET', params, response.data, cacheTTL);
-    return response.data;
-  });
+  const requestPromise = apiClient
+    .get(url, { params, signal: controller.signal })
+    .then(response => {
+      // Cache successful responses
+      setCachedResponse(url, 'GET', params, response.data, cacheTTL);
+      return response.data;
+    });
 
   // Track pending request, then subscribe to our own request the same way
   // any joiner would — so our own `signal` behaves consistently whether or
@@ -199,6 +201,37 @@ export const api = {
     return response.data;
   },
 
+  // The Oracle: status/toggle, the allowlist + rate limit, and recent activity
+  async getOracleStatus(signal) {
+    return cachedGet('/oracle', {}, 10000, signal);
+  },
+
+  async getOracleExchanges(limit = 50, signal) {
+    return cachedGet('/oracle/exchanges', { limit }, 10000, signal);
+  },
+
+  async getOracleQuests(limit = 50, signal) {
+    return cachedGet('/oracle/quests', { limit }, 10000, signal);
+  },
+
+  async enableOracle() {
+    const response = await apiClient.put('/oracle/enable');
+    invalidateCache();
+    return response.data;
+  },
+
+  async disableOracle() {
+    const response = await apiClient.put('/oracle/disable');
+    invalidateCache();
+    return response.data;
+  },
+
+  async updateOracleSettings(settings) {
+    const response = await apiClient.put('/oracle/settings', settings);
+    invalidateCache();
+    return response.data;
+  },
+
   // Hall of Deaths: epitaphs, stats and the leaderboard
   async getDeaths({ limit = 50, player = null, category = null } = {}) {
     const params = { limit };
@@ -257,12 +290,7 @@ export const api = {
   },
 
   async getAnalyticsPredictions(hoursAhead = 1, metric = 'memory', signal) {
-    return cachedGet(
-      '/analytics/predictions',
-      { hours_ahead: hoursAhead, metric },
-      60000,
-      signal
-    ); // Cache for 60 seconds
+    return cachedGet('/analytics/predictions', { hours_ahead: hoursAhead, metric }, 60000, signal); // Cache for 60 seconds
   },
 
   async getPlayerBehavior(hours = 24, signal) {
@@ -425,7 +453,14 @@ export const api = {
     return response.data;
   },
 
-  async linkOAuthAccount(provider, code, redirectUri, idToken = null, userData = null, state = null) {
+  async linkOAuthAccount(
+    provider,
+    code,
+    redirectUri,
+    idToken = null,
+    userData = null,
+    state = null
+  ) {
     const response = await apiClient.post(`/auth/oauth/${provider}/link`, {
       code,
       redirect_uri: redirectUri,

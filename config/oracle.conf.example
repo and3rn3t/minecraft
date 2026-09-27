@@ -1,0 +1,34 @@
+# The Oracle: a Claude-powered companion in chat.
+#
+# Copy to config/oracle.conf and edit. The real file is gitignored.
+# See docs/ORACLE.md.
+
+# The Oracle is off unless this says otherwise. It spends real money and
+# talks to children -- doubly a feature that should never switch itself on
+# because a default said so.
+ENABLED=false
+
+# Exact Minecraft usernames allowed to invoke the Oracle, comma-separated.
+# Everyone else's chat is never sent to Claude at all.
+ALLOWLIST=Jonah,Silas
+
+# Per player, per minute. This gates the Claude call itself, not just the
+# reply -- it's the actual cost control, bounding worst-case spend to a
+# trivial amount even on the chattiest day.
+RATE_LIMIT_PER_MINUTE=4
+
+# Chat text color for the Oracle's tellraw replies.
+COLOR=aqua
+
+# How long exchange logs are kept, in days.
+RETENTION_DAYS=90
+
+# Models. Leave these alone unless you know what you're changing -- these
+# are the exact models docs/ROADMAP.md's W1 entry names.
+HAIKU_MODEL=claude-haiku-4-5
+SONNET_MODEL=claude-sonnet-5
+
+# ANTHROPIC_API_KEY does NOT go in this file. It's a secret, and this file
+# sits alongside every other config the dashboard's Config Files page can
+# read. Set it as a real environment variable instead -- in the systemd
+# unit's Environment= line on the Pi, or your shell profile for local dev.

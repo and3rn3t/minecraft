@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { path: '/config', label: 'Config Files', icon: '📄', category: 'server' },
   { path: '/files', label: 'File Browser', icon: '📂', category: 'tools' },
   { path: '/ddns', label: 'Dynamic DNS', icon: '🌐', category: 'tools' },
+  { path: '/oracle', label: 'The Oracle', icon: '🔮', category: 'admin' },
   { path: '/api-keys', label: 'API Keys', icon: '🔑', category: 'admin' },
   { path: '/users', label: 'Users & Roles', icon: '👤', category: 'admin' },
   { path: '/audit', label: 'Audit Logs', icon: '📋', category: 'admin' },
@@ -103,7 +104,10 @@ const Layout = ({ children }) => {
                         : 'text-minecraft-text-dark hover:bg-minecraft-dirt hover:text-white hover:pl-6'
                     }`}
                   >
-                    <span className="mr-2 text-xs transition-transform duration-150 hover:scale-110" aria-hidden="true">
+                    <span
+                      className="mr-2 text-xs transition-transform duration-150 hover:scale-110"
+                      aria-hidden="true"
+                    >
                       {item.icon}
                     </span>
                     {item.label.toUpperCase()}

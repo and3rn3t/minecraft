@@ -64,6 +64,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [LUCKY_BLOCKS.md](LUCKY_BLOCKS.md) | Craft a player head, break it, roll a loot table |
 | [GRAVES.md](GRAVES.md) | Dropped items collected into a labeled chest, not scattered |
 | [PET_CEMETERY.md](PET_CEMETERY.md) | Gentle obituaries and gravestones for named pets |
+| [ORACLE.md](ORACLE.md) | A Claude-powered companion that lives in chat |
 
 ---
 
