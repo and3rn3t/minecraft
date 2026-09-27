@@ -40,8 +40,12 @@ allowlist and rate limit, and a running log of recent exchanges and quests.
 1. `api/events.py` already parses every chat line into a `chat` event — this
    shipped long before the Oracle did, so no new parsing was needed.
 2. `Oracle.handle_event` in [`api/oracle.py`](../api/oracle.py) picks it up
-   from the bus, checks the allowlist and the rate limit, and queues it.
-3. A worker thread takes it from the queue and calls Claude
+   from the bus, checks the allowlist, and queues it. The allowlist check
+   happens here rather than after dequeueing so that chat from anyone not on
+   it — a griefer's, a visitor's — never enters the worker's backlog at all.
+3. A worker thread takes it from the queue, re-checks the kill switch (so
+   disabling the Oracle stops it from answering immediately rather than once
+   the backlog drains), checks the rate limit, and calls Claude
    (`claude-haiku-4-5`) with a pinned system prompt, asking it to triage the
    message into exactly one of three outcomes: stay quiet, banter back, or
    generate a quest.
@@ -50,8 +54,9 @@ allowlist and rate limit, and a running log of recent exchanges and quests.
    call, to `claude-sonnet-5`, that generates a structured quest — title,
    objective, difficulty, a flavor-text reward — which is delivered the same
    way and also saved.
-5. Every outcome (including a quiet one) is recorded, and every reply or
-   quest is logged to the audit log.
+5. Every outcome the worker actually considers (including a quiet one, a
+   rate-limited one, or a disabled/no-key skip) is recorded and logged to the
+   audit log — not just the ones that reached Claude.
 
 ### Why two models
 

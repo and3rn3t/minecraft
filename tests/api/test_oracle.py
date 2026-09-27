@@ -198,6 +198,22 @@ class TestAllowlist:
         assert orc.handle_event(chat_event(player="Jonah")) is None
         assert responder.triage_calls == []
 
+    def test_non_allowlisted_chat_is_never_queued_when_a_worker_is_running(self, oracle_instance):
+        # The allowlist check must happen before queueing, not after: a
+        # griefer's or a visitor's chat should never sit in the worker's
+        # backlog at all, since it could never get a reply anyway.
+        responder = FakeResponder()
+        oracle_instance.responder = responder
+        oracle_instance.start_worker()
+        try:
+            result = oracle_instance.handle_event(chat_event(player="Stranger", message="hi"))
+            assert result == {"outcome": "not_allowed"}
+            assert oracle_instance._pending == 0
+            assert oracle_instance.drain(timeout=1) is True
+        finally:
+            oracle_instance.stop_worker()
+        assert responder.triage_calls == []
+
 
 @pytest.mark.unit
 class TestRateLimit:
@@ -245,6 +261,62 @@ class TestRateLimit:
 
 @pytest.mark.unit
 class TestOutcomeRouting:
+    def test_disabling_stops_a_message_already_queued(self, oracle_instance):
+        # The kill switch must stop the Oracle from answering immediately,
+        # not just once whatever was already queued happens to drain --
+        # _process() re-checks config.enabled itself rather than trusting
+        # the check handle_event made at enqueue time.
+        responder = FakeResponder(triage_result=OracleTriage(outcome="banter", reply="hi"))
+        oracle_instance.responder = responder
+        oracle_instance.config.enabled = False
+
+        result = oracle_instance._process(chat_event(player="Jonah", message="hi oracle"))
+
+        assert result == {"outcome": "disabled"}
+        assert responder.triage_calls == []
+        assert oracle_instance.read_exchanges()[0]["outcome"] == "disabled"
+
+    def test_disabling_mid_backlog_stops_the_next_queued_message(self, oracle_instance):
+        # An end-to-end version of the same guarantee: a message queued
+        # while enabled must not reach the responder if the Oracle is
+        # disabled before the worker gets to it.
+        import threading
+
+        responder = FakeResponder(triage_result=OracleTriage(outcome="no_reply"))
+        oracle_instance.responder = responder
+        gate = threading.Event()
+        real_process = oracle_instance._process
+
+        def gated_process(event):
+            gate.wait(5)
+            return real_process(event)
+
+        oracle_instance._process = gated_process
+        oracle_instance.start_worker()
+        try:
+            oracle_instance.handle_event(chat_event(player="Jonah", message="hi"))
+            oracle_instance.config.enabled = False
+            gate.set()
+            assert oracle_instance.drain(timeout=5) is True
+        finally:
+            oracle_instance.stop_worker()
+
+        assert responder.triage_calls == []
+        assert oracle_instance.read_exchanges()[0]["outcome"] == "disabled"
+
+    def test_rate_limited_messages_are_audit_logged(self, oracle_instance):
+        oracle_instance.responder = FakeResponder(triage_result=OracleTriage(outcome="no_reply"))
+        oracle_instance.config.rate_limit_per_minute = 1
+        audits = []
+        oracle_instance.set_audit_logger(lambda player, action, details: audits.append((player, action, details)))
+
+        oracle_instance.handle_event(chat_event(player="Jonah", message="one"))
+        oracle_instance.handle_event(chat_event(player="Jonah", message="two"))
+
+        rate_limited_audits = [a for a in audits if a[1] == "oracle.rate_limited"]
+        assert len(rate_limited_audits) == 1
+        assert oracle_instance.read_exchanges()[0]["outcome"] == "rate_limited"
+
     def test_no_reply_sends_nothing(self, oracle_instance, commands):
         oracle_instance.responder = FakeResponder(triage_result=OracleTriage(outcome="no_reply"))
 
@@ -271,7 +343,7 @@ class TestOutcomeRouting:
         exchanges = oracle_instance.read_exchanges()
         assert exchanges[0]["outcome"] == "banter"
         assert exchanges[0]["summary"] == "Hello, adventurer!"
-        assert audits and audits[0][1] == "oracle.chat"
+        assert audits and audits[0][1] == "oracle.banter"
 
     def test_quest_request_delivers_and_persists_a_quest(self, oracle_instance, commands):
         quest = make_quest()
@@ -316,16 +388,21 @@ class TestOutcomeRouting:
         assert commands == []
         assert oracle_instance.read_quests() == []
 
-    def test_no_responder_configured_is_harmless(self, oracle_instance, commands):
+    def test_no_responder_configured_is_recorded_not_just_logged(self, oracle_instance, commands):
+        # A missing key is a bounded, observable disabled state -- visible
+        # as a "skipped" exchange -- not a per-message error that would
+        # flood the log at chat's own pace.
         oracle_instance.responder = None
-        errors = []
-        oracle_instance.set_error_logger(errors.append)
+        audits = []
+        oracle_instance.set_audit_logger(lambda player, action, details: audits.append((player, action, details)))
 
         result = oracle_instance.handle_event(chat_event(player="Jonah"))
 
         assert result == {"outcome": "skipped", "reason": "no_responder"}
         assert commands == []
-        assert errors
+        exchanges = oracle_instance.read_exchanges()
+        assert exchanges[0]["outcome"] == "skipped"
+        assert audits and audits[0][1] == "oracle.skipped"
 
 
 @pytest.mark.unit
@@ -503,35 +580,23 @@ class TestSharedOracle:
 
 @pytest.mark.unit
 class TestSettings:
-    def test_update_settings_persists(self, tmp_path):
+    def test_update_settings_persists(self, tmp_path, monkeypatch):
         config_file = tmp_path / "oracle.conf"
         orc = Oracle(config=OracleConfig())
+        monkeypatch.setattr("api.oracle.ORACLE_CONFIG_FILE", config_file)
 
-        import api.oracle as oracle_module
+        orc.update_settings(allowlist=["Jonah", "Silas"], rate_limit_per_minute=8)
+        reloaded = load_oracle_config(config_file)
+        assert reloaded.allowlist == ("Jonah", "Silas")
+        assert reloaded.rate_limit_per_minute == 8
 
-        original = oracle_module.ORACLE_CONFIG_FILE
-        oracle_module.ORACLE_CONFIG_FILE = config_file
-        try:
-            orc.update_settings(allowlist=["Jonah", "Silas"], rate_limit_per_minute=8)
-            reloaded = load_oracle_config(config_file)
-            assert reloaded.allowlist == ("Jonah", "Silas")
-            assert reloaded.rate_limit_per_minute == 8
-        finally:
-            oracle_module.ORACLE_CONFIG_FILE = original
-
-    def test_set_enabled_persists(self, tmp_path):
+    def test_set_enabled_persists(self, tmp_path, monkeypatch):
         config_file = tmp_path / "oracle.conf"
         orc = Oracle(config=OracleConfig(enabled=False))
+        monkeypatch.setattr("api.oracle.ORACLE_CONFIG_FILE", config_file)
 
-        import api.oracle as oracle_module
-
-        original = oracle_module.ORACLE_CONFIG_FILE
-        oracle_module.ORACLE_CONFIG_FILE = config_file
-        try:
-            orc.set_enabled(True)
-            assert load_oracle_config(config_file).enabled is True
-        finally:
-            oracle_module.ORACLE_CONFIG_FILE = original
+        orc.set_enabled(True)
+        assert load_oracle_config(config_file).enabled is True
 
     def test_rate_limit_is_clamped(self, oracle_instance):
         oracle_instance.update_settings(rate_limit_per_minute=1000)

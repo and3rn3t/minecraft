@@ -257,7 +257,12 @@ def load_oracle_config(config_file: Optional[Path] = None) -> OracleConfig:
             settings.allowlist = tuple(name.strip() for name in value.split(",") if name.strip())
         elif key == "RATE_LIMIT_PER_MINUTE":
             try:
-                settings.rate_limit_per_minute = max(1, int(value))
+                # Clamped the same way update_settings() and the REST
+                # endpoint clamp it, so a config file typo like
+                # RATE_LIMIT_PER_MINUTE=1000000 can't bypass the cost
+                # ceiling after a restart the way an unclamped max(1, ...)
+                # here would let it.
+                settings.rate_limit_per_minute = max(1, min(60, int(value)))
             except ValueError:
                 # A typo in the config should not stop the server from
                 # starting. The default rate limit stays in place.
@@ -268,6 +273,9 @@ def load_oracle_config(config_file: Optional[Path] = None) -> OracleConfig:
             try:
                 settings.retention_days = int(value)
             except ValueError:
+                # Same reasoning as RATE_LIMIT_PER_MINUTE above: a typo
+                # here should not stop the server from starting, so the
+                # default retention stays in place.
                 pass
         elif key == "HAIKU_MODEL" and value:
             settings.haiku_model = value
@@ -309,7 +317,7 @@ class ExchangeRecord:
 
     player: str
     message: str
-    outcome: str  # "banter" | "quest_request" | "no_reply" | "rate_limited" | "error"
+    outcome: str  # "banter" | "quest_request" | "no_reply" | "rate_limited" | "disabled" | "skipped" | "error"
     summary: str
     timestamp: str
 
@@ -420,6 +428,16 @@ class Oracle:
         if not event.player:
             return None
 
+        # The allowlist check is cheap -- an in-memory tuple membership
+        # test, no I/O, no network -- and belongs here, before queueing,
+        # not after. Deferring it to _process() would mean chat from any
+        # name at all (a griefer's, a visitor's, anyone not on the
+        # allowlist) gets enqueued for the worker: an unbounded backlog of
+        # messages that could never get a reply anyway. Not recorded or
+        # audited, same as before -- it isn't the Oracle's business.
+        if not self._is_allowed(event.player):
+            return {"outcome": "not_allowed"}
+
         if self._queue is not None:
             with self._pending_cv:
                 self._pending += 1
@@ -432,14 +450,15 @@ class Oracle:
         player = event.player
         message = event.data.get("message", "")
 
-        # Allowlist first: a name that could never get a reply anyway never
-        # touches the network and is never logged -- it isn't the Oracle's
-        # business.
-        if not self._is_allowed(player):
-            return {"outcome": "not_allowed"}
+        # Re-checked here, not just in handle_event: a message can sit
+        # queued behind others, and disabling the Oracle -- the kill switch
+        # -- must stop it from answering immediately, not just once
+        # whatever was already queued before the click happens to drain.
+        if not self.config.enabled:
+            return self._finish(player, message, "disabled")
 
-        # Rate limit second, gating the responder call itself rather than
-        # just the reply. This is the actual cost control: every allowlisted
+        # Rate limit gates the responder call itself rather than just the
+        # reply. This is the actual cost control: every allowlisted
         # player's chattiest possible day is bounded to
         # rate_limit_per_minute API calls per minute, not "however much they type".
         if is_rate_limit_exceeded(
@@ -448,47 +467,56 @@ class Oracle:
             60,
             self._rate_limit_storage,
         ):
-            self._record_exchange(player, message, "rate_limited", "")
-            return {"outcome": "rate_limited"}
+            return self._finish(player, message, "rate_limited")
 
         if self.responder is None:
-            self._log_error("The Oracle has no responder configured (no ANTHROPIC_API_KEY?)")
-            return {"outcome": "skipped", "reason": "no_responder"}
+            # Recorded and audited like every other outcome below, rather
+            # than only logged as an error: a missing key is a bounded,
+            # observable disabled state (visible as "skipped" exchanges on
+            # the dashboard), not a per-message error worth flooding the
+            # log with at chat's own pace.
+            return self._finish(player, message, "skipped", reason="no_responder")
 
         try:
             triage = self.responder.triage(player, message)
         except Exception as exc:  # noqa: BLE001 - one bad message must not break the worker
             self._log_error(f"Oracle triage failed for {player}: {exc}")
-            self._record_exchange(player, message, "error", "")
-            return {"outcome": "error"}
+            return self._finish(player, message, "error")
 
         if triage.outcome == "no_reply":
-            self._record_exchange(player, message, "no_reply", "")
-            return {"outcome": "no_reply"}
+            return self._finish(player, message, "no_reply")
 
         if triage.outcome == "banter":
             self._reply(player, triage.reply)
-            self._record_exchange(player, message, "banter", triage.reply)
-            self._log_audit(
-                player,
-                "oracle.chat",
-                {"message": sanitize_string(message[:100]), "reply": sanitize_string(triage.reply[:100])},
-            )
-            return {"outcome": "banter", "reply": triage.reply}
+            return self._finish(player, message, "banter", summary=triage.reply, reply=triage.reply)
 
         # quest_request
         try:
             quest = self.responder.generate_quest(player, message)
         except Exception as exc:  # noqa: BLE001 - one bad message must not break the worker
             self._log_error(f"Oracle quest generation failed for {player}: {exc}")
-            self._record_exchange(player, message, "error", "")
-            return {"outcome": "error"}
+            return self._finish(player, message, "error")
 
         delivered = self._deliver_quest(player, quest)
         self._persist_quest(player, message, quest, delivered)
-        self._record_exchange(player, message, "quest_request", quest.title)
-        self._log_audit(player, "oracle.quest", {"message": sanitize_string(message[:100]), "quest": quest.title})
-        return {"outcome": "quest_request", "quest": quest.title}
+        return self._finish(player, message, "quest_request", summary=quest.title, quest=quest.title)
+
+    def _finish(self, player: str, message: str, outcome: str, summary: str = "", **extra) -> dict:
+        """Record and audit one processed message, whatever the outcome.
+
+        Every outcome that reaches here (everything except ``not_allowed``,
+        handled earlier in handle_event) goes through the same path, so the
+        exchange log and the audit trail genuinely cover every message the
+        Oracle actually considered -- a rate-limited message or a
+        no-API-key skip is as visible as a real reply, not silently absent
+        from both.
+        """
+        self._record_exchange(player, message, outcome, summary)
+        details = {"message": sanitize_string(message[:100])}
+        if summary:
+            details["summary"] = sanitize_string(summary[:100])
+        self._log_audit(player, f"oracle.{outcome}", details)
+        return {"outcome": outcome, **extra}
 
     def _reply(self, player: str, text: str) -> None:
         if self.runner is None:
