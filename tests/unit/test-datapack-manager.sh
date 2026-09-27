@@ -147,6 +147,27 @@ with zipfile.ZipFile('evil/evil.zip', 'a') as z:
     assert_line "broken.json"
 }
 
+@test "datapack-manager validate warns, but still passes, on a pack_format mismatch" {
+    scripts/datapack-manager.sh create family
+    echo '{"pack":{"pack_format":26,"description":"family datapack"}}' \
+        > config/datapacks/family/pack.mcmeta
+
+    run scripts/datapack-manager.sh validate family
+    assert_success
+    assert_line "WARN"
+    assert_line "pack_format 26 does not match"
+}
+
+@test "datapack-manager validate does not crash on a pack.mcmeta whose pack section is not an object" {
+    scripts/datapack-manager.sh create family
+    echo '{"pack":"oops"}' > config/datapacks/family/pack.mcmeta
+
+    run scripts/datapack-manager.sh validate family
+    assert_success
+    traceback_lines=$(echo "$output" | grep -c "Traceback" || true)
+    [ "$traceback_lines" -eq 0 ]
+}
+
 @test "datapack-manager enable copies the tracked source into the current world and reloads" {
     scripts/datapack-manager.sh create family
     run scripts/datapack-manager.sh enable family

@@ -456,8 +456,13 @@ else:
         # Not fatal: an older pack_format still loads (Minecraft just warns
         # in its own log), but a mismatch here is exactly the kind of thing
         # that silently produces a pack that behaves unexpectedly, so flag
-        # it rather than staying quiet the way this check used to.
-        pack_format = meta.get("pack", {}).get("pack_format")
+        # it rather than staying quiet the way this check used to. `meta` or
+        # `meta["pack"]` can be valid JSON that isn't a dict (a bare list or
+        # string), so check the shape before calling .get() on it.
+        pack_section = meta.get("pack") if isinstance(meta, dict) else None
+        pack_format = (
+            pack_section.get("pack_format") if isinstance(pack_section, dict) else None
+        )
         if pack_format is not None and pack_format != expected_format:
             warnings.append(
                 f"pack.mcmeta: pack_format {pack_format} does not match "

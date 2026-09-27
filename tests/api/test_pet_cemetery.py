@@ -199,6 +199,27 @@ class TestRecording:
 
 
 @pytest.mark.unit
+class TestWorkerBasedProcessing:
+    """Mirrors HallOfDeaths' worker tests (tests/api/test_hall_of_deaths.py)."""
+
+    def test_stopping_lets_queued_deaths_finish(self, tmp_path, commands):
+        cemetery = PetCemetery(cemetery_dir=tmp_path / "cem", runner=commands.append)
+        cemetery.start_worker()
+        # Several deaths queued back to back, with no drain() before stopping,
+        # so the worker's queue still holds unprocessed work when stop_worker()
+        # runs -- the exact shape of the shutdown race stop_worker() must not
+        # lose.
+        for index in range(5):
+            cemetery.handle_event(pet_death_event(name=f"Pet{index}"))
+        cemetery.stop_worker(timeout=5)
+
+        assert len(cemetery.read()) == 5
+
+    def test_stopping_without_starting_is_safe(self, tmp_path):
+        PetCemetery(cemetery_dir=tmp_path / "cem").stop_worker()
+
+
+@pytest.mark.unit
 class TestGravestonePlacement:
     def test_successful_placement_is_recorded(self, cemetery):
         record = cemetery.record(PetDeath(entity_type="EntityWolf", name="Biscuit", cause="drowned"))
