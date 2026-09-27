@@ -2,7 +2,7 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:iron_sword"
+            "id": "minecraft:iron_sword"
         },
         "title": "Sibling Rivalry",
         "description": "Survived three nights with your brother",

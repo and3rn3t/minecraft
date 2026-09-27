@@ -28,9 +28,9 @@ confirmed against the current advancement trigger list before building
 this.) Detection instead watches the real vanilla stat
 `minecraft.mined:minecraft.player_head` tick-to-tick, the same technique
 [`ADVANCEMENTS.md`](ADVANCEMENTS.md) uses for Ten Thousand Blocks:
-`config/datapacks/family/data/family/functions/tick/check_lucky_blocks.mcfunction`.
+`config/datapacks/family/data/family/function/tick/check_lucky_blocks.mcfunction`.
 
-When a player's count goes up, `functions/tick/roll_lucky_block.mcfunction`
+When a player's count goes up, `function/tick/roll_lucky_block.mcfunction`
 runs `/loot spawn ~ ~ ~ loot family:lucky_block` at roughly their position,
 then consumes one "Lucky Block"-named head — from their inventory if
 they've already picked it up (the usual case, a tick after the break), or
@@ -54,7 +54,7 @@ again would roll again for free, forever, off a single craft.
 
 ## The loot table
 
-`config/datapacks/family/data/family/loot_tables/lucky_block.json` — one
+`config/datapacks/family/data/family/loot_table/lucky_block.json` — one
 pool, weighted 70 (diamonds, emeralds, an enchanted sword, a golden apple, a
 saddle, cake, XP bottles) to 30 (TNT as an item, rotten flesh, gunpowder, a
 poisonous potato, and one troll: a `minecraft:barrier`, which can't normally

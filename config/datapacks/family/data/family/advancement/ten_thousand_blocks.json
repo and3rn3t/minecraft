@@ -2,7 +2,7 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:diamond_pickaxe"
+            "id": "minecraft:diamond_pickaxe"
         },
         "title": "Ten Thousand Blocks",
         "description": "Mined ten thousand blocks",

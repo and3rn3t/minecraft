@@ -29,7 +29,7 @@ it under `config/datapacks/` and re-run `enable`.
 ## Quick Start
 
 ```bash
-# Scaffold a new datapack (pack.mcmeta + empty advancements/functions/loot_tables/recipes dirs)
+# Scaffold a new datapack (pack.mcmeta + empty advancement/function/loot_table/recipe dirs)
 ./scripts/datapack-manager.sh create mydatapack
 
 # See what's tracked and what's currently deployed in the active world

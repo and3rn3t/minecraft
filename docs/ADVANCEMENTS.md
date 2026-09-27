@@ -45,7 +45,7 @@ limitations shape every mechanism above:
 
 ### Neighbors: edit the coordinates once
 
-`config/datapacks/family/data/family/functions/tick/check_neighbors.mcfunction`
+`config/datapacks/family/data/family/function/tick/check_neighbors.mcfunction`
 has:
 
 ```mcfunction

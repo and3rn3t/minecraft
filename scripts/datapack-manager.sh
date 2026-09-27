@@ -27,10 +27,14 @@ BACKUPS_DIR="${PROJECT_DIR}/backups"
 
 mkdir -p "$DATAPACKS_SRC_DIR"
 
-# The pack_format datapacks built by this pipeline target. 26 is the format
-# introduced in 1.20.3/1.20.4, the version this project targets (docs/ROADMAP.md
-# legend: "vanilla 1.20.4").
-PACK_FORMAT=26
+# The pack_format datapacks built by this pipeline target. 121 is the data
+# pack format for 26.3, the version this project targets (docs/ROADMAP.md,
+# F7). Since 1.21.9 (25w31a) Minecraft prefers min_format/max_format as
+# [major, minor] pairs over the older flat pack_format integer; both are
+# written so older tooling that only understands pack_format still works.
+PACK_FORMAT=121
+PACK_MIN_FORMAT="[121, 0]"
+PACK_MAX_FORMAT="[121, 0]"
 
 # Which world's datapacks directory enable/disable/reload act on. Duplicated
 # from world-manager.sh's get_current_world() rather than sourced from it:
@@ -78,18 +82,20 @@ create_datapack() {
         return 1
     fi
 
-    # Plural directory names: pack_format 26 (1.20.4) predates 24w21a, the
-    # 1.21 snapshot that renamed these to singular. Get this wrong and
+    # Singular directory names: 24w21a (the 1.21 snapshot) renamed these from
+    # the plural forms pack_format 26 (1.20.4) used. Get this wrong and
     # Minecraft silently never discovers the pack's own content.
-    mkdir -p "${pack_dir}/data/${name}/advancements"
-    mkdir -p "${pack_dir}/data/${name}/functions"
-    mkdir -p "${pack_dir}/data/${name}/loot_tables"
-    mkdir -p "${pack_dir}/data/${name}/recipes"
+    mkdir -p "${pack_dir}/data/${name}/advancement"
+    mkdir -p "${pack_dir}/data/${name}/function"
+    mkdir -p "${pack_dir}/data/${name}/loot_table"
+    mkdir -p "${pack_dir}/data/${name}/recipe"
 
     cat > "${pack_dir}/pack.mcmeta" <<EOF
 {
     "pack": {
         "pack_format": ${PACK_FORMAT},
+        "min_format": ${PACK_MIN_FORMAT},
+        "max_format": ${PACK_MAX_FORMAT},
         "description": "${name} datapack"
     }
 }
@@ -428,22 +434,36 @@ validate_datapack() {
         return 1
     fi
 
-    python3 - "$pack_dir" <<'EOF'
+    python3 - "$pack_dir" "${PACK_FORMAT}" <<'EOF'
 import json
 import sys
 from pathlib import Path
 
 pack_dir = Path(sys.argv[1])
+expected_format = int(sys.argv[2])
 errors = []
+warnings = []
 
 mcmeta = pack_dir / "pack.mcmeta"
 if not mcmeta.is_file():
     errors.append("missing pack.mcmeta")
 else:
     try:
-        json.loads(mcmeta.read_text(encoding="utf-8"))
+        meta = json.loads(mcmeta.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         errors.append(f"pack.mcmeta: invalid JSON: {exc}")
+    else:
+        # Not fatal: an older pack_format still loads (Minecraft just warns
+        # in its own log), but a mismatch here is exactly the kind of thing
+        # that silently produces a pack that behaves unexpectedly, so flag
+        # it rather than staying quiet the way this check used to.
+        pack_format = meta.get("pack", {}).get("pack_format")
+        if pack_format is not None and pack_format != expected_format:
+            warnings.append(
+                f"pack.mcmeta: pack_format {pack_format} does not match "
+                f"this pipeline's current target ({expected_format}) -- "
+                "confirm this is intentional"
+            )
 
 checked = 0
 for path in pack_dir.rglob("*.json"):
@@ -452,6 +472,9 @@ for path in pack_dir.rglob("*.json"):
         json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         errors.append(f"{path.relative_to(pack_dir)}: invalid JSON: {exc}")
+
+for warning in warnings:
+    print(f"WARN: {warning}")
 
 if errors:
     for error in errors:

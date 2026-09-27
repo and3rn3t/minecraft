@@ -2,7 +2,7 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:compass"
+            "id": "minecraft:compass"
         },
         "title": "Neighbors",
         "description": "Built within 50 blocks of Dad's house",
