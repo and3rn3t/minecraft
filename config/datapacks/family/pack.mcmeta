@@ -1,6 +1,8 @@
 {
     "pack": {
-        "pack_format": 26,
+        "pack_format": 121,
+        "min_format": [121, 0],
+        "max_format": [121, 0],
         "description": "Family advancement tree — see docs/ADVANCEMENTS.md"
     }
 }

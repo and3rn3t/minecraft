@@ -2,11 +2,11 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:compass"
+            "id": "minecraft:iron_sword"
         },
-        "title": "Neighbors",
-        "description": "Built within 50 blocks of Dad's house",
-        "frame": "goal",
+        "title": "Sibling Rivalry",
+        "description": "Survived three nights with your brother",
+        "frame": "challenge",
         "show_toast": true,
         "announce_to_chat": true
     },

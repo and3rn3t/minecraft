@@ -18,7 +18,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Build configuration
 IMAGE_NAME="${IMAGE_NAME:-minecraft-server}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-MINECRAFT_VERSION="${MINECRAFT_VERSION:-1.20.4}"
+MINECRAFT_VERSION="${MINECRAFT_VERSION:-26.3}"
 
 # Supported architectures
 ARCHITECTURES="${ARCHITECTURES:-linux/arm64,linux/arm/v7,linux/amd64}"

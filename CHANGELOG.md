@@ -41,6 +41,27 @@ All notable changes to this project will be documented in this file.
   `Slot` is set atomically alongside its `id`/`Count` rather than in a
   follow-up command. Both fixed; see `docs/GRAVES.md` for the full story.
 
+- **Upgraded the default Minecraft version from 1.20.4 to 26.3** (F7).
+  Minecraft has moved to a year-based version scheme since the roadmap was
+  written (1.21.x -> 26.x); every place `MINECRAFT_VERSION` was pinned --
+  `Dockerfile`, both `docker-compose` files, `.env.example`, and the two CI
+  workflows' build-args -- now defaults to 26.3. The family datapack is
+  ported to match: `pack.mcmeta` carries `min_format`/`max_format` (the
+  schema Minecraft moved to at 1.21.9) alongside `pack_format`, all four
+  `data/family/` subdirectories are renamed to their singular forms (24w21a
+  dropped the plural names), and the Lucky Block recipe/function use
+  component syntax (`minecraft:custom_name`) instead of item NBT. Verified
+  live against a local 26.3 server: with the directory rename alone,
+  `/datapack list` reported the pack enabled while every function returned
+  "Unknown function" -- the exact silent-failure mode `datapack-manager.sh`
+  warned about. Two more breakages only turned up that way: shaped-recipe
+  keys must now be plain item ids, not `{"item": "..."}`, and the same
+  `item` -> `id` rename applies to every advancement's `display.icon`.
+  `check_sibling_rivalry.mcfunction`'s day-change detection now uses
+  `time query day`, since 26.1 replaced the bare `daytime` keyword with a
+  data-driven timeline registry. `datapack-manager.sh validate` now warns
+  (non-fatally) on a `pack_format` mismatch instead of staying silent.
+
 - **Automatic deploys to the Pi.** `scripts/deploy-agent.sh`, run every five
   minutes by `systemd/minecraft-deploy.timer`, fast-forwards the Pi's checkout
   to the newest commit on `main` that passed CI and applies only what changed

@@ -41,12 +41,12 @@ stat `minecraft.custom:minecraft.deaths`, watched tick-to-tick rather than
 through the event bus. This means it fires the same tick as the death —
 before the brief respawn-screen delay — while the dying player's entity is
 still sitting at the death position, which
-`functions/tick/make_grave.mcfunction` needs.
+`function/tick/make_grave.mcfunction` needs.
 
 **Placing the chest and finding it later.** A `minecraft:marker` entity is
 summoned at the death spot and tagged `family_grave_marker`. It's not a
 bookkeeping convenience — it *is* the only record of where that grave is.
-`functions/tick/age_graves.mcfunction` (run once per in-game day, piggybacking
+`function/tick/age_graves.mcfunction` (run once per in-game day, piggybacking
 on the dawn-detection already built for
 [Sibling Rivalry](ADVANCEMENTS.md#sibling-rivalry-how-a-night-is-detected))
 finds every outstanding grave by looking for that tag, decrements its
@@ -55,16 +55,16 @@ countdown, and expires anything that reaches zero.
 A second death at the same spot — or a grave that hasn't expired yet — would
 make an unconditional `setblock` overwrite the existing chest instead of
 making a new one, silently destroying its contents and leaving two graves
-sharing one chest. `functions/tick/make_grave.mcfunction` checks for an
+sharing one chest. `function/tick/make_grave.mcfunction` checks for an
 occupied spot first and steps 2 blocks east, up to two times, before
 placing; three graves stacked on the exact same block is rare enough on a
 home server not to need more than that.
 
 **Collecting the dropped items.**
-`functions/tick/vacuum_grave_step.mcfunction` repeatedly finds the nearest
+`function/tick/vacuum_grave_step.mcfunction` repeatedly finds the nearest
 dropped item within 3 blocks and moves its stack into the chest — but only
 items that appeared *this tick*, tracked with a `family_seen_item` tag that
-`functions/tick/tag_existing_items.mcfunction` applies to everything already
+`function/tick/tag_existing_items.mcfunction` applies to everything already
 on the ground at the end of every tick. Without that filter, "within 3
 blocks" would just as happily vacuum up someone else's deliberately dropped
 item, or an older pile that hasn't despawned, as the actual death drops.

@@ -20,8 +20,8 @@ Silas.
 Every item carries a feasibility rating, which is about this hardware and this
 setup rather than about difficulty in general:
 
-- **Green** — works on the Pi 5, on vanilla (1.20.4 today; see F7), with what
-  is already in the repo.
+- **Green** — works on the Pi 5, on vanilla (26.3 today), with what is
+  already in the repo.
 - **Yellow** — works, but with a real constraint: extra RAM, extra hardware, a
   server-type change, or the work belongs on the Mac rather than the Pi.
 - **Red** — don't, or not yet. These live in [Ruled out](#ruled-out).
@@ -61,6 +61,7 @@ ahead of the dates written down:
 | Lucky Blocks | Done | [LUCKY_BLOCKS.md](LUCKY_BLOCKS.md) |
 | Graves | Done | [GRAVES.md](GRAVES.md) |
 | Pet Cemetery | Done | [PET_CEMETERY.md](PET_CEMETERY.md) |
+| Minecraft version, 1.20.4 -> 26.3 | Done | [../CHANGELOG.md](../CHANGELOG.md) |
 
 So the question this roadmap answers is no longer "what else should the admin
 panel do". It is: **what could this server do that no other Minecraft server
@@ -79,63 +80,29 @@ plumbing they share, so each row is mostly content on top of the row before.
 | Order | Items | Why here |
 | --- | --- | --- |
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
-| 2 | F7 | The biggest visible change for the least code — happy ghasts, trial chambers — and it must come before any new datapack work, because pack formats and item syntax change across it. R1 wants it too |
-| 3 | W1 | First real "whoa"; proves the event bus end to end in both directions |
-| 4 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
-| 5 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
-| 6 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
-| 7 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
-| 8 | H1, H2, H3 | House and game wired to each other |
-| 9 | R1 | Geyser — but see the gate below |
-| 10 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
+| 2 | W1 | First real "whoa"; proves the event bus end to end in both directions |
+| 3 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
+| 4 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
+| 5 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
+| 6 | W2, P9, P4, M4, P1, P5, P6 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1 and P5 are datapack content; P6 is scheduler content |
+| 7 | H1, H2, H3 | House and game wired to each other |
+| 8 | R1 | Geyser — but see the gate below |
+| 9 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
-**One decision gate: do the boys play on iPads?** If yes, R1 moves to order 3,
-straight after F7. Cross-play changes when and where they can play at all,
-which outranks anything else here, and Geyser tracks current Java releases, so
-it needs F7 first regardless.
+**One decision gate: do the boys play on iPads?** If yes, R1 jumps to the
+front of the list, right after W6. Cross-play changes when and where they can
+play at all, which outranks anything else here. (F7 used to gate R1 too —
+Geyser needs to track a current Java release — but the version upgrade has
+already shipped, so that constraint is gone.)
 
 ---
 
 ## Foundations
 
-Plumbing that several features below depend on. Four are done and described in
-[EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md), [PLAYER_STATS.md](PLAYER_STATS.md)
-and [DATAPACKS.md](DATAPACKS.md) rather than repeated here.
-
-### F7. Catch up to current Minecraft — Yellow, and decide it early
-
-The server defaults to **1.20.4**, which is now a long way behind the game the
-boys see on YouTube. Everything added since is missing from their world:
-
-- **Trial chambers, the breeze and the mace** (1.21) — a new dungeon type built
-  for exactly this age, with a weapon whose whole point is falling on things.
-- **Bundles** (1.21.2) and **the Pale Garden with the creaking** (1.21.4).
-- **The happy ghast** (1.21.6) — a giant friendly ghast you can put a harness
-  on and fly with four players riding it. On its own this is a reason to
-  upgrade.
-- **Copper golems** (1.21.9) that sort chests for you.
-
-It matters for this roadmap as much as for the game. 1.20.5 moved items to
-components, 1.21 made **enchantments data-driven**, and 1.21.4 lets a datapack
-point any item at a custom model. Together they turn W2 (the Invention Forge)
-from "a recipe that renames a vanilla item" into genuinely new items with new
-enchantments, and T1's textures stop needing the CustomModelData workaround.
-The Java side is already done: the image runs Temurin 25.
-
-Yellow because upgrading a world is one-way. The procedure:
-
-1. Take a verified backup and push it offsite.
-2. Boot a copy of that backup on the new version on the Mac first (the same
-   trick as M4's rewind), walk around, check the bases.
-3. Bump `MINECRAFT_VERSION`, pre-generate a ring around spawn so the new
-   biomes and structures exist where they will actually be found, and upgrade.
-
-Do it **before R1**, and before extending the family datapack any further.
-Datapacks carry a `pack_format` that changes almost every release, and item
-syntax changed at 1.20.5, so the family datapack ([ADVANCEMENTS.md](ADVANCEMENTS.md))
-and every F6 book written against 1.20.4 would need updating afterwards. Pick
-the newest release that has been out a couple of weeks when the work starts,
-not whatever is named here.
+Plumbing that several features below depend on. Five are done and described
+in [EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md), [PLAYER_STATS.md](PLAYER_STATS.md),
+[DATAPACKS.md](DATAPACKS.md) and [../CHANGELOG.md](../CHANGELOG.md) (the
+1.20.4 -> 26.3 upgrade, F7) rather than repeated here.
 
 ### F8. Scoreboards, teams and bossbars — Green
 
@@ -166,8 +133,8 @@ replaced item NBT with components**, so the syntax differs by server version:
 1.20.5+  /give @p written_book[written_book_content={title:"...",author:"...",pages:['...']}]
 ```
 
-If F7 has landed, only the second form is needed and version detection can be
-skipped. If it hasn't, detect the version rather than assuming it.
+F7 has landed, so only the second (component) form is needed; version
+detection can be skipped.
 
 **Delivering it.** The recipient is usually offline when the item is created —
 a Sunday-morning Gazette, a letter from Mom, a chore paid during school. Keep
@@ -240,6 +207,12 @@ Claude generates the datapack JSON — an advancement, a recipe, a loot table, a
 function — the API validates it against a strict schema, writes it into
 `data/<world>/datapacks/family/`, runs `/reload`, and **the item exists in the
 game seconds later.**
+
+The 26.3 upgrade already unlocked what this needs: items moved to components
+at 1.20.5, enchantments became data-driven at 1.21, and a datapack can point
+any item at a custom model since 1.21.4. Together they turn this from "a
+recipe that renames a vanilla item" into genuinely new items with new
+enchantments, and T1's textures stop needing the CustomModelData workaround.
 
 Yellow rather than Green because of the validator, and it is worth doing
 properly: generated `function` files can contain arbitrary commands, so run
@@ -352,7 +325,7 @@ anything physical today.
 The `family` repo already knows which chores are done. When a parent ticks one
 off, the player gets paid in game: emeralds to spend at a family trader
 villager at spawn, whose offers are set with `/summon villager` and custom
-`Offers` NBT (or components after F7). Put the rare stuff — a mending book,
+`Offers` components (F7 has landed). Put the rare stuff — a mending book,
 a saddle, the cool armour trim templates — behind that shop, so real-world
 effort buys real in-game value.
 
@@ -425,9 +398,10 @@ The `advancement` event says who and what, but not what they were wearing
 or holding: it carries only the player and the advancement name. The handler
 has to capture the rest itself, over RCON, as soon as the event arrives —
 `data get entity <player> Inventory` for the armour slots and
-`SelectedItem` for the weapon on 1.20.4 (1.21.5 moved player armour into an
-`equipment` compound, so check the field names against the version F7 picks)
-— before they change gear. The statue spot comes from a list of plinth
+`SelectedItem` for the weapon (1.21.5 moved player armour into an
+`equipment` compound, and the server is now on 26.3 — check the exact field
+names live rather than assuming either the 1.20.4 or 1.21.5 shape still
+applies) — before they change gear. The statue spot comes from a list of plinth
 coordinates the API fills in order. After a year,
 spawn is a gallery of everything they have done, with their own faces on it.
 

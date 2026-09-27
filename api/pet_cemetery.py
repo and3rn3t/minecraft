@@ -320,8 +320,17 @@ class PetCemetery:
             return self._pending_cv.wait_for(lambda: self._pending == 0, timeout=timeout)
 
     def _work(self) -> None:
+        # A local reference, not self._queue: stop_worker() clears the
+        # shared attribute to None as soon as it swaps the worker out, but
+        # the sentinel it puts is on this same Queue object, still holding
+        # whatever deaths were queued before shutdown. Re-reading
+        # self._queue here would see None the instant stop_worker() runs
+        # and return early, abandoning that queued work unprocessed.
+        work_queue = self._queue
+        if work_queue is None:
+            return
         while True:
-            death = self._queue.get() if self._queue is not None else None
+            death = work_queue.get()
             if death is None:
                 return
             try:

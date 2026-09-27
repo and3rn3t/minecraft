@@ -2,7 +2,7 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:diamond"
+            "id": "minecraft:diamond"
         },
         "title": "First Diamond",
         "description": "Found your first diamond",

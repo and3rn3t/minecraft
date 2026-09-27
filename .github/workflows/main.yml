@@ -349,7 +349,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            MINECRAFT_VERSION=1.20.4
+            MINECRAFT_VERSION=26.3
             BUILDKIT_INLINE_CACHE=1
           cache-from: type=gha,scope=build-docker
           cache-to: type=gha,mode=max,scope=build-docker

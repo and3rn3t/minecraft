@@ -55,7 +55,7 @@ FROM base AS runtime
 The Dockerfile supports build arguments for flexibility:
 
 ```dockerfile
-ARG MINECRAFT_VERSION=1.20.4
+ARG MINECRAFT_VERSION=26.3
 ARG BUILD_TYPE=standard
 ```
 
@@ -165,7 +165,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
+        - MINECRAFT_VERSION=${MINECRAFT_VERSION:-26.3}
     # ... rest of config
 ```
 

@@ -2,16 +2,16 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:diamond_pickaxe"
+            "id": "minecraft:clock"
         },
-        "title": "Ten Thousand Blocks",
-        "description": "Mined ten thousand blocks",
-        "frame": "challenge",
+        "title": "Night Shift",
+        "description": "Still playing past 9pm",
+        "frame": "goal",
         "show_toast": true,
         "announce_to_chat": true
     },
     "criteria": {
-        "granted_by_function": {
+        "granted_externally": {
             "trigger": "minecraft:impossible"
         }
     }

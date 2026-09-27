@@ -38,13 +38,13 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-@test "datapack-manager create scaffolds pack.mcmeta and advancements/functions dirs" {
+@test "datapack-manager create scaffolds pack.mcmeta and advancement/function dirs" {
     run scripts/datapack-manager.sh create family
     assert_success
 
     assert_file_exists "config/datapacks/family/pack.mcmeta"
-    assert_dir_exists "config/datapacks/family/data/family/advancements"
-    assert_dir_exists "config/datapacks/family/data/family/functions"
+    assert_dir_exists "config/datapacks/family/data/family/advancement"
+    assert_dir_exists "config/datapacks/family/data/family/function"
 }
 
 @test "datapack-manager create rejects a name with spaces" {
@@ -139,12 +139,33 @@ with zipfile.ZipFile('evil/evil.zip', 'a') as z:
 
 @test "datapack-manager validate fails on broken JSON" {
     scripts/datapack-manager.sh create family
-    echo '{not valid json' > config/datapacks/family/data/family/advancements/broken.json
+    echo '{not valid json' > config/datapacks/family/data/family/advancement/broken.json
 
     run scripts/datapack-manager.sh validate family
     assert_failure
     assert_line "FAIL"
     assert_line "broken.json"
+}
+
+@test "datapack-manager validate warns, but still passes, on a pack_format mismatch" {
+    scripts/datapack-manager.sh create family
+    echo '{"pack":{"pack_format":26,"description":"family datapack"}}' \
+        > config/datapacks/family/pack.mcmeta
+
+    run scripts/datapack-manager.sh validate family
+    assert_success
+    assert_line "WARN"
+    assert_line "pack_format 26 does not match"
+}
+
+@test "datapack-manager validate does not crash on a pack.mcmeta whose pack section is not an object" {
+    scripts/datapack-manager.sh create family
+    echo '{"pack":"oops"}' > config/datapacks/family/pack.mcmeta
+
+    run scripts/datapack-manager.sh validate family
+    assert_success
+    traceback_lines=$(echo "$output" | grep -c "Traceback" || true)
+    [ "$traceback_lines" -eq 0 ]
 }
 
 @test "datapack-manager enable copies the tracked source into the current world and reloads" {

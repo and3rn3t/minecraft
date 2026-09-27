@@ -2,10 +2,10 @@
     "parent": "family:root",
     "display": {
         "icon": {
-            "item": "minecraft:iron_sword"
+            "id": "minecraft:diamond_pickaxe"
         },
-        "title": "Sibling Rivalry",
-        "description": "Survived three nights with your brother",
+        "title": "Ten Thousand Blocks",
+        "description": "Mined ten thousand blocks",
         "frame": "challenge",
         "show_toast": true,
         "announce_to_chat": true

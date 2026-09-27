@@ -5,11 +5,11 @@
 # replaces the deprecated official OpenJDK images. The JRE variant is used
 # because the server only ever runs jars; nothing in the image compiles Java.
 
-ARG MINECRAFT_VERSION=1.20.4
+ARG MINECRAFT_VERSION=26.3
 
 FROM eclipse-temurin:25-jre-jammy
 
-ARG MINECRAFT_VERSION=1.20.4
+ARG MINECRAFT_VERSION=26.3
 
 # ca-certificates and curl are needed to resolve and fetch server jars,
 # procps provides the pgrep that the management scripts rely on.

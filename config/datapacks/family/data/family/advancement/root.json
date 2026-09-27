@@ -1,7 +1,7 @@
 {
     "display": {
         "icon": {
-            "item": "minecraft:oak_sign"
+            "id": "minecraft:oak_sign"
         },
         "title": "Family",
         "description": "Achievements just for the two of you",

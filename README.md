@@ -101,7 +101,7 @@ Both come from environment variables read by `docker-compose.yml`, so set them i
 `.env` file next to it rather than editing the compose file:
 
 ```bash
-MINECRAFT_VERSION=1.20.4
+MINECRAFT_VERSION=26.3
 MEMORY_MIN=1G              # 2G on an 8GB Pi
 MEMORY_MAX=2G              # 4G on an 8GB Pi
 CONTAINER_MEMORY_LIMIT=3G  # must exceed MEMORY_MAX by ~1G
