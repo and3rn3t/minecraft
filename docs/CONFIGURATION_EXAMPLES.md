@@ -19,7 +19,7 @@ This document provides various configuration examples for different use cases.
 
 ```yaml
 environment:
-  - MINECRAFT_VERSION=1.20.4
+  - MINECRAFT_VERSION=26.3
   - MEMORY_MIN=1G
   - MEMORY_MAX=2G
 ```
@@ -44,7 +44,7 @@ spawn-protection=16
 
 ```yaml
 environment:
-  - MINECRAFT_VERSION=1.20.4
+  - MINECRAFT_VERSION=26.3
   - MEMORY_MIN=2G
   - MEMORY_MAX=4G
 ```
@@ -404,7 +404,7 @@ All configurable via `docker-compose.yml`:
 
 ```yaml
 environment:
-  - MINECRAFT_VERSION=1.20.4    # Server version
+  - MINECRAFT_VERSION=26.3    # Server version
   - MEMORY_MIN=1G               # Minimum heap size
   - MEMORY_MAX=2G               # Maximum heap size
   - SERVER_PORT=25565           # Server port

@@ -1,0 +1,18 @@
+{
+    "parent": "family:root",
+    "display": {
+        "icon": {
+            "item": "minecraft:clock"
+        },
+        "title": "Night Shift",
+        "description": "Still playing past 9pm",
+        "frame": "goal",
+        "show_toast": true,
+        "announce_to_chat": true
+    },
+    "criteria": {
+        "granted_externally": {
+            "trigger": "minecraft:impossible"
+        }
+    }
+}

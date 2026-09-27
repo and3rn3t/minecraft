@@ -111,7 +111,7 @@ spawn-protection=16        # Protected spawn radius
 
 ```yaml
 environment:
-  - MINECRAFT_VERSION=1.20.4 # Server version
+  - MINECRAFT_VERSION=26.3 # Server version
   - MEMORY_MIN=1G # Minimum RAM
   - MEMORY_MAX=2G # Maximum RAM
 ```

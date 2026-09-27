@@ -69,7 +69,7 @@ Add build-time optimizations:
 ```dockerfile
 ARG BUILD_DATE
 ARG VCS_REF
-ARG MINECRAFT_VERSION=1.20.4
+ARG MINECRAFT_VERSION=26.3
 
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.version="${MINECRAFT_VERSION}" \

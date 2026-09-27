@@ -1,0 +1,27 @@
+{
+    "parent": "family:root",
+    "display": {
+        "icon": {
+            "item": "minecraft:diamond"
+        },
+        "title": "First Diamond",
+        "description": "Found your first diamond",
+        "frame": "goal",
+        "show_toast": true,
+        "announce_to_chat": true
+    },
+    "criteria": {
+        "got_diamond": {
+            "trigger": "minecraft:inventory_changed",
+            "conditions": {
+                "items": [
+                    {
+                        "items": [
+                            "minecraft:diamond"
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}
