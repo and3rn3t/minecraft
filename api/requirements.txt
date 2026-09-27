@@ -10,3 +10,5 @@ pyotp==2.9.0
 qrcode[pil]==7.4.2
 croniter==2.0.1
 flask-limiter==4.1.1
+anthropic==1.8.0  # The Oracle (api/oracle.py) -- Claude-powered chat companion
+pydantic==2.13.5  # structured output shapes for The Oracle's Claude calls

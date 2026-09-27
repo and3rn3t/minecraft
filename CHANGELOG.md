@@ -6,6 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **The Oracle** (W1) — a Claude-powered companion that lives in chat. Every
+  allowlisted player's chat message is triaged by `claude-haiku-4-5` into
+  one of three outcomes (stay quiet, banter back, or generate a quest), using
+  structured output rather than free-text parsing, so a jailbreak attempt is
+  bounded to a short text field with no tool access. A quest request
+  triggers a second, structured call to `claude-sonnet-5`, delivered via
+  `tellraw` and persisted to `data/oracle/quests.jsonl` for a future bounty
+  board (P11) to read, since P11 doesn't exist yet. New `api/oracle.py`
+  module, mirroring `api/hall_of_deaths.py`'s worker-thread shape and
+  `api/epitaphs.py`'s pluggable-writer interface. Off by default, twice
+  over: `config/oracle.conf`'s `ENABLED=false`, and no responder is built at
+  all without `ANTHROPIC_API_KEY` set as a real environment variable. Guarded
+  by an exact-username allowlist, a per-player rate limit that gates the
+  Claude call itself (not just the reply), and a live kill switch on a new
+  `/oracle` dashboard page behind a dedicated `oracle.manage` permission,
+  admin-only by default. See [`docs/ORACLE.md`](docs/ORACLE.md).
+  - Ships as an always-on triager rather than a trigger-word bot: there's no
+    "oracle, ..." prefix requirement, so the model itself has to choose
+    silence for ordinary chat between the two kids. Chosen deliberately over
+    a cheaper trigger-word design; the system prompt explicitly tells it to
+    pick `no_reply` liberally.
+  - Two deliberate v1 simplifications, not oversights: no per-player
+    conversation memory (every message is triaged independently), and
+    quests are generated on request rather than posted automatically once a
+    day, since there is no bounty board yet for a daily post to go to.
+
 - **`docs/LOCAL_TESTING.md`**: how to run a real vanilla server in Docker
   locally (not the Pi) to test game features before they ship — building
   and starting the image, enabling RCON, reloading a datapack and reading

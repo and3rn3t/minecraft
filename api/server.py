@@ -167,6 +167,16 @@ except ImportError:
     PLAYER_STATS_AVAILABLE = False
     player_stats = None
 
+# The Oracle. Sees every chat message, decides whether to answer, and can
+# generate a structured quest. Off by default; needs ANTHROPIC_API_KEY.
+try:
+    from api import oracle
+
+    ORACLE_AVAILABLE = True
+except ImportError:
+    ORACLE_AVAILABLE = False
+    oracle = None
+
 
 app = Flask(__name__)
 
@@ -884,6 +894,13 @@ PERMISSIONS = {
     # Settings
     "settings.view": "View application settings",
     "settings.edit": "Edit application settings",
+    # The Oracle -- deliberately not granted to any role below except admin.
+    # It spends real money on every allowlisted chat message and talks
+    # directly to children; who can flip its kill switch or edit its
+    # allowlist is a decision that should be made explicitly, not inherited
+    # from a broader role's existing grants.
+    "oracle.view": "View Oracle status and chat/quest log",
+    "oracle.manage": "Manage the Oracle (enable/disable, allowlist, rate limit)",
 }
 
 # Role to permissions mapping
@@ -3225,6 +3242,130 @@ def start_bedtime_now():
     return _bedtime_control(lambda bed: bed.start_now())
 
 
+@app.route("/api/oracle", methods=["GET"])
+@require_permission("oracle.view")
+def get_oracle_status():
+    """Whether the Oracle is on, its settings, and whether it has an API key."""
+    if not ORACLE_AVAILABLE:
+        return jsonify({"error": "The Oracle is unavailable"}), 503
+
+    try:
+        return jsonify(oracle.get_oracle().status())
+    except Exception as e:
+        app.logger.error(f"Error reading Oracle status: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/oracle/exchanges", methods=["GET"])
+@require_permission("oracle.view")
+def get_oracle_exchanges():
+    """Recent chat messages the Oracle has triaged, newest first."""
+    if not ORACLE_AVAILABLE:
+        return jsonify({"error": "The Oracle is unavailable"}), 503
+
+    try:
+        limit = min(max(int(request.args.get("limit", 50)), 1), 200)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    try:
+        return jsonify(oracle.get_oracle().read_exchanges(limit=limit))
+    except Exception as e:
+        app.logger.error(f"Error reading Oracle exchanges: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/oracle/quests", methods=["GET"])
+@require_permission("oracle.view")
+def get_oracle_quests():
+    """Recently generated quests, newest first."""
+    if not ORACLE_AVAILABLE:
+        return jsonify({"error": "The Oracle is unavailable"}), 503
+
+    try:
+        limit = min(max(int(request.args.get("limit", 50)), 1), 200)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    try:
+        return jsonify(oracle.get_oracle().read_quests(limit=limit))
+    except Exception as e:
+        app.logger.error(f"Error reading Oracle quests: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def _oracle_set_enabled(enabled):
+    if not ORACLE_AVAILABLE:
+        return jsonify({"error": "The Oracle is unavailable"}), 503
+
+    try:
+        orc = oracle.get_oracle()
+        orc.set_enabled(enabled)
+    except Exception as e:
+        app.logger.error(f"Could not change the Oracle's enabled state: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    log_audit_event(get_username_from_request(), "oracle.enabled" if enabled else "oracle.disabled", {})
+    return jsonify({"success": True, "status": orc.status()})
+
+
+@app.route("/api/oracle/enable", methods=["PUT"])
+@require_permission("oracle.manage")
+def enable_oracle():
+    """Turn the Oracle on."""
+    return _oracle_set_enabled(True)
+
+
+@app.route("/api/oracle/disable", methods=["PUT"])
+@require_permission("oracle.manage")
+def disable_oracle():
+    """Turn the Oracle off -- the kill switch."""
+    return _oracle_set_enabled(False)
+
+
+@app.route("/api/oracle/settings", methods=["PUT"])
+@require_permission("oracle.manage")
+def update_oracle_settings():
+    """Edit the allowlist and/or the per-player rate limit."""
+    if not ORACLE_AVAILABLE:
+        return jsonify({"error": "The Oracle is unavailable"}), 503
+
+    data = request.get_json(silent=True) or {}
+    allowlist = None
+    rate_limit_per_minute = None
+
+    if "allowlist" in data:
+        raw = data["allowlist"]
+        if not isinstance(raw, list) or not all(isinstance(name, str) for name in raw):
+            return jsonify({"error": "allowlist must be a list of usernames"}), 400
+        invalid = [name for name in raw if not oracle.MINECRAFT_USERNAME_RE.match(name)]
+        if invalid:
+            return jsonify({"error": f"Invalid usernames: {', '.join(invalid)}"}), 400
+        allowlist = raw
+
+    if "rate_limit_per_minute" in data:
+        try:
+            rate_limit_per_minute = int(data["rate_limit_per_minute"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "rate_limit_per_minute must be an integer"}), 400
+        if not 1 <= rate_limit_per_minute <= 60:
+            return jsonify({"error": "rate_limit_per_minute must be between 1 and 60"}), 400
+
+    try:
+        orc = oracle.get_oracle()
+        orc.update_settings(allowlist=allowlist, rate_limit_per_minute=rate_limit_per_minute)
+    except Exception as e:
+        app.logger.error(f"Could not update Oracle settings: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    log_audit_event(
+        get_username_from_request(),
+        "oracle.settings",
+        {"allowlist": allowlist, "rate_limit_per_minute": rate_limit_per_minute},
+    )
+    return jsonify({"success": True, "status": orc.status()})
+
+
 @app.route("/api/players", methods=["GET"])
 @require_permission("players.view")
 def get_players():
@@ -5186,6 +5327,20 @@ def start_event_capture():
         # away during the closed window is what actually holds the line.
         bus.subscribe(bed.on_player_join)
         bed.start()
+
+    if ORACLE_AVAILABLE:
+        # Same injection pattern as pet_cemetery above. The audit logger is
+        # its own callable, not a direct log_audit_event() call from inside
+        # oracle.py: that function reads Flask's request proxy when
+        # ip_address isn't passed explicitly, and the Oracle's worker thread
+        # has no request context, so the sentinel below is passed here.
+        orc = oracle.get_oracle(runner=_run_game_command)
+        orc.set_error_logger(app.logger.error)
+        orc.set_audit_logger(
+            lambda player, action, details: log_audit_event(player, action, details, ip_address="minecraft-chat")
+        )
+        orc.start_worker()
+        bus.subscribe(orc.handle_event)
 
     _ensure_log_reader()
     return True

@@ -14,6 +14,7 @@ const Backups = lazy(() => import('./pages/Backups'));
 const Worlds = lazy(() => import('./pages/Worlds'));
 const HallOfDeaths = lazy(() => import('./pages/HallOfDeaths'));
 const Bedtime = lazy(() => import('./pages/Bedtime'));
+const Oracle = lazy(() => import('./pages/Oracle'));
 const Plugins = lazy(() => import('./pages/Plugins'));
 const Datapacks = lazy(() => import('./pages/Datapacks'));
 const ConfigFiles = lazy(() => import('./pages/ConfigFiles'));
@@ -147,6 +148,18 @@ function App() {
                 <Layout>
                   <Suspense fallback={<PageLoading />}>
                     <Bedtime />
+                  </Suspense>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/oracle"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Suspense fallback={<PageLoading />}>
+                    <Oracle />
                   </Suspense>
                 </Layout>
               </ProtectedRoute>
