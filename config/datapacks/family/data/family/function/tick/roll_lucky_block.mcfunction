@@ -10,13 +10,18 @@ loot spawn ~ ~ ~ loot family:lucky_block
 # making it craftable rather than spawnable is that each roll costs
 # something. The crafted head is named ("Lucky Block", set in the recipe's
 # custom_name component) so it can be told apart from an unrelated
-# decorative head; clear one from the inventory (the common case -- a block
-# broken while standing on or next to it is usually already picked up by the
-# time this runs, a tick later) and kill one matching dropped item nearby,
-# in case it hasn't been picked up yet.
+# decorative head. It exists in exactly one of two places by the time this
+# runs: still a dropped item on the ground, or already auto-picked-up into
+# inventory. Checking once and branching -- rather than always clearing
+# inventory and always trying to kill a dropped item -- matters because both
+# commands can otherwise succeed on the same roll: if the drop hasn't been
+# picked up yet *and* the player already carries an unrelated Lucky Block
+# head from an earlier roll, the unconditional clear and the unconditional
+# kill each remove a real head, consuming two for one break.
 #
 # Since 1.20.5 item NBT (`item{tag}`) was replaced by components
 # (`item[component=...]`), including inside an item entity's own `Item`
 # compound, where `tag` became `components`.
-clear @s minecraft:player_head[minecraft:custom_name='{"text":"Lucky Block","color":"gold"}'] 1
-kill @e[type=item,distance=..2,limit=1,nbt={Item:{id:"minecraft:player_head",components:{"minecraft:custom_name":'{"text":"Lucky Block","color":"gold"}'}}}]
+execute store success score #lucky_dropped family_temp if entity @e[type=item,distance=..2,limit=1,nbt={Item:{id:"minecraft:player_head",components:{"minecraft:custom_name":'{"text":"Lucky Block","color":"gold"}'}}}]
+execute if score #lucky_dropped family_temp matches 1 run kill @e[type=item,distance=..2,limit=1,nbt={Item:{id:"minecraft:player_head",components:{"minecraft:custom_name":'{"text":"Lucky Block","color":"gold"}'}}}]
+execute unless score #lucky_dropped family_temp matches 1 run clear @s minecraft:player_head[minecraft:custom_name='{"text":"Lucky Block","color":"gold"}'] 1

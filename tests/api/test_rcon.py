@@ -45,6 +45,12 @@ def _encode(request_id, packet_type, body):
     return _encode_packet(request_id, packet_type, body)
 
 
+class _ConnectionDropped(Exception):
+    """Raised by _process_packet to end the connection immediately, the same
+    way the fake server's earlier single-function _handle used a bare
+    ``return`` to simulate a server dying mid-command."""
+
+
 def _read_packet(sock):
     """Read one framed packet from a socket, for the fake server's use."""
     header = b""
@@ -74,13 +80,30 @@ class FakeRconServer:
     packet types get an "Unknown request" reply so the sentinel works.
     """
 
-    def __init__(self, password=TEST_PASSWORD, responses=None, answer_sentinel=True, drop_after_command=False):
+    def __init__(
+        self,
+        password=TEST_PASSWORD,
+        responses=None,
+        answer_sentinel=True,
+        drop_after_command=False,
+        strict_ordering=False,
+    ):
         self.password = password
         self.responses = responses or {}
         self.answer_sentinel = answer_sentinel
         # Simulates a server that receives a command, may well act on it, then
         # dies before the response is read.
         self.drop_after_command = drop_after_command
+        # Enforces the ordering the real bug depended on, deterministically:
+        # after a command packet arrives, nothing else from the client
+        # should show up until this server has sent its response. Whether a
+        # too-early sentinel and the command end up in the same OS-level
+        # read (what actually made vanilla drop the connection) is a timing
+        # race that doesn't reproduce reliably in a same-machine test setup
+        # -- checking arrival order instead of buffer coalescing catches the
+        # same client bug without depending on that race. See
+        # test_sentinel_is_not_sent_before_the_response_is_read.
+        self.strict_ordering = strict_ordering
         self.received_commands = []
         self.connection_count = 0
         self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -114,6 +137,29 @@ class FakeRconServer:
             threading.Thread(target=self._handle, args=(conn,), daemon=True).start()
 
     def _handle(self, conn):
+        if self.strict_ordering:
+            self._handle_strict_ordering(conn)
+            return
+
+        conn.settimeout(5.0)
+        authenticated = False
+        try:
+            while not self._stop.is_set():
+                packet = _read_packet(conn)
+                if packet is None:
+                    return
+                request_id, packet_type, body = packet
+                authenticated = self._process_packet(conn, request_id, packet_type, body, authenticated)
+        except (OSError, socket.timeout, _ConnectionDropped):
+            return
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                # The peer has usually closed first; nothing left to clean up.
+                pass
+
+    def _handle_strict_ordering(self, conn):
         conn.settimeout(5.0)
         authenticated = False
         try:
@@ -123,28 +169,50 @@ class FakeRconServer:
                     return
                 request_id, packet_type, body = packet
 
-                if packet_type == PACKET_TYPE_LOGIN:
-                    if body == self.password:
-                        authenticated = True
-                        conn.sendall(_encode(request_id, PACKET_TYPE_AUTH_RESPONSE, ""))
-                    else:
-                        # The protocol signals a bad password with id -1.
-                        conn.sendall(_encode(-1, PACKET_TYPE_AUTH_RESPONSE, ""))
-                elif packet_type == PACKET_TYPE_COMMAND and authenticated:
-                    self.received_commands.append(body)
-                    if self.drop_after_command:
+                if packet_type == PACKET_TYPE_COMMAND and authenticated:
+                    # The one thing this mode exists to check: has the
+                    # client already sent something else -- the sentinel,
+                    # in the bug this guards against -- without waiting to
+                    # read this command's response first? A real vanilla
+                    # server can't tell "sent early" apart from "arrived in
+                    # the same OS-level read as the command"; either way it
+                    # drops the connection instead of parsing both, so
+                    # treat both as the same violation here.
+                    conn.settimeout(0.2)
+                    try:
+                        sent_early = conn.recv(1, socket.MSG_PEEK)
+                    except socket.timeout:
+                        sent_early = b""
+                    conn.settimeout(5.0)
+                    if sent_early:
                         return
-                    self._send_response(conn, request_id, self.responses.get(body, f"ran: {body}"))
-                elif self.answer_sentinel:
-                    conn.sendall(_encode(request_id, PACKET_TYPE_RESPONSE, "Unknown request 0"))
-        except (OSError, socket.timeout):
+
+                authenticated = self._process_packet(conn, request_id, packet_type, body, authenticated)
+        except (OSError, socket.timeout, _ConnectionDropped):
             return
         finally:
             try:
                 conn.close()
             except OSError:
-                # The peer has usually closed first; nothing left to clean up.
                 pass
+
+    def _process_packet(self, conn, request_id, packet_type, body, authenticated):
+        """Handle one already-parsed packet; returns the (possibly updated) auth state."""
+        if packet_type == PACKET_TYPE_LOGIN:
+            if body == self.password:
+                conn.sendall(_encode(request_id, PACKET_TYPE_AUTH_RESPONSE, ""))
+                return True
+            # The protocol signals a bad password with id -1.
+            conn.sendall(_encode(-1, PACKET_TYPE_AUTH_RESPONSE, ""))
+            return False
+        if packet_type == PACKET_TYPE_COMMAND and authenticated:
+            self.received_commands.append(body)
+            if self.drop_after_command:
+                raise _ConnectionDropped
+            self._send_response(conn, request_id, self.responses.get(body, f"ran: {body}"))
+        elif self.answer_sentinel:
+            conn.sendall(_encode(request_id, PACKET_TYPE_RESPONSE, "Unknown request 0"))
+        return authenticated
 
     def _send_response(self, conn, request_id, message):
         """Split into 4096-byte packets the way Minecraft does."""
@@ -318,6 +386,29 @@ class TestConnectionHandling:
             client = RconClient(server.host, server.port, TEST_PASSWORD, timeout=1.0)
             assert client.command("list") == "ran: list"
             client.close()
+        finally:
+            server.stop()
+
+    def test_sentinel_is_not_sent_before_the_response_is_read(self):
+        """Regression test for the real bug this class of test used to miss.
+
+        A real vanilla 1.20.4 server drops the connection outright if it
+        receives more than one RCON packet in the same OS-level read --
+        which is exactly what happens if the sentinel is sent right after
+        the command with nothing read in between, and the OS coalesces the
+        two writes. The ordinary `rcon_server` fixture can't catch this: it
+        pulls exact field sizes across as many recv() calls as it takes, so
+        two coalesced packets look identical to two separately-read ones.
+        `strict_ordering=True` reproduces the real quirk instead, so a
+        `_send_command` that goes back to firing the sentinel before
+        reading the command's first response fails here the same way it
+        would against a real server.
+        """
+        server = FakeRconServer(strict_ordering=True).start()
+        try:
+            with RconClient(server.host, server.port, TEST_PASSWORD) as client:
+                assert client.command("list") == "ran: list"
+                assert client.command("list") == "ran: list"
         finally:
             server.stop()
 

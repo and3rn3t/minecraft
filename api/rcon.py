@@ -300,9 +300,22 @@ class RconClient:
 
         Minecraft splits responses longer than 4096 bytes into several packets
         that all carry the command's request id, and the protocol gives no
-        length up front. A second packet with an unused type is sent straight
-        after the command; the server answers it with a recognisable "Unknown
-        request" reply, which marks the end of the real response.
+        length up front. A sentinel packet is sent to find the end of the real
+        response; the server answers it with a recognisable "Unknown request"
+        reply once every prior packet has actually been delivered.
+
+        The sentinel is sent only *after* the command's first response packet
+        has been read, not immediately after the command itself. Verified
+        empirically against a real vanilla 1.20.4 server (the fake server in
+        tests/api/test_rcon.py does not reproduce this): two ``sendall()``
+        calls back to back, with nothing read in between, can be coalesced by
+        the OS into a single write, and vanilla's own packet reader cannot
+        handle two framed packets arriving in one read -- it drops the
+        connection instead of parsing both, deterministically, every time.
+        Reading the command's response before sending the sentinel forces a
+        real round trip between the two writes, which is what actually
+        prevents the coalescing; an arbitrary delay would too, but is a
+        magic number chasing a timing assumption instead of a guarantee.
         """
         sock = self._sock
         if sock is None:
@@ -320,12 +333,21 @@ class RconClient:
 
         # Past this point the server has the command. Every failure below leaves
         # the outcome unknown and must not be retried.
+        parts: list[str] = []
+        try:
+            response_id, _, body = _read_packet(sock)
+        except socket.timeout:
+            raise RconUnknownOutcomeError("Command was sent but no response arrived") from None
+        except (OSError, RconConnectionError) as exc:
+            raise RconUnknownOutcomeError(f"Command was sent but the response was lost: {exc}") from exc
+        if response_id == request_id:
+            parts.append(body)
+
         try:
             sock.sendall(_encode_packet(sentinel_id, PACKET_TYPE_RESPONSE, ""))
         except OSError as exc:
             raise RconUnknownOutcomeError(f"Command was sent but the connection failed: {exc}") from exc
 
-        parts: list[str] = []
         while True:
             try:
                 response_id, _, body = _read_packet(sock)
@@ -447,3 +469,24 @@ def execute(command: str) -> tuple[Optional[str], Optional[str], int]:
         return None, str(exc), 502
     except RconError as exc:
         return None, str(exc), 400
+
+
+if __name__ == "__main__":
+    # A thin CLI so scripts/rcon-client.sh can shell out to the one correct
+    # RCON implementation instead of re-encoding the wire protocol itself.
+    # It used to: see this module's own docstring for the bugs that approach
+    # had (no length-prefix framing, auth-failure detection that only
+    # triggered on a suspiciously short reply instead of checking the
+    # protocol's own -1 request id).
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Usage: rcon.py <command> [args...]", file=sys.stderr)
+        sys.exit(1)
+
+    out, err, returncode = execute(" ".join(sys.argv[1:]))
+    if out:
+        print(out)
+    if returncode != 0:
+        print(err or f"RCON returned {returncode}", file=sys.stderr)
+    sys.exit(0 if returncode == 0 else 1)
