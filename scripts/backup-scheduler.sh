@@ -80,8 +80,12 @@ main() {
         exit 0
     fi
 
-    # Check if it's the right time (if time is specified)
-    if [ -n "$BACKUP_TIME" ]; then
+    # Check if it's the right time (if time is specified). This gate is for
+    # cron, which runs the script every minute. Under systemd (which sets
+    # INVOCATION_ID) the timer already decides when: its randomized delay and
+    # Persistent= catch-up runs would otherwise almost never land on the
+    # exact minute, and the backup would be skipped.
+    if [ -n "$BACKUP_TIME" ] && [ -z "${INVOCATION_ID:-}" ]; then
         current_time=$(date +"%H:%M")
         if [ "$current_time" != "$BACKUP_TIME" ]; then
             log_message "INFO" "Skipping backup (current time: $current_time, scheduled: $BACKUP_TIME)"

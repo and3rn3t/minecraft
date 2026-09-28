@@ -43,7 +43,8 @@ echo -e "${BLUE}Installing Minecraft backup timer...${NC}"
 
 # Update service file with actual user and paths
 TEMP_SERVICE=$(mktemp)
-sed "s|%i|$CURRENT_USER|g; s|/home/%i/minecraft-server|$PROJECT_DIR|g" "$SERVICE_FILE" > "$TEMP_SERVICE"
+# The unit names the Pi's pi user and checkout, like every unit in systemd/
+sed "s|^User=pi$|User=$CURRENT_USER|; s|^Group=pi$|Group=$CURRENT_USER|; s|/home/pi/minecraft-server|$PROJECT_DIR|g" "$SERVICE_FILE" > "$TEMP_SERVICE"
 
 # Copy files to systemd directory
 echo -e "${YELLOW}Copying systemd files...${NC}"
