@@ -893,6 +893,10 @@ PERMISSIONS = {
     "api_keys.manage": "Manage API keys (create/delete/enable/disable)",
     # Logs
     "logs.view": "View server logs",
+    # Admin only, like files.view: the audit log holds every account's IP
+    # addresses, failed sign-ins and the commands people ran. It needed
+    # logs.view, which the "user" role holds.
+    "audit.view": "View the audit log",
     # Metrics
     "metrics.view": "View server metrics",
     "analytics.view": "View analytics and reports",
@@ -2987,7 +2991,7 @@ def delete_schedule(schedule_id):
 
 
 @app.route("/api/audit/logs", methods=["GET"])
-@require_permission("logs.view")
+@require_permission("audit.view")
 def get_audit_logs():
     """Get audit logs"""
     try:

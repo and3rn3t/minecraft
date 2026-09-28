@@ -157,6 +157,22 @@ class TestAuditLog:
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", path)
         return path
 
+    @pytest.mark.parametrize("role", ["user", "operator"])
+    def test_only_admins_can_read_it(self, audit, role, monkeypatch):
+        """It held every account's IP addresses and failed sign-ins, and needed
+        only logs.view, which the "user" role has."""
+        monkeypatch.setitem(api_module.API_KEYS, f"audit-{role}", {"name": role, "enabled": True, "role": role})
+        client = api_module.app.test_client()
+
+        response = client.get("/api/audit/logs", headers={"X-API-Key": f"audit-{role}"})
+
+        assert response.status_code == 403
+        assert response.get_json()["required_permission"] == "audit.view"
+
+    def test_no_role_but_admin_holds_audit_view(self):
+        holders = [role for role, perms in api_module.ROLE_PERMISSIONS.items() if "audit.view" in perms]
+        assert holders == ["admin"]
+
     def _get(self, client, query=""):
         return client.get(f"/api/audit/logs{query}").get_json()
 
