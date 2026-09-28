@@ -203,6 +203,18 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The dashboard shows CPU usage as a percentage.** The API strips the `%`
+  from `docker stats`, and the dashboard added it back for memory but not CPU,
+  so CPU read "12.50". Found by the new screenshot tests.
+- **The browser tests run, and gate pull requests.** They were schedule-only
+  and could not fail (`continue-on-error` and `|| true`), which hid 24
+  failures: screenshot baselines that were never committed, mocks for API
+  routes the app doesn't call (so the app believed everyone was signed in and
+  the sign-up journey could not start), and assertions made before the request
+  they checked. They now share one API mock, run in Chromium in the Playwright
+  image on every pull request, and have `make test-visual` /
+  `make test-visual-update` for running them the way CI does.
+
 - **User management keeps exactly the admins it should.** Deleting, demoting
   or disabling an admin counted the target itself among the remaining admins,
   so a *disabled* admin could not be removed while exactly one other admin was

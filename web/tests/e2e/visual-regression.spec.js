@@ -1,145 +1,44 @@
+/* eslint-env node */
 import { expect, test } from '@playwright/test';
+import { mockApi } from './mock-api';
 
-test.describe('Visual Regression Tests', () => {
+// Screenshots only compare against baselines rendered the same way: fonts and
+// antialiasing differ between macOS and Linux, and between Linux images. The
+// baselines are rendered in the official Playwright image, CI runs these in
+// that same image, and `make test-visual` runs them there locally. Elsewhere
+// they are skipped rather than failing on pixels no change caused.
+test.skip(process.env.PW_VISUAL !== '1', 'visual tests run in the Playwright container: make test-visual');
+
+const PAGES = [
+  ['dashboard', '/dashboard', 'DASHBOARD'],
+  ['analytics', '/analytics', 'ANALYTICS DASHBOARD'],
+  ['backups', '/backups', 'BACKUPS'],
+  ['players', '/players', 'PLAYER MANAGEMENT'],
+  ['worlds', '/worlds', 'WORLD MANAGEMENT'],
+];
+
+test.describe('Visual regression', () => {
   test.beforeEach(async ({ page }) => {
-    // Set localStorage before navigation
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.setItem('api_key', 'test-api-key');
-    });
-
-    // Mock API responses
-    await page.route('**/api/**', async route => {
-      const url = route.request().url();
-      if (url.includes('/user') || url.includes('/current')) {
-        // Mock getCurrentUser for AuthContext
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ username: 'testuser', role: 'user' }),
-        });
-      } else if (url.includes('/status')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ running: true, status: 'Up' }),
-        });
-      } else if (url.includes('/metrics')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ metrics: {} }),
-        });
-      } else if (url.includes('/players')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ players: [] }),
-        });
-      } else if (url.includes('/analytics')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            report: {},
-            trends: {},
-            anomalies: [],
-            prediction: {},
-            behavior: {},
-          }),
-        });
-      } else if (url.includes('/backups')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ backups: [] }),
-        });
-      } else if (url.includes('/worlds')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ worlds: [] }),
-        });
-      } else {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({}),
-        });
-      }
-    });
+    // Pages print times ("SYNCED 12:00:00"); freeze the clock so they match
+    await page.clock.setFixedTime(new Date('2026-09-01T12:00:00Z'));
   });
 
-  test('dashboard visual snapshot', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
-    // Wait for loading to complete
-    await page
-      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
-      .catch(() => {});
-    await expect(page).toHaveScreenshot('dashboard.png', {
-      fullPage: true,
-      maxDiffPixels: 100,
-    });
-  });
+  for (const [name, path, heading] of PAGES) {
+    test(`${name} page`, async ({ page }) => {
+      await mockApi(page);
+      await page.goto(path);
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+      await page.waitForLoadState('networkidle');
 
-  test('analytics page visual snapshot', async ({ page }) => {
-    await page.goto('/analytics');
-    await page.waitForLoadState('networkidle');
-    await page
-      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
-      .catch(() => {});
-    await expect(page).toHaveScreenshot('analytics.png', {
-      fullPage: true,
-      maxDiffPixels: 100,
+      await expect(page).toHaveScreenshot(`${name}.png`, { fullPage: true });
     });
-  });
+  }
 
-  test('backups page visual snapshot', async ({ page }) => {
-    await page.goto('/backups');
-    await page.waitForLoadState('networkidle');
-    await page
-      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
-      .catch(() => {});
-    await expect(page).toHaveScreenshot('backups.png', {
-      fullPage: true,
-      maxDiffPixels: 100,
-    });
-  });
-
-  test('players page visual snapshot', async ({ page }) => {
-    await page.goto('/players');
-    await page.waitForLoadState('networkidle');
-    await page
-      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
-      .catch(() => {});
-    await expect(page).toHaveScreenshot('players.png', {
-      fullPage: true,
-      maxDiffPixels: 100,
-    });
-  });
-
-  test('worlds page visual snapshot', async ({ page }) => {
-    await page.goto('/worlds');
-    await page.waitForLoadState('networkidle');
-    await page
-      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
-      .catch(() => {});
-    await expect(page).toHaveScreenshot('worlds.png', {
-      fullPage: true,
-      maxDiffPixels: 100,
-    });
-  });
-
-  test('login page visual snapshot', async ({ page }) => {
+  test('login page', async ({ page }) => {
+    await mockApi(page, { user: null });
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-    await page
-      .waitForSelector('text=/Loading/i', { state: 'hidden', timeout: 10000 })
-      .catch(() => {});
-    await expect(page).toHaveScreenshot('login.png', {
-      fullPage: true,
-      maxDiffPixels: 100,
-    });
+    await expect(page.getByRole('button', { name: 'LOGIN' })).toBeVisible();
+
+    await expect(page).toHaveScreenshot('login.png', { fullPage: true });
   });
 });

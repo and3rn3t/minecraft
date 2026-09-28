@@ -1,150 +1,58 @@
 import { expect, test } from '@playwright/test';
+import { mockApi } from './mock-api';
 
-test.describe('Analytics Page', () => {
+const isPost = path => request => request.url().endsWith(`/api/${path}`) && request.method() === 'POST';
+
+test.describe('Analytics page', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock API responses
-    await page.route('**/api/analytics/report*', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          report: {
-            generated_at: '2024-01-27T12:00:00',
-            period_hours: 24,
-            player_behavior: {
-              unique_players: 5,
-              peak_hour: 20,
-              hourly_distribution: { 20: 10, 21: 8 },
-            },
-            performance: {
-              tps: {
-                current: 20.0,
-                average: 19.8,
-                trend: { direction: 'stable' },
-              },
-              cpu: { current: 50.0 },
-              memory: { current: 1000 },
-            },
-            summary: {
-              status: 'healthy',
-              warnings: [],
-              recommendations: [],
-            },
-          },
-        }),
-      });
+    await mockApi(page, {
+      routes: {
+        'analytics/collect': { success: true, message: 'Data collected' },
+        'analytics/custom-report': { report: {}, saved_as: 'custom_report.json' },
+      },
     });
-
-    await page.route('**/api/analytics/trends*', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          trends: {
-            tps: { current: 20.0, trend: { direction: 'stable' } },
-            cpu: { current: 50.0 },
-            memory: { current: 1000 },
-          },
-        }),
-      });
-    });
-
-    await page.route('**/api/analytics/anomalies*', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ anomalies: [] }),
-      });
-    });
-
-    await page.route('**/api/analytics/predictions*', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          prediction: { predicted: 1200, confidence: 85.0 },
-        }),
-      });
-    });
-
-    await page.route('**/api/analytics/player-behavior*', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          behavior: { unique_players: 5, peak_hour: 20 },
-        }),
-      });
-    });
-
-    // Mock authentication
     await page.goto('/analytics');
-    await page.evaluate(() => {
-      localStorage.setItem('api_key', 'test-api-key');
-    });
+    await expect(page.getByRole('heading', { name: 'ANALYTICS DASHBOARD' })).toBeVisible();
   });
 
-  test('should load analytics dashboard', async ({ page }) => {
-    await page.goto('/analytics');
-    await expect(page.getByText('Analytics Dashboard')).toBeVisible();
-  });
-
-  test('should display overview tab by default', async ({ page }) => {
-    await page.goto('/analytics');
+  test('opens on the overview', async ({ page }) => {
     await expect(page.getByText('Summary')).toBeVisible();
     await expect(page.getByText('Current TPS')).toBeVisible();
   });
 
-  test('should switch to performance tab', async ({ page }) => {
-    await page.goto('/analytics');
-    await page.click('button:has-text("Performance")');
+  test('switches to the performance tab', async ({ page }) => {
+    await page.getByRole('button', { name: /performance/i }).click();
     await expect(page.getByText('TPS (Ticks Per Second)')).toBeVisible();
   });
 
-  test('should switch to players tab', async ({ page }) => {
-    await page.goto('/analytics');
-    await page.click('button:has-text("Players")');
+  test('switches to the players tab', async ({ page }) => {
+    await page.getByRole('button', { name: /players/i }).click();
     await expect(page.getByText('Player Behavior')).toBeVisible();
   });
 
-  test('should change time period', async ({ page }) => {
-    await page.goto('/analytics');
-    await page.selectOption('select', '6');
+  test('reloads the report for a new time period', async ({ page }) => {
+    const reloaded = page.waitForRequest(r => r.url().includes('/api/analytics/report') && r.url().includes('hours=6'));
+    await page.locator('select').selectOption('6');
+
+    await reloaded;
     await expect(page.getByText('Summary')).toBeVisible();
   });
 
-  test('should collect analytics data', async ({ page }) => {
-    let collectCalled = false;
-    await page.route('**/api/analytics/collect', async route => {
-      collectCalled = true;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, message: 'Data collected' }),
-      });
-    });
+  // These used to set a flag inside the route handler and assert it straight
+  // after the click, before the request had been made: a race they usually lost.
+  test('collects analytics data on demand', async ({ page }) => {
+    const collected = page.waitForRequest(isPost('analytics/collect'));
+    await page.getByRole('button', { name: /collect data/i }).click();
 
-    await page.goto('/analytics');
-    await page.click('button:has-text("Collect Data")');
-    await expect(collectCalled).toBeTruthy();
+    await collected;
+    await expect(page.getByText(/collected successfully/i)).toBeVisible();
   });
 
-  test('should generate custom report', async ({ page }) => {
-    let generateCalled = false;
-    await page.route('**/api/analytics/custom-report', async route => {
-      generateCalled = true;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          report: {},
-          saved_as: 'custom_report.json',
-        }),
-      });
-    });
+  test('generates a custom report on demand', async ({ page }) => {
+    const generated = page.waitForRequest(isPost('analytics/custom-report'));
+    await page.getByRole('button', { name: /generate report/i }).click();
 
-    await page.goto('/analytics');
-    await page.click('button:has-text("Generate Report")');
-    await expect(generateCalled).toBeTruthy();
+    expect((await generated).postDataJSON()).toEqual({ hours: 24, metrics: ['performance', 'players'] });
+    await expect(page.getByText('Custom report generated: custom_report.json')).toBeVisible();
   });
 });

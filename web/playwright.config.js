@@ -38,13 +38,24 @@ export default defineConfig({
   // Test execution
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  // Use more workers in CI for faster execution (GitHub Actions runners have 2 cores)
-  // With 3 test files × 3 browsers = 9 test runs, 4-6 workers should complete in ~3 minutes
-  workers: process.env.CI ? 4 : undefined,
+  // One retry on CI; a test that needed it is reported as flaky, not hidden
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 2 : undefined,
 
   // Reporter configuration
-  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
+  reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }], ['list']],
+
+  expect: {
+    toHaveScreenshot: {
+      // Motion never belongs in a baseline
+      animations: 'disabled',
+      caret: 'hide',
+      // Renders in the same container are pixel-identical, so the tolerance
+      // is near zero. A ratio of 0.01 allowed ~11,000 pixels on a full page,
+      // enough to pass with "12.50" rendered where the baseline had "12.5%".
+      maxDiffPixels: 20,
+    },
+  },
 
   // Shared settings for all projects
   use: {
@@ -58,20 +69,20 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
-  // Configure projects for major browsers
+  // Chromium always. Firefox and WebKit are opt-in (PW_ALL_BROWSERS=1): on
+  // CI, three engines over the same mocked pages tripled the run time and the
+  // flakiness without finding anything Chromium didn't.
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    ...(process.env.PW_ALL_BROWSERS === '1'
+      ? [
+          { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+          { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+        ]
+      : []),
   ],
 
   // Run your local dev server before starting the tests

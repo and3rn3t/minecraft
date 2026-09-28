@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    # Weekly, to exercise the browser tests that are skipped on pull requests
+    # Weekly, so there is a run in quiet weeks too, and for the timing-sensitive
+    # API performance tests, which run only on schedule and dispatch
     - cron: '0 5 * * 1'
   workflow_dispatch:
 
@@ -236,46 +237,57 @@ jobs:
           path: web/dist
           retention-days: 30
 
-  # Playwright browser tests. These drive a real browser against a running
-  # stack, so they are kept off the pull-request path and run on a schedule or
-  # on demand instead. See the `on:` block above.
+  # Playwright browser tests: the built app in Chromium, with the API mocked
+  # in the page (web/tests/e2e/mock-api.js), so no backend is needed.
+  #
+  # They run in the official Playwright image because the visual-regression
+  # baselines were rendered there: fonts and antialiasing differ between
+  # images, and a baseline only matches the environment that drew it. The tag
+  # must equal the @playwright/test version in web/package-lock.json (checked
+  # below); `make test-visual-update` re-renders baselines in the same image.
+  #
+  # This job used to be schedule-only, continue-on-error, and `|| true`, so its
+  # 24 failures (missing baselines, stale selectors, racy assertions) never
+  # showed. It now gates like every other test job.
   playwright-tests:
     name: Playwright Tests
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    continue-on-error: true
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    env:
+      PW_VISUAL: '1'
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+      - name: Check the image matches @playwright/test
+        working-directory: web
+        run: |
+          locked=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          if [ "$locked" != "1.56.1" ]; then
+            echo "::error::@playwright/test is $locked, the image is v1.56.1: update both," \
+              "then re-render baselines with make test-visual-update"
+            exit 1
+          fi
 
       - name: Install dependencies
         working-directory: web
         run: npm ci
 
-      - name: Install Playwright Browsers
-        working-directory: web
-        run: npx playwright install --with-deps
-
       - name: Run Playwright tests
         working-directory: web
-        # Use 4 workers for parallel execution (faster than default 1 worker)
-        # With 3 test files × 3 browsers = 9 test runs, 4 workers should complete in ~3 minutes
-        run: npx playwright test --workers=4 || true
+        run: npx playwright test
 
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: failure()
         with:
           name: playwright-report
-          path: web/playwright-report/
-          retention-days: 30
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 14
 
   # Build Docker image
   build-docker:
@@ -286,7 +298,7 @@ jobs:
     # only a dependency of `summary`, which runs in parallel with this job
     # rather than before it — so the push could complete before the failure
     # was even reported.
-    needs: [pre-commit, lint, python-tests, bash-tests, frontend-tests]
+    needs: [pre-commit, lint, python-tests, bash-tests, frontend-tests, playwright-tests]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -405,6 +417,7 @@ jobs:
              [ "${{ needs.python-tests.result }}" != "success" ] || \
              [ "${{ needs.bash-tests.result }}" != "success" ] || \
              [ "${{ needs.frontend-tests.result }}" != "success" ] || \
+             [ "${{ needs.playwright-tests.result }}" != "success" ] || \
              [ "${{ needs.build-docker.result }}" != "success" ]; then
             echo "❌ Critical jobs failed!" >> "$GITHUB_STEP_SUMMARY"
             exit 1
