@@ -54,9 +54,10 @@ npm test -- --watch
 npm run test:coverage
 ```
 
-Every file under `src/` counts, including ones no test imports (they show as 0%).
-The thresholds in `vitest.config.js` are a ratchet a point or two under the measured
-totals, and CI fails below them: raise them as coverage grows.
+Every source JavaScript/JSX file under `src/` counts, including ones no test imports
+(they show as 0%); test files, `src/test/` and `main.jsx` are excluded. The thresholds
+in `vitest.config.js` are a ratchet a point or two under the measured totals, and CI
+and `make test` fail below them: raise them as coverage grows.
 
 ### How the runner is set up
 
@@ -272,10 +273,11 @@ api.api.getAnalyticsReport.mockRejectedValue(new Error('API Error'));
 
 ## Coverage Goals
 
-Measured in September 2026: 65% statements, 62% branches, 63% functions, 67%
-lines. Weakest areas: `services/api.js`, `Console`, `Players`, `Settings`,
-`VirtualList` and the hooks in `src/hooks/`. The thresholds in `vitest.config.js`
-move up as these are covered.
+The enforced minimums are the `coverage.thresholds` in `vitest.config.js`. For
+current figures run `npm run test:coverage` (the summary table, plus an HTML report
+in `web/coverage/`), or download the `web-coverage` artifact from a CI run. The
+per-file table shows where coverage is thinnest; raise the thresholds as those
+areas are covered.
 
 ## Running Specific Test Suites
 

@@ -215,7 +215,7 @@ jobs:
       # Coverage thresholds live in web/vitest.config.js; below them this fails.
       - name: Run Vitest tests
         working-directory: web
-        run: npm run test:ci -- --coverage
+        run: npm run test:coverage -- --reporter=dot
 
       - name: Upload web coverage report
         uses: actions/upload-artifact@v7

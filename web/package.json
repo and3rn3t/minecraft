@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "test:ci": "vitest run --reporter=dot",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
+    "test:coverage": "vitest run --coverage",
     "test:a11y": "vitest run src/test/a11y.test.jsx",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",

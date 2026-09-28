@@ -30,9 +30,9 @@ export default defineConfig({
         '**/main.jsx',
         '**/*.test.{js,jsx}',
       ],
-      // A ratchet, a point or two under the measured totals (65.5 / 62 / 62.9 /
-      // 67.2 in September 2026), mirroring fail_under for the API. Raise these
-      // as coverage grows; never lower them to make a change pass.
+      // A ratchet, a point or two under the measured totals (see the coverage
+      // summary), mirroring fail_under for the API. Raise these as coverage
+      // grows; never lower them to make a change pass.
       thresholds: {
         statements: 64,
         branches: 60,

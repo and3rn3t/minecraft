@@ -101,7 +101,7 @@ test:
 	@bash -n scripts/setup-rpi.sh
 	@$(COMPOSE) config > /dev/null
 	@cd tests/api && pytest -m "not performance"
-	@cd web && npm test
+	@cd web && npm run test:coverage
 	@echo "All tests passed!"
 
 test-api:
