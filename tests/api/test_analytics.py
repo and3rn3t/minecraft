@@ -399,3 +399,52 @@ class TestCustomReport:
         # Should handle missing fields gracefully
         assert response.status_code in [200, 400, 500]
         assert response.status_code in [200, 400, 500]
+
+
+class TestEnsureAnalyticsProcessorModule:
+    """Tests for api.server._ensure_analytics_processor_module.
+
+    Every other test in this file relies on `mock_analytics_module` already
+    sitting in sys.modules (registered above at import time), so none of them
+    ever exercise the real, unmocked load path -- exactly the path that was
+    broken in production (scripts/analytics-processor.py's hyphenated
+    filename made `from analytics_processor import AnalyticsProcessor` raise
+    ImportError, silently falling back to empty/500 responses). These tests
+    remove the mock first so the helper has to do the real file load.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _restore_mock_module(self):
+        """Ensure the shared mock module is back in sys.modules for other tests."""
+        yield
+        sys.modules["analytics_processor"] = mock_analytics_module
+
+    def test_loads_real_module_from_hyphenated_file(self):
+        """With no module pre-registered, the helper loads the real file and
+        registers the real AnalyticsProcessor -- not a mock."""
+        from api.server import _ensure_analytics_processor_module
+
+        del sys.modules["analytics_processor"]
+
+        _ensure_analytics_processor_module()
+
+        assert "analytics_processor" in sys.modules
+        loaded_module = sys.modules["analytics_processor"]
+        assert loaded_module is not mock_analytics_module
+        assert loaded_module.__file__ == str(SCRIPTS_DIR / "analytics-processor.py")
+
+        processor = loaded_module.AnalyticsProcessor()
+        assert hasattr(processor, "analyze_performance_trends")
+        assert hasattr(processor, "analyze_player_behavior")
+        assert hasattr(processor, "generate_report")
+
+    def test_is_a_noop_once_a_module_is_registered(self):
+        """Whatever is already in sys.modules (real or mocked) is left alone."""
+        from api.server import _ensure_analytics_processor_module
+
+        sentinel = types.ModuleType("analytics_processor")
+        sys.modules["analytics_processor"] = sentinel
+
+        _ensure_analytics_processor_module()
+
+        assert sys.modules["analytics_processor"] is sentinel
