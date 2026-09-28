@@ -216,6 +216,28 @@ import { renderWithRouter } from '../../test/utils';
 renderWithRouter(<Analytics />, { route: '/analytics' });
 ```
 
+### settle
+
+`AuthProvider`, and most pages, start a request on mount. A test that asserts
+straight after rendering and returns leaves that request to update state after
+the test, outside `act()`, which prints a warning against whatever runs next.
+End such a test with `await settle()`, which lets pending promises resolve
+inside `act()`; a test that already awaits the page's loaded state (`findBy*`,
+`waitFor`) doesn't need it.
+
+```javascript
+import { renderWithRouter, settle } from '../../test/utils';
+
+it('has link to login page', async () => {
+  renderWithRouter(<Register />);
+  expect(screen.getByText(/login here/i)).toHaveAttribute('href', '/login');
+  await settle();
+});
+```
+
+With fake timers, advance them inside `act()` too:
+`await act(() => vi.advanceTimersByTimeAsync(5000))`.
+
 ### Mock API Responses
 
 ```javascript

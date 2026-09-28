@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastProvider } from '../components/ToastContainer';
 import { AuthProvider } from '../contexts/AuthContext';
@@ -24,3 +24,8 @@ export const mockApiResponse = (data, status = 200) => ({
   headers: {},
   config: {},
 });
+
+// Let requests a component started on mount finish inside act(). A test that
+// asserts right after render() and returns otherwise leaves AuthProvider's
+// session check (and similar) to update state after it, outside act().
+export const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));

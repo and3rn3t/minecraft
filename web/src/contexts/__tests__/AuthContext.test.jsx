@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../services/api';
-import { renderWithRouter } from '../../test/utils';
+import { renderWithRouter, settle } from '../../test/utils';
 import { AuthProvider, useAuth } from '../AuthContext';
 
 // Mock API service
@@ -28,7 +28,7 @@ describe('AuthContext', () => {
     localStorage.clear();
   });
 
-  it('provides authentication context', () => {
+  it('provides authentication context', async () => {
     api.getCurrentUser.mockRejectedValue(new Error('Not authenticated'));
 
     renderWithRouter(
@@ -38,6 +38,7 @@ describe('AuthContext', () => {
     );
 
     expect(screen.getByText(/Loading/i)).toBeInTheDocument();
+    await settle();
   });
 
   it('loads user on mount if authenticated', async () => {

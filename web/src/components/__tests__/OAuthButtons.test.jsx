@@ -1,7 +1,7 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../services/api';
-import { renderWithRouter } from '../../test/utils';
+import { renderWithRouter, settle } from '../../test/utils';
 import OAuthButtons from '../OAuthButtons';
 
 // Mock dependencies
@@ -35,14 +35,16 @@ describe('OAuthButtons', () => {
     return renderWithRouter(<OAuthButtons />);
   };
 
-  it('renders Google sign-in button', () => {
+  it('renders Google sign-in button', async () => {
     renderComponent();
     expect(screen.getByText(/Sign in with Google/i)).toBeInTheDocument();
+    await settle();
   });
 
-  it('renders Apple sign-in button', () => {
+  it('renders Apple sign-in button', async () => {
     renderComponent();
     expect(screen.getByText(/Sign in with Apple/i)).toBeInTheDocument();
+    await settle();
   });
 
   it('opens OAuth popup when Google button is clicked', async () => {
@@ -139,10 +141,12 @@ describe('OAuthButtons', () => {
       origin: window.location.origin,
     });
 
-    window.dispatchEvent(errorEvent);
+    expect(googleButton).toBeDisabled();
+    act(() => window.dispatchEvent(errorEvent));
 
-    // Error handling should not throw
-    expect(console.error).not.toThrow();
+    // The error ends the attempt: the buttons are usable again
+    expect(googleButton).not.toBeDisabled();
+    expect(screen.getByText(/Sign in with Apple/i).closest('button')).not.toBeDisabled();
   });
 
   it('disables buttons while loading', async () => {
@@ -154,5 +158,6 @@ describe('OAuthButtons', () => {
 
     // Button should be disabled during loading
     expect(googleButton).toBeDisabled();
+    await settle();
   });
 });

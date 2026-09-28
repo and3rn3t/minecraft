@@ -34,10 +34,10 @@ export default defineConfig({
       // summary), mirroring fail_under for the API. Raise these as coverage
       // grows; never lower them to make a change pass.
       thresholds: {
-        statements: 64,
-        branches: 60,
-        functions: 61,
-        lines: 66,
+        statements: 68,
+        branches: 64,
+        functions: 66,
+        lines: 70,
       },
     },
   },
