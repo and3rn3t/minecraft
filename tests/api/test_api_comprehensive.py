@@ -257,11 +257,14 @@ class TestQueryParameters:
         """Test logs endpoint with lines parameter"""
         mock_run_script.return_value = ("log line 1\nlog line 2", "", 0)
 
-        with patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}):
+        with (
+            patch("api.server.API_KEYS", {mock_api_key: {"enabled": True, "role": "admin"}}),
+            patch("api.server.subprocess.run", side_effect=FileNotFoundError),
+        ):
             response = client.get("/api/logs?lines=50", headers={"X-API-Key": mock_api_key})
 
-        # Should accept parameter without error
-        assert response.status_code != 401
+        # Without docker the endpoint falls back to manage.sh's output
+        assert response.status_code == 200
 
     @patch("api.server.subprocess.run")
     def test_analytics_report_with_hours_parameter(self, mock_subprocess, client, mock_api_key):

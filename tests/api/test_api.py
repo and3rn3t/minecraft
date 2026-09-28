@@ -8,6 +8,7 @@ import pytest
 import json
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Add project root to path before importing api.server
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -129,13 +130,18 @@ class TestLogsEndpoint:
         assert response.status_code == 401
 
     def test_logs_accepts_lines_parameter(self, client, mock_api_keys):
-        """Logs endpoint accepts lines parameter"""
-        response = client.get(
-            '/api/logs?lines=50',
-            headers={'X-API-Key': mock_api_keys}
-        )
-        # May fail if server not running, but should not be 401
-        assert response.status_code != 401
+        """The lines parameter is passed through to docker logs --tail"""
+        with patch('api.server.run_script', return_value=('', '', 0)), \
+             patch('api.server.subprocess.run') as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout='first\nsecond')
+            response = client.get(
+                '/api/logs?lines=50',
+                headers={'X-API-Key': mock_api_keys}
+            )
+
+        assert response.status_code == 200
+        assert response.get_json() == {'logs': ['first', 'second'], 'lines': 2}
+        assert mock_run.call_args.args[0] == ['docker', 'logs', '--tail', '50', 'minecraft-server']
 
 
 class TestPlayersEndpoint:

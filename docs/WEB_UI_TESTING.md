@@ -152,33 +152,10 @@ Test complete workflows via API calls (simulating UI interactions).
 
 ## E2E Workflow Tests
 
-### Complete User Journey
-
-**File**: `tests/e2e/test-complete-user-journey.sh`
-
-Tests complete workflows:
-
-1. User Registration
-2. User Login
-3. Dashboard Access
-4. Analytics Data Collection
-5. Analytics Report Generation
-6. Player Behavior Analysis
-
-### Web UI Workflow
-
-**File**: `tests/e2e/test-web-ui-workflow.sh`
-
-Tests UI workflows via API simulation:
-
-1. Login page access
-2. Registration workflow
-3. Dashboard data loading
-4. Analytics navigation
-5. Backup management
-6. Player management
-7. Error handling
-8. Session management
+End-to-end user journeys are covered by the Playwright specs in `web/tests/e2e/`
+(`user-journey.spec.js`, `analytics.spec.js`). The BATS versions that used to live in
+`tests/e2e/` were removed: every test in them was skipped unconditionally, so they
+never ran. Their scenarios are listed as a backlog in [tests/README.md](../tests/README.md).
 
 ## Mock Data
 
@@ -313,11 +290,10 @@ npm test Analytics
 npm test integration
 ```
 
-### E2E Tests (Bash)
+### E2E Tests (Playwright)
 
 ```bash
-bats tests/e2e/test-complete-user-journey.sh
-bats tests/e2e/test-web-ui-workflow.sh
+npm run test:playwright
 ```
 
 ## Debugging Tests

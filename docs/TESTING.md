@@ -67,19 +67,15 @@ tests/
 │   ├── test_oauth.py            # OAuth integration tests (NEW)
 │   ├── conftest.py              # Pytest configuration and fixtures
 │   └── pytest.ini               # Pytest settings
-├── unit/                         # Unit tests for scripts
-│   ├── test-manage.sh
-│   ├── test-backup-scheduler.sh
-│   └── test-log-manager.sh
-├── integration/                  # Integration tests
-│   ├── test-backup-system.sh
-│   ├── test-monitoring.sh
-│   ├── test-plugin-management.sh
-│   ├── test-world-management.sh
-│   └── test-rcon.sh
+├── unit/                         # BATS tests for scripts (docker etc. stubbed on PATH)
+│   ├── test-auto-update.sh
+│   ├── test-deploy-agent.sh
+│   ├── test-datapack-manager.sh
+│   └── ...
 └── helpers/                      # Test helper libraries
     ├── bats-support/
-    └── bats-assert/
+    ├── bats-assert/
+    └── flock                     # util-linux flock stand-in for macOS
 
 web/src/
 ├── components/__tests__/         # React component tests
@@ -116,39 +112,25 @@ web/src/
 python -m pytest tests/api/ -v
 ```
 
-### 2. Unit Tests (Bash/BATS)
+### 2. Script Tests (Bash/BATS)
 
 **Location**: `tests/unit/`
 
-**Coverage**:
-
-- Management scripts
-- Backup scheduler
-- Log manager
+**Coverage**: `auto-update.sh`, `deploy-agent.sh`, `datapack-manager.sh`,
+`analytics-collector.sh` and the compose files. Each suite copies `scripts/` into a
+temp directory and puts stub `docker`, `curl` etc. on `PATH`, so nothing touches a
+real server.
 
 **Run** (requires BATS):
 
 ```bash
-bats tests/unit/test-manage.sh
+./scripts/run-tests.sh bash          # the whole suite, as CI runs it
+bats tests/unit/test-auto-update.sh  # one file
 ```
 
-### 3. Integration Tests (Bash/BATS)
-
-**Location**: `tests/integration/`
-
-**Coverage**:
-
-- Backup system
-- Monitoring system
-- Plugin management
-- World management
-- RCON integration
-
-**Run** (requires BATS and Docker):
-
-```bash
-bats tests/integration/test-backup-system.sh
-```
+There are no BATS integration or end-to-end suites: the ones that existed skipped
+every test unconditionally and were removed. Their scenarios are a backlog in
+[tests/README.md](../tests/README.md).
 
 ## Writing Tests
 
@@ -239,9 +221,9 @@ See `.github/workflows/tests.yml` for configuration.
 ## Test Coverage
 
 Coverage is measured for the Python API with `coverage.py`, configured in
-`.coverage-config.ini`. The enforced threshold is **40%** (`fail_under`); raise it
-in that file as coverage grows. `scripts/check-coverage.sh` honours the same value
-via `COVERAGE_THRESHOLD`.
+`.coverage-config.ini`. The enforced threshold is **70%** (`fail_under`), a ratchet a
+few points under the measured total; raise it in that file as coverage grows.
+`scripts/check-coverage.sh` reads the same value (`COVERAGE_THRESHOLD` overrides it).
 
 That filename is not one coverage.py discovers on its own, so every entry point
 passes it explicitly with `--cov-config` — `tests/api/pytest.ini`, the `Makefile`

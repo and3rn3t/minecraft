@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+# Stand-in for util-linux flock(1), for machines without it (macOS).
+#
+# Supports only the fd form scripts/lib/common.sh uses: `flock [-n] FD`. The
+# lock is taken on the open file description the caller already holds on FD,
+# so it stays held after this process exits, as with the real flock.
+#
+# Tests copy this into their stub bin/ only when `command -v flock` fails, so
+# on Linux (and CI) the real flock is what runs.
+use strict;
+use warnings;
+use Fcntl qw(:flock);
+
+my $mode = LOCK_EX;
+if (@ARGV && $ARGV[0] eq '-n') {
+    $mode |= LOCK_NB;
+    shift @ARGV;
+}
+die "flock shim: usage: flock [-n] FD\n" unless @ARGV == 1 && $ARGV[0] =~ /^\d+$/;
+
+open(my $fh, '>&=', $ARGV[0]) or die "flock shim: fd $ARGV[0]: $!\n";
+flock($fh, $mode) or exit 1;
+exit 0;

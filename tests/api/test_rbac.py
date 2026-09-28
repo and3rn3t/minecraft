@@ -491,7 +491,7 @@ class TestAPIKeyAccess:
         )
         assert response.status_code in [200, 201]
 
-    def test_default_key_cannot_manage_users_or_keys(self, client, temp_api_keys_file):
+    def test_default_key_cannot_manage_users_or_keys(self, client, temp_api_keys_file, mock_docker):
         """A key with no role stated at creation is read-only, not an admin"""
         test_key = self._make_key({"role": "user"})
 
@@ -527,7 +527,7 @@ class TestAPIKeyAccess:
             response = client.post("/api/server/start", headers={"X-API-Key": test_key})
             assert response.status_code in [200, 500]
 
-    def test_explicit_permission_list_overrides_role(self, client, temp_api_keys_file):
+    def test_explicit_permission_list_overrides_role(self, client, temp_api_keys_file, mock_docker):
         """A key can be narrowed to single permissions, for a Shortcut or a widget"""
         test_key = self._make_key({"role": "admin", "permissions": ["server.view"]})
 
@@ -588,7 +588,8 @@ class TestAdminApiKeyParity:
         test_key = "admin-parity-key"
         api_module.API_KEYS[test_key] = {"name": "dash", "enabled": True, "role": "admin"}
 
-        response = client.get("/api/announcements", headers={"X-API-Key": test_key})
+        with patch("api.server.run_script", return_value=("", "", 0)):
+            response = client.get("/api/announcements", headers={"X-API-Key": test_key})
         assert response.status_code != 403
 
     def test_operator_key_still_refused_server_manage(self, client, temp_api_keys_file):
@@ -599,7 +600,7 @@ class TestAdminApiKeyParity:
         response = client.get("/api/announcements", headers={"X-API-Key": test_key})
         assert response.status_code == 403
 
-    def test_an_explicit_allowlist_beats_the_admin_role(self, client, temp_api_keys_file):
+    def test_an_explicit_allowlist_beats_the_admin_role(self, client, temp_api_keys_file, mock_docker):
         """A key narrowed to named permissions is held to them, whatever its role"""
         test_key = "narrowed-admin-key"
         api_module.API_KEYS[test_key] = {

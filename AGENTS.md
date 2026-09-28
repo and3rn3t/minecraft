@@ -34,7 +34,7 @@ web/          React admin panel; its own package.json, ESLint, Vite and Playwrig
 scripts/      Bash management scripts; scripts/lib/common.sh holds shared helpers
 config/       Runtime config; only *.example files are committed (real .conf files are gitignored)
 systemd/      Unit and timer files for the Pi
-tests/        api/ (pytest), unit/ integration/ e2e/ (BATS), helpers/
+tests/        api/ (pytest), unit/ (BATS), helpers/
 web/tests/e2e Playwright browser tests (driven by web/playwright.config.js)
 docs/         All documentation; docs/INDEX.md is the navigation hub
 analytics/    Collected analytics reports
@@ -51,7 +51,6 @@ make test              # syntax checks + pytest + vitest
 make test-api          # pytest only
 make test-web          # vitest only
 make test-playwright   # browser E2E
-make test-e2e          # BATS end-to-end (needs a running server)
 make lint              # shellcheck + eslint + python + yaml + compose validate
 make coverage          # pytest with coverage report
 make coverage-check    # enforce the threshold in .coverage-config.ini
@@ -197,13 +196,18 @@ wrapper from `scripts/lib/common.sh`.
 - Python tests live in `tests/api/` and are run **from that directory** —
   `tests/api/pytest.ini` holds the coverage flags, timeouts and markers.
 - Registered markers: `unit`, `integration`, `api`, `slow`, `performance`,
-  `contract`, `e2e`. `--strict-markers` is on, so add new markers to
+  `contract`, `e2e`, `real_subprocess`. `--strict-markers` is on, so add new markers to
   `tests/api/pytest.ini` *and* `pyproject.toml` before using them.
 - React unit tests sit next to the code in `__tests__/`; integration tests in
   `web/src/test/integration/`; MSW handlers in `web/src/test/mocks/`.
 - Playwright specs belong in `web/tests/e2e/` only.
-- BATS suites in `tests/unit/`, `tests/integration/`, `tests/e2e/`.
-- Coverage threshold is enforced at **40%** in `.coverage-config.ini`. That file is
+- API tests may not start real processes: an autouse fixture in
+  `tests/api/conftest.py` fails any test that does. Patch `api.server.subprocess.run`
+  or `api.server.run_script` (or use the `mock_docker` fixture) instead.
+- BATS suites live in `tests/unit/`; they stub docker, curl and friends on PATH.
+  `tests/helpers/flock` stands in for util-linux flock on macOS.
+- Coverage threshold is enforced at **70%** in `.coverage-config.ini`, a ratchet
+  a few points under the measured total: raise it as coverage grows. That file is
   not auto-discovered by coverage.py, so every entry point passes `--cov-config`
   explicitly; run pytest from `tests/api` so the relative path resolves.
 

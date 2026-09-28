@@ -3,6 +3,7 @@ Pytest configuration for API tests
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -23,6 +24,24 @@ from tests.api.factories import (
     create_server_properties,
     create_user_data,
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_real_subprocesses(request, monkeypatch):
+    """Fail any test that starts a real process.
+
+    Endpoints shell out to docker, manage.sh and rcon-client.sh. Unmocked, a
+    test waits on whatever those do on the machine running it: one spent 30s
+    on docker timeouts, another sent a command to a live RCON server. Patch
+    subprocess.run or run_script instead, or mark the test real_subprocess.
+    """
+    if request.node.get_closest_marker("real_subprocess"):
+        return
+
+    def refuse(args, *_, **__):
+        pytest.fail(f"test started a real process: {args!r} (mock it, or mark the test real_subprocess)", pytrace=False)
+
+    monkeypatch.setattr(subprocess, "Popen", refuse)
 
 
 @pytest.fixture
@@ -133,9 +152,9 @@ def test_backup_dir(tmp_path):
 
 @pytest.fixture
 def mock_docker():
-    """Mock Docker operations"""
+    """Mock Docker operations: a running container, as `docker ps` reports it"""
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout=b'{"Status":"running"}', stderr=b"")
+        mock_run.return_value = MagicMock(returncode=0, stdout="Up 2 hours", stderr="")
         yield mock_run
 
 

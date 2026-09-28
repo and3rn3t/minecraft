@@ -25,7 +25,6 @@ help:
 	@echo "  make test-web    - Run web UI tests only"
 	@echo "  make test-web-a11y - Run accessibility tests"
 	@echo "  make test-playwright - Run browser tests"
-	@echo "  make test-e2e    - Run E2E tests"
 	@echo "  make lint        - Run all linting checks"
 	@echo "  make lint-bash   - Lint bash scripts"
 	@echo "  make lint-python - Lint Python code"
@@ -132,12 +131,6 @@ test-web-a11y:
 test-playwright:
 	@echo "Running Playwright browser tests..."
 	@cd web && npm run test:playwright
-
-test-e2e:
-	@echo "Running E2E tests..."
-	@bats tests/e2e/test-complete-user-journey.sh || echo "E2E tests require running server"
-	@bats tests/e2e/test-web-ui-workflow.sh || echo "E2E tests require running server"
-	@bats tests/e2e/test-analytics-workflow.sh || echo "E2E tests require running server"
 
 test-factories:
 	@echo "Running factory tests..."
@@ -358,6 +351,7 @@ doctor:
 	@printf "  %-12s " "gitleaks";   command -v gitleaks   >/dev/null 2>&1 && echo "installed" || echo "MISSING  (brew install gitleaks)"
 	@printf "  %-12s " "actionlint"; command -v actionlint >/dev/null 2>&1 && echo "installed" || echo "MISSING  (brew install actionlint)"
 	@printf "  %-12s " "shellcheck"; command -v shellcheck >/dev/null 2>&1 && echo "installed" || echo "MISSING  (brew install shellcheck)"
+	@printf "  %-12s " "flock";      command -v flock      >/dev/null 2>&1 && echo "installed" || echo "missing  (optional: brew install flock; BATS uses a shim without it)"
 	@printf "  %-12s " "codeql";     command -v codeql     >/dev/null 2>&1 && echo "installed" || echo "MISSING  (brew install codeql)"
 	@printf "  %-12s " "git hook";   test -f .git/hooks/pre-commit && echo "installed" || echo "MISSING  (make hooks)"
 
