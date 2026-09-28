@@ -203,6 +203,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The Console runs commands with arguments.** The command sanitizer counted
+  whitespace as a shell metacharacter, so `say hello`, `kick alice` and every
+  other command with an argument was refused; it also matched blocked programs
+  by prefix, so `su` refused `summon` and `subtitle`. Commands reach the
+  server as a single argument and never pass through a shell.
+
 - **`api/rcon.py` could get its connection closed by the real Minecraft
   server on the very first command.** `_send_command()` sent the command
   packet and a second "sentinel" packet (used to detect the end of a
@@ -338,6 +344,39 @@ All notable changes to this project will be documented in this file.
   fails if any enforced permission is missing from `PERMISSIONS`.
 
 ### Security
+
+- **The file browser is admin-only; any "user" could read the admin API
+  keys through it.** Browsing, reading and downloading files needed only
+  `config.view`, which every role holds — including the default role for new
+  API keys — so a plain user could read `config/api-keys.json` and act as an
+  admin, or read `users.json`, `rcon.conf` and `rcon.password`. They now need
+  a new `files.view` permission that no role but admin has; grant it to a key
+  explicitly if something else needs it. File Browser moves to the admin
+  section of the nav. **Rotate your API keys after upgrading**, and consider
+  the RCON password: until then they were readable by any user-role
+  credential.
+- **Credentials are masked in the config viewer and the DDNS page for
+  non-admins.** `config.view` still shows `server.properties`, `api.conf`,
+  `ddns.conf` and the compose file, but values of keys like `rcon.password`,
+  `SECRET_KEY`, `*_TOKEN`, `*_PASSWORD` and `*_API_KEY` read `********` unless
+  the viewer can edit config — the only people who can save, so a masked value
+  is never written back. Values spanning several lines (YAML blocks, quoted
+  multi-line `.conf` values) are withheld entirely.
+- **Google and Apple sign-in no longer create accounts while registration is
+  closed.** A first-time OAuth sign-in is an account creation and now obeys
+  `REGISTRATION_ENABLED` like `/api/auth/register`; it used to create a
+  `user` account for anyone with a Google or Apple identity. Identities
+  already linked to an account still sign in.
+- **Disabling or deleting a user ends their access immediately.** Only
+  password login checked `enabled`; an existing session or bearer token kept
+  working until it expired, and OAuth sign-in ignored it. Every request now
+  re-checks the account.
+- **2FA can't be switched off with only a session.** Setting 2FA up on an
+  account that already had it replaced the secret and turned it off; setup now
+  refuses while 2FA is on, and turning it off still needs the password.
+  Accounts created by Google or Apple sign-in have no password: 2FA setup
+  points them to their provider, and one that already had 2FA can turn it off
+  with a current code (disabling it used to fail with a 500).
 
 - **Handlers no longer return exception text to the caller.** Fifty-six
   returned `f"...: {str(e)}"` with a 500, which can carry filesystem paths and

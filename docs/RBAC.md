@@ -86,8 +86,14 @@ The system defines the following permissions:
 
 ### Configuration Permissions
 
-- `config.view` - View configuration files
-- `config.edit` - Edit and validate configuration files
+- `config.view` - View configuration files. Credential values (`rcon.password`,
+  `SECRET_KEY`, `*_TOKEN`, `*_PASSWORD`, `*_API_KEY`) are masked as `********` for
+  anyone without `config.edit`; the response carries `"redacted": true` when it is.
+- `config.edit` - Edit and validate configuration files, and see them unmasked
+- `files.view` - Browse, read and download files in the file browser. **Admin
+  only**, like the Oracle permissions: the browser reaches `config/users.json`,
+  `config/api-keys.json` and every other secret on disk, so it is not part of
+  any other role and has to be granted to a key explicitly.
 
 ### Player Permissions
 
@@ -137,8 +143,9 @@ The system defines the following permissions:
 Permissions are checked automatically by the `@require_permission` decorator on API endpoints. The system checks:
 
 1. If the user is authenticated (via session or API key)
-2. If the user's role has the required permission
-3. If the user is enabled
+2. If the account behind a session or token still exists and is enabled —
+   disabling or deleting a user ends their existing sessions and tokens at once
+3. If the user's role has the required permission
 
 ### Example
 
@@ -159,8 +166,15 @@ a fresh server, which is given the `admin` role so there is someone who can
 manage everyone else. Once that account exists the endpoint returns `403` and
 further accounts are created by an admin through `POST /api/users`.
 
+Signing in with Google or Apple for the first time is an account creation too,
+and follows the same rule: once the bootstrap account exists, an identity that is
+not already linked to an account is refused with `403`. Link a provider to an
+existing account from Settings instead. A disabled account cannot sign in by any
+method.
+
 Set `REGISTRATION_ENABLED=true` in the environment to keep open registration on
-anyway. Accounts created that way get the `user` role, never `admin`.
+anyway, for passwords and OAuth alike. Accounts created that way get the `user`
+role, never `admin`.
 
 ### Creating Users
 

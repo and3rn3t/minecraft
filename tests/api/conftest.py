@@ -2,6 +2,7 @@
 Pytest configuration for API tests
 """
 
+import copy
 import json
 import subprocess
 import sys
@@ -15,7 +16,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import app after path setup
-from api.server import app  # noqa: E402
+import api.server as api_module  # noqa: E402
+
+app = api_module.app
 
 # Imports must come after sys.path modification
 from tests.api.factories import (
@@ -24,6 +27,26 @@ from tests.api.factories import (
     create_server_properties,
     create_user_data,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_accounts():
+    """Give every test the accounts and API keys it started with.
+
+    Many tests assign api.server.USERS or API_KEYS outright rather than through
+    monkeypatch, and the value outlived them: a test left users behind, which
+    closed registration for whichever test ran next, so results depended on
+    file order. Restoring the same objects (not copies of the names) keeps any
+    module that imported them by reference consistent.
+    """
+    users, keys = api_module.USERS, api_module.API_KEYS
+    saved_users, saved_keys = copy.deepcopy(users), copy.deepcopy(keys)
+    yield
+    users.clear()
+    users.update(saved_users)
+    keys.clear()
+    keys.update(saved_keys)
+    api_module.USERS, api_module.API_KEYS = users, keys
 
 
 @pytest.fixture(autouse=True)
@@ -71,8 +94,6 @@ def mock_api_keys(monkeypatch, test_api_keys_file):
     keys_file, test_key = test_api_keys_file
 
     # Mock the API_KEYS_FILE path
-    import api.server as api_module
-
     monkeypatch.setattr(api_module, "API_KEYS_FILE", keys_file)
 
     # Reload API keys
@@ -240,8 +261,6 @@ def _reset_rate_limiter():
     limiter's counters independent, while tests that specifically want to
     exercise the 429 path still can (see test_auth.py's rate-limit tests).
     """
-    import api.server as api_module
-
     if api_module.limiter is not None:
         api_module.limiter.reset()
 

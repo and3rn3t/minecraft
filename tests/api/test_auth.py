@@ -12,7 +12,9 @@ import pytest
 PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.server import app
+import api.server as api_module  # noqa: E402
+
+app = api_module.app
 
 
 @pytest.fixture
@@ -29,10 +31,8 @@ def temp_users_file(tmp_path, monkeypatch):
     users_file = tmp_path / "config" / "users.json"
     users_file.parent.mkdir(parents=True, exist_ok=True)
 
-    import api.server as api_module
-
     monkeypatch.setattr(api_module, "USERS_FILE", users_file)
-    api_module.USERS = {}
+    monkeypatch.setattr(api_module, "USERS", {})
 
     return users_file
 
@@ -122,8 +122,6 @@ class TestUserRegistration:
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
-        import api.server as api_module
-
         # Open registration, so this exercises duplicate detection rather than
         # the closed-registration gate.
         monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
@@ -155,16 +153,12 @@ class TestUserRegistration:
         assert data.get("user", {}).get("username") == "newuser"
 
         # Verify user was created
-        import api.server as api_module
-
         assert "newuser" in api_module.USERS
 
     def test_first_user_is_admin(self, client, temp_users_file, mock_bcrypt, mock_jwt):
         """The very first account bootstraps the server and is an admin"""
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
-
-        import api.server as api_module
 
         assert api_module.USERS == {}
 
@@ -182,8 +176,6 @@ class TestUserRegistration:
         """Registering behind an existing account must not mint another admin"""
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
-
-        import api.server as api_module
 
         monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
         api_module.USERS["firstuser"] = {
@@ -207,8 +199,6 @@ class TestUserRegistration:
         """With REGISTRATION_ENABLED unset, only the bootstrap account may register"""
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
-
-        import api.server as api_module
 
         monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", False)
         api_module.USERS["firstuser"] = {
@@ -248,8 +238,6 @@ class TestUserLogin:
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {
             "username": "testuser",
             "password_hash": "hashed_wrongpassword",
@@ -264,8 +252,6 @@ class TestUserLogin:
         """Login succeeds with valid credentials"""
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
-
-        import api.server as api_module
 
         # Create user with correct password hash
         api_module.USERS["testuser"] = {
@@ -303,8 +289,6 @@ class TestLoginRateLimit:
     """
 
     def test_login_returns_429_after_limit_exceeded(self, client, temp_users_file, mock_bcrypt):
-        import api.server as api_module
-
         if api_module.limiter is None:
             pytest.skip("Flask-Limiter not installed")
         if not mock_bcrypt:
@@ -320,8 +304,6 @@ class TestLoginRateLimit:
         assert response.status_code == 429
 
     def test_login_succeeds_within_limit(self, client, temp_users_file, mock_bcrypt):
-        import api.server as api_module
-
         if api_module.limiter is None:
             pytest.skip("Flask-Limiter not installed")
         if not mock_bcrypt:
@@ -360,8 +342,6 @@ class TestGetCurrentUser:
 
     def test_get_current_user_with_session(self, client, temp_users_file, monkeypatch):
         """Get current user returns user info from session"""
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {
             "username": "testuser",
             "role": "admin",
@@ -385,8 +365,6 @@ class TestGetCurrentUser:
         """Get current user returns user info from JWT token"""
         if not mock_jwt:
             pytest.skip("JWT not available")
-
-        import api.server as api_module
 
         api_module.USERS["testuser"] = {
             "username": "testuser",
@@ -416,17 +394,17 @@ class TestSecretKeyResolution:
     """
 
     def test_environment_wins_over_config_file(self):
-        from api.server import _resolve_secret_key
+        _resolve_secret_key = api_module._resolve_secret_key
 
         assert _resolve_secret_key("from-env", "from-config") == "from-env"
 
     def test_config_file_used_when_environment_unset(self):
-        from api.server import _resolve_secret_key
+        _resolve_secret_key = api_module._resolve_secret_key
 
         assert _resolve_secret_key(None, "from-config") == "from-config"
 
     def test_values_are_stripped(self):
-        from api.server import _resolve_secret_key
+        _resolve_secret_key = api_module._resolve_secret_key
 
         assert _resolve_secret_key("  spaced-key  ", None) == "spaced-key"
 
@@ -441,7 +419,7 @@ class TestSecretKeyResolution:
         ],
     )
     def test_placeholder_is_rejected_and_replaced(self, placeholder):
-        from api.server import _resolve_secret_key
+        _resolve_secret_key = api_module._resolve_secret_key
 
         resolved = _resolve_secret_key(placeholder, placeholder)
 
@@ -449,7 +427,7 @@ class TestSecretKeyResolution:
         assert len(resolved) == 64
 
     def test_falls_back_to_random_key_when_nothing_configured(self):
-        from api.server import _resolve_secret_key
+        _resolve_secret_key = api_module._resolve_secret_key
 
         first = _resolve_secret_key(None, None)
         second = _resolve_secret_key(None, None)
@@ -458,14 +436,14 @@ class TestSecretKeyResolution:
         assert first != second
 
     def test_module_key_is_not_a_known_placeholder(self):
-        from api.server import _REJECTED_SECRET_KEYS, SECRET_KEY
+        _REJECTED_SECRET_KEYS, SECRET_KEY = api_module._REJECTED_SECRET_KEYS, api_module.SECRET_KEY
 
         assert SECRET_KEY not in _REJECTED_SECRET_KEYS
 
     def test_flask_config_matches_signing_key(self):
         """generate_token/verify_token sign with the module-level SECRET_KEY,
         so Flask's session key must be the same value."""
-        from api.server import SECRET_KEY
+        SECRET_KEY = api_module.SECRET_KEY
 
         assert app.config["SECRET_KEY"] == SECRET_KEY
 
@@ -492,8 +470,6 @@ class TestSessionCookieHardening:
     def test_login_sets_hardened_session_cookie(self, client, temp_users_file, mock_bcrypt, mock_jwt, monkeypatch):
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
-
-        import api.server as api_module
 
         api_module.USERS["testuser"] = {
             "username": "testuser",
@@ -526,8 +502,6 @@ class TestCsrfProtection:
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {
             "username": "testuser",
             "password_hash": "hashed_password123",
@@ -541,8 +515,6 @@ class TestCsrfProtection:
         assert data.get("csrf_token")
 
     def test_session_authenticated_mutation_without_token_is_rejected(self, client, temp_users_file):
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
         with client.session_transaction() as session:
             session["username"] = "testuser"
@@ -554,8 +526,6 @@ class TestCsrfProtection:
         assert response.status_code == 403
 
     def test_session_authenticated_mutation_with_wrong_token_is_rejected(self, client, temp_users_file):
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
         with client.session_transaction() as session:
             session["username"] = "testuser"
@@ -571,8 +541,6 @@ class TestCsrfProtection:
     def test_session_authenticated_mutation_with_correct_token_succeeds(self, client, temp_users_file, mock_bcrypt):
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
-
-        import api.server as api_module
 
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
         with client.session_transaction() as session:
@@ -590,8 +558,6 @@ class TestCsrfProtection:
         """A read-only request carries no CSRF risk, so it isn't checked --
         this also has to hold so a client can fetch its own token in the
         first place (see get_csrf_token / GET /api/auth/csrf-token)."""
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
         with client.session_transaction() as session:
             session["username"] = "testuser"
@@ -601,8 +567,6 @@ class TestCsrfProtection:
         assert response.status_code == 200
 
     def test_csrf_token_endpoint_returns_the_session_token(self, client, temp_users_file):
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
         with client.session_transaction() as session:
             session["username"] = "testuser"
@@ -617,8 +581,6 @@ class TestCsrfProtection:
         this path is not CSRF-exploitable and isn't checked."""
         if not mock_jwt:
             pytest.skip("jwt not available")
-
-        import api.server as api_module
 
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
 
@@ -638,8 +600,6 @@ class TestCsrfProtection:
         header the panel never even knows to send."""
         if not mock_jwt:
             pytest.skip("jwt not available")
-
-        import api.server as api_module
 
         api_module.USERS["testuser"] = {"username": "testuser", "role": "admin", "enabled": True}
         # A session cookie is present too (e.g. left over from the login
@@ -666,8 +626,6 @@ class TestAuthAuditLogging:
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
-        import api.server as api_module
-
         audit_log = tmp_path / "audit.log"
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
         api_module.USERS["testuser"] = {
@@ -690,8 +648,6 @@ class TestAuthAuditLogging:
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
-        import api.server as api_module
-
         audit_log = tmp_path / "audit.log"
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
 
@@ -703,8 +659,6 @@ class TestAuthAuditLogging:
         assert "wrong" not in written
 
     def test_logout_is_audited(self, client, temp_users_file, monkeypatch, tmp_path):
-        import api.server as api_module
-
         audit_log = tmp_path / "audit.log"
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
         with client.session_transaction() as session:
@@ -723,8 +677,6 @@ class TestAuthAuditLogging:
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
-        import api.server as api_module
-
         audit_log = tmp_path / "audit.log"
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
 
@@ -737,3 +689,47 @@ class TestAuthAuditLogging:
         assert "user_registered" in written
         assert "newuser" in written
         assert "correcthorsebatterystaple" not in written
+
+
+class TestRevokedAccounts:
+    """Disabling or deleting an account has to end the access it already has.
+
+    Only password login used to check `enabled`, so a disabled or deleted
+    user's session cookie and bearer token kept working until they expired.
+    """
+
+    @pytest.fixture
+    def alice(self, temp_users_file):
+        api_module.USERS["alice"] = {"username": "alice", "role": "admin", "enabled": True}
+        return api_module.USERS["alice"]
+
+    def _with_session(self, client):
+        with client.session_transaction() as session:
+            session["username"] = "alice"
+            session["csrf_token"] = "csrf"
+
+    def test_an_active_session_works(self, client, alice):
+        self._with_session(client)
+        assert client.get("/api/auth/me").status_code == 200
+
+    def test_disabling_ends_the_session(self, client, alice):
+        self._with_session(client)
+        alice["enabled"] = False
+
+        assert client.get("/api/auth/me").status_code == 401
+        with client.session_transaction() as session:
+            assert "username" not in session, "the dead session is cleared, not just refused"
+
+    def test_deleting_ends_the_session(self, client, alice):
+        self._with_session(client)
+        del api_module.USERS["alice"]
+
+        assert client.get("/api/auth/me").status_code == 401
+
+    def test_disabling_ends_the_bearer_token(self, client, alice, mock_jwt):
+        headers = {"Authorization": "Bearer token_alice"}
+        assert client.get("/api/auth/me", headers=headers).status_code == 200
+
+        alice["enabled"] = False
+
+        assert client.get("/api/auth/me", headers=headers).status_code == 401

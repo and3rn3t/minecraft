@@ -82,9 +82,13 @@ const Settings = () => {
     }
   };
 
+  // Accounts created by Google or Apple sign-in have no password: they
+  // confirm with a current 2FA code, and cannot set 2FA up here at all.
+  const passwordless = twoFactorStatus?.has_password === false;
+
   const handleDisable2FA = async () => {
     if (!disablePassword) {
-      setError('Password required to disable 2FA');
+      setError(passwordless ? '2FA code required to disable 2FA' : 'Password required to disable 2FA');
       return;
     }
 
@@ -99,7 +103,9 @@ const Settings = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.disable2FA(disablePassword);
+      const data = passwordless
+        ? await api.disable2FA(undefined, disablePassword)
+        : await api.disable2FA(disablePassword);
       if (data.success) {
         setMessage('2FA disabled successfully');
         setDisablePassword('');
@@ -351,15 +357,29 @@ const Settings = () => {
         ) : twoFactorStatus?.enabled ? (
           <div className="space-y-4">
             <div className="text-[10px] font-minecraft text-minecraft-text-light">
-              2FA is currently enabled. To disable it, enter your password below.
+              {passwordless
+                ? '2FA is currently enabled. To disable it, enter a current code from your authenticator app.'
+                : '2FA is currently enabled. To disable it, enter your password below.'}
             </div>
-            <Input
-              label="PASSWORD"
-              type="password"
-              value={disablePassword}
-              onChange={e => setDisablePassword(e.target.value)}
-              placeholder="Enter password to disable 2FA"
-            />
+            {passwordless ? (
+              <Input
+                label="CURRENT 2FA CODE"
+                type="text"
+                value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                maxLength={6}
+                autoComplete="one-time-code"
+              />
+            ) : (
+              <Input
+                label="PASSWORD"
+                type="password"
+                value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value)}
+                placeholder="Enter password to disable 2FA"
+              />
+            )}
             <Button
               variant="danger"
               onClick={handleDisable2FA}
@@ -370,12 +390,21 @@ const Settings = () => {
           </div>
         ) : (
           <div>
-            <div className="text-[10px] font-minecraft text-minecraft-text-light mb-4">
-              Two-factor authentication adds an extra layer of security to your account.
-            </div>
-            <Button variant="primary" onClick={handleSetup2FA} disabled={loading}>
-              SETUP 2FA
-            </Button>
+            {passwordless ? (
+              <div className="text-[10px] font-minecraft text-minecraft-text-light">
+                You sign in with Google or Apple, so 2-step verification is set up with that
+                provider rather than here.
+              </div>
+            ) : (
+              <>
+                <div className="text-[10px] font-minecraft text-minecraft-text-light mb-4">
+                  Two-factor authentication adds an extra layer of security to your account.
+                </div>
+                <Button variant="primary" onClick={handleSetup2FA} disabled={loading}>
+                  SETUP 2FA
+                </Button>
+              </>
+            )}
           </div>
         )}
       </Card>
