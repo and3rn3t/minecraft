@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Deaths, joins, leaves and advancements are recognised again on 26.x** —
+  Minecraft 26.x logs every broadcast system message as
+  `System chat: <message>` instead of the bare sentence 1.20.4 wrote, so since
+  the 26.3 upgrade the event bus matched none of them. The Hall of Deaths
+  stayed empty, and bedtime's join check would never have fired. `parse_line`
+  now strips the prefix, after the player-chat check, so a typed fake death
+  still counts as chat.
+
 ## [1.6.0] - 2026-09-28
 
 ### Added
