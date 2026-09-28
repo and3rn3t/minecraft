@@ -151,7 +151,7 @@ jobs:
       - name: Analyze coverage gaps
         run: |
           chmod +x scripts/analyze-coverage-gaps.sh
-          ./scripts/analyze-coverage-gaps.sh analyze || echo "Coverage gap analysis completed"
+          ./scripts/analyze-coverage-gaps.sh analyze
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7

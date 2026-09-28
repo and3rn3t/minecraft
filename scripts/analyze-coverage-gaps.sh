@@ -15,9 +15,10 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Coverage files
-COVERAGE_JSON="${PROJECT_DIR}/coverage.json"
-COVERAGE_HTML="${PROJECT_DIR}/htmlcov/index.html"
+# Coverage files. pytest runs from tests/api, and tests/api/pytest.ini
+# writes its reports there.
+COVERAGE_JSON="${PROJECT_DIR}/tests/api/coverage.json"
+COVERAGE_HTML="${PROJECT_DIR}/tests/api/htmlcov/index.html"
 GAP_REPORT="${PROJECT_DIR}/coverage-gaps.txt"
 
 # Function to print header
@@ -33,11 +34,7 @@ check_coverage_file() {
     if [ ! -f "$COVERAGE_JSON" ]; then
         echo -e "${YELLOW}Coverage file not found. Running tests with coverage...${NC}"
         cd "$PROJECT_DIR/tests/api"
-        pytest -v \
-            --cov=../../api \
-            --cov-config=../../.coverage-config.ini \
-            --cov-report=json \
-            --cov-report=html
+        pytest -m "not performance"
         cd "$PROJECT_DIR"
     fi
 

@@ -91,16 +91,10 @@ Test component interactions and workflows.
 - Data flow between components
 - API integration
 
-### 3. E2E Tests (API Simulation)
+### 3. E2E Tests (Playwright)
 
-Test complete workflows via API calls (simulating UI interactions).
-
-**Example**: `test-web-ui-workflow.sh`
-
-- User registration → Login → Dashboard
-- Analytics workflow
-- Backup management
-- Error handling
+Browser tests in `web/tests/e2e/` drive the built app with the API mocked via
+`page.route`. See [E2E Workflow Tests](#e2e-workflow-tests).
 
 ## Analytics Component Tests
 
