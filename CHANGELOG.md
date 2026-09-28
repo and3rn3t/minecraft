@@ -372,6 +372,11 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- **The audit log is admin-only.** It records every account's IP addresses,
+  failed sign-ins and the commands people ran, but needed only `logs.view`,
+  which the `user` role holds. It now needs a new `audit.view` permission that
+  only admins have; grant it to a key explicitly if something else reads it.
+
 - **The file browser is admin-only; any "user" could read the admin API
   keys through it.** Browsing, reading and downloading files needed only
   `config.view`, which every role holds — including the default role for new

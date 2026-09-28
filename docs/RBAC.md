@@ -118,6 +118,8 @@ The system defines the following permissions:
 ### Log Permissions
 
 - `logs.view` - View server logs
+- `audit.view` - View the audit log. **Admin only**: it records every account's IP
+  addresses, failed sign-ins and the commands people ran.
 
 ### Metrics Permissions
 
