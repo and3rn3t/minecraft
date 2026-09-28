@@ -15,9 +15,12 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Coverage configuration
-COVERAGE_THRESHOLD=${COVERAGE_THRESHOLD:-40}
-COVERAGE_FILE="${PROJECT_DIR}/coverage.json"
+# The threshold is fail_under in .coverage-config.ini, the value pytest itself
+# enforces, so the two cannot disagree. COVERAGE_THRESHOLD still overrides it.
+# pytest runs from tests/api, which is where it writes coverage.json.
+CONFIG_THRESHOLD=$(sed -n 's/^fail_under *= *//p' "${PROJECT_DIR}/.coverage-config.ini")
+COVERAGE_THRESHOLD=${COVERAGE_THRESHOLD:-${CONFIG_THRESHOLD:-70}}
+COVERAGE_FILE="${PROJECT_DIR}/tests/api/coverage.json"
 
 # Function to print header
 print_header() {
@@ -34,11 +37,7 @@ check_coverage() {
     if [ ! -f "$COVERAGE_FILE" ]; then
         echo -e "${YELLOW}Coverage file not found. Running tests with coverage...${NC}"
         cd "$PROJECT_DIR/tests/api"
-        pytest -v \
-            --cov=../../api \
-            --cov-config=../../.coverage-config.ini \
-            --cov-report=json \
-            --cov-report=term-missing
+        pytest -m "not performance"
         cd "$PROJECT_DIR"
     fi
 

@@ -56,9 +56,9 @@ get_player_analytics() {
             if [ -n "$list_output" ]; then
                 # Parse player list (format: "There are X of a max of Y players online: player1, player2")
                 local player_count
-                player_count=$(echo "$list_output" | grep -oP 'There are \K\d+' || echo "0")
+                player_count=$(echo "$list_output" | sed -n 's/^There are \([0-9]*\).*/\1/p')
                 local players
-                players=$(echo "$list_output" | grep -oP 'online: \K.*' || echo "")
+                players=$(echo "$list_output" | sed -n 's/.*online: //p')
 
                 if [ -n "$players" ] && [ "$players" != " " ]; then
                     # Convert comma-separated list to JSON array
@@ -99,8 +99,13 @@ get_player_events() {
     leave_events=$(echo "$recent_logs" | grep -iE "(left the game|disconnected)" | tail -10 || echo "")
 
     # Build events array (simplified - would need more parsing in production)
+    # grep -c . counts non-empty lines: `echo "" | wc -l` reported one event
+    # when there were none, and BSD wc pads its output with spaces.
     if [ -n "$join_events" ] || [ -n "$leave_events" ]; then
-        events="[{\"type\":\"join\",\"count\":$(echo "$join_events" | wc -l)},{\"type\":\"leave\",\"count\":$(echo "$leave_events" | wc -l)}]"
+        local joins leaves
+        joins=$(printf '%s' "$join_events" | grep -c . || true)
+        leaves=$(printf '%s' "$leave_events" | grep -c . || true)
+        events="[{\"type\":\"join\",\"count\":${joins}},{\"type\":\"leave\",\"count\":${leaves}}]"
     fi
 
     echo "$events"
@@ -132,16 +137,18 @@ get_performance_metrics() {
         cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" 2>/dev/null | sed 's/%//' || echo "0")
     fi
 
-    # Get memory usage (in MB)
-    local mem_stats
+    # Get memory usage (in MB) from the "used / limit" pair. POSIX patterns
+    # only: grep -P is missing from BSD grep, and the old \d+\.\d+ pattern
+    # found nothing in a whole number such as "512MiB", leaving memory empty
+    # and the JSON line invalid.
+    local mem_stats mem_used mem_value
     mem_stats=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}" 2>/dev/null || echo "0B / 0B")
-    if echo "$mem_stats" | grep -q "MiB"; then
-        memory=$(echo "$mem_stats" | grep -oP '\d+\.\d+MiB' | head -1 | sed 's/MiB//' || echo "0")
-    elif echo "$mem_stats" | grep -q "GiB"; then
-        local mem_gb
-        mem_gb=$(echo "$mem_stats" | grep -oP '\d+\.\d+GiB' | head -1 | sed 's/GiB//' || echo "0")
-        memory=$(echo "$mem_gb * 1024" | bc 2>/dev/null || echo "0")
-    fi
+    mem_used="${mem_stats%% / *}"
+    mem_value=$(echo "$mem_used" | grep -oE '[0-9]+(\.[0-9]+)?' | head -1)
+    case "$mem_used" in
+        *GiB) memory=$(echo "${mem_value:-0} * 1024" | bc 2>/dev/null || echo "0") ;;
+        *MiB) memory="${mem_value:-0}" ;;
+    esac
 
     # Try to get chunks loaded (from logs or RCON)
     if [ -f "${PROJECT_DIR}/config/rcon.conf" ]; then
@@ -153,7 +160,8 @@ get_performance_metrics() {
         fi
     fi
 
-    echo "{\"tps\":$tps,\"cpu\":$cpu,\"memory\":$memory,\"chunks_loaded\":$chunks_loaded}"
+    # A parse that matched nothing leaves a value empty, which is invalid JSON
+    echo "{\"tps\":${tps:-0},\"cpu\":${cpu:-0},\"memory\":${memory:-0},\"chunks_loaded\":$chunks_loaded}"
 }
 
 # Function to get network metrics

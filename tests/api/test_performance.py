@@ -50,7 +50,7 @@ class TestAPIPerformance:
         assert results["avg_duration"] < 0.1  # Average < 100ms
         assert results["requests_per_second"] > 50  # At least 50 req/s
 
-    def test_status_endpoint_performance(self, client, mock_api_keys):
+    def test_status_endpoint_performance(self, client, mock_api_keys, mock_docker):
         """Test status endpoint response time"""
         with PerformanceTimer("Status endpoint") as timer:
             response = client.get("/api/status", headers={"X-API-Key": mock_api_keys})

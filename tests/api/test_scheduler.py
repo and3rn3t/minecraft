@@ -294,6 +294,7 @@ class TestSchedulerDaemonAgreement:
         scheduler = self._scheduler_module()
         monkeypatch.setattr(scheduler, "SCHEDULE_FILE", schedule_file)
         monkeypatch.setattr(scheduler, "execute_command", lambda command: (True, "ok"))
+        monkeypatch.setattr(scheduler, "get_player_count", lambda: 0)
         monkeypatch.setattr(scheduler, "log_execution", lambda *a, **k: None)
 
         schedule_file.write_text(

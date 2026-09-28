@@ -63,6 +63,7 @@ markers = [
     "performance: Performance tests",
     "contract: API contract tests",
     "e2e: End-to-end tests",
+    "real_subprocess: Allowed to start real processes (conftest refuses them otherwise)",
 ]
 
 # Coverage settings live in .coverage-config.ini (a single source of truth,

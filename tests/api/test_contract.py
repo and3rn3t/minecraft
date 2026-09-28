@@ -25,7 +25,7 @@ class TestAPIContracts:
         # Validate response structure (basic check)
         assert "status" in data or "health" in data or "message" in data
 
-    def test_status_endpoint_contract(self, client, mock_api_keys):
+    def test_status_endpoint_contract(self, client, mock_api_keys, mock_docker):
         """Test status endpoint response contract"""
         response = client.get("/api/status", headers={"X-API-Key": mock_api_keys})
         assert response.status_code == 200

@@ -99,6 +99,10 @@ exit 0
 STUB
 
     chmod +x "$TEST_DIR"/bin/*
+    # scripts/lib/common.sh takes its update lock with util-linux flock, which
+    # macOS lacks. The shim takes a real lock, so the contention test still means
+    # something; on Linux the real flock is used.
+    command -v flock >/dev/null 2>&1 || cp "$REPO_DIR/tests/helpers/flock" "$TEST_DIR/bin/flock"
     export PATH="$TEST_DIR/bin:$PATH"
     export PLAYER_COUNT_CMD="cat $STATE_DIR/players"
     export DEPLOY_CONFIG="$TEST_DIR/no-such-deploy.conf"
