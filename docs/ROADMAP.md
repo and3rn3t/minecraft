@@ -77,12 +77,12 @@ running them.
 ## Build order
 
 Roughly the next year of evenings, ordered so that each step makes the next one
-cheaper. Every open item except O7 appears in exactly one row; rows are grouped by the
+cheaper. Every open item except O1 and O7 appears in exactly one row; rows are grouped by the
 plumbing they share, so each row is mostly content on top of the row before.
 
 | Order | Items | Why here |
 | --- | --- | --- |
-| 0 | O1, O2, O3, O4, O5 | The server is public and has no working backups. Nothing below matters if the world is lost or a stranger is in it |
+| 0 | O2, O3, O4, O5 | The server has no working backups. Nothing below matters if the world is lost |
 | 1 | W6, I1 | Hours of work, immediate payoff, no new infrastructure. I1 is three hand-built items, and doubles as the prototype for W2 |
 | 2 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
 | 3 | F6, W4, T3, M5, R3, O6 | Delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. O6 switches the scheduler back on as M5's first step. R3's weekly digest is the Gazette's parent edition |
@@ -92,8 +92,9 @@ plumbing they share, so each row is mostly content on top of the row before.
 | 7 | H1, H2, H3 | House and game wired to each other |
 | 8 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
-O7 is the one open item without a row: it has no dependents, so it ships
-whenever `api/server.py`'s startup block is next touched.
+Two open items have no row. O1 is deferred until the player list settles
+(see its entry). O7 has no dependents, so it ships whenever
+`api/server.py`'s startup block is next touched.
 
 The one decision gate this list used to carry — do the boys play on iPads? —
 is settled: everyone who plays, the boys and their friends, is on a PC with
@@ -105,10 +106,16 @@ Java Edition. Cross-play (R1) moved to [Ruled out](#ruled-out).
 
 Found by checking the live Pi against this document rather than the repo
 against itself. None of it is new feature work; all of it is the gap between
-"the script exists" and "the script runs". O1 and O2 are live problems — fix
-them on the Pi before building anything else.
+"the script exists" and "the script runs". O2 is the live problem — fix it
+on the Pi before building anything else. O1 is deliberately deferred.
 
-### O1. Close the game server to strangers — Green
+### O1. Close the game server to strangers — Green, deferred
+
+**Deferred (2026-09-28).** The server is new, and which of the boys' friends
+will join isn't known yet, so the whitelist stays off until that list
+settles. The risk below still stands while it is open; the playit.gg
+question at the end doesn't depend on the player list and can be settled
+now.
 
 `server.properties` on the Pi has `white-list=false` and
 `enforce-whitelist=false`, while port 25565 is port-forwarded at
