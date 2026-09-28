@@ -372,6 +372,27 @@ USERS_FILE = PROJECT_ROOT / "config" / "users.json"
 OAUTH_CONFIG_FILE = PROJECT_ROOT / "config" / "oauth.conf"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
+
+def _ensure_analytics_processor_module():
+    """Make `analytics_processor` importable.
+
+    The on-disk file is scripts/analytics-processor.py -- the hyphen makes it
+    unimportable via a plain `import`/`from` statement, so on first use we load
+    it from its file path and register it in sys.modules under the name
+    callers (and tests, which pre-populate sys.modules with a mock) expect.
+    """
+    if "analytics_processor" not in sys.modules:
+        import importlib.util
+
+        module_path = SCRIPTS_DIR / "analytics-processor.py"
+        spec = importlib.util.spec_from_file_location("analytics_processor", module_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load analytics processor from {module_path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["analytics_processor"] = module
+        spec.loader.exec_module(module)
+
+
 # Default configuration
 API_PORT = 8080
 API_HOST = "127.0.0.1"  # Only listen on localhost by default
@@ -3993,8 +4014,7 @@ def get_analytics_trends():
         hours = int(request.args.get("hours", 24))
         metric_type = request.args.get("type", "performance")  # performance, players, network
 
-        # Import analytics processor
-        sys.path.insert(0, str(SCRIPTS_DIR))
+        _ensure_analytics_processor_module()
         from analytics_processor import AnalyticsProcessor
 
         processor = AnalyticsProcessor()
@@ -4024,8 +4044,7 @@ def get_analytics_anomalies():
         hours = int(request.args.get("hours", 24))
         metric = request.args.get("metric", "tps")  # tps, cpu, memory
 
-        # Import analytics processor
-        sys.path.insert(0, str(SCRIPTS_DIR))
+        _ensure_analytics_processor_module()
         from analytics_processor import AnalyticsProcessor
 
         processor = AnalyticsProcessor()
@@ -4052,8 +4071,7 @@ def get_analytics_predictions():
         hours_ahead = int(request.args.get("hours_ahead", 1))
         metric = request.args.get("metric", "memory")  # memory, tps, cpu
 
-        # Import analytics processor
-        sys.path.insert(0, str(SCRIPTS_DIR))
+        _ensure_analytics_processor_module()
         from analytics_processor import AnalyticsProcessor
 
         processor = AnalyticsProcessor()
@@ -4079,8 +4097,7 @@ def get_player_behavior():
     try:
         hours = int(request.args.get("hours", 24))
 
-        # Import analytics processor
-        sys.path.insert(0, str(SCRIPTS_DIR))
+        _ensure_analytics_processor_module()
         from analytics_processor import AnalyticsProcessor
 
         processor = AnalyticsProcessor()
@@ -4104,8 +4121,7 @@ def generate_custom_report():
         hours = int(data.get("hours", 24))
         metrics = data.get("metrics", ["performance", "players"])
 
-        # Import analytics processor
-        sys.path.insert(0, str(SCRIPTS_DIR))
+        _ensure_analytics_processor_module()
         from analytics_processor import AnalyticsProcessor
 
         processor = AnalyticsProcessor()
