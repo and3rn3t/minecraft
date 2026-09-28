@@ -67,11 +67,13 @@ class TestList:
         assert data["path"] == "data"
 
     def test_a_missing_directory_is_404(self, client, root):
-        assert client.get("/api/files/list?path=data/nope").status_code == 404
+        response = client.get("/api/files/list?path=data/nope")
+        assert response.status_code == 404
 
     def test_a_file_is_not_a_directory(self, client, root):
         (root / "data" / "server.properties").write_text("motd=x")
-        assert client.get("/api/files/list?path=data/server.properties").status_code == 400
+        response = client.get("/api/files/list?path=data/server.properties")
+        assert response.status_code == 400
 
 
 class TestRead:
@@ -100,7 +102,8 @@ class TestRead:
 
     @pytest.mark.parametrize("query, status", [("", 400), ("?path=data/nope.txt", 404), ("?path=data", 400)])
     def test_bad_requests(self, client, root, query, status):
-        assert client.get(f"/api/files/read{query}").status_code == status
+        response = client.get(f"/api/files/read{query}")
+        assert response.status_code == status
 
 
 class TestWrite:
@@ -124,7 +127,8 @@ class TestWrite:
         assert (root / data["backup"]).read_text() == "motd=Old\n"
 
     def test_needs_a_path(self, client, root):
-        assert client.post("/api/files/write", json={"content": "x"}).status_code == 400
+        response = client.post("/api/files/write", json={"content": "x"})
+        assert response.status_code == 400
 
 
 class TestUpload:
@@ -152,22 +156,26 @@ class TestUpload:
         assert response.status_code == 400
 
     def test_needs_a_file_and_a_path(self, client, root):
-        assert client.post("/api/files/upload", data={"path": "data"}).status_code == 400
-        assert self._upload(client, "", "a.txt").status_code == 400
+        response = client.post("/api/files/upload", data={"path": "data"})
+        assert response.status_code == 400
+        response = self._upload(client, "", "a.txt")
+        assert response.status_code == 400
 
 
 class TestDelete:
     def test_deletes_a_file(self, client, root):
         (root / "data" / "old.log").write_text("x")
 
-        assert client.delete("/api/files/delete?path=data/old.log").status_code == 200
+        response = client.delete("/api/files/delete?path=data/old.log")
+        assert response.status_code == 200
         assert not (root / "data" / "old.log").exists()
 
     def test_deletes_a_directory_tree(self, client, root):
         (root / "data" / "world_old" / "region").mkdir(parents=True)
         (root / "data" / "world_old" / "region" / "r.0.0.mca").write_text("x")
 
-        assert client.delete("/api/files/delete?path=data/world_old").status_code == 200
+        response = client.delete("/api/files/delete?path=data/world_old")
+        assert response.status_code == 200
         assert not (root / "data" / "world_old").exists()
 
     @pytest.mark.parametrize("name", ["data", "config", "backups", "scripts"])
@@ -184,11 +192,13 @@ class TestDelete:
         folder = root / "data" / "plugins" / "Foo" / "config"
         folder.mkdir(parents=True)
 
-        assert client.delete("/api/files/delete?path=data/plugins/Foo/config").status_code == 200
+        response = client.delete("/api/files/delete?path=data/plugins/Foo/config")
+        assert response.status_code == 200
         assert not folder.exists()
 
     def test_a_missing_file_is_404(self, client, root):
-        assert client.delete("/api/files/delete?path=data/nope").status_code == 404
+        response = client.delete("/api/files/delete?path=data/nope")
+        assert response.status_code == 404
 
 
 class TestDownload:

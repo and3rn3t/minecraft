@@ -79,7 +79,8 @@ class TestFileBrowserIsAdminOnly:
 
     @pytest.mark.parametrize("url", FILE_BROWSER_READS)
     def test_admins_still_have_it(self, client, tree, key_for, url):
-        assert client.get(url, headers=key_for("admin")).status_code == 200
+        response = client.get(url, headers=key_for("admin"))
+        assert response.status_code == 200
 
     def test_no_role_but_admin_holds_files_view(self):
         holders = [role for role, perms in api_module.ROLE_PERMISSIONS.items() if "files.view" in perms]

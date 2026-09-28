@@ -62,7 +62,8 @@ def _events(emit, name):
 
 class TestConnect:
     def _refused(self, socket, auth, message):
-        assert api_module.handle_connect(auth) is False
+        accepted = api_module.handle_connect(auth)
+        assert accepted is False
         assert _events(socket, "error") == [{"message": message}]
         socket.disconnect.assert_called_once_with(SID)
         assert SID not in api_module.active_log_streams
@@ -89,7 +90,8 @@ class TestConnect:
             self._refused(socket, {"token": "t"}, "Account disabled")
 
     def test_a_valid_key_gets_the_backlog_then_the_live_stream(self, socket, key):
-        assert api_module.handle_connect({"api_key": key()}) is True
+        accepted = api_module.handle_connect({"api_key": key()})
+        assert accepted is True
 
         assert _events(socket, "logs") == [{"logs": ["[12:00] Done"], "type": "initial"}]
         assert _events(socket, "connected")
@@ -99,7 +101,8 @@ class TestConnect:
     def test_a_signed_in_user_can_connect_with_their_token(self, socket, monkeypatch):
         monkeypatch.setitem(api_module.USERS, "alice", {"username": "alice", "role": "user", "enabled": True})
         with patch.object(api_module, "verify_token", return_value="alice"):
-            assert api_module.handle_connect({"token": "t"}) is True
+            accepted = api_module.handle_connect({"token": "t"})
+            assert accepted is True
         assert api_module._stream_keys[SID] == ("user", "alice")
 
     def test_disconnecting_forgets_the_socket(self, socket, key):

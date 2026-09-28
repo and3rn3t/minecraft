@@ -86,7 +86,8 @@ def _enable_2fa(client):
 
 class TestSetup:
     def test_requires_a_session(self, client, alice):
-        assert client.post("/api/auth/2fa/setup").status_code == 401
+        response = client.post("/api/auth/2fa/setup")
+        assert response.status_code == 401
 
     def test_issues_a_secret_but_does_not_enable_2fa_yet(self, logged_in, users_file):
         response = _post(logged_in, "/api/auth/2fa/setup")
@@ -117,7 +118,8 @@ class TestSetup:
 class TestVerify:
     def test_needs_a_token(self, logged_in):
         _post(logged_in, "/api/auth/2fa/setup")
-        assert _post(logged_in, "/api/auth/2fa/verify").status_code == 400
+        response = _post(logged_in, "/api/auth/2fa/verify")
+        assert response.status_code == 400
 
     def test_refuses_before_setup(self, logged_in):
         response = _post(logged_in, "/api/auth/2fa/verify", {"token": "123456"})
@@ -170,13 +172,15 @@ class TestLoginWith2fa:
         assert response.get_json()["user"]["username"] == "alice"
 
     def test_accounts_without_2fa_need_no_code(self, client, alice):
-        assert self._login(client).status_code == 200
+        response = self._login(client)
+        assert response.status_code == 200
 
 
 class TestDisable:
     def test_needs_the_password(self, logged_in):
         _enable_2fa(logged_in)
-        assert _post(logged_in, "/api/auth/2fa/disable").status_code == 400
+        response = _post(logged_in, "/api/auth/2fa/disable")
+        assert response.status_code == 400
 
     def test_wrong_password_leaves_2fa_on(self, logged_in, users_file):
         _enable_2fa(logged_in)
@@ -195,7 +199,8 @@ class TestDisable:
         stored = _stored(users_file)
         assert stored["totp_enabled"] is False
         assert "totp_secret" not in stored
-        assert logged_in.get("/api/auth/2fa/status").get_json()["configured"] is False
+        status = logged_in.get("/api/auth/2fa/status").get_json()
+        assert status["configured"] is False
 
 
 class TestAccountsWithoutAPassword:
@@ -219,7 +224,8 @@ class TestAccountsWithoutAPassword:
         assert "totp_secret" not in api_module.USERS["alice"]
 
     def test_status_says_there_is_no_password(self, oauth_only):
-        assert oauth_only.get("/api/auth/2fa/status").get_json()["has_password"] is False
+        status = oauth_only.get("/api/auth/2fa/status").get_json()
+        assert status["has_password"] is False
 
     @pytest.fixture
     def stuck_with_2fa(self, oauth_only):

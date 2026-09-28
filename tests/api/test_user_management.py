@@ -54,7 +54,8 @@ class TestDelete:
         assert "alice" not in _saved(api_module.USERS_FILE)
 
     def test_unknown_user_is_404(self, client, users):
-        assert client.delete("/api/users/nobody").status_code == 404
+        response = client.delete("/api/users/nobody")
+        assert response.status_code == 404
 
     def test_the_last_enabled_admin_is_kept(self, client, users):
         response = client.delete("/api/users/boss")
@@ -65,7 +66,8 @@ class TestDelete:
     def test_a_disabled_admin_can_go_while_another_admin_is_active(self, client, users):
         users["old-admin"] = {"username": "old-admin", "role": "admin", "enabled": False}
 
-        assert client.delete("/api/users/old-admin").status_code == 200
+        response = client.delete("/api/users/old-admin")
+        assert response.status_code == 200
 
     def test_nobody_deletes_their_own_account(self, users):
         client = api_module.app.test_client()
@@ -82,7 +84,8 @@ class TestDelete:
     def test_a_failed_save_puts_the_user_back(self, client, users, monkeypatch):
         monkeypatch.setattr(api_module, "save_users", lambda: False)
 
-        assert client.delete("/api/users/alice").status_code == 500
+        response = client.delete("/api/users/alice")
+        assert response.status_code == 500
         assert users["alice"]["role"] == "user", "still there, as it still is on disk"
 
 
@@ -95,41 +98,49 @@ class TestRoleChange:
 
     @pytest.mark.parametrize("body", [{}, {"role": "superuser"}])
     def test_needs_a_valid_role(self, client, users, body):
-        assert client.put("/api/users/alice/role", json=body).status_code == 400
+        response = client.put("/api/users/alice/role", json=body)
+        assert response.status_code == 400
         assert users["alice"]["role"] == "user"
 
     def test_the_last_admin_cannot_be_demoted(self, client, users):
-        assert client.put("/api/users/boss/role", json={"role": "user"}).status_code == 400
+        response = client.put("/api/users/boss/role", json={"role": "user"})
+        assert response.status_code == 400
         assert users["boss"]["role"] == "admin"
 
     def test_a_disabled_admin_can_be_demoted(self, client, users):
         users["old-admin"] = {"username": "old-admin", "role": "admin", "enabled": False}
 
-        assert client.put("/api/users/old-admin/role", json={"role": "user"}).status_code == 200
+        response = client.put("/api/users/old-admin/role", json={"role": "user"})
+        assert response.status_code == 200
 
     def test_a_failed_save_keeps_the_old_role(self, client, users, monkeypatch):
         monkeypatch.setattr(api_module, "save_users", lambda: False)
 
-        assert client.put("/api/users/alice/role", json={"role": "admin"}).status_code == 500
+        response = client.put("/api/users/alice/role", json={"role": "admin"})
+        assert response.status_code == 500
         assert users["alice"]["role"] == "user", "not an admin in memory while still a user on disk"
 
 
 class TestDisable:
     def test_the_last_admin_cannot_be_disabled(self, client, users):
-        assert client.put("/api/users/boss/disable").status_code == 400
+        response = client.put("/api/users/boss/disable")
+        assert response.status_code == 400
         assert users["boss"]["enabled"] is True
 
     def test_disabling_and_enabling_round_trip(self, client, users):
-        assert client.put("/api/users/alice/disable").status_code == 200
+        response = client.put("/api/users/alice/disable")
+        assert response.status_code == 200
         assert users["alice"]["enabled"] is False
 
-        assert client.put("/api/users/alice/enable").status_code == 200
+        response = client.put("/api/users/alice/enable")
+        assert response.status_code == 200
         assert users["alice"]["enabled"] is True
 
     def test_a_failed_save_leaves_the_account_enabled(self, client, users, monkeypatch):
         monkeypatch.setattr(api_module, "save_users", lambda: False)
 
-        assert client.put("/api/users/alice/disable").status_code == 500
+        response = client.put("/api/users/alice/disable")
+        assert response.status_code == 500
         assert users["alice"]["enabled"] is True
 
 
