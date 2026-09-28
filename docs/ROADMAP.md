@@ -119,16 +119,18 @@ settles. The risk below still stands while it is open.
 `server.properties` on the Pi has `white-list=false` and
 `enforce-whitelist=false`, and `mine.andernet.dev` reaches the server from
 anywhere through the playit.gg tunnel ([PLAYIT.md](PLAYIT.md)). Anyone with a
-Java account and the address can join and talk to the kids. `online-mode=true` only means they
-need a real account, not an invitation.
+Java account and the address can join and talk to the kids.
+`online-mode=true` only means they need a real account, not an invitation.
 
-Add every account first — the boys and each friend who plays
-(`scripts/whitelist-manager.sh`, or `whitelist add <name>` over RCON), then `whitelist on` and set
-`enforce-whitelist=true` so anyone already connected who isn't on the list
-gets kicked. Adding the accounts first is the part that matters: a whitelist
+Add every account first — the boys and each friend who plays — with
+`whitelist add <name>` over RCON (the admin panel's Console page), then
+`whitelist on` and set `enforce-whitelist=true` so anyone already connected
+who isn't on the list gets kicked. Adding the accounts first is the part that matters: a whitelist
 switched on empty locks the kids out. A new friend then needs a
 `whitelist add` before their first visit, which is what W6's Shortcuts or a
-dashboard button should make a one-tap job for a parent.
+dashboard button should make a one-tap job for a parent. Don't use
+`scripts/whitelist-manager.sh` for this yet: its RCON call is a stub, so it
+only edits `whitelist.json`, which the running server doesn't reread.
 
 ### O2. Backups that actually run — Green
 
