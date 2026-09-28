@@ -226,6 +226,14 @@ All notable changes to this project will be documented in this file.
   rewrites the user and path instead of the removed `%i`. The timer now runs
   every other day (odd-numbered days) rather than nightly, and is enabled on
   the Pi.
+- **Backups include player data** — Minecraft writes each player's data
+  file (inventory, position, XP) mode 600 as the container's uid 999, which
+  the host's `pi` user can't read, so `manage.sh backup`'s host-side `tar`
+  failed every scheduled run; its errors went to `/dev/null`. The archive is
+  now made inside a throwaway container of the server image (`compose run`),
+  as the files' owner, and compressed on the host. A failed run reports
+  tar's own errors and deletes its partial archive; files the live server
+  changes mid-read are reported as a warning rather than a failure.
 - **The dashboard shows CPU usage as a percentage.** The API strips the `%`
   from `docker stats`, and the dashboard added it back for memory but not CPU,
   so CPU read "12.50". Found by the new screenshot tests.

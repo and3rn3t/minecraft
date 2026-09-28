@@ -119,9 +119,28 @@ create_backup() {
         exit 1
     fi
 
-    # Create backup with compression (using gzip, can be optimized later)
+    # Archive from inside a throwaway container of the server image rather
+    # than on the host. It runs as the server's own user (uid 999), which owns
+    # files the host's pi user can't read: Minecraft writes player data (every
+    # inventory) mode 600, so a host-side tar failed on exactly the files that
+    # matter most. `compose run` works whether or not the server is up. The
+    # image has no gzip, so the host compresses.
     echo -e "${BLUE}Compressing backup...${NC}"
-    if tar -czf "$BACKUP_FILE" -C ./data . 2>/dev/null; then
+    local tar_log="${BACKUP_FILE}.log" tar_status gzip_status
+    set +e
+    compose run --rm --no-deps -T --entrypoint tar minecraft \
+        -cf - -C /minecraft/server . 2>"$tar_log" | gzip > "$BACKUP_FILE"
+    tar_status=${PIPESTATUS[0]} gzip_status=${PIPESTATUS[1]}
+    set -e
+    # tar exits 1 when a file changed while it was read (the live server
+    # writing a region); the archive is still complete, so warn and go on.
+    if [ "$tar_status" -eq 1 ] && [ "$gzip_status" -eq 0 ]; then
+        echo -e "${YELLOW}Some files changed while being archived:${NC}"
+        grep -i "changed" "$tar_log" || true
+        tar_status=0
+    fi
+    if [ "$tar_status" -eq 0 ] && [ "$gzip_status" -eq 0 ]; then
+        rm -f "$tar_log"
         BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
         echo -e "${GREEN}Backup created: $BACKUP_FILE (Size: $BACKUP_SIZE)${NC}"
 
@@ -135,7 +154,9 @@ create_backup() {
             exit 1
         fi
     else
-        echo -e "${RED}Backup creation failed${NC}"
+        echo -e "${RED}Backup creation failed (tar exit ${tar_status}, gzip exit ${gzip_status})${NC}"
+        grep -v -i "memory.*limit" "$tar_log" | tail -20 || true
+        rm -f "$BACKUP_FILE" "$tar_log"
         exit 1
     fi
 }
