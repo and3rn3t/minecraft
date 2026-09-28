@@ -124,6 +124,23 @@ class TestTellrawToPlayer:
         with pytest.raises(ValueError):
             build_tellraw_to_player(bad_name, "hi")
 
+    def test_everyone_targets_all_players_and_names_who_asked(self):
+        command = build_tellraw_to_player("Jonah", "Hi there!", everyone=True)
+        assert command.startswith("tellraw @a ")
+        assert json.loads(command[len("tellraw @a ") :])["text"] == "[Oracle → Jonah] Hi there!"
+
+    def test_everyone_still_truncates_including_the_tag(self):
+        command = build_tellraw_to_player("Jonah", "x" * 500, everyone=True)
+        text = json.loads(command[len("tellraw @a ") :])["text"]
+        assert len(text) <= MAX_TELLRAW_LENGTH
+        assert text.startswith("[Oracle → Jonah] ")
+
+    def test_everyone_still_validates_the_player_name(self):
+        # The name is no longer the command target, but it is still
+        # interpolated into the tag, so the same check applies.
+        with pytest.raises(ValueError):
+            build_tellraw_to_player("bad name", "hi", everyone=True)
+
     def test_valid_player_name_boundaries(self):
         # 3 and 16 characters are the shortest/longest real Minecraft names.
         build_tellraw_to_player("abc", "hi")
@@ -137,6 +154,7 @@ class TestConfig:
         assert settings.enabled is False
         assert settings.allowlist == ()
         assert settings.rate_limit_per_minute == 4
+        assert settings.reply_to == "player"
 
     def test_config_is_parsed(self, tmp_path):
         config = tmp_path / "oracle.conf"
@@ -151,6 +169,12 @@ class TestConfig:
         assert settings.color == "red"
         assert settings.retention_days == 30
 
+    @pytest.mark.parametrize("value, expected", [("all", "all"), ("ALL", "all"), ("player", "player"), ("everyone", "player")])
+    def test_reply_to_is_parsed_and_typos_stay_private(self, tmp_path, value, expected):
+        config = tmp_path / "oracle.conf"
+        config.write_text(f"REPLY_TO={value}\n")
+        assert load_oracle_config(config).reply_to == expected
+
     def test_invalid_rate_limit_falls_back(self, tmp_path):
         config = tmp_path / "oracle.conf"
         config.write_text("RATE_LIMIT_PER_MINUTE=lots\n")
@@ -158,7 +182,9 @@ class TestConfig:
 
     def test_save_and_load_round_trip(self, tmp_path):
         config_file = tmp_path / "oracle.conf"
-        original = OracleConfig(enabled=True, allowlist=("Jonah",), rate_limit_per_minute=7, color="blue")
+        original = OracleConfig(
+            enabled=True, allowlist=("Jonah",), rate_limit_per_minute=7, color="blue", reply_to="all"
+        )
         save_oracle_config(original, config_file)
 
         loaded = load_oracle_config(config_file)
@@ -166,6 +192,7 @@ class TestConfig:
         assert loaded.allowlist == ("Jonah",)
         assert loaded.rate_limit_per_minute == 7
         assert loaded.color == "blue"
+        assert loaded.reply_to == "all"
 
 
 @pytest.mark.unit
@@ -327,6 +354,24 @@ class TestOutcomeRouting:
         exchanges = oracle_instance.read_exchanges()
         assert len(exchanges) == 1
         assert exchanges[0]["outcome"] == "no_reply"
+
+    def test_reply_to_all_broadcasts_banter_and_quests(self, oracle_instance, commands):
+        oracle_instance.config.reply_to = "all"
+        oracle_instance.responder = FakeResponder(
+            triage_result=OracleTriage(outcome="banter", reply="Hello, adventurer!")
+        )
+        oracle_instance.handle_event(chat_event(player="Jonah", message="hi oracle"))
+
+        oracle_instance.responder = FakeResponder(
+            triage_result=OracleTriage(outcome="quest_request"),
+            quest_result=make_quest(),
+        )
+        oracle_instance.handle_event(chat_event(player="Silas", message="oracle give me a quest"))
+
+        assert [c.split(" ", 2)[1] for c in commands] == ["@a", "@a"]
+        assert "[Oracle → Jonah] Hello, adventurer!" in commands[0]
+        assert "[Oracle → Silas] Quest: Diamond Dash" in commands[1]
+        assert oracle_instance.status()["reply_to"] == "all"
 
     def test_banter_replies_to_the_player(self, oracle_instance, commands):
         oracle_instance.responder = FakeResponder(
