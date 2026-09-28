@@ -16,7 +16,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import app after path setup
-from api.server import app  # noqa: E402
+import api.server as api_module  # noqa: E402
+
+app = api_module.app
 
 # Imports must come after sys.path modification
 from tests.api.factories import (
@@ -37,8 +39,6 @@ def _isolated_accounts():
     file order. Restoring the same objects (not copies of the names) keeps any
     module that imported them by reference consistent.
     """
-    import api.server as api_module
-
     users, keys = api_module.USERS, api_module.API_KEYS
     saved_users, saved_keys = copy.deepcopy(users), copy.deepcopy(keys)
     yield
@@ -94,8 +94,6 @@ def mock_api_keys(monkeypatch, test_api_keys_file):
     keys_file, test_key = test_api_keys_file
 
     # Mock the API_KEYS_FILE path
-    import api.server as api_module
-
     monkeypatch.setattr(api_module, "API_KEYS_FILE", keys_file)
 
     # Reload API keys
@@ -263,8 +261,6 @@ def _reset_rate_limiter():
     limiter's counters independent, while tests that specifically want to
     exercise the 429 path still can (see test_auth.py's rate-limit tests).
     """
-    import api.server as api_module
-
     if api_module.limiter is not None:
         api_module.limiter.reset()
 
