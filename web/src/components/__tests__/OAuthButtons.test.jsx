@@ -150,7 +150,9 @@ describe('OAuthButtons', () => {
   });
 
   it('disables buttons while loading', async () => {
-    api.getOAuthUrl.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    // Never resolves: this is about the loading state only, and a request
+    // that finished later would update the component after the test ended.
+    api.getOAuthUrl.mockImplementation(() => new Promise(() => {}));
 
     renderComponent();
     const googleButton = screen.getByText(/Sign in with Google/i).closest('button');

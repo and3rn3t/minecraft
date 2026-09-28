@@ -30,14 +30,17 @@ const OAuthCallback = () => {
     // Handle errors
     if (error) {
       const errorMsg = errorDescription || error || 'OAuth authentication failed';
-      window.opener?.postMessage(
-        {
-          type: 'OAUTH_ERROR',
-          error: errorMsg,
-          provider,
-        },
-        window.location.origin
-      );
+      // Same guard as the other two paths: nobody is left to tell
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          {
+            type: 'OAUTH_ERROR',
+            error: errorMsg,
+            provider,
+          },
+          window.location.origin
+        );
+      }
       window.close();
       return;
     }

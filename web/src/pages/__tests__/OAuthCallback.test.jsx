@@ -94,9 +94,13 @@ describe('OAuthCallback', () => {
     );
   });
 
-  it('does not post to an opener that has already closed', () => {
+  it.each([
+    ['a success', '?code=abc&state=s'],
+    ['a provider error', '?error=access_denied'],
+    ['a missing code', '?state=s'],
+  ])('does not post %s to an opener that has already closed', (_, query) => {
     opener.closed = true;
-    renderWith('?code=abc&state=s');
+    renderWith(query);
 
     expect(opener.postMessage).not.toHaveBeenCalled();
   });
