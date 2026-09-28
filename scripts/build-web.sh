@@ -38,7 +38,8 @@ cd "$WEB_DIR" || exit 1
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
     echo -e "${BLUE}Installing dependencies...${NC}"
-    npm install
+    # ci: never rewrites package-lock.json (see update-codebase.sh)
+    npm ci --no-audit --no-fund
 fi
 
 # Build the project

@@ -102,7 +102,10 @@ if [ "$WEB_CHANGED" = true ] || [ "$1" = "--all" ]; then
 
         if [ -f "package.json" ]; then
             echo -e "${BLUE}Installing npm dependencies...${NC}"
-            npm install
+            # ci, not install: install rewrites package-lock.json with whatever
+            # npm version the Pi has, and a changed tracked file blocks the
+            # deploy agent.
+            npm ci --no-audit --no-fund
 
             echo -e "${BLUE}Building web interface...${NC}"
             npm run build
