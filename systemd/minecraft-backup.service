@@ -9,10 +9,10 @@ Type=oneshot
 # keep that I/O and CPU contention from causing tick lag for players.
 Nice=10
 IOSchedulingClass=idle
-User=%i
-Group=%i
-WorkingDirectory=/home/%i/minecraft-server
-ExecStart=/home/%i/minecraft-server/scripts/backup-scheduler.sh
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/minecraft-server
+ExecStart=/home/pi/minecraft-server/scripts/backup-scheduler.sh
 StandardOutput=journal
 StandardError=journal
 
