@@ -700,7 +700,7 @@ Two settings are read from the environment rather than this file:
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `SECRET_KEY` | generated per restart | Signs sessions and JWTs; see [SECURITY_HARDENING.md](SECURITY_HARDENING.md) |
-| `REGISTRATION_ENABLED` | unset (closed) | Keeps `POST /api/auth/register` open after the bootstrap account exists; see [RBAC.md](RBAC.md) |
+| `REGISTRATION_ENABLED` | unset (closed) | Keeps sign-up open after the bootstrap account exists, through `POST /api/auth/register` and first-time Google/Apple sign-in; see [RBAC.md](RBAC.md) |
 
 ## Security
 

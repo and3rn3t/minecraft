@@ -402,12 +402,113 @@ class TestAppleOAuthCallback:
             },
         )
         monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        # This is a new identity, so it is a sign-up; registration has to be
+        # open for it (see TestOAuthSignUpPolicy).
+        monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
 
         response = client.post("/api/auth/oauth/apple/callback", json={"id_token": token, "state": oauth_state})
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data["success"] is True
         assert "apple:real-apple-user-id" in api_module.USERS[data["user"]["username"]]["oauth_providers"]
+
+
+class TestOAuthSignUpPolicy:
+    """A first OAuth sign-in creates an account, so it obeys REGISTRATION_ENABLED
+    like /api/auth/register. It used to create a "user" account for anyone
+    with a Google or Apple identity, whatever the setting."""
+
+    @pytest.fixture
+    def apple_sign_in(self, client, temp_oauth_config, rsa_keypair, monkeypatch):
+        import api.server as api_module
+
+        private_pem, public_pem = rsa_keypair
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+
+        def sign_in(apple_id="stranger-apple-id"):
+            with client.session_transaction() as session:
+                session["oauth_state"] = "state"
+            token = _sign_rs256(
+                private_pem,
+                {
+                    "sub": apple_id,
+                    "email": f"{apple_id}@example.com",
+                    "aud": "test-apple-client-id",
+                    "iss": "https://appleid.apple.com",
+                },
+            )
+            return client.post("/api/auth/oauth/apple/callback", json={"id_token": token, "state": "state"})
+
+        return sign_in
+
+    def test_a_new_identity_is_refused_while_registration_is_closed(self, client, temp_users_file, apple_sign_in):
+        import api.server as api_module
+
+        response = apple_sign_in()
+
+        assert response.status_code == 403
+        assert "Registration is closed" in response.get_json()["error"]
+        assert list(api_module.USERS) == ["testuser"], "no account was created"
+        with client.session_transaction() as session:
+            assert "username" not in session, "and nobody was signed in"
+
+    def test_a_new_identity_becomes_a_user_when_registration_is_open(self, temp_users_file, apple_sign_in, monkeypatch):
+        import api.server as api_module
+
+        monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
+
+        response = apple_sign_in()
+
+        assert response.status_code == 200
+        assert response.get_json()["user"]["role"] == "user"
+
+    def test_the_first_account_is_created_and_is_the_admin(self, temp_users_file, apple_sign_in):
+        import api.server as api_module
+
+        api_module.USERS = {}
+
+        response = apple_sign_in()
+
+        assert response.status_code == 200
+        assert response.get_json()["user"]["role"] == "admin"
+
+    def test_a_linked_identity_still_signs_in_while_registration_is_closed(self, temp_users_file, apple_sign_in):
+        import api.server as api_module
+
+        api_module.USERS["testuser"]["oauth_providers"] = ["apple:known-apple-id"]
+
+        response = apple_sign_in("known-apple-id")
+
+        assert response.status_code == 200
+        assert response.get_json()["user"]["username"] == "testuser"
+
+    def test_a_disabled_account_cannot_sign_in_through_oauth(self, client, temp_users_file, apple_sign_in):
+        import api.server as api_module
+
+        api_module.USERS["testuser"]["oauth_providers"] = ["apple:known-apple-id"]
+        api_module.USERS["testuser"]["enabled"] = False
+
+        response = apple_sign_in("known-apple-id")
+
+        assert response.status_code == 401
+        with client.session_transaction() as session:
+            assert "username" not in session
+
+    def test_google_sign_up_obeys_the_same_rule(self, client, temp_oauth_config, temp_users_file, oauth_state):
+        from unittest.mock import MagicMock, patch
+
+        import api.server as api_module
+
+        token = MagicMock(status_code=200, json=lambda: {"access_token": "t"})
+        userinfo = MagicMock(status_code=200, json=lambda: {"id": "stranger-google-id", "email": "s@example.com"})
+        with patch("requests.post", return_value=token), patch("requests.get", return_value=userinfo):
+            response = client.post(
+                "/api/auth/oauth/google/callback",
+                json={"code": "c", "redirect_uri": "http://localhost/oauth/callback", "state": oauth_state},
+            )
+
+        assert response.status_code == 403
+        assert list(api_module.USERS) == ["testuser"]
 
 
 class TestAppleFormPostRelay:

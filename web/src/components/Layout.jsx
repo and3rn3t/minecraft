@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { path: '/plugins', label: 'Plugins', icon: '🔌', category: 'server' },
   { path: '/datapacks', label: 'Datapacks', icon: '📦', category: 'server' },
   { path: '/config', label: 'Config Files', icon: '📄', category: 'server' },
-  { path: '/files', label: 'File Browser', icon: '📂', category: 'tools' },
+  { path: '/files', label: 'File Browser', icon: '📂', category: 'admin' },
   { path: '/ddns', label: 'Dynamic DNS', icon: '🌐', category: 'tools' },
   { path: '/oracle', label: 'The Oracle', icon: '🔮', category: 'admin' },
   { path: '/api-keys', label: 'API Keys', icon: '🔑', category: 'admin' },

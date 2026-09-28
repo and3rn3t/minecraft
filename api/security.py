@@ -9,7 +9,11 @@ from typing import Optional, Tuple
 
 # Dangerous command patterns that should be blocked
 DANGEROUS_COMMAND_PATTERNS = [
-    r"[\s;&|`$(){}[\]<>]",  # Shell metacharacters
+    # Shell metacharacters. Not whitespace: commands reach the server as a
+    # single argv element (api/rcon.py, or rcon-client.sh's quoted "$command")
+    # and never pass through a shell, and blocking spaces refused every
+    # command that takes an argument ("say hello", "kick alice").
+    r"[;&|`$(){}[\]<>]",
     r"\.\.",  # Path traversal
     r"\/etc\/",  # System directories
     r"\/proc\/",  # System directories
@@ -125,11 +129,12 @@ def sanitize_minecraft_command(command: str) -> Tuple[bool, Optional[str], Optio
         if re.search(pattern, command, re.IGNORECASE):
             return False, None, f"Command contains potentially dangerous pattern: {pattern}"
 
-    # Check for blocked command prefixes
+    # Check for blocked commands. The whole first word is compared: matching
+    # it as a prefix made "su" refuse "summon" and "subtitle".
     first_word = command.split()[0].lower() if command.split() else ""
     for blocked in BLOCKED_COMMAND_PREFIXES:
-        if first_word.startswith(blocked.lower()):
-            return False, None, f"Command prefix '{blocked}' is not allowed"
+        if first_word == blocked.lower():
+            return False, None, f"Command '{blocked}' is not allowed"
 
     # Extract base command (first word) — used as a future hook for whitelist validation
     parts = command.split()

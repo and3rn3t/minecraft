@@ -867,6 +867,12 @@ PERMISSIONS = {
     # Configuration
     "config.view": "View configuration files",
     "config.edit": "Edit configuration files",
+    # Deliberately granted to no role below except admin. The file browser
+    # reads anything under data/, config/, backups/ and scripts/, which is
+    # where every secret lives: users.json, api-keys.json, rcon.conf,
+    # rcon.password in server.properties. While it only needed config.view,
+    # any "user" account or key could read the admin API keys.
+    "files.view": "Browse and download files in the file browser",
     # Player management
     "players.view": "View player list",
     "players.manage": "Manage players (ban/whitelist/op)",
@@ -1067,6 +1073,12 @@ def _csrf_check_failed():
     return not expected or not provided or not secrets.compare_digest(expected, provided)
 
 
+def _account_active(username):
+    """True while the account behind a session or token may still be used."""
+    user = USERS.get(username)
+    return user is not None and user.get("enabled", True)
+
+
 def require_auth(f):
     """Decorator to require user authentication (session, token, or API key)"""
 
@@ -1108,17 +1120,25 @@ def require_auth(f):
         # from the same login. A Bearer token can't be attached by a
         # cross-site page the way a cookie can, so trusting it here doesn't
         # weaken the CSRF protection the cookie path still needs.
+        #
+        # Both user branches re-check that the account still exists and is
+        # enabled. Only password login used to: disabling or deleting a user
+        # left their session cookie and bearer token working until expiry.
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
             username = verify_token(token)
-            if username and username in USERS:
+            if username and _account_active(username):
                 request.user = username
                 request.user_info = USERS.get(username, {})
                 return f(*args, **kwargs)
 
         # Check session
         if "username" in session:
+            if not _account_active(session["username"]):
+                session.pop("username", None)
+                session.pop("csrf_token", None)
+                return jsonify({"error": "Authentication required"}), 401
             if _csrf_check_failed():
                 return jsonify({"error": "Missing or invalid CSRF token"}), 403
             request.user = session.get("username")
@@ -1308,6 +1328,13 @@ def setup_2fa():
         return jsonify({"error": "User not found"}), 404
 
     user = USERS[username]
+
+    # Setup replaces the secret and leaves 2FA off until the new one is
+    # verified, so on an account with 2FA on it used to switch 2FA off with
+    # nothing but a session. Turning it off goes through /2fa/disable, which
+    # asks for the password.
+    if user.get("totp_enabled", False):
+        return jsonify({"error": "2FA is already enabled. Disable it first to set it up again."}), 409
 
     # Generate new secret
     secret = generate_totp_secret()
@@ -1519,6 +1546,57 @@ def _verify_oauth_state(provided_state):
     return bool(expected) and bool(provided_state) and secrets.compare_digest(expected, provided_state)
 
 
+def _oauth_sign_in(provider, oauth_id, email, fallback_name):
+    """Find or create the account for a verified OAuth identity.
+
+    Returns ``(username, None)``, or ``(None, response)`` with the refusal.
+
+    A new identity is an account creation, so it obeys REGISTRATION_ENABLED
+    exactly as /api/auth/register does. It used not to: anyone with a Google
+    or Apple account could give themselves a "user" account on a panel whose
+    registration was closed. The decision and the insert share _users_lock
+    for the same reason register() holds it, so two first sign-ins can't both
+    become the bootstrap admin.
+
+    A disabled account is refused here as it is at password login.
+    """
+    with _users_lock:
+        username = next(
+            (name for name, user in USERS.items() if oauth_id in user.get("oauth_providers", [])),
+            None,
+        )
+
+        if username is None:
+            if USERS and not REGISTRATION_ENABLED:
+                log_audit_event("unknown", "oauth_login_failure", {"provider": provider, "reason": "registration_closed"})
+                return None, (
+                    jsonify({"error": "Registration is closed. Ask an administrator to create your account."}),
+                    403,
+                )
+
+            username_base = email.split("@")[0] if email else fallback_name
+            username = username_base
+            counter = 1
+            while username in USERS:
+                username = f"{username_base}_{counter}"
+                counter += 1
+
+            USERS[username] = {
+                "username": username,
+                "email": email,
+                "oauth_providers": [oauth_id],
+                "role": "admin" if not USERS else "user",
+                "enabled": True,
+                "created": datetime.now(timezone.utc).isoformat(),
+            }
+            save_users()
+        elif not USERS[username].get("enabled", True):
+            log_audit_event(username, "oauth_login_failure", {"provider": provider, "reason": "account_disabled"})
+            return None, (jsonify({"error": "Account disabled"}), 401)
+
+    return username, None
+
+
 @app.route("/api/auth/oauth/<provider>/url", methods=["GET"])
 @auth_rate_limit("30/minute")
 def get_oauth_url(provider):
@@ -1629,42 +1707,9 @@ def google_oauth_callback():
         if not google_id:
             return jsonify({"error": "Invalid user info from Google"}), 400
 
-        # Find or create user
-        username = None
-        oauth_id = f"google:{google_id}"
-
-        # Check if user exists with this OAuth ID
-        for user_key, user_data in USERS.items():
-            if oauth_id in user_data.get("oauth_providers", []):
-                username = user_key
-                break
-
-        # If not found, create new user
-        if not username:
-            if email:
-                username_base = email.split("@")[0]
-            else:
-                username_base = f"google_user_{google_id[:8]}"
-
-            username = username_base
-            counter = 1
-            while username in USERS:
-                username = f"{username_base}_{counter}"
-                counter += 1
-
-            USERS[username] = {
-                "username": username,
-                "email": email,
-                "oauth_providers": [oauth_id],
-                "role": "admin" if len(USERS) == 0 else "user",
-                "enabled": True,
-                "created": datetime.now(timezone.utc).isoformat(),
-            }
-            save_users()
-        else:
-            if oauth_id not in USERS[username].get("oauth_providers", []):
-                USERS[username].setdefault("oauth_providers", []).append(oauth_id)
-                save_users()
+        username, refusal = _oauth_sign_in("google", f"google:{google_id}", email, f"google_user_{google_id[:8]}")
+        if refusal:
+            return refusal
 
         # Create session or token
         session["username"] = username
@@ -1927,40 +1972,9 @@ def apple_oauth_callback():
         if not apple_id:
             return jsonify({"error": "Invalid ID token from Apple"}), 400
 
-        # Find or create user
-        username = None
-        oauth_id = f"apple:{apple_id}"
-
-        for user_key, user_data_store in USERS.items():
-            if oauth_id in user_data_store.get("oauth_providers", []):
-                username = user_key
-                break
-
-        if not username:
-            if email:
-                username_base = email.split("@")[0]
-            else:
-                username_base = f"apple_user_{apple_id[:8]}"
-
-            username = username_base
-            counter = 1
-            while username in USERS:
-                username = f"{username_base}_{counter}"
-                counter += 1
-
-            USERS[username] = {
-                "username": username,
-                "email": email,
-                "oauth_providers": [oauth_id],
-                "role": "admin" if len(USERS) == 0 else "user",
-                "enabled": True,
-                "created": datetime.now(timezone.utc).isoformat(),
-            }
-            save_users()
-        else:
-            if oauth_id not in USERS[username].get("oauth_providers", []):
-                USERS[username].setdefault("oauth_providers", []).append(oauth_id)
-                save_users()
+        username, refusal = _oauth_sign_in("apple", f"apple:{apple_id}", email, f"apple_user_{apple_id[:8]}")
+        if refusal:
+            return refusal
 
         session["username"] = username
         csrf_token = _issue_csrf_token()
@@ -4270,6 +4284,33 @@ def list_config_files():
     return jsonify({"files": files})
 
 
+# Keys whose values are credentials: rcon.password, SECRET_KEY,
+# CLOUDFLARE_API_TOKEN, NOIP_PASSWORD, ANTHROPIC_API_KEY and the like.
+_SECRET_KEY_PATTERN = re.compile(r"pass|secret|token|api[_.-]?key|private[_.-]?key|credential", re.IGNORECASE)
+# `key=value` (.properties, .conf, compose list entries) or `key: value` (YAML)
+_CONFIG_LINE_PATTERN = re.compile(r"^(\s*(?:-\s*)?(?:export\s+)?)([A-Za-z0-9_.\-]+)(\s*[=:]\s*)(\S.*)$")
+REDACTED_VALUE = "********"
+
+
+def redact_config_secrets(content):
+    """Replace credential values in config text, leaving everything else intact.
+
+    Returns ``(content, redacted)``. config.view is held by every role, and
+    these files carry the RCON password, the session signing key and the
+    Cloudflare token; reading them used to be enough to take over the server.
+    """
+    redacted = False
+    lines = []
+    for line in content.split("\n"):
+        match = _CONFIG_LINE_PATTERN.match(line)
+        # Comments never match: "#" is not a key character
+        if match and _SECRET_KEY_PATTERN.search(match.group(2)):
+            line = f"{match.group(1)}{match.group(2)}{match.group(3)}{REDACTED_VALUE}"
+            redacted = True
+        lines.append(line)
+    return "\n".join(lines), redacted
+
+
 @app.route("/api/config/files/<path:filename>", methods=["GET"])
 @require_permission("config.view")
 def get_config_file(filename):
@@ -4299,12 +4340,18 @@ def get_config_file(filename):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
+        # Only config.edit (admin) sees credentials: they are the ones who can
+        # save, so a masked value can never be written back over a real one.
+        redacted = False
+        if not has_permission(request.user, "config.edit"):
+            content, redacted = redact_config_secrets(content)
         return jsonify(
             {
                 "name": filename,
                 "path": str(file_path.relative_to(PROJECT_ROOT)),
                 "content": content,
                 "size": file_path.stat().st_size,
+                "redacted": redacted,
             }
         )
     except Exception as e:
@@ -4603,7 +4650,7 @@ def resolve_allowed_path(path_param):
 
 
 @app.route("/api/files/list", methods=["GET"])
-@require_permission("config.view")
+@require_permission("files.view")
 def list_files():
     """List files and directories in a given path"""
     try:
@@ -4673,7 +4720,7 @@ def list_files():
 
 
 @app.route("/api/files/read", methods=["GET"])
-@require_permission("config.view")
+@require_permission("files.view")
 def read_file():
     """Read file content"""
     try:
@@ -4873,7 +4920,7 @@ def upload_file():
 
 
 @app.route("/api/files/download", methods=["GET"])
-@require_permission("config.view")
+@require_permission("files.view")
 def download_file():
     """Download a file"""
     try:

@@ -737,3 +737,51 @@ class TestAuthAuditLogging:
         assert "user_registered" in written
         assert "newuser" in written
         assert "correcthorsebatterystaple" not in written
+
+
+class TestRevokedAccounts:
+    """Disabling or deleting an account has to end the access it already has.
+
+    Only password login used to check `enabled`, so a disabled or deleted
+    user's session cookie and bearer token kept working until they expired.
+    """
+
+    @pytest.fixture
+    def alice(self, temp_users_file):
+        import api.server as api_module
+
+        api_module.USERS["alice"] = {"username": "alice", "role": "admin", "enabled": True}
+        return api_module.USERS["alice"]
+
+    def _with_session(self, client):
+        with client.session_transaction() as session:
+            session["username"] = "alice"
+            session["csrf_token"] = "csrf"
+
+    def test_an_active_session_works(self, client, alice):
+        self._with_session(client)
+        assert client.get("/api/auth/me").status_code == 200
+
+    def test_disabling_ends_the_session(self, client, alice):
+        self._with_session(client)
+        alice["enabled"] = False
+
+        assert client.get("/api/auth/me").status_code == 401
+        with client.session_transaction() as session:
+            assert "username" not in session, "the dead session is cleared, not just refused"
+
+    def test_deleting_ends_the_session(self, client, alice):
+        import api.server as api_module
+
+        self._with_session(client)
+        del api_module.USERS["alice"]
+
+        assert client.get("/api/auth/me").status_code == 401
+
+    def test_disabling_ends_the_bearer_token(self, client, alice, mock_jwt):
+        headers = {"Authorization": "Bearer token_alice"}
+        assert client.get("/api/auth/me", headers=headers).status_code == 200
+
+        alice["enabled"] = False
+
+        assert client.get("/api/auth/me", headers=headers).status_code == 401
