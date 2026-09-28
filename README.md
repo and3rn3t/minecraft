@@ -154,7 +154,7 @@ The rest install the same way:
 | --- | --- |
 | `minecraft-api.service` | Flask REST API from `api/venv` |
 | `minecraft-web.service` | Makes sure nginx is serving the web panel |
-| `minecraft-backup.timer` | Daily backup at 03:00 |
+| `minecraft-backup.timer` | Backup at 03:00 every other day (odd-numbered days) |
 | `minecraft-update.timer` | Hourly check for a newer server image |
 | `minecraft-deploy.timer` | Every 5 min, deploys the newest green commit on `main` |
 | `minecraft-scheduler.timer` | Every minute, runs due scheduled commands |
