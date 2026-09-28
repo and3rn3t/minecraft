@@ -90,3 +90,10 @@ playwright/.cache/
 # Local CodeQL runs (make codeql)
 .codeql-db/
 codeql-results.sarif
+
+# Written on the Pi by the analytics timer and by every /api/analytics/report
+# request. Tracked, they left the checkout permanently "edited", and the deploy
+# agent refuses to deploy over local edits, so auto-deploy stopped.
+analytics/processed/
+analytics/*.jsonl
+metrics/
