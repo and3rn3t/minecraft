@@ -19,7 +19,12 @@ WorkingDirectory=/home/pi/minecraft-server
 # server every hour whether or not there was anything new, and restarted servers
 # that had been stopped on purpose.
 ExecStart=/home/pi/minecraft-server/scripts/auto-update.sh run
-ExecStartPost=/bin/sh -c 'echo "$(date): Minecraft update check finished" >> /var/log/minecraft-update.log'
+# /var/log/ is root-owned; this unit runs as the unprivileged pi user (see
+# User= below), so writing there failed permission-denied on every run and
+# marked the whole service "Failed" even though auto-update.sh itself
+# always succeeded. logs/, like minecraft-api.service's own log lines
+# above, is inside the checkout and already pi's to write to.
+ExecStartPost=/bin/sh -c 'echo "$(date): Minecraft update check finished" >> /home/pi/minecraft-server/logs/minecraft-update.log'
 User=pi
 Group=pi
 
