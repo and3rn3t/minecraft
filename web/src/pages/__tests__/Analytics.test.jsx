@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../services/api';
@@ -435,7 +435,7 @@ describe('Analytics', () => {
     });
 
     // Fast-forward time to trigger interval
-    vi.advanceTimersByTime(60000);
+    await act(() => vi.advanceTimersByTimeAsync(60000));
 
     await waitFor(() => {
       // Should have been called multiple times (initial + interval)

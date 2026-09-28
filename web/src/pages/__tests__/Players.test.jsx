@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../services/api';
 import { renderWithRouter } from '../../test/utils';
@@ -89,7 +89,7 @@ describe('Players', () => {
     });
 
     // Fast-forward time to trigger interval
-    vi.advanceTimersByTime(5000);
+    await act(() => vi.advanceTimersByTimeAsync(5000));
 
     await waitFor(() => {
       expect(api.api.getPlayers).toHaveBeenCalledTimes(2);

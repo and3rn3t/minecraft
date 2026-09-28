@@ -1,7 +1,7 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../services/api';
-import { renderWithRouter } from '../../test/utils';
+import { renderWithRouter, settle } from '../../test/utils';
 import Dashboard from '../Dashboard';
 
 // Mock the API service
@@ -140,11 +140,12 @@ describe('Dashboard', () => {
     const startButton = buttons.find(
       btn => btn.textContent?.includes('START SERVER') && !btn.textContent?.includes('RESTART')
     );
-    startButton.click();
+    fireEvent.click(startButton);
 
     await waitFor(() => {
       expect(api.api.startServer).toHaveBeenCalled();
     });
+    await settle();
   });
 
   it('disables start button when server is running', async () => {

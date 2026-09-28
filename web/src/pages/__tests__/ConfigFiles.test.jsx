@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../services/api';
-import { renderWithRouter } from '../../test/utils';
+import { renderWithRouter, settle } from '../../test/utils';
 import ConfigFiles from '../ConfigFiles';
 
 vi.mock('../../services/api');
@@ -24,11 +24,12 @@ describe('ConfigFiles', () => {
     });
   });
 
-  it('displays loading state initially', () => {
+  it('displays loading state initially', async () => {
     api.listConfigFiles.mockImplementation(() => new Promise(() => {}));
 
     renderWithRouter(<ConfigFiles />);
     expect(screen.getByText(/loading configuration files/i)).toBeInTheDocument();
+    await settle();
   });
 
   it('displays config file list', async () => {

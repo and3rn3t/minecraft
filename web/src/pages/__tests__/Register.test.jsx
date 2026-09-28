@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../services/api';
-import { renderWithRouter } from '../../test/utils';
+import { renderWithRouter, settle } from '../../test/utils';
 import Register from '../Register';
 
 // Mock API service but not AuthContext - we'll use real AuthProvider
@@ -111,10 +111,11 @@ describe('Register', () => {
     });
   });
 
-  it('has link to login page', () => {
+  it('has link to login page', async () => {
     renderComponent();
     const loginLink = screen.getByText(/Login here/i);
     expect(loginLink).toBeInTheDocument();
     expect(loginLink.closest('a')).toHaveAttribute('href', '/login');
+    await settle();
   });
 });

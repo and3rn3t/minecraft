@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../services/api';
-import { renderWithRouter } from '../../test/utils';
+import { renderWithRouter, settle } from '../../test/utils';
 import Logs from '../Logs';
 
 vi.mock('../../services/api', () => ({
@@ -16,11 +16,12 @@ describe('Logs', () => {
     vi.clearAllMocks();
   });
 
-  it('renders logs page title', () => {
+  it('renders logs page title', async () => {
     api.api.getLogs.mockResolvedValue({ logs: [] });
 
     renderWithRouter(<Logs />);
     expect(screen.getByText(/server logs/i)).toBeInTheDocument();
+    await settle();
   });
 
   it('displays loading state initially', () => {
