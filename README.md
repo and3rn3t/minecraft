@@ -2,7 +2,9 @@
 
 A self-hosted Minecraft server stack tuned for the Raspberry Pi 5 (ARM64): Docker
 deployment, automated and offsite backups, plugin and mod management, multi-world
-support, RCON, a REST API, and a React web admin panel.
+support, RCON, a REST API, and a React web admin panel — plus a layer of family
+gameplay features (graves, lucky blocks, bedtime, advancements, a Claude-powered
+chat companion) built on an event bus that reads the server log.
 
 Works on x86_64 too — the Pi is just what it is optimised for.
 
@@ -11,11 +13,14 @@ Works on x86_64 too — the Pi is just what it is optimised for.
 - 🎮 Tuned for Raspberry Pi 5 (ARM64), multi-arch images
 - 🐳 Docker Compose deployment with systemd units for boot-time start
 - 💾 Scheduled backups with retention, plus offsite backup to R2 / S3 / B2
-- 🔌 Plugin and mod management (Paper, Spigot, Fabric, Forge)
+- 🔌 Vanilla, Paper, Spigot and Fabric server types; plugin and mod management
+  (Forge and Quilt mods are detected)
 - 🌍 Multi-world management, switching, and per-world backups
 - 🖥️ REST API + React admin panel with RBAC, API keys and OAuth
 - 📊 Analytics, metrics, log rotation and search
 - 🔄 Version checking, compatibility checks and guided updates
+- 🚀 Auto-deploy: the Pi pulls the newest green commit on `main` every 5 minutes
+- 🧒 Family gameplay features on an event bus — see [below](#gameplay-features)
 
 ## Requirements
 
@@ -31,7 +36,7 @@ Works on x86_64 too — the Pi is just what it is optimised for.
 git clone https://github.com/and3rn3t/minecraft.git ~/minecraft-server
 cd ~/minecraft-server
 
-./scripts/setup-rpi.sh      # installs Docker, dependencies, permissions
+./scripts/setup-rpi.sh      # installs Docker, dependencies, permissions, creates .env
 # log out and back in so the docker group takes effect
 
 ./scripts/manage.sh start   # start the server
@@ -39,6 +44,10 @@ cd ~/minecraft-server
 ```
 
 Connect from Minecraft using the Pi's address on port `25565`.
+
+> The systemd units in `systemd/` assume the checkout lives at
+> `/home/pi/minecraft-server`. Clone there as the `pi` user, or edit the paths in
+> the units before installing them.
 
 Full walkthrough, including flashing the SD card: **[docs/INSTALL.md](docs/INSTALL.md)**.
 Deploying the API and web panel as well: **[docs/RPI5_FULL_DEPLOYMENT.md](docs/RPI5_FULL_DEPLOYMENT.md)**.
@@ -85,7 +94,8 @@ Everything is listed in **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)**.
 
 ### Server properties
 
-Edit `server.properties`, then `./scripts/manage.sh restart`:
+Use the properties manager (it validates values and keeps a backup), or edit
+`data/server.properties` directly, then `./scripts/manage.sh restart`:
 
 ```properties
 max-players=10
@@ -97,11 +107,12 @@ motd=My Minecraft Server
 
 ### Memory and version
 
-Both come from environment variables read by `docker-compose.yml`, so set them in a
-`.env` file next to it rather than editing the compose file:
+Both come from environment variables read by `docker-compose.yml`, so set them in
+`.env` (start from `.env.example`) rather than editing the compose file:
 
 ```bash
 MINECRAFT_VERSION=26.3
+SERVER_TYPE=vanilla        # or paper, spigot, fabric
 MEMORY_MIN=1G              # 2G on an 8GB Pi
 MEMORY_MAX=2G              # 4G on an 8GB Pi
 CONTAINER_MEMORY_LIMIT=3G  # must exceed MEMORY_MAX by ~1G
@@ -119,6 +130,7 @@ More examples: **[docs/CONFIGURATION_EXAMPLES.md](docs/CONFIGURATION_EXAMPLES.md
 ./scripts/manage.sh backup                   # one-off, into backups/
 ./scripts/install-backup-timer.sh            # scheduled via systemd timer
 ./scripts/cloud-backup-r2.sh upload          # offsite (also -s3 and -b2 variants)
+./scripts/cloud-backup-r2.sh download        # fetch an offsite backup back
 ```
 
 To restore, stop the server, extract the archive into `data/`, and start again.
@@ -136,14 +148,31 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now minecraft.service
 ```
 
-`minecraft-api.service`, `minecraft-web.service`, the backup timer and the update
-timer install the same way. See **[docs/DOCKER_BOOT_SETUP.md](docs/DOCKER_BOOT_SETUP.md)**.
+The rest install the same way:
+
+| Unit | What it does |
+| --- | --- |
+| `minecraft-api.service` | Flask REST API from `api/venv` |
+| `minecraft-web.service` | Makes sure nginx is serving the web panel |
+| `minecraft-backup.timer` | Daily backup at 03:00 |
+| `minecraft-update.timer` | Hourly check for a newer server image |
+| `minecraft-deploy.timer` | Every 5 min, deploys the newest green commit on `main` |
+| `minecraft-scheduler.timer` | Every minute, runs due scheduled commands |
+| `minecraft-analytics.timer` | Every 5 min, collects analytics |
+
+See **[docs/DOCKER_BOOT_SETUP.md](docs/DOCKER_BOOT_SETUP.md)** and
+**[docs/AUTO_DEPLOYMENT_SETUP.md](docs/AUTO_DEPLOYMENT_SETUP.md)**.
 
 ## Remote Access
 
 To let friends connect from outside your network, forward TCP `25565` to the Pi.
 For a stable hostname on a changing home IP, use the DDNS updater —
 **[docs/DYNAMIC_DNS.md](docs/DYNAMIC_DNS.md)**.
+
+Don't port-forward the web panel or API. Expose them through a Cloudflare Tunnel
+instead (`config/cloudflared-config.yml.example`), which terminates TLS and keeps
+the Pi's ports closed — see
+**[docs/SECURITY_HARDENING.md](docs/SECURITY_HARDENING.md#cloudflare-tunnel-deployment)**.
 
 ## Web Panel & API
 
@@ -154,9 +183,28 @@ For a stable hostname on a changing home IP, use the DDNS updater —
 ```
 
 The panel covers server control, players, worlds, backups, plugins, logs, the
-console, analytics, config editing, users and API keys. See
+console, analytics, config editing, users and API keys, plus pages for the
+gameplay features. Access is role-based ([RBAC](docs/RBAC.md)) with password,
+API-key or Google/Apple sign-in ([OAuth](docs/OAUTH_SETUP.md)). See
 **[docs/WEB_INTERFACE.md](docs/WEB_INTERFACE.md)** and **[docs/API.md](docs/API.md)**
 (the OpenAPI spec is `api/openapi.yaml`).
+
+## Gameplay Features
+
+Built for a family server. Each one is a subscriber on the
+[event bus](docs/EVENT_BUS.md), which turns the server log into typed events.
+
+| Feature | What it does |
+| --- | --- |
+| [Hall of Deaths](docs/HALL_OF_DEATHS.md) | An epitaph for every death, in game and on the dashboard |
+| [Graves](docs/GRAVES.md) | Dropped items go into a labeled chest instead of scattering |
+| [Pet Cemetery](docs/PET_CEMETERY.md) | Obituaries and gravestones for named pets |
+| [Bedtime](docs/BEDTIME.md) | A scheduled, warned end to the evening |
+| [Lucky Blocks](docs/LUCKY_BLOCKS.md) | Craft a player head, break it, roll a loot table |
+| [Advancements](docs/ADVANCEMENTS.md) | A custom family advancement tree |
+| [Player Stats](docs/PLAYER_STATS.md) | Counters read from the world's own stats files |
+| [Datapacks](docs/DATAPACKS.md) | Install, enable and reload vanilla datapacks |
+| [The Oracle](docs/ORACLE.md) | A Claude-powered companion that answers in chat and hands out quests |
 
 ## Development
 
@@ -164,10 +212,16 @@ console, analytics, config editing, users and API keys. See
 git clone https://github.com/and3rn3t/minecraft.git
 cd minecraft
 
+make hooks    # install pre-commit hooks (once per clone)
+make doctor   # which supporting tools (gitleaks, actionlint, codeql…) are missing
 make lint     # shellcheck, eslint, python, yaml, compose validation
-make test     # pytest + vitest + syntax checks
-make coverage # coverage report
+make test     # syntax checks + pytest + vitest
+make ci       # everything the GitHub workflows run — do this before a PR
 ```
+
+Browser E2E runs with `make test-playwright` (or `make test-visual` for the
+screenshot suite in the Playwright container) and shell tests with
+`make bash-tests`. The web panel uses **npm**, not pnpm.
 
 - **[AGENTS.md](AGENTS.md)** — conventions, stack, commands (also what AI assistants read)
 - **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** — setup and workflow
@@ -187,6 +241,8 @@ make coverage # coverage report
 | Plugins | [docs/PLUGIN_MANAGEMENT.md](docs/PLUGIN_MANAGEMENT.md) |
 | Multiple worlds | [docs/MULTI_WORLD.md](docs/MULTI_WORLD.md) |
 | REST API | [docs/API.md](docs/API.md) |
+| Exposing it safely | [docs/SECURITY_HARDENING.md](docs/SECURITY_HARDENING.md) |
+| Auto-deploy | [docs/AUTO_DEPLOYMENT_SETUP.md](docs/AUTO_DEPLOYMENT_SETUP.md) |
 | Pi tuning | [docs/RASPBERRY_PI_OPTIMIZATIONS.md](docs/RASPBERRY_PI_OPTIMIZATIONS.md) |
 | What is planned next | [docs/ROADMAP.md](docs/ROADMAP.md) |
 | Version history | [CHANGELOG.md](CHANGELOG.md) |
