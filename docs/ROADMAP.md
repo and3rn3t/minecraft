@@ -155,6 +155,9 @@ The backup code is finished; the Pi is not running it.
   touched `systemd/` would have installed it broken. Fixed in the repo (it
   now names `pi` like every other unit); the timer also had a second
   `OnCalendar=daily` line, which would have run a second backup at midnight.
+  And `backup-scheduler.sh` only backed up when the clock read exactly
+  `03:00`, which the timer's randomized delay and catch-up runs rarely hit;
+  that check now applies only when cron runs it, not systemd.
 - Enable it: `sudo systemctl daemon-reload && sudo systemctl enable --now
   minecraft-backup.timer`, then check `systemctl list-timers` and the next
   morning's `logs/backup-scheduler.log`.
@@ -162,11 +165,14 @@ The backup code is finished; the Pi is not running it.
 ### O3. Back up the secrets, not just the world — Green
 
 `manage.sh backup` tars `./data` only. Everything that makes the admin panel
-work lives outside it and exists only on the Pi: `config/users.json`,
-`config/api-keys.json` (with the 2FA secrets), `config/oauth.conf`,
-`~/.cloudflared/` (tunnel credentials), and the `minecraft-api.service`
-systemd override that sets `ALLOWED_ORIGINS`. Rebuilding those after an SD
-card failure means re-creating every account and re-registering the tunnel.
+work lives outside it and exists only on the Pi: `config/users.json`
+(accounts and their 2FA secrets), `config/api-keys.json`, `config/api.conf`
+(the `SECRET_KEY` that signs sessions and API tokens), `config/oauth.conf`,
+`config/rcon.conf`, `~/.cloudflared/` (tunnel credentials),
+`~/playit/secret.toml` (the playit.gg agent's claim), and the
+`minecraft-api.service` systemd override that sets `ALLOWED_ORIGINS`.
+Rebuilding those after an SD card failure means re-creating every account,
+re-claiming the playit agent and re-registering the tunnel.
 
 Add a small, separate, encrypted config archive (these are secrets, so not in
 the world tarball that goes to R2 in the clear) — `age` or `gpg` with a key
