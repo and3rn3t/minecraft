@@ -16,7 +16,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
-from api.server import app  # noqa: E402
+
+app = api_module.app
 
 CSRF = "test-csrf-token"
 PASSWORD = "correct horse battery"
@@ -137,7 +138,7 @@ class TestVerify:
 
         assert _stored(users_file)["totp_enabled"] is True
         status = logged_in.get("/api/auth/2fa/status").get_json()
-        assert status == {"success": True, "enabled": True, "configured": True}
+        assert status == {"success": True, "enabled": True, "configured": True, "has_password": True}
 
 
 class TestLoginWith2fa:
@@ -195,3 +196,52 @@ class TestDisable:
         assert stored["totp_enabled"] is False
         assert "totp_secret" not in stored
         assert logged_in.get("/api/auth/2fa/status").get_json()["configured"] is False
+
+
+class TestAccountsWithoutAPassword:
+    """Accounts created by Google or Apple sign-in have no password_hash.
+
+    Disabling 2FA used to index it and fail with a 500, so an account in that
+    state could neither turn 2FA off nor, once setup refused while 2FA was on,
+    replace it.
+    """
+
+    @pytest.fixture
+    def oauth_only(self, logged_in):
+        del api_module.USERS["alice"]["password_hash"]
+        return logged_in
+
+    def test_setup_explains_that_the_provider_handles_it(self, oauth_only):
+        response = _post(oauth_only, "/api/auth/2fa/setup")
+
+        assert response.status_code == 400
+        assert "Google or Apple" in response.get_json()["error"]
+        assert "totp_secret" not in api_module.USERS["alice"]
+
+    def test_status_says_there_is_no_password(self, oauth_only):
+        assert oauth_only.get("/api/auth/2fa/status").get_json()["has_password"] is False
+
+    @pytest.fixture
+    def stuck_with_2fa(self, oauth_only):
+        """2FA left on from before setup refused these accounts"""
+        secret = pyotp.random_base32()
+        api_module.USERS["alice"].update(totp_secret=secret, totp_enabled=True)
+        return secret
+
+    def test_disable_needs_a_code(self, oauth_only, stuck_with_2fa):
+        response = _post(oauth_only, "/api/auth/2fa/disable", {"password": "anything"})
+        assert response.status_code == 400
+
+    def test_disable_refuses_a_wrong_code(self, oauth_only, stuck_with_2fa):
+        response = _post(oauth_only, "/api/auth/2fa/disable", {"token": "000000"})
+
+        assert response.status_code == 401
+        assert api_module.USERS["alice"]["totp_enabled"] is True
+
+    def test_disable_accepts_a_current_code(self, oauth_only, stuck_with_2fa):
+        code = pyotp.TOTP(stuck_with_2fa).now()
+
+        response = _post(oauth_only, "/api/auth/2fa/disable", {"token": code})
+
+        assert response.status_code == 200
+        assert api_module.USERS["alice"]["totp_enabled"] is False

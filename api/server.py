@@ -1336,6 +1336,17 @@ def setup_2fa():
     if user.get("totp_enabled", False):
         return jsonify({"error": "2FA is already enabled. Disable it first to set it up again."}), 409
 
+    # 2FA is a second step of password login. An account that signs in only
+    # through Google or Apple never reaches that step, so a code would protect
+    # nothing; that sign-in's own second factor lives with the provider.
+    if not user.get("password_hash"):
+        return (
+            jsonify(
+                {"error": "This account signs in with Google or Apple. Turn on 2-step verification with that provider."}
+            ),
+            400,
+        )
+
     # Generate new secret
     secret = generate_totp_secret()
     user["totp_secret"] = secret
@@ -1409,17 +1420,26 @@ def disable_2fa():
         return jsonify({"error": "User not found"}), 404
 
     data = request.get_json() or {}
-    password = data.get("password")
-
-    if not password:
-        return jsonify({"error": "Password required to disable 2FA"}), 400
-
     user = USERS[username]
 
-    # Verify password
-    if not verify_password(password, user["password_hash"]):
-        log_audit_event(username, "2fa_disable_failed", {"reason": "invalid_password"})
-        return jsonify({"error": "Invalid password"}), 401
+    # Confirmed with the password; an account with none (created by Google or
+    # Apple sign-in) confirms with a current 2FA code instead. It used to
+    # index user["password_hash"] and fail with a 500, leaving 2FA stuck on.
+    if user.get("password_hash"):
+        password = data.get("password")
+        if not password:
+            return jsonify({"error": "Password required to disable 2FA"}), 400
+        if not verify_password(password, user["password_hash"]):
+            log_audit_event(username, "2fa_disable_failed", {"reason": "invalid_password"})
+            return jsonify({"error": "Invalid password"}), 401
+    else:
+        token = data.get("token")
+        if not token:
+            return jsonify({"error": "A current 2FA code is required to disable 2FA"}), 400
+        secret = user.get("totp_secret")
+        if not secret or not TOTP_AVAILABLE or not verify_totp(secret, str(token)):
+            log_audit_event(username, "2fa_disable_failed", {"reason": "invalid_2fa_token"})
+            return jsonify({"error": "Invalid 2FA code"}), 401
 
     # Disable 2FA
     user["totp_enabled"] = False
@@ -1452,6 +1472,8 @@ def get_2fa_status():
             "success": True,
             "enabled": user.get("totp_enabled", False),
             "configured": "totp_secret" in user,
+            # Tells the UI which confirmation /2fa/disable wants
+            "has_password": bool(user.get("password_hash")),
         }
     )
 
@@ -1589,7 +1611,11 @@ def _oauth_sign_in(provider, oauth_id, email, fallback_name):
                 "enabled": True,
                 "created": datetime.now(timezone.utc).isoformat(),
             }
-            save_users()
+            # As in register(): an account that could not be saved would sign
+            # in now and vanish on the next restart.
+            if not save_users():
+                del USERS[username]
+                return None, (jsonify({"error": "Failed to save user"}), 500)
         elif not USERS[username].get("enabled", True):
             log_audit_event(username, "oauth_login_failure", {"provider": provider, "reason": "account_disabled"})
             return None, (jsonify({"error": "Account disabled"}), 401)
@@ -4287,9 +4313,16 @@ def list_config_files():
 # Keys whose values are credentials: rcon.password, SECRET_KEY,
 # CLOUDFLARE_API_TOKEN, NOIP_PASSWORD, ANTHROPIC_API_KEY and the like.
 _SECRET_KEY_PATTERN = re.compile(r"pass|secret|token|api[_.-]?key|private[_.-]?key|credential", re.IGNORECASE)
-# `key=value` (.properties, .conf, compose list entries) or `key: value` (YAML)
-_CONFIG_LINE_PATTERN = re.compile(r"^(\s*(?:-\s*)?(?:export\s+)?)([A-Za-z0-9_.\-]+)(\s*[=:]\s*)(\S.*)$")
+# `key=value` (.properties, .conf, compose list entries) or `key: value` (YAML).
+# The value may be empty: in YAML that opens a nested block.
+_CONFIG_LINE_PATTERN = re.compile(r"^(\s*(?:-\s*)?(?:export\s+)?)([A-Za-z0-9_.\-]+)(\s*[=:])(\s*)(.*)$")
+# A YAML block scalar header: `|`, `>`, optionally with chomping/indent indicators
+_YAML_BLOCK_SCALAR = re.compile(r"^[|>][0-9+-]*\s*(#.*)?$")
 REDACTED_VALUE = "********"
+
+
+def _indent(line):
+    return len(line) - len(line.lstrip())
 
 
 def redact_config_secrets(content):
@@ -4298,16 +4331,53 @@ def redact_config_secrets(content):
     Returns ``(content, redacted)``. config.view is held by every role, and
     these files carry the RCON password, the session signing key and the
     Cloudflare token; reading them used to be enough to take over the server.
+
+    A value can span lines, and all of it is withheld: a YAML block scalar
+    (``KEY: |``) or nested block under ``KEY:``, whose lines are those indented
+    deeper than the key; or a quoted .conf value (``KEY="...``) running to its
+    closing quote. Those continuation lines are dropped, leaving the masked key.
     """
     redacted = False
     lines = []
+    block_indent = None  # indent of a masked key whose indented block is being skipped
+    open_quote = None  # quote character of a masked value still running on
+
     for line in content.split("\n"):
+        if open_quote is not None:
+            if open_quote in line:
+                open_quote = None
+            continue
+
+        if block_indent is not None:
+            if not line.strip():
+                continue
+            if _indent(line) > block_indent:
+                redacted = True
+                continue
+            block_indent = None
+
         match = _CONFIG_LINE_PATTERN.match(line)
         # Comments never match: "#" is not a key character
         if match and _SECRET_KEY_PATTERN.search(match.group(2)):
-            line = f"{match.group(1)}{match.group(2)}{match.group(3)}{REDACTED_VALUE}"
+            prefix, key, separator, space, value = match.groups()
+            value = value.strip()
+            if not value or _YAML_BLOCK_SCALAR.match(value):
+                # The value is whatever is indented below, if anything is
+                block_indent = _indent(line)
+                if value:
+                    lines.append(f"{prefix}{key}{separator}{space}{REDACTED_VALUE}")
+                    redacted = True
+                else:
+                    lines.append(line)
+                continue
+            if value[0] in "\"'" and value[1:].find(value[0]) == -1:
+                open_quote = value[0]
+            lines.append(f"{prefix}{key}{separator}{space}{REDACTED_VALUE}")
             redacted = True
+            continue
+
         lines.append(line)
+
     return "\n".join(lines), redacted
 
 
@@ -4584,7 +4654,12 @@ def get_ddns_config():
             return jsonify({"error": "DDNS configuration not found"}), 404
 
         content = config_file.read_text()
-        return jsonify({"content": content, "is_example": False}), 200
+        # ddns.conf holds the Cloudflare token and the No-IP and DuckDNS
+        # credentials; mask them exactly as the config-file viewer does.
+        redacted = False
+        if not has_permission(request.user, "config.edit"):
+            content, redacted = redact_config_secrets(content)
+        return jsonify({"content": content, "is_example": False, "redacted": redacted}), 200
     except Exception as e:
         app.logger.error(f"Failed to read DDNS config: {e}")
         return jsonify({"error": "Internal server error"}), 500

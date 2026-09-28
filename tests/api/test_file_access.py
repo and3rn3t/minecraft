@@ -140,3 +140,52 @@ class TestRedactConfigSecrets:
     )
     def test_everything_else_is_left_alone(self, line):
         assert api_module.redact_config_secrets(line) == (line, False)
+
+    @pytest.mark.parametrize(
+        "template, expected",
+        [
+            # YAML block scalars: every line of the value is withheld
+            (
+                "environment:\n  SECRET_KEY: |\n    {v}\n    {v}\n  MEMORY: 4G",
+                "environment:\n  SECRET_KEY: ********\n  MEMORY: 4G",
+            ),
+            ("PRIVATE_KEY: >-\n  {v}\n  {v}\nport: 25565", "PRIVATE_KEY: ********\nport: 25565"),
+            # A nested block under an empty sensitive key
+            ("credentials:\n  - {v}\n  - {v}\nport: 25565", "credentials:\nport: 25565"),
+            # A quoted .conf value running over several lines
+            ('APPLE_PRIVATE_KEY="-----BEGIN\n{v}\n-----END"\nNEXT=1', "APPLE_PRIVATE_KEY=********\nNEXT=1"),
+        ],
+    )
+    def test_values_spanning_lines_are_withheld_entirely(self, template, expected):
+        content = template.format(v=PLACEHOLDER)
+
+        result, redacted = api_module.redact_config_secrets(content)
+
+        assert PLACEHOLDER not in result
+        assert (result, redacted) == (expected, True)
+
+
+class TestDdnsConfigMasksSecrets:
+    """/api/ddns/config returned ddns.conf raw to config.view, which let every
+    role read the Cloudflare token around the config viewer's masking."""
+
+    @pytest.fixture
+    def ddns_conf(self, tree, monkeypatch):
+        path = tree / "config" / "ddns.conf"
+        path.write_text(f"DDNS_PROVIDER=cloudflare\nCLOUDFLARE_API_TOKEN={PLACEHOLDER}\n")
+        monkeypatch.setattr(api_module, "DDNS_CONFIG_FILE", path)
+        return path
+
+    def test_a_user_sees_the_token_masked(self, client, ddns_conf, key_for):
+        data = client.get("/api/ddns/config", headers=key_for("user")).get_json()
+
+        assert PLACEHOLDER not in data["content"]
+        assert "CLOUDFLARE_API_TOKEN=********" in data["content"]
+        assert "DDNS_PROVIDER=cloudflare" in data["content"]
+        assert data["redacted"] is True
+
+    def test_an_admin_sees_it_unmasked(self, client, ddns_conf, key_for):
+        data = client.get("/api/ddns/config", headers=key_for("admin")).get_json()
+
+        assert PLACEHOLDER in data["content"]
+        assert data["redacted"] is False

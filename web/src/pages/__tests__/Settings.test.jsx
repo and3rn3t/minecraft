@@ -94,6 +94,31 @@ describe('Settings', () => {
     });
   });
 
+  describe('an account with no password (Google or Apple sign-in)', () => {
+    it('explains that 2FA is set up with the provider instead of offering setup', async () => {
+      api.api.get2FAStatus.mockResolvedValue({ success: true, enabled: false, has_password: false });
+      renderWithRouter(<Settings />);
+
+      expect(await screen.findByText(/set up with that provider/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /setup 2fa/i })).not.toBeInTheDocument();
+    });
+
+    it('disables 2FA with a current code rather than a password', async () => {
+      api.api.get2FAStatus.mockResolvedValue({ success: true, enabled: true, has_password: false });
+      api.api.disable2FA.mockResolvedValue({ success: true });
+      const user = userEvent.setup();
+      renderWithRouter(<Settings />);
+
+      expect(await screen.findByText('ENABLED')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/current 2fa code/i), '12ab3456');
+      await user.click(screen.getByRole('button', { name: /disable 2fa/i }));
+
+      await waitFor(() => expect(api.api.disable2FA).toHaveBeenCalledWith(undefined, '123456'));
+    });
+  });
+
   it('saves and removes the API key in localStorage', async () => {
     const user = userEvent.setup();
     renderWithRouter(<Settings />);

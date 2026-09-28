@@ -12,7 +12,9 @@ import pytest
 PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.server import app
+import api.server as api_module  # noqa: E402
+
+app = api_module.app
 
 
 @pytest.fixture
@@ -29,18 +31,22 @@ def temp_users_file(tmp_path, monkeypatch):
     users_file = tmp_path / "config" / "users.json"
     users_file.parent.mkdir(parents=True, exist_ok=True)
 
-    import api.server as api_module
-
     monkeypatch.setattr(api_module, "USERS_FILE", users_file)
-    api_module.USERS = {
-        "testuser": {
-            "username": "testuser",
-            "role": "admin",
-            "email": "test@example.com",
-            "oauth_providers": [],
-            "enabled": True,
-        }
-    }
+    # monkeypatch, not assignment, so the users are gone after the test; left
+    # behind they closed registration for test_auth.py when it ran later.
+    monkeypatch.setattr(
+        api_module,
+        "USERS",
+        {
+            "testuser": {
+                "username": "testuser",
+                "role": "admin",
+                "email": "test@example.com",
+                "oauth_providers": [],
+                "enabled": True,
+            }
+        },
+    )
 
     return users_file
 
@@ -67,8 +73,6 @@ def temp_oauth_config(tmp_path, monkeypatch):
     """Create temporary OAuth config"""
     oauth_config_file = tmp_path / "config" / "oauth.conf"
     oauth_config_file.parent.mkdir(parents=True, exist_ok=True)
-
-    import api.server as api_module
 
     monkeypatch.setattr(api_module, "OAUTH_CONFIG_FILE", oauth_config_file)
     monkeypatch.setattr(
@@ -108,8 +112,6 @@ class TestOAuthURL:
 
     def test_get_oauth_url_google_not_configured(self, client):
         """Get OAuth URL returns error if Google not configured"""
-        import api.server as api_module
-
         api_module.OAUTH_CONFIG["google"]["client_id"] = ""
 
         response = client.get("/api/auth/oauth/google/url?redirect_uri=http://localhost/callback")
@@ -200,8 +202,6 @@ class TestOAuthUnlink:
 
     def test_unlink_oauth_prevents_last_method(self, client, temp_users_file, mock_auth_session, monkeypatch):
         """Unlink OAuth account prevents unlinking last auth method"""
-        import api.server as api_module
-
         # User has only OAuth, no password
         api_module.USERS["testuser"] = {
             "username": "testuser",
@@ -274,8 +274,6 @@ class TestVerifyAppleIdToken:
     """
 
     def test_returns_none_when_apple_not_configured(self, monkeypatch):
-        import api.server as api_module
-
         monkeypatch.setitem(api_module.OAUTH_CONFIG["apple"], "client_id", "")
         assert api_module.verify_apple_id_token("whatever") is None
 
@@ -285,8 +283,6 @@ class TestVerifyAppleIdToken:
         even though its claims look legitimate. Uses two distinct keypairs --
         one for the attacker's forged signature, one served as "Apple's" key
         -- so this fails closed unless the signatures genuinely mismatch."""
-        import api.server as api_module
-
         attacker_private_pem, _ = _generate_rsa_keypair()
         _, real_public_pem = _generate_rsa_keypair()
         forged_token = _sign_rs256(
@@ -299,14 +295,10 @@ class TestVerifyAppleIdToken:
         assert api_module.verify_apple_id_token(forged_token) is None
 
     def test_rejects_unreachable_or_unknown_key(self, temp_oauth_config, monkeypatch):
-        import api.server as api_module
-
         monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
         assert api_module.verify_apple_id_token("not-even-a-real-jwt") is None
 
     def test_accepts_correctly_signed_token(self, temp_oauth_config, rsa_keypair, monkeypatch):
-        import api.server as api_module
-
         private_pem, public_pem = rsa_keypair
         token = _sign_rs256(
             private_pem,
@@ -319,8 +311,6 @@ class TestVerifyAppleIdToken:
         assert decoded["sub"] == "real-apple-user-id"
 
     def test_rejects_wrong_audience(self, temp_oauth_config, rsa_keypair, monkeypatch):
-        import api.server as api_module
-
         private_pem, public_pem = rsa_keypair
         token = _sign_rs256(
             private_pem,
@@ -332,8 +322,6 @@ class TestVerifyAppleIdToken:
 
     def test_rejects_expired_token(self, temp_oauth_config, rsa_keypair, monkeypatch):
         import time
-
-        import api.server as api_module
 
         private_pem, public_pem = rsa_keypair
         token = _sign_rs256(
@@ -367,8 +355,6 @@ class TestAppleOAuthCallback:
     """Integration tests for POST /api/auth/oauth/apple/callback."""
 
     def test_callback_rejects_forged_token(self, client, temp_oauth_config, temp_users_file, oauth_state, monkeypatch):
-        import api.server as api_module
-
         monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
 
         response = client.post(
@@ -389,8 +375,6 @@ class TestAppleOAuthCallback:
     def test_callback_accepts_correctly_signed_token(
         self, client, temp_oauth_config, temp_users_file, oauth_state, rsa_keypair, monkeypatch
     ):
-        import api.server as api_module
-
         private_pem, public_pem = rsa_keypair
         token = _sign_rs256(
             private_pem,
@@ -420,8 +404,6 @@ class TestOAuthSignUpPolicy:
 
     @pytest.fixture
     def apple_sign_in(self, client, temp_oauth_config, rsa_keypair, monkeypatch):
-        import api.server as api_module
-
         private_pem, public_pem = rsa_keypair
         monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
 
@@ -442,8 +424,6 @@ class TestOAuthSignUpPolicy:
         return sign_in
 
     def test_a_new_identity_is_refused_while_registration_is_closed(self, client, temp_users_file, apple_sign_in):
-        import api.server as api_module
-
         response = apple_sign_in()
 
         assert response.status_code == 403
@@ -453,8 +433,6 @@ class TestOAuthSignUpPolicy:
             assert "username" not in session, "and nobody was signed in"
 
     def test_a_new_identity_becomes_a_user_when_registration_is_open(self, temp_users_file, apple_sign_in, monkeypatch):
-        import api.server as api_module
-
         monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
 
         response = apple_sign_in()
@@ -463,8 +441,6 @@ class TestOAuthSignUpPolicy:
         assert response.get_json()["user"]["role"] == "user"
 
     def test_the_first_account_is_created_and_is_the_admin(self, temp_users_file, apple_sign_in):
-        import api.server as api_module
-
         api_module.USERS = {}
 
         response = apple_sign_in()
@@ -473,8 +449,6 @@ class TestOAuthSignUpPolicy:
         assert response.get_json()["user"]["role"] == "admin"
 
     def test_a_linked_identity_still_signs_in_while_registration_is_closed(self, temp_users_file, apple_sign_in):
-        import api.server as api_module
-
         api_module.USERS["testuser"]["oauth_providers"] = ["apple:known-apple-id"]
 
         response = apple_sign_in("known-apple-id")
@@ -483,8 +457,6 @@ class TestOAuthSignUpPolicy:
         assert response.get_json()["user"]["username"] == "testuser"
 
     def test_a_disabled_account_cannot_sign_in_through_oauth(self, client, temp_users_file, apple_sign_in):
-        import api.server as api_module
-
         api_module.USERS["testuser"]["oauth_providers"] = ["apple:known-apple-id"]
         api_module.USERS["testuser"]["enabled"] = False
 
@@ -494,10 +466,23 @@ class TestOAuthSignUpPolicy:
         with client.session_transaction() as session:
             assert "username" not in session
 
+    def test_an_account_that_cannot_be_saved_is_not_signed_in(
+        self, client, temp_users_file, apple_sign_in, monkeypatch
+    ):
+        """As with password registration: signing in to an account that was
+        never written down would work until the next restart, then vanish."""
+        monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
+        monkeypatch.setattr(api_module, "save_users", lambda: False)
+
+        response = apple_sign_in()
+
+        assert response.status_code == 500
+        assert list(api_module.USERS) == ["testuser"], "the unsaved account is rolled back"
+        with client.session_transaction() as session:
+            assert "username" not in session
+
     def test_google_sign_up_obeys_the_same_rule(self, client, temp_oauth_config, temp_users_file, oauth_state):
         from unittest.mock import MagicMock, patch
-
-        import api.server as api_module
 
         token = MagicMock(status_code=200, json=lambda: {"access_token": "t"})
         userinfo = MagicMock(status_code=200, json=lambda: {"id": "stranger-google-id", "email": "s@example.com"})

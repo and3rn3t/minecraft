@@ -405,8 +405,10 @@ export const api = {
     return response.data;
   },
 
-  async disable2FA(password) {
-    const response = await apiClient.post('/auth/2fa/disable', { password });
+  // Accounts with a password confirm with it; accounts created by Google or
+  // Apple sign-in have none and confirm with a current 2FA code instead.
+  async disable2FA(password, token) {
+    const response = await apiClient.post('/auth/2fa/disable', { password, token });
     return response.data;
   },
 

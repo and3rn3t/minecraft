@@ -2,6 +2,7 @@
 Pytest configuration for API tests
 """
 
+import copy
 import json
 import subprocess
 import sys
@@ -24,6 +25,28 @@ from tests.api.factories import (
     create_server_properties,
     create_user_data,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_accounts():
+    """Give every test the accounts and API keys it started with.
+
+    Many tests assign api.server.USERS or API_KEYS outright rather than through
+    monkeypatch, and the value outlived them: a test left users behind, which
+    closed registration for whichever test ran next, so results depended on
+    file order. Restoring the same objects (not copies of the names) keeps any
+    module that imported them by reference consistent.
+    """
+    import api.server as api_module
+
+    users, keys = api_module.USERS, api_module.API_KEYS
+    saved_users, saved_keys = copy.deepcopy(users), copy.deepcopy(keys)
+    yield
+    users.clear()
+    users.update(saved_users)
+    keys.clear()
+    keys.update(saved_keys)
+    api_module.USERS, api_module.API_KEYS = users, keys
 
 
 @pytest.fixture(autouse=True)
