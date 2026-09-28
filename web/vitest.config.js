@@ -12,20 +12,33 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.js'],
+    pool: 'vmThreads',
+    setupFiles: ['./src/test/vm-globals.js', './src/test/setup.js'],
     testMatch: ['**/__tests__/**/*.test.{js,jsx}', '**/test/**/*.test.{js,jsx}'],
     // Exclude Playwright E2E tests
     exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**', '**/*.spec.js'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'json-summary'],
+      // Without include, only files some test imports are reported, so code
+      // with no tests at all is invisible rather than counted as 0%.
+      include: ['src/**/*.{js,jsx}'],
       exclude: [
         'node_modules/',
-        'src/test/',
+        'src/test/**',
         '**/*.config.js',
         '**/main.jsx',
         '**/*.test.{js,jsx}',
       ],
+      // A ratchet, a point or two under the measured totals (65.5 / 62 / 62.9 /
+      // 67.2 in September 2026), mirroring fail_under for the API. Raise these
+      // as coverage grows; never lower them to make a change pass.
+      thresholds: {
+        statements: 64,
+        branches: 60,
+        functions: 61,
+        lines: 66,
+      },
     },
   },
   resolve: {

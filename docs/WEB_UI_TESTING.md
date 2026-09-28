@@ -54,6 +54,20 @@ npm test -- --watch
 npm run test:coverage
 ```
 
+Every file under `src/` counts, including ones no test imports (they show as 0%).
+The thresholds in `vitest.config.js` are a ratchet a point or two under the measured
+totals, and CI fails below them: raise them as coverage grows.
+
+### How the runner is set up
+
+- `pool: 'vmThreads'` builds jsdom once per worker instead of once per file, which
+  halves the run time. `src/test/vm-globals.js` loads first to supply the web
+  streams jsdom lacks and MSW needs.
+- `@testing-library/react`, `@testing-library/user-event` and
+  `@testing-library/dom` must resolve to **one** copy of `@testing-library/dom`
+  (`npm ls @testing-library/dom`). With two, user-event's interactions are not
+  wrapped in `act()`, which produced hundreds of warnings.
+
 ### UI Mode
 
 ```bash
@@ -258,17 +272,10 @@ api.api.getAnalyticsReport.mockRejectedValue(new Error('API Error'));
 
 ## Coverage Goals
 
-### Current Status
-
-- **Component Tests**: ~40% coverage
-- **Integration Tests**: ~30% coverage
-- **E2E Tests**: ~25% coverage
-
-### Target Goals
-
-- **Component Tests**: 70%+ coverage
-- **Integration Tests**: 60%+ coverage
-- **E2E Tests**: 50%+ coverage
+Measured in September 2026: 65% statements, 62% branches, 63% functions, 67%
+lines. Weakest areas: `services/api.js`, `Console`, `Players`, `Settings`,
+`VirtualList` and the hooks in `src/hooks/`. The thresholds in `vitest.config.js`
+move up as these are covered.
 
 ## Running Specific Test Suites
 

@@ -50,9 +50,10 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick, index = 0 }
 
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[10px] font-minecraft text-minecraft-text-dark uppercase tracking-wide">
+          {/* h2: these sit directly under the page's h1 (axe heading-order) */}
+          <h2 className="text-[10px] font-minecraft text-minecraft-text-dark uppercase tracking-wide">
             {title}
-          </h3>
+          </h2>
           <span
             className="w-9 h-9 flex items-center justify-center text-lg bg-[#5D4037] border-2 border-t-[#8D6E63] border-l-[#8D6E63] border-r-[#3E2723] border-b-[#3E2723] transition-transform duration-200 hover:scale-110 shrink-0"
             style={{ imageRendering: 'pixelated' }}

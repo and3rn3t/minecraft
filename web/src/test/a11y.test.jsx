@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/ToastContainer';
@@ -34,14 +34,19 @@ vi.mock('../services/api', () => ({
   },
 }));
 
-const renderWithA11y = component => {
-  return render(
+// Renders, then lets the mocked API calls resolve before returning. Auditing
+// straight after render() checked each page's loading skeleton, never the page
+// itself, and left its state updates to land after the test (act() warnings).
+const renderWithA11y = async component => {
+  const result = render(
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>{component}</AuthProvider>
       </ToastProvider>
     </BrowserRouter>
   );
+  await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+  return result;
 };
 
 describe('Accessibility Tests', () => {
@@ -51,7 +56,7 @@ describe('Accessibility Tests', () => {
 
   describe('Analytics Page', () => {
     it('should have no accessibility violations', async () => {
-      const { container } = renderWithA11y(<Analytics />);
+      const { container } = await renderWithA11y(<Analytics />);
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
@@ -59,7 +64,7 @@ describe('Accessibility Tests', () => {
 
   describe('Dashboard Page', () => {
     it('should have no accessibility violations', async () => {
-      const { container } = renderWithA11y(<Dashboard />);
+      const { container } = await renderWithA11y(<Dashboard />);
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
@@ -67,7 +72,7 @@ describe('Accessibility Tests', () => {
 
   describe('Backups Page', () => {
     it('should have no accessibility violations', async () => {
-      const { container } = renderWithA11y(<Backups />);
+      const { container } = await renderWithA11y(<Backups />);
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
@@ -75,7 +80,7 @@ describe('Accessibility Tests', () => {
 
   describe('Players Page', () => {
     it('should have no accessibility violations', async () => {
-      const { container } = renderWithA11y(<Players />);
+      const { container } = await renderWithA11y(<Players />);
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
@@ -83,7 +88,7 @@ describe('Accessibility Tests', () => {
 
   describe('Worlds Page', () => {
     it('should have no accessibility violations', async () => {
-      const { container } = renderWithA11y(<Worlds />);
+      const { container } = await renderWithA11y(<Worlds />);
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
@@ -91,13 +96,13 @@ describe('Accessibility Tests', () => {
 
   describe('Login Page', () => {
     it('should have no accessibility violations', async () => {
-      const { container } = renderWithA11y(<Login />);
+      const { container } = await renderWithA11y(<Login />);
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('should have proper form labels', async () => {
-      renderWithA11y(<Login />);
+      await renderWithA11y(<Login />);
 
       // Check for form labels
       const usernameLabel = screen.getByLabelText(/username/i);
