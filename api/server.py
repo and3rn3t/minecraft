@@ -373,6 +373,9 @@ OAUTH_CONFIG_FILE = PROJECT_ROOT / "config" / "oauth.conf"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
 
+_analytics_processor_load_lock = threading.Lock()
+
+
 def _ensure_analytics_processor_module():
     """Make `analytics_processor` importable.
 
@@ -380,8 +383,18 @@ def _ensure_analytics_processor_module():
     unimportable via a plain `import`/`from` statement, so on first use we load
     it from its file path and register it in sys.modules under the name
     callers (and tests, which pre-populate sys.modules with a mock) expect.
+
+    Loading is serialized and registration only happens after exec_module
+    succeeds, so concurrent first callers can't observe a half-initialized
+    module, and a failed load doesn't leave a broken entry cached forever.
     """
-    if "analytics_processor" not in sys.modules:
+    if "analytics_processor" in sys.modules:
+        return
+
+    with _analytics_processor_load_lock:
+        if "analytics_processor" in sys.modules:
+            return
+
         import importlib.util
 
         module_path = SCRIPTS_DIR / "analytics-processor.py"
@@ -389,8 +402,8 @@ def _ensure_analytics_processor_module():
         if spec is None or spec.loader is None:
             raise ImportError(f"Could not load analytics processor from {module_path}")
         module = importlib.util.module_from_spec(spec)
-        sys.modules["analytics_processor"] = module
         spec.loader.exec_module(module)
+        sys.modules["analytics_processor"] = module
 
 
 # Default configuration
