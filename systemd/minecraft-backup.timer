@@ -3,9 +3,12 @@ Description=Minecraft Server Automated Backup Timer
 Requires=minecraft-backup.service
 
 [Timer]
-# Run daily at 3:00 AM. One OnCalendar only: a second line adds a second
-# trigger rather than replacing the first ("daily" alone means midnight).
-OnCalendar=*-*-* 03:00:00
+# Run at 3:00 AM every other day (odd-numbered days). Two kids' play
+# sessions rarely change the world enough to need a nightly copy. A 31-day
+# month runs on both the 31st and the 1st; every other gap is two days.
+# One OnCalendar only: a second line adds a second trigger rather than
+# replacing the first.
+OnCalendar=*-*-01/2 03:00:00
 # If the system was off, run immediately when it comes back online
 Persistent=true
 # Add some randomization to avoid system load spikes

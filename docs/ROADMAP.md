@@ -38,7 +38,7 @@ ahead of the dates written down:
 
 | Area | State | Guide |
 | --- | --- | --- |
-| Backups, retention, verification, scheduling | Built, not running on the Pi — see [O2](#o2-backups-that-actually-run--green) | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
+| Backups, retention, verification, scheduling | Running on the Pi every other day since 2026-09-28; not yet offsite — see [O2](#o2-backups-that-actually-run--green) | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
 | Offsite backup (R2, S3, B2) | Built, not configured or scheduled — see [O2](#o2-backups-that-actually-run--green) | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) |
 | Monitoring, TPS, metrics, Prometheus | Done | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
 | Analytics, trends, anomalies, predictions | Done | [ANALYTICS.md](ANALYTICS.md) |
@@ -134,26 +134,18 @@ only edits `whitelist.json`, which the running server doesn't reread.
 
 ### O2. Backups that actually run — Green
 
-The backup code is finished; the Pi is not running it.
+`minecraft-backup.timer` was enabled on the Pi on 2026-09-28 and backs up at
+03:00 every other day. What's left:
 
-- `minecraft-backup.timer` is **disabled** on the Pi. The only world backup
-  there was taken by hand, and it sits on the same SD card as the world
-  (`/` is `mmcblk0p2`). One card failure loses both.
-- No `config/cloud-backup-*.conf` exists, and even with one
+- **Confirm the first runs.** Check `systemctl list-timers` and
+  `logs/backup-scheduler.log` after the first night; a "Skipping backup" line
+  there means the scheduler's time check is still in the way.
+- **Every backup sits on the same SD card as the world** (`/` is
+  `mmcblk0p2`). One card failure loses both, so offsite is the real fix:
+  no `config/cloud-backup-*.conf` exists, and even with one
   `scripts/backup-scheduler.sh` never calls the cloud upload — offsite is
   manual-only as written. Have the scheduler upload to R2 after a successful
   local backup when a config is present.
-- `minecraft-backup.service` used `User=%i` without being a template unit.
-  `scripts/update-codebase.sh` copies units verbatim, so any deploy that
-  touched `systemd/` would have installed it broken. Fixed in the repo (it
-  now names `pi` like every other unit); the timer also had a second
-  `OnCalendar=daily` line, which would have run a second backup at midnight.
-  And `backup-scheduler.sh` only backed up when the clock read exactly
-  `03:00`, which the timer's randomized delay and catch-up runs rarely hit;
-  that check now applies only when cron runs it, not systemd.
-- Enable it: `sudo systemctl daemon-reload && sudo systemctl enable --now
-  minecraft-backup.timer`, then check `systemctl list-timers` and the next
-  morning's `logs/backup-scheduler.log`.
 
 ### O3. Back up the secrets, not just the world — Green
 

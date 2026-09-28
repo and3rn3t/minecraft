@@ -216,6 +216,16 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Scheduled backups** — `minecraft-backup.service` named `User=%i`
+  without being a template unit, the timer carried a second
+  `OnCalendar=daily` trigger (an extra midnight backup), and
+  `backup-scheduler.sh` skipped any run whose clock didn't read exactly
+  `03:00`, which the timer's randomized delay and catch-up runs almost never
+  do. The unit now names `pi`, the timer has one trigger, and the
+  exact-minute check applies only to cron runs. `install-backup-timer.sh`
+  rewrites the user and path instead of the removed `%i`. The timer now runs
+  every other day (odd-numbered days) rather than nightly, and is enabled on
+  the Pi.
 - **The dashboard shows CPU usage as a percentage.** The API strips the `%`
   from `docker stats`, and the dashboard added it back for memory but not CPU,
   so CPU read "12.50". Found by the new screenshot tests.
