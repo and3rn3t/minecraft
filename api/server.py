@@ -1776,11 +1776,15 @@ def _link_identity(username, provider, oauth_id):
             log_audit_event(username, "oauth_link_failure", {"provider": provider, "reason": "linked_elsewhere"})
             return jsonify({"error": "This account is already linked to another user"}), 400
 
-        providers = USERS[username].setdefault("oauth_providers", [])
+        user = USERS[username]
+        had_oauth_providers = "oauth_providers" in user
+        providers = user.setdefault("oauth_providers", [])
         if oauth_id not in providers:
             providers.append(oauth_id)
             if not save_users():
                 providers.remove(oauth_id)
+                if not had_oauth_providers and not providers:
+                    user.pop("oauth_providers", None)
                 return jsonify({"error": "Failed to save user"}), 500
             log_audit_event(username, "oauth_linked", {"provider": provider})
 
@@ -2365,9 +2369,6 @@ def _is_last_enabled_admin(username):
 def update_user_role(username):
     """Update a user's role"""
     try:
-        if username not in USERS:
-            return jsonify({"error": "User not found"}), 404
-
         data = request.get_json() or {}
         new_role = data.get("role")
 
@@ -2381,19 +2382,23 @@ def update_user_role(username):
                 400,
             )
 
-        # Prevent removing the last admin
-        if new_role != "admin" and _is_last_enabled_admin(username):
-            return (
-                jsonify({"error": "Cannot remove the last admin. At least one admin user must exist."}),
-                400,
-            )
+        with _users_lock:
+            if username not in USERS:
+                return jsonify({"error": "User not found"}), 404
 
-        old_role = USERS[username].get("role")
-        USERS[username]["role"] = new_role
+            # Prevent removing the last admin
+            if new_role != "admin" and _is_last_enabled_admin(username):
+                return (
+                    jsonify({"error": "Cannot remove the last admin. At least one admin user must exist."}),
+                    400,
+                )
 
-        if not save_users():
-            USERS[username]["role"] = old_role
-            return jsonify({"error": "Failed to save changes"}), 500
+            old_role = USERS[username].get("role")
+            USERS[username]["role"] = new_role
+
+            if not save_users():
+                USERS[username]["role"] = old_role
+                return jsonify({"error": "Failed to save changes"}), 500
 
         return (
             jsonify(
@@ -2415,27 +2420,28 @@ def update_user_role(username):
 def delete_user(username):
     """Delete a user"""
     try:
-        if username not in USERS:
-            return jsonify({"error": "User not found"}), 404
-
-        # Prevent deleting the last admin
-        if _is_last_enabled_admin(username):
-            return (
-                jsonify({"error": "Cannot delete the last admin. At least one admin user must exist."}),
-                400,
-            )
-
         # Prevent users from deleting themselves
         current_user = getattr(request, "user", None)
-        if current_user == username:
-            return jsonify({"error": "Cannot delete your own account"}), 400
+        with _users_lock:
+            if username not in USERS:
+                return jsonify({"error": "User not found"}), 404
 
-        removed = USERS.pop(username)
+            # Prevent deleting the last admin
+            if _is_last_enabled_admin(username):
+                return (
+                    jsonify({"error": "Cannot delete the last admin. At least one admin user must exist."}),
+                    400,
+                )
 
-        if not save_users():
-            # Otherwise the account is gone until the next restart reloads it
-            USERS[username] = removed
-            return jsonify({"error": "Failed to save changes"}), 500
+            if current_user == username:
+                return jsonify({"error": "Cannot delete your own account"}), 400
+
+            removed = USERS.pop(username)
+
+            if not save_users():
+                # Otherwise the account is gone until the next restart reloads it
+                USERS[username] = removed
+                return jsonify({"error": "Failed to save changes"}), 500
 
         return jsonify({"success": True, "message": f"User '{username}' deleted"}), 200
     except Exception as e:
@@ -2467,22 +2473,23 @@ def enable_user(username):
 def disable_user(username):
     """Disable a user account"""
     try:
-        if username not in USERS:
-            return jsonify({"error": "User not found"}), 404
+        with _users_lock:
+            if username not in USERS:
+                return jsonify({"error": "User not found"}), 404
 
-        # Prevent disabling the last admin
-        if _is_last_enabled_admin(username):
-            return (
-                jsonify({"error": "Cannot disable the last admin. At least one admin user must exist."}),
-                400,
-            )
+            # Prevent disabling the last admin
+            if _is_last_enabled_admin(username):
+                return (
+                    jsonify({"error": "Cannot disable the last admin. At least one admin user must exist."}),
+                    400,
+                )
 
-        was_enabled = USERS[username].get("enabled", True)
-        USERS[username]["enabled"] = False
+            was_enabled = USERS[username].get("enabled", True)
+            USERS[username]["enabled"] = False
 
-        if not save_users():
-            USERS[username]["enabled"] = was_enabled
-            return jsonify({"error": "Failed to save changes"}), 500
+            if not save_users():
+                USERS[username]["enabled"] = was_enabled
+                return jsonify({"error": "Failed to save changes"}), 500
 
         return jsonify({"success": True, "message": "User disabled"}), 200
     except Exception as e:

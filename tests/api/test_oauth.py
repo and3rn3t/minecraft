@@ -263,6 +263,17 @@ class TestLinkingAnAccount:
         assert response.status_code == 500
         assert api_module.USERS["testuser"]["oauth_providers"] == [], "not linked in memory while unlinked on disk"
 
+    def test_failed_link_does_not_create_oauth_providers_for_password_only_user(
+        self, client, mock_auth_session, temp_oauth_config, google_says, monkeypatch
+    ):
+        api_module.USERS["testuser"].pop("oauth_providers", None)
+        monkeypatch.setattr(api_module, "save_users", lambda: False)
+
+        response = self._link_google(client, google_says)
+
+        assert response.status_code == 500
+        assert "oauth_providers" not in api_module.USERS["testuser"]
+
     def test_apple_is_linked_from_a_verified_id_token(
         self, client, mock_auth_session, temp_oauth_config, rsa_keypair, monkeypatch
     ):

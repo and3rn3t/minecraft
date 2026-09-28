@@ -19,6 +19,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
 
+pytestmark = pytest.mark.skipif(
+    not api_module.SOCKETIO_AVAILABLE,
+    reason="Flask-SocketIO not installed, so websocket handlers are not available",
+)
+
 SID = "sid-under-test"
 
 
