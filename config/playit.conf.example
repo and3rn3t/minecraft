@@ -1,0 +1,20 @@
+# playit.gg SRV sync configuration
+#
+# Copy to config/playit.conf and edit. The real file is gitignored, which
+# matters: it holds a Cloudflare API token. See docs/PLAYIT.md.
+#
+# Nothing syncs until the timer is enabled:
+#   sudo systemctl enable --now minecraft-playit-sync.timer
+
+# The tunnel's public address, as the playit.gg dashboard shows it.
+PLAYIT_HOST=della-bd.tun.ply.gg
+
+# The Cloudflare SRV record players' clients look up. For players typing
+# mine.andernet.dev, that is _minecraft._tcp.mine.andernet.dev.
+GAME_SRV_NAME=_minecraft._tcp.mine.andernet.dev
+
+# A Cloudflare API token with Zone -> DNS -> Edit on the zone, and the zone's
+# ID (Cloudflare dashboard -> the domain -> Overview, right-hand column).
+# The token config/ddns.conf used for the A record has the right scope.
+CLOUDFLARE_API_TOKEN=
+CLOUDFLARE_ZONE_ID=

@@ -1,0 +1,23 @@
+[Unit]
+Description=playit.gg Tunnel Agent (Game Traffic Through CGNAT)
+Documentation=file:///home/pi/minecraft-server/docs/PLAYIT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# The agent lives outside the repo, in ~/playit, next to the secret that
+# claims it to the playit.gg account. docs/PLAYIT.md covers installing it.
+WorkingDirectory=/home/pi/playit
+ExecStart=/home/pi/playit/playit --secret-path /home/pi/playit/secret.toml --socket-path /home/pi/playit/playit.sock -l /home/pi/playit/playit.log
+User=pi
+Group=pi
+# The agent once sat in a reconnect loop for three days without exiting, so
+# a restart policy alone doesn't cover every failure; it does cover crashes,
+# which the @reboot crontab line this replaces did not.
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

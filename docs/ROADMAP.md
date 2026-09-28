@@ -50,6 +50,7 @@ ahead of the dates written down:
 | Web admin panel | Done | [WEB_INTERFACE.md](WEB_INTERFACE.md) |
 | Auth, RBAC, OAuth, 2FA, API keys, audit log | Done | [RBAC.md](RBAC.md), [API_KEYS.md](API_KEYS.md), [OAUTH_SETUP.md](OAUTH_SETUP.md) |
 | Dynamic DNS (DuckDNS, No-IP, Cloudflare) | Done | [DYNAMIC_DNS.md](DYNAMIC_DNS.md) |
+| Game access through CGNAT (playit.gg tunnel, SRV sync) | Done | [PLAYIT.md](PLAYIT.md) |
 | CI/CD, multi-arch images, test suites | Done | [CI_CD.md](CI_CD.md), [TESTING.md](TESTING.md) |
 | Pooled RCON client | Done | [RCON.md](RCON.md) |
 | Game event bus | Done | [EVENT_BUS.md](EVENT_BUS.md) |
@@ -113,31 +114,21 @@ on the Pi before building anything else. O1 is deliberately deferred.
 
 **Deferred (2026-09-28).** The server is new, and which of the boys' friends
 will join isn't known yet, so the whitelist stays off until that list
-settles. The risk below still stands while it is open; the playit.gg
-question at the end doesn't depend on the player list and can be settled
-now.
+settles. The risk below still stands while it is open.
 
 `server.properties` on the Pi has `white-list=false` and
-`enforce-whitelist=false`, while port 25565 is port-forwarded at
-`mine.andernet.dev` and a playit.gg agent is also running. Anyone with a Java
-account can join and talk to the kids. `online-mode=true` only means they
+`enforce-whitelist=false`, and `mine.andernet.dev` reaches the server from
+anywhere through the playit.gg tunnel ([PLAYIT.md](PLAYIT.md)). Anyone with a
+Java account and the address can join and talk to the kids. `online-mode=true` only means they
 need a real account, not an invitation.
 
-Add every account first — the boys and each friend who plays (`scripts/whitelist-manager.sh`, or
-`whitelist add <name>` over RCON), then `whitelist on` and set
+Add every account first — the boys and each friend who plays
+(`scripts/whitelist-manager.sh`, or `whitelist add <name>` over RCON), then `whitelist on` and set
 `enforce-whitelist=true` so anyone already connected who isn't on the list
 gets kicked. Adding the accounts first is the part that matters: a whitelist
 switched on empty locks the kids out. A new friend then needs a
 `whitelist add` before their first visit, which is what W6's Shortcuts or a
 dashboard button should make a one-tap job for a parent.
-
-**Decide about playit.gg.** It starts from a `@reboot` line in the `pi`
-user's crontab, nothing in this repo knows it exists, and its log shows
-registration errors. Either it is a second way in that needs documenting
-alongside [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) and
-[DYNAMIC_DNS.md](DYNAMIC_DNS.md), or it is left over from before the port
-forward and should be removed. It should not be both undocumented and
-running.
 
 ### O2. Backups that actually run — Green
 

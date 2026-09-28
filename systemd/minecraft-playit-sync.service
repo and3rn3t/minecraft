@@ -1,0 +1,20 @@
+[Unit]
+Description=Point the Game Address's SRV Record at the playit.gg Tunnel
+Documentation=file:///home/pi/minecraft-server/docs/PLAYIT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/minecraft-server
+# Settings (tunnel host, SRV name, Cloudflare token) live in
+# config/playit.conf; see config/playit.conf.example.
+ExecStart=/home/pi/minecraft-server/scripts/playit-srv-sync.sh sync
+User=pi
+Group=pi
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,10 @@
 # Cloudflare DDNS Setup Guide for mine.andernet.dev
 
+> **This server's home connection is behind CGNAT,** so a port forward and a
+> DDNS-maintained A record can't make it reachable. Players connect through a
+> playit.gg tunnel instead — see [PLAYIT.md](PLAYIT.md). This guide still
+> applies to a connection with a real public IP.
+
 This guide will help you set up Cloudflare Dynamic DNS for `mine.andernet.dev`.
 
 ## Prerequisites
