@@ -20,6 +20,11 @@ RATE_LIMIT_PER_MINUTE=4
 # Chat text color for the Oracle's tellraw replies.
 COLOR=aqua
 
+# Who sees the Oracle's replies: "player" (only the player who asked) or
+# "all" (everyone online, tagged with who was answered). Anything else
+# means "player".
+REPLY_TO=player
+
 # How long exchange logs are kept, in days.
 RETENTION_DAYS=90
 

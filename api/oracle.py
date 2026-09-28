@@ -46,6 +46,11 @@ ORACLE_CONFIG_FILE = PROJECT_ROOT / "config" / "oracle.conf"
 DEFAULT_ENABLED = False
 DEFAULT_RATE_LIMIT_PER_MINUTE = 4
 DEFAULT_COLOR = "aqua"
+# Who sees a reply: only the player who asked ("player"), or everyone online
+# ("all"). Private by default, so turning the Oracle on doesn't also start
+# broadcasting one child's questions to every player without a decision.
+REPLY_TO_CHOICES = ("player", "all")
+DEFAULT_REPLY_TO = "player"
 DEFAULT_RETENTION_DAYS = 90
 DEFAULT_HAIKU_MODEL = "claude-haiku-4-5"
 DEFAULT_SONNET_MODEL = "claude-sonnet-5"
@@ -188,8 +193,12 @@ class ClaudeOracleResponder:
         return response.parsed_output
 
 
-def build_tellraw_to_player(player: str, text: str, color: str = DEFAULT_COLOR) -> str:
+def build_tellraw_to_player(player: str, text: str, color: str = DEFAULT_COLOR, everyone: bool = False) -> str:
     """Build a ``tellraw`` that shows text to one specific player.
+
+    With ``everyone``, the reply goes to ``@a`` instead, tagged with who it
+    answers -- otherwise a broadcast reply reads as the Oracle talking to
+    nobody in particular.
 
     Unlike hall_of_deaths.build_tellraw (which always targets ``@a``), the
     player name here is itself part of the command, not just JSON-escaped
@@ -206,11 +215,13 @@ def build_tellraw_to_player(player: str, text: str, color: str = DEFAULT_COLOR) 
     # by the time that check runs, and "len(text) > MAX_TELLRAW_LENGTH" never
     # fires. Sanitize control characters only here; truncate for length after.
     text = sanitize_string(text, max_length=MAX_TELLRAW_LENGTH * 4, allow_newlines=False)
+    if everyone:
+        text = f"[Oracle → {player}] {text}"
     if len(text) > MAX_TELLRAW_LENGTH:
         text = text[: MAX_TELLRAW_LENGTH - 1].rstrip() + "…"
 
     component = json.dumps({"text": text, "color": color, "italic": False}, ensure_ascii=False)
-    return f"tellraw {player} {component}"
+    return f"tellraw {'@a' if everyone else player} {component}"
 
 
 @dataclass
@@ -221,6 +232,7 @@ class OracleConfig:
     allowlist: tuple[str, ...] = ()
     rate_limit_per_minute: int = DEFAULT_RATE_LIMIT_PER_MINUTE
     color: str = DEFAULT_COLOR
+    reply_to: str = DEFAULT_REPLY_TO
     retention_days: int = DEFAULT_RETENTION_DAYS
     haiku_model: str = DEFAULT_HAIKU_MODEL
     sonnet_model: str = DEFAULT_SONNET_MODEL
@@ -269,6 +281,10 @@ def load_oracle_config(config_file: Optional[Path] = None) -> OracleConfig:
                 pass
         elif key == "COLOR" and value:
             settings.color = value
+        elif key == "REPLY_TO" and value.lower() in REPLY_TO_CHOICES:
+            # Anything else (a typo) keeps the private default rather than
+            # guessing towards broadcasting.
+            settings.reply_to = value.lower()
         elif key == "RETENTION_DAYS":
             try:
                 settings.retention_days = int(value)
@@ -297,6 +313,7 @@ def save_oracle_config(config: OracleConfig, config_file: Optional[Path] = None)
         f"ALLOWLIST={','.join(config.allowlist)}",
         f"RATE_LIMIT_PER_MINUTE={config.rate_limit_per_minute}",
         f"COLOR={config.color}",
+        f"REPLY_TO={config.reply_to}",
         f"RETENTION_DAYS={config.retention_days}",
         f"HAIKU_MODEL={config.haiku_model}",
         f"SONNET_MODEL={config.sonnet_model}",
@@ -518,11 +535,15 @@ class Oracle:
         self._log_audit(player, f"oracle.{outcome}", details)
         return {"outcome": outcome, **extra}
 
+    @property
+    def _reply_to_everyone(self) -> bool:
+        return self.config.reply_to == "all"
+
     def _reply(self, player: str, text: str) -> None:
         if self.runner is None:
             return
         try:
-            self.runner(build_tellraw_to_player(player, text, self.config.color))
+            self.runner(build_tellraw_to_player(player, text, self.config.color, self._reply_to_everyone))
         except Exception as exc:  # noqa: BLE001 - the game may be down
             self._log_error(f"Could not reply to {player} in game: {exc}")
 
@@ -531,7 +552,7 @@ class Oracle:
         if self.runner is None:
             return False
         try:
-            self.runner(build_tellraw_to_player(player, summary, self.config.color))
+            self.runner(build_tellraw_to_player(player, summary, self.config.color, self._reply_to_everyone))
             return True
         except Exception as exc:  # noqa: BLE001 - the game may be down
             self._log_error(f"Could not deliver a quest to {player}: {exc}")
@@ -706,6 +727,7 @@ class Oracle:
             "allowlist": list(self.config.allowlist),
             "rate_limit_per_minute": self.config.rate_limit_per_minute,
             "color": self.config.color,
+            "reply_to": self.config.reply_to,
             "has_api_key": has_key,
             "has_responder": self.responder is not None,
         }

@@ -125,6 +125,7 @@ gitignored.
 | `ALLOWLIST` | `Jonah,Silas` | Comma-separated exact Minecraft usernames. |
 | `RATE_LIMIT_PER_MINUTE` | `4` | Per player, per minute. Gates the Claude call itself. |
 | `COLOR` | `aqua` | Chat text color for the Oracle's replies. |
+| `REPLY_TO` | `player` | `player`: only the asker sees a reply. `all`: everyone online does, tagged `[Oracle → name]`. |
 | `RETENTION_DAYS` | `90` | How long exchange logs are kept. |
 | `HAIKU_MODEL` | `claude-haiku-4-5` | The triage model. |
 | `SONNET_MODEL` | `claude-sonnet-5` | The quest-generation model. |
