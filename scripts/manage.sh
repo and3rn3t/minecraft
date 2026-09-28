@@ -154,8 +154,11 @@ create_backup() {
             exit 1
         fi
     else
-        echo -e "${RED}Backup creation failed (tar exit ${tar_status}, gzip exit ${gzip_status})${NC}"
-        grep -v -i "memory.*limit" "$tar_log" | tail -20 || true
+        # stderr, because that is what POST /api/backup returns on failure
+        {
+            echo -e "${RED}Backup creation failed (tar exit ${tar_status}, gzip exit ${gzip_status})${NC}"
+            grep -v -i "memory.*limit" "$tar_log" | tail -20 || true
+        } >&2
         rm -f "$BACKUP_FILE" "$tar_log"
         exit 1
     fi
