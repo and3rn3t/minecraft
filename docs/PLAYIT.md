@@ -71,22 +71,28 @@ port, or when the Cloudflare record isn't exactly one match.
 
 ### 1. The agent
 
-Download the `aarch64` agent from
+Download the `aarch64` agent (`playit` and `playit-cli`) from
 [playit-cloud/playit-agent releases](https://github.com/playit-cloud/playit-agent/releases)
-into `~/playit/`, then claim it to the playit.gg account:
-
-```bash
-cd ~/playit
-./playit-cli setup      # prints a claim link; approve it in the browser
-```
-
-Then run it as a service:
+into `~/playit/`. Start the service **before** claiming it:
 
 ```bash
 sudo cp ~/minecraft-server/systemd/minecraft-playit.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now minecraft-playit.service
 ```
+
+With no secret yet, the daemon logs `Waiting for frontend secret provisioning
+over IPC` and waits. Claim it through the service's own socket, so the secret
+lands at the unit's `--secret-path` (`~/playit/secret.toml`):
+
+```bash
+cd ~/playit
+./playit-cli --socket-path /home/pi/playit/playit.sock setup
+# prints a claim link; approve it in the browser
+```
+
+Without `--socket-path`, `playit-cli` looks for a daemon at its default
+socket, and the claimed secret doesn't end up where this unit reads it.
 
 The agent logs to `~/playit/playit.log`. The "failed to send initial ping ...
 Network unreachable" error at startup is its IPv6 probe and is harmless; the
