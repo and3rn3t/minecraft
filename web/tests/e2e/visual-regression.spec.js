@@ -1,6 +1,5 @@
 /* eslint-env node */
-import { expect, test } from '@playwright/test';
-import { mockApi } from './mock-api';
+import { expect, test } from './fixtures';
 
 // Screenshots only compare against baselines rendered the same way: fonts and
 // antialiasing differ between macOS and Linux, and between Linux images. The
@@ -24,8 +23,8 @@ test.describe('Visual regression', () => {
   });
 
   for (const [name, path, heading] of PAGES) {
-    test(`${name} page`, async ({ page }) => {
-      await mockApi(page);
+    test(`${name} page`, async ({ page, api }) => {
+      await api();
       await page.goto(path);
       await expect(page.getByRole('heading', { name: heading })).toBeVisible();
       await page.waitForLoadState('networkidle');
@@ -34,8 +33,8 @@ test.describe('Visual regression', () => {
     });
   }
 
-  test('login page', async ({ page }) => {
-    await mockApi(page, { user: null });
+  test('login page', async ({ page, api }) => {
+    await api({ user: null });
     await page.goto('/login');
     await expect(page.getByRole('button', { name: 'LOGIN' })).toBeVisible();
 

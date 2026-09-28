@@ -1,11 +1,10 @@
-import { expect, test } from '@playwright/test';
-import { mockApi } from './mock-api';
+import { expect, test } from './fixtures';
 
 const isPost = path => request => request.url().endsWith(`/api/${path}`) && request.method() === 'POST';
 
 test.describe('Analytics page', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockApi(page, {
+  test.beforeEach(async ({ page, api }) => {
+    await api({
       routes: {
         'analytics/collect': { success: true, message: 'Data collected' },
         'analytics/custom-report': { report: {}, saved_as: 'custom_report.json' },

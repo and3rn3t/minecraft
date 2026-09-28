@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
-import { mockApi, SIGNED_IN } from './mock-api';
+import { expect, test } from './fixtures';
+import { SIGNED_IN } from './mock-api';
 
 test.describe('User journeys', () => {
-  test('a new user registers and lands on the dashboard', async ({ page }) => {
-    await mockApi(page, { user: null });
+  test('a new user registers and lands on the dashboard', async ({ page, api }) => {
+    await api({ user: null });
 
     await page.goto('/register');
     await page.getByRole('textbox', { name: 'USERNAME' }).fill('newplayer');
@@ -18,8 +18,8 @@ test.describe('User journeys', () => {
     await expect(page.getByRole('heading', { name: 'DASHBOARD' })).toBeVisible();
   });
 
-  test('a returning user signs in', async ({ page }) => {
-    await mockApi(page, { user: null });
+  test('a returning user signs in', async ({ page, api }) => {
+    await api({ user: null });
 
     await page.goto('/login');
     await page.getByRole('textbox', { name: 'USERNAME' }).fill('steve');
@@ -30,16 +30,16 @@ test.describe('User journeys', () => {
     await expect(page.getByRole('heading', { name: 'DASHBOARD' })).toBeVisible();
   });
 
-  test('a signed-out visitor is sent to the login page', async ({ page }) => {
-    await mockApi(page, { user: null });
+  test('a signed-out visitor is sent to the login page', async ({ page, api }) => {
+    await api({ user: null });
 
     await page.goto('/dashboard');
 
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('a signed-in user can reach every main page from the nav', async ({ page }) => {
-    await mockApi(page, { user: SIGNED_IN });
+  test('a signed-in user can reach every main page from the nav', async ({ page, api }) => {
+    await api({ user: SIGNED_IN });
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: 'DASHBOARD' })).toBeVisible();
 
@@ -54,8 +54,8 @@ test.describe('User journeys', () => {
     }
   });
 
-  test('starting the server from the dashboard calls the API', async ({ page }) => {
-    await mockApi(page, {
+  test('starting the server from the dashboard calls the API', async ({ page, api }) => {
+    await api({
       user: SIGNED_IN,
       routes: { status: { running: false, status: 'Exited' } },
     });

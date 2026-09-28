@@ -20,73 +20,57 @@ The unified CI/CD pipeline combines all testing, building, and deployment workfl
 
 ### Jobs Overview
 
-1. **Lint** - Syntax and validation checks (blocking)
-2. **Python Tests** - API tests with coverage (blocking)
-3. **Bash Tests** - Shell script tests (blocking)
-4. **Frontend Tests** - Vitest unit tests (non-blocking)
-5. **Playwright Tests** - E2E browser tests (non-blocking)
-6. **Build Docker** - Docker image build (blocking)
-7. **Build RPi Image** - Raspberry Pi image creation (conditional)
-8. **Summary** - Pipeline status summary
+Every test job gates the Docker build; none is allowed to fail.
+
+1. **Lint (pre-commit)** - ruff, shellcheck, yamllint, markdownlint, gitleaks, actionlint
+2. **Lint and Syntax Check** - `bash -n` on every script, `docker compose config`
+3. **Python API Tests** - pytest in parallel, with coverage held to `fail_under`
+4. **Bash Script Tests** - the BATS suite in `tests/unit/`
+5. **Frontend Tests** - ESLint, production build, Vitest with coverage thresholds
+6. **Playwright Tests** - the built app in Chromium, including screenshot comparisons
+7. **Build Docker Image** - ARM64 image; pushed to ghcr.io only on a push to main
+8. **Pipeline Summary** - status table; fails if any job above did not succeed
 
 ### Job Dependencies
 
 ```text
-lint ──┐
-       ├──> build-docker ──> build-rpi-image
-python-tests ──┘
-bash-tests ───┘
+pre-commit ───────┐
+lint ─────────────┤
+python-tests ─────┤
+bash-tests ───────┼──> build-docker
+frontend-tests ───┤
+playwright-tests ─┘
 
-frontend-tests (parallel, non-blocking)
-playwright-tests (parallel, non-blocking)
-
-All jobs ──> summary
+all of the above ──> summary
 ```
 
-### Non-Blocking Tests
+The six test jobs run in parallel. `build-docker` starts only when all of them
+succeed, so nothing that failed a check can be pushed to the registry.
 
-#### Frontend Tests
+### Playwright Tests
 
-- **Status**: Non-blocking (`continue-on-error: true`)
-- **Purpose**: Unit tests for React components
-- **Failure Impact**: Pipeline continues, failure is reported in summary
-
-#### Playwright Tests
-
-- **Status**: Non-blocking (`continue-on-error: true`)
-- **Purpose**: End-to-end browser automation tests
-- **Timeout**: 60 minutes
-- **Failure Impact**: Pipeline continues, test report uploaded as artifact
-- **Artifacts**: Playwright HTML report (retained for 30 days)
-
-### Critical vs Non-Critical Jobs
-
-#### Critical (Must Pass)
-
-- ✅ Lint
-- ✅ Python Tests
-- ✅ Bash Tests
-- ✅ Docker Build
-
-#### Non-Critical (Can Fail)
-
-- ⚠️ Frontend Tests
-- ⚠️ Playwright Tests
+- **Runs in**: the `mcr.microsoft.com/playwright` container. The screenshot
+  baselines in `web/tests/e2e/visual-regression.spec.js-snapshots/` were rendered
+  in that image, and a screenshot only matches the environment that drew it. The
+  image tag must equal `@playwright/test` in `web/package-lock.json`; the job's
+  first step fails if they differ.
+- **Browsers**: Chromium on CI. Firefox and WebKit are opt-in locally
+  (`PW_ALL_BROWSERS=1`).
+- **Retries**: one; a test that needed it is reported as flaky.
+- **Timeout**: 15 minutes.
+- **Artifacts on failure**: the HTML report and `test-results/` (the actual,
+  expected and diff images for a screenshot mismatch), kept 14 days.
+- **Locally**: `make test-visual` runs the suite exactly as CI does, and
+  `make test-visual-update` re-renders baselines after an intended UI change.
 
 ## Pipeline Triggers
 
-### Automatic Triggers
-
-- **Push to main/develop**: Runs all tests and builds
-- **Pull Request**: Runs all tests (no image build)
-- **Push to main**: Builds Raspberry Pi image
-
-### Manual Triggers
-
-Use GitHub Actions UI to manually trigger:
-
-- Run all tests
-- Build image (set `build_image: true`)
+- **Pull request** to main or develop: every job; the image is built but not pushed.
+- **Push** to main or develop: every job; on main the image is pushed to ghcr.io and
+  the web build is uploaded for the Pi's deploy agent.
+- **Weekly schedule** (Monday 05:00 UTC): every job, plus the API performance tests,
+  which assert wall-clock limits and so stay off the pull-request path.
+- **Manual** (`workflow_dispatch`): the same as the schedule.
 
 ## Enhanced Testing
 
@@ -123,7 +107,8 @@ Runs all tests marked with `@pytest.mark.performance`:
 - Load testing
 - Throughput measurement
 
-**Note**: Non-blocking to prevent job failure if performance tests have issues
+**Note**: Runs only on the weekly schedule and on manual runs. Its hard
+wall-clock limits would flake on a shared runner, so it stays off pull requests.
 
 #### Contract Tests
 
@@ -133,7 +118,8 @@ Runs all tests marked with `@pytest.mark.contract`:
 - Request schema validation
 - OpenAPI compliance checks
 
-**Note**: Non-blocking to allow CI to continue even if schema validation has issues
+**Note**: These run as part of the main parallel test step, not a separate one,
+and fail the job like any other test.
 
 #### Coverage Gap Analysis
 
@@ -259,11 +245,9 @@ Uploads coverage to Codecov for:
 
 ### When Images Are Built
 
-Images are automatically built when:
-
-- Pushing to `main` branch
-- Manual workflow dispatch with `build_image: true`
-- Creating a release tag
+No workflow builds this image at present: the `build-rpi-image` job was removed
+from `main.yml` (commit `696c468`), and no other workflow replaced it. What follows
+describes the image that job produced.
 
 ### Image Contents
 
@@ -442,8 +426,9 @@ These are automatically granted for GitHub Actions.
 
 ### Playwright Report
 
-- **Location**: `web/playwright-report/`
-- **Retention**: 30 days
+- **Uploaded**: only when the Playwright job fails
+- **Contents**: `web/playwright-report/` and `web/test-results/`
+- **Retention**: 14 days
 - **Access**: Download from workflow run
 
 ### Coverage Reports
@@ -592,12 +577,20 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### Playwright Tests Failing
 
-Since Playwright tests are non-blocking, failures won't block the pipeline. To investigate:
+A Playwright failure blocks the Docker build and fails the summary. To investigate:
 
-1. Download the Playwright report artifact
-2. Open `index.html` in a browser
-3. Review test failures and screenshots
-4. Check test logs for errors
+1. Download the `playwright-report` artifact and open `playwright-report/index.html`.
+2. **A screenshot mismatch** shows the expected, actual and diff images. If the
+   change was intended, run `make test-visual-update`, look at the re-rendered PNGs,
+   and commit them. Never regenerate baselines outside the container: they will not
+   match CI.
+3. **"API calls with no mock"** means a page called an endpoint that
+   `web/tests/e2e/mock-api.js` doesn't answer. Add the endpoint there, with a
+   response shaped like the real API's.
+4. **"@playwright/test is X, the image is Y"**: the dependency was bumped without the
+   image. Update the tag in `.github/workflows/main.yml` and the `Makefile` together,
+   then re-render the baselines.
+5. Reproduce locally with `make test-visual`.
 
 ### Image Build Failing
 

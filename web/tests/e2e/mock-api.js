@@ -25,6 +25,12 @@ const DEFAULTS = {
   // Strings, as the API sends docker stats with the % stripped
   metrics: { metrics: { cpu_percent: '12.50', memory_usage: '1.2GiB / 4GiB', memory_percent: '30.00' } },
   players: { players: ['Alex', 'Steve'], online: 2, max: 10 },
+  // ops.json entries, as the API returns them
+  'players/ops': {
+    success: true,
+    operators: [{ uuid: '00000000-0000-0000-0000-000000000001', name: 'Steve', level: 4, bypassesPlayerLimit: false }],
+  },
+  'server/start': { success: true, message: 'Server starting', output: '' },
   backups: { backups: [] },
   worlds: { worlds: [] },
   plugins: { plugins: [] },
@@ -54,6 +60,7 @@ const DEFAULTS = {
 export async function mockApi(page, { user = SIGNED_IN, routes = {} } = {}) {
   let currentUser = user;
   const calls = [];
+  const unhandled = [];
 
   const handlers = {
     ...DEFAULTS,
@@ -85,12 +92,14 @@ export async function mockApi(page, { user = SIGNED_IN, routes = {} } = {}) {
     if (handler !== undefined) {
       return json(route, handler);
     }
-    // Anything a page asks for that isn't listed: an empty success, so a page
-    // renders its empty state rather than an error.
-    return json(route, {});
+    // Not listed: a wrong or new endpoint. Answering `200 {}` made any such
+    // call look like an empty state, so it fails instead, and the `api`
+    // fixture in fixtures.js fails the test that made it.
+    unhandled.push(`${request.method()} /api/${path}`);
+    return json(route, { error: `No mock for ${request.method()} /api/${path}` }, 501);
   });
 
-  return { calls };
+  return { calls, unhandled };
 }
 
 /** Store an API key before the app loads, the way a returning browser has one. */
