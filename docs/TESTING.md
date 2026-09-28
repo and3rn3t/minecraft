@@ -251,7 +251,7 @@ that as the source of truth rather than any figure written into a document.
 - **Thin**: shell-script unit tests (`tests/unit/` covers only a few scripts) and
   end-to-end workflows, several of which skip without a live server.
 
-Open gaps worth closing are tracked in [ROADMAP.md](ROADMAP.md) rather than
+Open gaps worth closing are listed under "Infrastructure and technical debt" in [ROADMAP.md](ROADMAP.md) rather than
 duplicated here.
 
 ## Continuous Improvement

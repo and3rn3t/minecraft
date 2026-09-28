@@ -38,8 +38,8 @@ ahead of the dates written down:
 
 | Area | State | Guide |
 | --- | --- | --- |
-| Backups, retention, verification, scheduling | Done | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
-| Offsite backup (R2, S3, B2) | Done | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) |
+| Backups, retention, verification, scheduling | Built, not running on the Pi — see [O2](#o2-backups-that-actually-run--green) | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
+| Offsite backup (R2, S3, B2) | Built, not configured or scheduled — see [O2](#o2-backups-that-actually-run--green) | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) |
 | Monitoring, TPS, metrics, Prometheus | Done | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
 | Analytics, trends, anomalies, predictions | Done | [ANALYTICS.md](ANALYTICS.md) |
 | Version checking and one-command updates | Done | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) |
@@ -66,9 +66,11 @@ ahead of the dates written down:
 
 So the question this roadmap answers is no longer "what else should the admin
 panel do". It is: **what could this server do that no other Minecraft server
-does?** The management layer is good enough, the defects that were sitting
-underneath it are fixed, and what remains is the experience the kids actually
-see.
+does?** The management layer is good enough, and what remains is the
+experience the kids actually see — once
+[Operations and reliability](#operations-and-reliability) is closed. Two rows
+above were marked Done because the code exists, while the Pi itself was not
+running them.
 
 ---
 
@@ -80,6 +82,7 @@ plumbing they share, so each row is mostly content on top of the row before.
 
 | Order | Items | Why here |
 | --- | --- | --- |
+| 0 | O1, O2, O3, O4, O5 | The server is public and has no working backups. Nothing below matters if the world is lost or a stranger is in it |
 | 1 | W6 | Hours of work, immediate payoff, no new infrastructure |
 | 2 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
 | 3 | F6, W4, T3, M5, H5, P11, R3 | Items and delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. R3's weekly digest is the Gazette's parent edition |
@@ -90,10 +93,114 @@ plumbing they share, so each row is mostly content on top of the row before.
 | 8 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
 **One decision gate: do the boys play on iPads?** If yes, R1 jumps to the
-front of the list, right after W6. Cross-play changes when and where they can
+front of the list, right after W6 (row 0 still comes first). Cross-play changes when and where they can
 play at all, which outranks anything else here. (F7 used to gate R1 too —
 Geyser needs to track a current Java release — but the version upgrade has
 already shipped, so that constraint is gone.)
+
+---
+
+## Operations and reliability
+
+Found by checking the live Pi against this document rather than the repo
+against itself. None of it is new feature work; all of it is the gap between
+"the script exists" and "the script runs". O1 and O2 are live problems — fix
+them on the Pi before building anything else.
+
+### O1. Close the game server to strangers — Green
+
+`server.properties` on the Pi has `white-list=false` and
+`enforce-whitelist=false`, while port 25565 is port-forwarded at
+`mine.andernet.dev` and a playit.gg agent is also running. Anyone with a Java
+account can join and talk to the kids. `online-mode=true` only means they
+need a real account, not an invitation.
+
+Add every family account first (`scripts/whitelist-manager.sh`, or
+`whitelist add <name>` over RCON), then `whitelist on` and set
+`enforce-whitelist=true` so anyone already connected who isn't on the list
+gets kicked. Adding the family first is the part that matters: a whitelist
+switched on empty locks the kids out.
+
+**Decide about playit.gg.** It starts from a `@reboot` line in the `pi`
+user's crontab, nothing in this repo knows it exists, and its log shows
+registration errors. Either it is a second way in that needs documenting
+alongside [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) and
+[DYNAMIC_DNS.md](DYNAMIC_DNS.md), or it is left over from before the port
+forward and should be removed. It should not be both undocumented and
+running.
+
+### O2. Backups that actually run — Green
+
+The backup code is finished; the Pi is not running it.
+
+- `minecraft-backup.timer` is **disabled** on the Pi. The only world backup
+  there was taken by hand, and it sits on the same SD card as the world
+  (`/` is `mmcblk0p2`). One card failure loses both.
+- No `config/cloud-backup-*.conf` exists, and even with one
+  `scripts/backup-scheduler.sh` never calls the cloud upload — offsite is
+  manual-only as written. Have the scheduler upload to R2 after a successful
+  local backup when a config is present.
+- `minecraft-backup.service` used `User=%i` without being a template unit.
+  `scripts/update-codebase.sh` copies units verbatim, so any deploy that
+  touched `systemd/` would have installed it broken. Fixed in the repo (it
+  now names `pi` like every other unit); the timer also had a second
+  `OnCalendar=daily` line, which would have run a second backup at midnight.
+- Enable it: `sudo systemctl daemon-reload && sudo systemctl enable --now
+  minecraft-backup.timer`, then check `systemctl list-timers` and the next
+  morning's `logs/backup-scheduler.log`.
+
+### O3. Back up the secrets, not just the world — Green
+
+`manage.sh backup` tars `./data` only. Everything that makes the admin panel
+work lives outside it and exists only on the Pi: `config/users.json`,
+`config/api-keys.json` (with the 2FA secrets), `config/oauth.conf`,
+`~/.cloudflared/` (tunnel credentials), and the `minecraft-api.service`
+systemd override that sets `ALLOWED_ORIGINS`. Rebuilding those after an SD
+card failure means re-creating every account and re-registering the tunnel.
+
+Add a small, separate, encrypted config archive (these are secrets, so not in
+the world tarball that goes to R2 in the clear) — `age` or `gpg` with a key
+kept off the Pi — uploaded alongside the world backup.
+
+### O4. A restore command, and one real restore — Green
+
+There is no world-restore command in `scripts/`: restores exist only for
+plugin configs and for pulling a file down from cloud storage. Add
+`manage.sh restore <backup>` (stop the server, move `data/` aside rather than
+deleting it, extract, start, check the log for a clean world load), then
+restore last night's backup into a scratch directory on the Mac and join it
+with [LOCAL_TESTING.md](LOCAL_TESTING.md)'s local server. A backup that has
+never been restored is a hope, not a backup. Add bats tests for
+`backup-scheduler.sh`, `cleanup-backups.sh` and the restore path —
+`tests/unit/` covers none of them today.
+
+### O5. Tell someone when something breaks — Green
+
+Nothing notifies anyone when a backup fails, the container goes unhealthy, or
+the deploy agent no-ops on a dirty checkout — which is how the Pi silently
+stayed behind `main` for several merges before it was noticed. Take the ntfy
+plumbing from R3 and build the operations half first: a `notify` helper in
+`scripts/lib/`, called on backup failure, on a failed `health-check.sh`, and
+from `deploy-agent.sh` when it refuses to pull. R3's gameplay notifications
+then reuse the same helper.
+
+### O6. Re-check what the scheduler is for — Green
+
+`minecraft-scheduler.timer` is disabled on the Pi, so
+`scripts/command-scheduler.py` runs nothing. That is harmless today, but P6
+(birthdays and holidays) and M5 (the time capsule) are both written as
+scheduler content. Enable it as the first step of whichever of those ships
+first, after reviewing what schedules are already configured, rather than
+switching on a timer that fires every minute with unknown contents.
+
+### O7. The API's websocket stack — Green
+
+The API serves Socket.IO with `async_mode="eventlet"`, and eventlet is
+deprecated upstream and discouraged for new use. Move Flask-SocketIO to its
+threading mode (with `simple-websocket`) and keep the single-process
+deployment; the in-memory rate limiter already assumes one process. Do it
+when `api/server.py`'s startup block is next touched, and run
+`test_websocket.py` and the Playwright suite against it.
 
 ---
 
@@ -633,8 +740,11 @@ reason.
 - **Web UI pages for what already exists.** The API has endpoints with no page:
   events, announcements, gamerules once they land. Check `api/openapi.yaml`
   against `web/src/pages/` before adding anything new.
-- **Test coverage gaps.** Tracked in [TESTING.md](TESTING.md); close them
-  alongside the feature that touches the gap, not as a separate project.
+- **Test coverage gaps.** The weakest modules are `api/security.py` (about
+  65%) and `api/server.py` (about 72%, over 800 uncovered lines); CI's
+  coverage report is the source of truth for current numbers. Shell tests
+  cover five scripts, none of them backup or restore (see O4). Close the
+  gaps alongside the feature that touches them, not as a separate project.
 - **`api/server.py` is very large.** The recent features (`rcon.py`,
   `events.py`, `hall_of_deaths.py`, `bedtime.py`) each moved out cleanly. Keep
   doing that: new features get their own module, and blocks of `server.py`
@@ -653,7 +763,7 @@ Recorded so they don't get proposed again. These were on earlier roadmaps.
 | Multi-server orchestration, clustering, load balancing | One Pi, two players. There is no second server to orchestrate |
 | Kubernetes, Docker Swarm, HA, auto-scaling, multi-region | Same. Docker Compose is the right size for this |
 | Enterprise auth (LDAP), compliance, SLA reporting | No enterprise |
-| Intrusion detection, automated threat response, pen-testing tooling | [SECURITY_HARDENING.md](SECURITY_HARDENING.md) plus a LAN-only API is proportionate. Fix the blockers above instead |
+| Intrusion detection, automated threat response, pen-testing tooling | The admin panel is public through Cloudflare Tunnel, not LAN-only, so the proportionate answer is Cloudflare's own controls (Access in front of the tunnel, WAF rate limits) plus [SECURITY_HARDENING.md](SECURITY_HARDENING.md) — not running a security stack on the Pi |
 | Marketplace, plugin/world sharing platform, community ratings | This is a family server, not a product with a community |
 | Plugin SDK, GraphQL API, client SDKs for Python/Node/Go | The REST API and its OpenAPI spec are enough |
 | Mobile app (iOS/Android) | W6 (Shortcuts and widgets) gets 90% of the value for 2% of the work |
