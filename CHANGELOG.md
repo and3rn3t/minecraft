@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-28
+
 ### Added
 
 - **Game access through CGNAT** — the home connection is behind carrier-grade
@@ -153,6 +155,13 @@ All notable changes to this project will be documented in this file.
   needs after enabling.
 
 ### Changed
+
+- **The Oracle can answer where everyone sees it** — new `REPLY_TO` setting in
+  `config/oracle.conf`. `player` (the default) keeps replies private to the
+  player who asked, as before; `all` sends replies and quests to everyone
+  online, tagged `[Oracle → name]` so it's clear who was answered. A typo
+  keeps the private default rather than broadcasting. See
+  [`docs/ORACLE.md`](docs/ORACLE.md).
 
 - **Ruff's settings moved to `[tool.ruff]` in `pyproject.toml`**, which the
   editor extension, the pre-commit hook and `scripts/lint.sh` all discover.
