@@ -158,6 +158,8 @@ The rest install the same way:
 | `minecraft-update.timer` | Hourly check for a newer server image |
 | `minecraft-deploy.timer` | Every 5 min, deploys the newest green commit on `main` |
 | `minecraft-scheduler.timer` | Every minute, runs due scheduled commands |
+| `minecraft-playit.service` | playit.gg tunnel agent, for game access through CGNAT |
+| `minecraft-playit-sync.timer` | Every 15 min, keeps the game address's SRV record on the tunnel's port |
 | `minecraft-analytics.timer` | Every 5 min, collects analytics |
 
 See **[docs/DOCKER_BOOT_SETUP.md](docs/DOCKER_BOOT_SETUP.md)** and
@@ -168,6 +170,10 @@ See **[docs/DOCKER_BOOT_SETUP.md](docs/DOCKER_BOOT_SETUP.md)** and
 To let friends connect from outside your network, forward TCP `25565` to the Pi.
 For a stable hostname on a changing home IP, use the DDNS updater —
 **[docs/DYNAMIC_DNS.md](docs/DYNAMIC_DNS.md)**.
+
+Behind CGNAT (no public IP of your own), a port forward can't work. Relay game
+traffic through a playit.gg tunnel and point an SRV record at it, which is how
+this server is reached — **[docs/PLAYIT.md](docs/PLAYIT.md)**.
 
 Don't port-forward the web panel or API. Expose them through a Cloudflare Tunnel
 instead (`config/cloudflared-config.yml.example`), which terminates TLS and keeps

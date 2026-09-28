@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Game access through CGNAT** — the home connection is behind carrier-grade
+  NAT, so the port forward and DDNS A record behind `mine.andernet.dev` never
+  reached the server; every login ever logged came from the LAN. Players now
+  connect through a playit.gg tunnel, found running undocumented from an
+  `@reboot` crontab line. New `systemd/minecraft-playit.service` runs the
+  agent with a restart policy. playit had silently moved the tunnel from port
+  33856 to 33903, leaving the Cloudflare SRV record pointing at a dead port,
+  so new `scripts/playit-srv-sync.sh` (and `minecraft-playit-sync.timer`,
+  every 15 minutes) copies the tunnel's current port from playit's own SRV
+  record into Cloudflare's. It updates only the one existing record, and
+  writes nothing it can't validate first. Configured in
+  `config/playit.conf`. See [`docs/PLAYIT.md`](docs/PLAYIT.md).
+
 - **The Oracle** (W1) — a Claude-powered companion that lives in chat. Every
   allowlisted player's chat message is triaged by `claude-haiku-4-5` into
   one of three outcomes (stay quiet, banter back, or generate a quest), using

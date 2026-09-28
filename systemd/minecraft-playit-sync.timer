@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically Sync the Game Address's SRV Record with playit.gg
+Requires=minecraft-playit-sync.service
+
+[Timer]
+# The tunnel rarely moves. Every 15 minutes, plus the records' 5-minute TTL,
+# bounds how long the family hostname stays broken after it does.
+OnBootSec=3min
+OnUnitActiveSec=15min
+RandomizedDelaySec=1min
+
+[Install]
+WantedBy=timers.target

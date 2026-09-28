@@ -40,6 +40,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) | Backup scheduling, retention, health checks, metrics |
 | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) | Offsite backups to Cloudflare R2, S3 or Backblaze B2 |
 | [LOG_MANAGEMENT.md](LOG_MANAGEMENT.md) | Log rotation, search and analysis |
+| [PLAYIT.md](PLAYIT.md) | How players reach the server through CGNAT: the playit.gg tunnel and its SRV record |
 | [DYNAMIC_DNS.md](DYNAMIC_DNS.md) | Keeping a hostname pointed at a changing home IP |
 | [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) | Cloudflare DDNS configuration specifics |
 
