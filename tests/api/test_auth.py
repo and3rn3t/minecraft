@@ -710,13 +710,15 @@ class TestRevokedAccounts:
 
     def test_an_active_session_works(self, client, alice):
         self._with_session(client)
-        assert client.get("/api/auth/me").status_code == 200
+        response = client.get("/api/auth/me")
+        assert response.status_code == 200
 
     def test_disabling_ends_the_session(self, client, alice):
         self._with_session(client)
         alice["enabled"] = False
 
-        assert client.get("/api/auth/me").status_code == 401
+        response = client.get("/api/auth/me")
+        assert response.status_code == 401
         with client.session_transaction() as session:
             assert "username" not in session, "the dead session is cleared, not just refused"
 
@@ -724,12 +726,15 @@ class TestRevokedAccounts:
         self._with_session(client)
         del api_module.USERS["alice"]
 
-        assert client.get("/api/auth/me").status_code == 401
+        response = client.get("/api/auth/me")
+        assert response.status_code == 401
 
     def test_disabling_ends_the_bearer_token(self, client, alice, mock_jwt):
         headers = {"Authorization": "Bearer token_alice"}
-        assert client.get("/api/auth/me", headers=headers).status_code == 200
+        response = client.get("/api/auth/me", headers=headers)
+        assert response.status_code == 200
 
         alice["enabled"] = False
 
-        assert client.get("/api/auth/me", headers=headers).status_code == 401
+        response = client.get("/api/auth/me", headers=headers)
+        assert response.status_code == 401
