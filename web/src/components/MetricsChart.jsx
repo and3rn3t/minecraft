@@ -30,7 +30,8 @@ const MetricsChart = memo(({ metrics }) => {
               style={{ backgroundColor: getStatusColor(cpuPercent), imageRendering: 'pixelated' }}
             />
             <p className="text-2xl font-minecraft text-minecraft-text-light">
-              {metrics.metrics?.cpu_percent || 'N/A'}
+              {/* The API strips docker's % sign, as it does for memory */}
+              {metrics.metrics?.cpu_percent ? `${cpuPercent}%` : 'N/A'}
             </p>
           </div>
           <div className="mt-4 bg-minecraft-dirt h-3 border-2 border-[#5D4037] overflow-hidden">

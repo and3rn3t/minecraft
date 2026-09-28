@@ -4,7 +4,7 @@
 # Prefer the Docker Compose v2 plugin, fall back to the legacy v1 binary
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests
+.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests test-visual test-visual-update
 
 # Default target
 help:
@@ -25,6 +25,8 @@ help:
 	@echo "  make test-web    - Run web UI tests only"
 	@echo "  make test-web-a11y - Run accessibility tests"
 	@echo "  make test-playwright - Run browser tests"
+	@echo "  make test-visual - Browser tests incl. screenshots, in the CI container"
+	@echo "  make test-visual-update - Re-render changed screenshot baselines"
 	@echo "  make lint        - Run all linting checks"
 	@echo "  make lint-bash   - Lint bash scripts"
 	@echo "  make lint-python - Lint Python code"
@@ -129,8 +131,28 @@ test-web-a11y:
 	@cd web && npm run test:a11y
 
 test-playwright:
-	@echo "Running Playwright browser tests..."
+	@echo "Running Playwright browser tests (visual ones need make test-visual)..."
 	@cd web && npm run test:playwright
+
+# The visual-regression baselines are rendered in the official Playwright image,
+# which is also where CI runs them: a screenshot only matches the environment
+# that drew it. Keep this tag equal to @playwright/test in web/package-lock.json
+# and to the playwright-tests job's container in .github/workflows/main.yml.
+# node_modules lives in a named volume, because the host's (macOS) native
+# binaries don't run in the Linux container.
+PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.56.1-noble
+PLAYWRIGHT_DOCKER = docker run --rm -v "$(CURDIR)/web":/work -v minecraft-web-node-modules:/work/node_modules \
+	-w /work -e CI=1 -e PW_VISUAL=1 $(PLAYWRIGHT_IMAGE) bash -c
+
+test-visual:
+	@echo "Running all Playwright tests in $(PLAYWRIGHT_IMAGE), as CI does..."
+	@$(PLAYWRIGHT_DOCKER) "npm ci --no-audit --no-fund --loglevel=error && npx playwright test"
+
+# After an intended UI change: re-render only the baselines that differ, then
+# look at the new images before committing them.
+test-visual-update:
+	@echo "Re-rendering changed visual baselines in $(PLAYWRIGHT_IMAGE)..."
+	@$(PLAYWRIGHT_DOCKER) "npm ci --no-audit --no-fund --loglevel=error && npx playwright test tests/e2e/visual-regression.spec.js --update-snapshots=changed"
 
 test-factories:
 	@echo "Running factory tests..."

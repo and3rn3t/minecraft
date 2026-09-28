@@ -50,7 +50,9 @@ make start|stop|restart|status|logs|backup|console
 make test              # syntax checks + pytest + vitest
 make test-api          # pytest only
 make test-web          # vitest only
-make test-playwright   # browser E2E
+make test-playwright   # browser E2E (screenshot tests skipped outside the container)
+make test-visual       # all browser tests in the Playwright image, as CI runs them
+make test-visual-update # re-render changed screenshot baselines after a UI change
 make lint              # shellcheck + eslint + python + yaml + compose validate
 make coverage          # pytest with coverage report
 make coverage-check    # enforce the threshold in .coverage-config.ini
@@ -200,7 +202,10 @@ wrapper from `scripts/lib/common.sh`.
   `tests/api/pytest.ini` *and* `pyproject.toml` before using them.
 - React unit tests sit next to the code in `__tests__/`; integration tests in
   `web/src/test/integration/`; MSW handlers in `web/src/test/mocks/`.
-- Playwright specs belong in `web/tests/e2e/` only.
+- Playwright specs belong in `web/tests/e2e/` only, and mock the API through
+  `web/tests/e2e/mock-api.js` rather than their own catch-all routes. Screenshot
+  baselines are rendered in the Playwright image (`make test-visual-update`);
+  review the images before committing them.
 - API tests may not start real processes: an autouse fixture in
   `tests/api/conftest.py` fails any test that does. Patch `api.server.subprocess.run`
   or `api.server.run_script` (or use the `mock_docker` fixture) instead.

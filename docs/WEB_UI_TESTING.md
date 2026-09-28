@@ -166,6 +166,34 @@ End-to-end user journeys are covered by the Playwright specs in `web/tests/e2e/`
 `tests/e2e/` were removed: every test in them was skipped unconditionally, so they
 never ran. Their scenarios are listed as a backlog in [tests/README.md](../tests/README.md).
 
+### How the browser tests run
+
+- They drive the production build in Chromium with the API mocked in the page by
+  `tests/e2e/mock-api.js`, so no backend is needed. `mockApi(page, { user })`
+  answers the endpoints the pages call; `user: null` starts signed out, and a
+  register or login call signs in. Pass `routes` to change single endpoints.
+- Wait for the request itself (`page.waitForRequest`) rather than setting a flag
+  in a route handler and asserting it after a click: the flag is checked before the
+  request is made.
+- Firefox and WebKit are opt-in: `PW_ALL_BROWSERS=1 npm run test:playwright`.
+- CI runs them on every pull request, in the official Playwright image.
+
+### Screenshot tests
+
+`visual-regression.spec.js` compares full-page screenshots with baselines in
+`visual-regression.spec.js-snapshots/`. Fonts and antialiasing differ between
+machines, so the baselines are rendered in the Playwright image and the tests only
+run there (`PW_VISUAL=1`); `npm run test:playwright` on a Mac skips them.
+
+```bash
+make test-visual          # everything, in the container, as CI runs it
+make test-visual-update   # after an intended UI change: re-render what changed
+```
+
+Look at the re-rendered PNGs before committing them: a baseline is only as right as
+the page it captured. The tolerance is 20 pixels, because renders in the same image
+are identical; a looser one let a changed number pass.
+
 ## Mock Data
 
 ### MSW Handlers
