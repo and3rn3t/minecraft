@@ -74,6 +74,16 @@ class TestParsingPlayerEvents:
         event = parse_line(line("Silas left the game"))
         assert (event.type, event.player) == (EVENT_LEAVE, "Silas")
 
+    def test_26x_system_chat_join_leave_and_advancement(self):
+        # 26.x prefixes every broadcast system message; see _SYSTEM_CHAT_PREFIX.
+        join = parse_line(line("System chat: silasino joined the game"))
+        leave = parse_line(line("System chat: silasino left the game"))
+        advancement = parse_line(line("System chat: silasino has made the advancement [Bring Home the Beacon]"))
+        assert (join.type, join.player) == (EVENT_JOIN, "silasino")
+        assert (leave.type, leave.player) == (EVENT_LEAVE, "silasino")
+        assert advancement.type == EVENT_ADVANCEMENT
+        assert advancement.data["advancement"] == "Bring Home the Beacon"
+
     def test_login_line_is_a_connect_not_a_join(self):
         """One session logs two lines; counting joins must not double-count."""
         event = parse_line(line("Jonah[/192.168.1.40:54321] logged in with entity id 214 at (1.5, 64.0, -9.5)"))
@@ -154,6 +164,32 @@ class TestParsingDeaths:
         event = parse_line(line("<Silas> Jonah was slain by Zombie"))
         assert event.type == EVENT_CHAT
         assert event.player == "Silas"
+
+    @pytest.mark.parametrize(
+        "message,player",
+        [
+            ("and3rn3t was shot by Skeleton", "and3rn3t"),
+            ("and3rn3t was slain by Zombie", "and3rn3t"),
+            ("and3rn3t discovered the floor was lava", "and3rn3t"),
+        ],
+    )
+    def test_26x_system_chat_deaths(self, message, player):
+        # Real lines from the 26.3 server's log, which the Hall of Deaths
+        # missed entirely while only the bare 1.20.4 form was recognised.
+        event = parse_line(line(f"System chat: {message}"))
+        assert event is not None
+        assert event.type == EVENT_DEATH
+        assert event.player == player
+        assert event.data["message"] == message
+
+    def test_system_chat_prefix_does_not_make_chat(self):
+        # Chat is matched before the prefix is stripped, so a system message
+        # that happens to start with "<name>" is not mistaken for a player.
+        event = parse_line(line("System chat: <Silas> Jonah was slain by Zombie"))
+        assert event is None
+
+    def test_system_chat_command_feedback_is_not_an_event(self):
+        assert parse_line(line("System chat: [Rcon: Set the world spawn point to -336, 78, -144]")) is None
 
     def test_ordinary_sentence_is_not_a_death(self):
         assert parse_line(line("Jonah is building something")) is None

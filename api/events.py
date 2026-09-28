@@ -102,6 +102,11 @@ _NAME = r"[A-Za-z0-9_]{3,16}"
 # Paper and Fabric use other thread names, so the thread field is matched loosely.
 _LINE_RE = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\]\s*\[(?P<thread>[^\]]+)\]:\s*(?P<message>.*)$")
 
+# Minecraft 26.x logs every broadcast system message -- deaths, joins, leaves,
+# advancements -- as "System chat: <message>" rather than the bare sentence
+# 1.20.4 wrote. Player chat is still logged as "<name> message", unprefixed.
+_SYSTEM_CHAT_PREFIX = "System chat: "
+
 _CHAT_RE = re.compile(rf"^<(?P<player>{_NAME})>\s?(?P<message>.*)$")
 _JOIN_RE = re.compile(rf"^(?P<player>{_NAME}) joined the game$")
 _LEAVE_RE = re.compile(rf"^(?P<player>{_NAME}) left the game$")
@@ -246,6 +251,13 @@ def parse_line(line: str) -> Optional[GameEvent]:
             data={**base, "message": chat.group("message")},
             raw=line,
         )
+
+    # Stripped only after the chat check, so the prefix can't be used to turn
+    # anything into chat, and only once. Player-typed text never gets this
+    # prefix: it is the server's own broadcast, and non-operators can't make
+    # the server broadcast arbitrary text.
+    if message.startswith(_SYSTEM_CHAT_PREFIX):
+        message = message[len(_SYSTEM_CHAT_PREFIX) :].strip()
 
     join = _JOIN_RE.match(message)
     if join:
