@@ -221,7 +221,7 @@ See `.github/workflows/tests.yml` for configuration.
 ## Test Coverage
 
 Coverage is measured for the Python API with `coverage.py`, configured in
-`.coverage-config.ini`. The enforced threshold is **70%** (`fail_under`), a ratchet a
+`.coverage-config.ini`. The enforced threshold is its `fail_under` value, a ratchet a
 few points under the measured total; raise it in that file as coverage grows.
 `scripts/check-coverage.sh` reads the same value (`COVERAGE_THRESHOLD` overrides it).
 

@@ -186,6 +186,109 @@ class TestOAuthLink:
         assert response.status_code == 400
         assert "state" not in response.get_json().get("error", "").lower()
 
+    def test_an_empty_body_is_a_bad_request_not_a_crash(self, client, mock_auth_session):
+        """get_json() returning None was dereferenced before the try block"""
+        response = client.post("/api/auth/oauth/google/link", data="", content_type="application/json")
+        assert response.status_code == 400
+
+
+class TestLinkingAnAccount:
+    """What a successful link does, for either provider."""
+
+    @pytest.fixture
+    def google_says(self):
+        """Patch Google's token exchange and userinfo to return this id"""
+        from unittest.mock import MagicMock, patch
+
+        def respond(google_id):
+            token = MagicMock(status_code=200, json=lambda: {"access_token": "t"})
+            info = MagicMock(status_code=200, json=lambda: {"id": google_id, "email": "g@example.com"})
+            return patch("requests.post", return_value=token), patch("requests.get", return_value=info)
+
+        return respond
+
+    def _link_google(self, client, google_says, google_id="g-123"):
+        with client.session_transaction() as session:
+            session["oauth_state"] = "state"
+        post, get = google_says(google_id)
+        with post, get:
+            return client.post(
+                "/api/auth/oauth/google/link",
+                json={"code": "c", "redirect_uri": "http://localhost/cb", "state": "state"},
+            )
+
+    @pytest.fixture
+    def audit(self, tmp_path, monkeypatch):
+        path = tmp_path / "audit.log"
+        monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", path)
+        return lambda: [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+    def test_google_is_linked_saved_and_audited(self, client, mock_auth_session, temp_oauth_config, google_says, audit):
+        response = self._link_google(client, google_says)
+
+        assert response.status_code == 200
+        assert response.get_json()["oauth_providers"] == ["google:g-123"]
+        saved = json.loads(api_module.USERS_FILE.read_text())
+        assert saved["testuser"]["oauth_providers"] == ["google:g-123"]
+        assert audit()[-1] == {**audit()[-1], "username": "testuser", "action": "oauth_linked"}
+
+    def test_linking_again_changes_nothing(self, client, mock_auth_session, temp_oauth_config, google_says):
+        self._link_google(client, google_says)
+
+        response = self._link_google(client, google_says)
+
+        assert response.status_code == 200
+        assert api_module.USERS["testuser"]["oauth_providers"] == ["google:g-123"]
+
+    def test_an_identity_owned_by_someone_else_is_refused(
+        self, client, mock_auth_session, temp_oauth_config, google_says, monkeypatch
+    ):
+        monkeypatch.setitem(
+            api_module.USERS, "other", {"username": "other", "role": "user", "oauth_providers": ["google:g-123"]}
+        )
+
+        response = self._link_google(client, google_says)
+
+        assert response.status_code == 400
+        assert "another user" in response.get_json()["error"]
+        assert api_module.USERS["testuser"]["oauth_providers"] == []
+
+    def test_a_link_that_cannot_be_saved_is_undone(
+        self, client, mock_auth_session, temp_oauth_config, google_says, monkeypatch
+    ):
+        monkeypatch.setattr(api_module, "save_users", lambda: False)
+
+        response = self._link_google(client, google_says)
+
+        assert response.status_code == 500
+        assert api_module.USERS["testuser"]["oauth_providers"] == [], "not linked in memory while unlinked on disk"
+
+    def test_apple_is_linked_from_a_verified_id_token(
+        self, client, mock_auth_session, temp_oauth_config, rsa_keypair, monkeypatch
+    ):
+        private_pem, public_pem = rsa_keypair
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        token = _sign_rs256(
+            private_pem, {"sub": "a-456", "aud": "test-apple-client-id", "iss": "https://appleid.apple.com"}
+        )
+        with client.session_transaction() as session:
+            session["oauth_state"] = "state"
+
+        response = client.post("/api/auth/oauth/apple/link", json={"id_token": token, "state": "state"})
+
+        assert response.status_code == 200
+        assert api_module.USERS["testuser"]["oauth_providers"] == ["apple:a-456"]
+
+    def test_apple_refuses_a_forged_token(self, client, mock_auth_session, temp_oauth_config, monkeypatch):
+        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
+        with client.session_transaction() as session:
+            session["oauth_state"] = "state"
+
+        response = client.post("/api/auth/oauth/apple/link", json={"id_token": "forged", "state": "state"})
+
+        assert response.status_code == 401
+        assert api_module.USERS["testuser"]["oauth_providers"] == []
+
 
 class TestOAuthUnlink:
     """Tests for POST /api/auth/oauth/<provider>/unlink endpoint"""
@@ -494,6 +597,82 @@ class TestOAuthSignUpPolicy:
 
         assert response.status_code == 403
         assert list(api_module.USERS) == ["testuser"]
+
+
+class TestGoogleCallback:
+    """POST /api/auth/oauth/google/callback beyond the sign-up policy: the code
+    exchange and userinfo steps, each of which can fail."""
+
+    def _callback(self, client, oauth_state, token_response, userinfo_response):
+        from unittest.mock import patch
+
+        with patch("requests.post", return_value=token_response), patch("requests.get", return_value=userinfo_response):
+            return client.post(
+                "/api/auth/oauth/google/callback",
+                json={"code": "c", "redirect_uri": "http://localhost/oauth/callback", "state": oauth_state},
+            )
+
+    def test_a_linked_identity_signs_in(self, client, temp_oauth_config, temp_users_file, oauth_state):
+        from unittest.mock import MagicMock
+
+        api_module.USERS["testuser"]["oauth_providers"] = ["google:g-1"]
+        token = MagicMock(status_code=200, json=lambda: {"access_token": "t"})
+        info = MagicMock(status_code=200, json=lambda: {"id": "g-1", "email": "test@example.com"})
+
+        response = self._callback(client, oauth_state, token, info)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["user"] == {"username": "testuser", "role": "admin"}
+        assert data["csrf_token"]
+        with client.session_transaction() as session:
+            assert session["username"] == "testuser"
+
+    @pytest.mark.parametrize(
+        "token_status, token_body, info_status, info_body, error",
+        [
+            (400, {}, 200, {}, "exchange code"),
+            (200, {}, 200, {}, "No access token"),
+            (200, {"access_token": "t"}, 500, {}, "user info"),
+            (200, {"access_token": "t"}, 200, {"email": "x@example.com"}, "Invalid user info"),
+        ],
+    )
+    def test_each_failed_step_is_a_400_and_signs_nobody_in(
+        self,
+        client,
+        temp_oauth_config,
+        temp_users_file,
+        oauth_state,
+        token_status,
+        token_body,
+        info_status,
+        info_body,
+        error,
+    ):
+        from unittest.mock import MagicMock
+
+        token = MagicMock(status_code=token_status, json=lambda: token_body)
+        info = MagicMock(status_code=info_status, json=lambda: info_body)
+
+        response = self._callback(client, oauth_state, token, info)
+
+        assert response.status_code == 400
+        assert error in response.get_json()["error"]
+        with client.session_transaction() as session:
+            assert "username" not in session
+
+    def test_needs_a_code_and_redirect_uri(self, client, temp_oauth_config, oauth_state):
+        response = client.post("/api/auth/oauth/google/callback", json={"state": oauth_state})
+        assert response.status_code == 400
+
+    def test_an_unconfigured_provider_says_so(self, client, temp_oauth_config, oauth_state, monkeypatch):
+        monkeypatch.setitem(api_module.OAUTH_CONFIG, "google", {})
+        response = client.post(
+            "/api/auth/oauth/google/callback",
+            json={"code": "c", "redirect_uri": "http://localhost/cb", "state": oauth_state},
+        )
+        assert response.status_code == 500
+        assert "not configured" in response.get_json()["error"]
 
 
 class TestAppleFormPostRelay:

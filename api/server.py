@@ -1760,6 +1760,39 @@ def google_oauth_callback():
         return jsonify({"error": "Internal server error"}), 500
 
 
+def _link_identity(username, provider, oauth_id):
+    """Attach a verified OAuth identity to an account; returns the response.
+
+    Shared by both providers. The link is saved before it is reported, and
+    audited: it gives the account a new way to sign in. A save that failed
+    used to be ignored, so the link worked until the next restart.
+    """
+    with _users_lock:
+        owner = next(
+            (name for name, user in USERS.items() if oauth_id in user.get("oauth_providers", [])),
+            None,
+        )
+        if owner is not None and owner != username:
+            log_audit_event(username, "oauth_link_failure", {"provider": provider, "reason": "linked_elsewhere"})
+            return jsonify({"error": "This account is already linked to another user"}), 400
+
+        providers = USERS[username].setdefault("oauth_providers", [])
+        if oauth_id not in providers:
+            providers.append(oauth_id)
+            if not save_users():
+                providers.remove(oauth_id)
+                return jsonify({"error": "Failed to save user"}), 500
+            log_audit_event(username, "oauth_linked", {"provider": provider})
+
+        return jsonify(
+            {
+                "success": True,
+                "message": f"{provider.capitalize()} account linked successfully",
+                "oauth_providers": list(providers),
+            }
+        )
+
+
 @app.route("/api/auth/oauth/<provider>/link", methods=["POST"])
 @auth_rate_limit("10/minute")
 @require_auth
@@ -1772,7 +1805,7 @@ def link_oauth_account(provider):
     if username not in USERS:
         return jsonify({"error": "User not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     code = data.get("code")
     redirect_uri = data.get("redirect_uri")
     id_token = data.get("id_token")
@@ -1827,25 +1860,7 @@ def link_oauth_account(provider):
                 if not google_id:
                     return jsonify({"error": "Invalid user info from Google"}), 400
 
-                oauth_id = f"google:{google_id}"
-
-                # Check if this OAuth account is already linked to another user
-                for user_key, user_data_check in USERS.items():
-                    if user_key != username and oauth_id in user_data_check.get("oauth_providers", []):
-                        return jsonify({"error": "This account is already linked to another user"}), 400
-
-                # Link to current user
-                if oauth_id not in USERS[username].get("oauth_providers", []):
-                    USERS[username].setdefault("oauth_providers", []).append(oauth_id)
-                    save_users()
-
-                return jsonify(
-                    {
-                        "success": True,
-                        "message": "Google account linked successfully",
-                        "oauth_providers": USERS[username].get("oauth_providers", []),
-                    }
-                )
+                return _link_identity(username, "google", f"google:{google_id}")
 
             except ImportError:
                 return jsonify({"error": "requests library required for OAuth"}), 500
@@ -1868,25 +1883,7 @@ def link_oauth_account(provider):
             if not apple_id:
                 return jsonify({"error": "Invalid ID token from Apple"}), 400
 
-            oauth_id = f"apple:{apple_id}"
-
-            # Check if this OAuth account is already linked to another user
-            for user_key, user_data_check in USERS.items():
-                if user_key != username and oauth_id in user_data_check.get("oauth_providers", []):
-                    return jsonify({"error": "This account is already linked to another user"}), 400
-
-            # Link to current user
-            if oauth_id not in USERS[username].get("oauth_providers", []):
-                USERS[username].setdefault("oauth_providers", []).append(oauth_id)
-                save_users()
-
-            return jsonify(
-                {
-                    "success": True,
-                    "message": "Apple account linked successfully",
-                    "oauth_providers": USERS[username].get("oauth_providers", []),
-                }
-            )
+            return _link_identity(username, "apple", f"apple:{apple_id}")
 
         else:
             return jsonify({"error": "Invalid provider"}), 400
@@ -2348,6 +2345,21 @@ def create_user():
         return jsonify({"error": "Internal server error"}), 500
 
 
+def _is_last_enabled_admin(username):
+    """True when removing this account's admin access would leave none.
+
+    Only an enabled admin counts, on both sides: counting the target along
+    with everyone else refused to delete, demote or disable a *disabled*
+    admin whenever exactly one other admin was active.
+    """
+    user = USERS.get(username, {})
+    if user.get("role") != "admin" or not user.get("enabled", True):
+        return False
+    return not any(
+        u.get("role") == "admin" and u.get("enabled", True) for name, u in USERS.items() if name != username
+    )
+
+
 @app.route("/api/users/<username>/role", methods=["PUT"])
 @require_permission("users.manage")
 def update_user_role(username):
@@ -2370,17 +2382,17 @@ def update_user_role(username):
             )
 
         # Prevent removing the last admin
-        if USERS[username].get("role") == "admin" and new_role != "admin":
-            admin_count = sum(1 for u in USERS.values() if u.get("role") == "admin" and u.get("enabled", True))
-            if admin_count <= 1:
-                return (
-                    jsonify({"error": "Cannot remove the last admin. At least one admin user must exist."}),
-                    400,
-                )
+        if new_role != "admin" and _is_last_enabled_admin(username):
+            return (
+                jsonify({"error": "Cannot remove the last admin. At least one admin user must exist."}),
+                400,
+            )
 
+        old_role = USERS[username].get("role")
         USERS[username]["role"] = new_role
 
         if not save_users():
+            USERS[username]["role"] = old_role
             return jsonify({"error": "Failed to save changes"}), 500
 
         return (
@@ -2407,22 +2419,22 @@ def delete_user(username):
             return jsonify({"error": "User not found"}), 404
 
         # Prevent deleting the last admin
-        if USERS[username].get("role") == "admin":
-            admin_count = sum(1 for u in USERS.values() if u.get("role") == "admin" and u.get("enabled", True))
-            if admin_count <= 1:
-                return (
-                    jsonify({"error": "Cannot delete the last admin. At least one admin user must exist."}),
-                    400,
-                )
+        if _is_last_enabled_admin(username):
+            return (
+                jsonify({"error": "Cannot delete the last admin. At least one admin user must exist."}),
+                400,
+            )
 
         # Prevent users from deleting themselves
         current_user = getattr(request, "user", None)
         if current_user == username:
             return jsonify({"error": "Cannot delete your own account"}), 400
 
-        del USERS[username]
+        removed = USERS.pop(username)
 
         if not save_users():
+            # Otherwise the account is gone until the next restart reloads it
+            USERS[username] = removed
             return jsonify({"error": "Failed to save changes"}), 500
 
         return jsonify({"success": True, "message": f"User '{username}' deleted"}), 200
@@ -2459,17 +2471,17 @@ def disable_user(username):
             return jsonify({"error": "User not found"}), 404
 
         # Prevent disabling the last admin
-        if USERS[username].get("role") == "admin":
-            admin_count = sum(1 for u in USERS.values() if u.get("role") == "admin" and u.get("enabled", True))
-            if admin_count <= 1:
-                return (
-                    jsonify({"error": "Cannot disable the last admin. At least one admin user must exist."}),
-                    400,
-                )
+        if _is_last_enabled_admin(username):
+            return (
+                jsonify({"error": "Cannot disable the last admin. At least one admin user must exist."}),
+                400,
+            )
 
+        was_enabled = USERS[username].get("enabled", True)
         USERS[username]["enabled"] = False
 
         if not save_users():
+            USERS[username]["enabled"] = was_enabled
             return jsonify({"error": "Failed to save changes"}), 500
 
         return jsonify({"success": True, "message": "User disabled"}), 200
@@ -2972,8 +2984,10 @@ def delete_schedule(schedule_id):
 def get_audit_logs():
     """Get audit logs"""
     try:
-        limit = request.args.get("limit", 100, type=int)
-        offset = request.args.get("offset", 0, type=int)
+        # Clamped: a negative limit sliced from the end ("-1" returned all but
+        # the oldest entry) and an unbounded one returned the whole file.
+        limit = min(max(request.args.get("limit", 100, type=int), 1), 1000)
+        offset = max(request.args.get("offset", 0, type=int), 0)
         action_filter = request.args.get("action")
         username_filter = request.args.get("username")
 
@@ -4919,9 +4933,12 @@ def delete_file():
         if not file_path.exists():
             return jsonify({"error": "File not found"}), 404
 
-        # Prevent deleting critical directories
-        critical_paths = ["data", "config", "scripts"]
-        if any(file_path.name == cp for cp in critical_paths) and file_path.is_dir():
+        # The allowed roots themselves are never deleted. Compared as resolved
+        # paths: matching by name left backups/ deletable (it was not in the
+        # list) and refused any folder merely named "config", such as a
+        # plugin's own config folder under data/.
+        roots = {os.path.realpath(str(root)) for root in ALLOWED_FILE_PATHS}
+        if str(file_path) in roots:
             return jsonify({"error": "Cannot delete critical directory"}), 403
 
         try:
@@ -5334,6 +5351,19 @@ if SOCKETIO_AVAILABLE:
 
         return _identity_has_permission(identity, permission)
 
+    def _stream_actor():
+        """Who opened this socket, named as get_username_from_request() names
+        REST callers, for the audit log. Commands sent over the socket were all
+        recorded as "__api_key__", whoever sent them."""
+        with _log_streams_lock:
+            identity = _stream_keys.get(request.sid)
+        if not identity:
+            return "unknown"
+        kind, value = identity
+        if kind == "api_key":
+            return f"api_key:{API_KEYS.get(value, {}).get('name', 'unknown')}"
+        return value
+
     @socketio.on("request_logs")
     def handle_request_logs(data):
         """Handle log request from client"""
@@ -5370,7 +5400,7 @@ if SOCKETIO_AVAILABLE:
             is_valid, sanitized_command, _ = sanitize_minecraft_command(command)
             if not is_valid:
                 log_audit_event(
-                    "__api_key__",
+                    _stream_actor(),
                     "server.command.rejected",
                     {"original_command": sanitize_string(command[:100]), "source": "websocket"},
                 )
@@ -5378,7 +5408,7 @@ if SOCKETIO_AVAILABLE:
                 return
             command = sanitized_command
 
-        log_audit_event("__api_key__", "server.command", {"command": sanitize_string(command[:100])})
+        log_audit_event(_stream_actor(), "server.command", {"command": sanitize_string(command[:100])})
 
         # Execute command via RCON
         try:

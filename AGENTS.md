@@ -206,7 +206,7 @@ wrapper from `scripts/lib/common.sh`.
   or `api.server.run_script` (or use the `mock_docker` fixture) instead.
 - BATS suites live in `tests/unit/`; they stub docker, curl and friends on PATH.
   `tests/helpers/flock` stands in for util-linux flock on macOS.
-- Coverage threshold is enforced at **70%** in `.coverage-config.ini`, a ratchet
+- Coverage threshold is `fail_under` in `.coverage-config.ini`, a ratchet
   a few points under the measured total: raise it as coverage grows. That file is
   not auto-discovered by coverage.py, so every entry point passes `--cov-config`
   explicitly; run pytest from `tests/api` so the relative path resolves.

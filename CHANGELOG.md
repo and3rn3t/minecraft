@@ -203,6 +203,21 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **User management keeps exactly the admins it should.** Deleting, demoting
+  or disabling an admin counted the target itself among the remaining admins,
+  so a *disabled* admin could not be removed while exactly one other admin was
+  active. A save that failed during any of the three, or while linking a
+  Google/Apple identity, now leaves the account as it was instead of changed
+  in memory until the next restart.
+- **The file browser protects its four root folders, and only those.**
+  Protection matched folder names, so `backups/` could be deleted wholesale
+  and any folder merely named `config` (a plugin's own settings folder under
+  `data/`) could not.
+- **The audit log records who ran a console command over the WebSocket**
+  (the key's name or the user) rather than `__api_key__` for everyone, and
+  linking a Google or Apple identity to an account is now audited. Audit-log
+  paging is clamped: a negative `limit` used to slice from the end.
+
 - **The Console runs commands with arguments.** The command sanitizer counted
   whitespace as a shell metacharacter, so `say hello`, `kick alice` and every
   other command with an argument was refused; it also matched blocked programs
