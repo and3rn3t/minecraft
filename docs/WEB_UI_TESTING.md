@@ -54,6 +54,21 @@ npm test -- --watch
 npm run test:coverage
 ```
 
+Every source JavaScript/JSX file under `src/` counts, including ones no test imports
+(they show as 0%); test files, `src/test/` and `main.jsx` are excluded. The thresholds
+in `vitest.config.js` are a ratchet a point or two under the measured totals, and CI
+and `make test` fail below them: raise them as coverage grows.
+
+### How the runner is set up
+
+- `pool: 'vmThreads'` builds jsdom once per worker instead of once per file, which
+  halves the run time. `src/test/vm-globals.js` loads first to supply the web
+  streams jsdom lacks and MSW needs.
+- `@testing-library/react`, `@testing-library/user-event` and
+  `@testing-library/dom` must resolve to **one** copy of `@testing-library/dom`
+  (`npm ls @testing-library/dom`). With two, user-event's interactions are not
+  wrapped in `act()`, which produced hundreds of warnings.
+
 ### UI Mode
 
 ```bash
@@ -258,17 +273,11 @@ api.api.getAnalyticsReport.mockRejectedValue(new Error('API Error'));
 
 ## Coverage Goals
 
-### Current Status
-
-- **Component Tests**: ~40% coverage
-- **Integration Tests**: ~30% coverage
-- **E2E Tests**: ~25% coverage
-
-### Target Goals
-
-- **Component Tests**: 70%+ coverage
-- **Integration Tests**: 60%+ coverage
-- **E2E Tests**: 50%+ coverage
+The enforced minimums are the `coverage.thresholds` in `vitest.config.js`. For
+current figures run `npm run test:coverage` (the summary table, plus an HTML report
+in `web/coverage/`), or download the `web-coverage` artifact from a CI run. The
+per-file table shows where coverage is thinnest; raise the thresholds as those
+areas are covered.
 
 ## Running Specific Test Suites
 

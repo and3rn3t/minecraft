@@ -100,8 +100,8 @@ test:
 	@bash -n scripts/start.sh
 	@bash -n scripts/setup-rpi.sh
 	@$(COMPOSE) config > /dev/null
-	@cd tests/api && pytest -v --cov=../../api --cov-config=../../.coverage-config.ini --cov-report=term-missing
-	@cd web && npm test
+	@cd tests/api && pytest -m "not performance"
+	@cd web && npm run test:coverage
 	@echo "All tests passed!"
 
 test-api:
@@ -174,9 +174,12 @@ lint-docker:
 	@./scripts/lint.sh docker
 
 # Coverage
+# Coverage flags, reports and the threshold all come from tests/api/pytest.ini
+# and .coverage-config.ini; web thresholds live in web/vitest.config.js.
 coverage:
 	@echo "Running tests with coverage..."
-	@cd tests/api && pytest -v --cov=../../api --cov-config=../../.coverage-config.ini --cov-report=term-missing --cov-report=html
+	@cd tests/api && pytest -m "not performance"
+	@cd web && npm run test:coverage
 
 coverage-check:
 	@echo "Checking coverage threshold..."

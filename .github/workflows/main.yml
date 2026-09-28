@@ -99,6 +99,9 @@ jobs:
           pip install -r api/requirements.txt
           pip install -r api/requirements-test.txt
 
+      # Coverage flags, reports and fail_under come from tests/api/pytest.ini.
+      # Contract tests are collected here too; they need no step of their own.
+      #
       # -m "not performance": this step has no marker filter otherwise, so it
       # collects and runs test_performance.py along with everything else —
       # the same hard wall-clock assertions the dedicated, schedule-only step
@@ -113,29 +116,7 @@ jobs:
           PYTEST_CURRENT_TEST: '1'
         run: |
           cd tests/api
-          pytest -v -n auto \
-            -m "not performance" \
-            --cov=../../api \
-            --cov-config=../../.coverage-config.ini \
-            --cov-report=term-missing \
-            --cov-report=html:htmlcov \
-            --cov-report=json:coverage.json \
-            --cov-report=xml:coverage.xml \
-            --timeout=300 \
-            --timeout-method=thread \
-            -ra
-
-      # Coverage is intentionally disabled here (--no-cov): the suite-wide
-      # coverage threshold in .coverage-config.ini is checked against the full
-      # test run above, and a marker-filtered subset exercises only a sliver
-      # of the codebase, so measuring coverage against it fails on arithmetic
-      # every time regardless of whether the contract tests themselves pass.
-      # That's what the old `|| echo` was actually working around, not test
-      # flakiness — with coverage off this is a real, always-honest gate.
-      - name: Run contract tests
-        run: |
-          cd tests/api
-          pytest -v -m contract --no-cov
+          pytest -n auto -m "not performance" --durations=10
 
       # Kept off the pull-request path: these assert hard wall-clock
       # thresholds (e.g. "< 50ms"), which is exactly the kind of check that
@@ -231,9 +212,18 @@ jobs:
         working-directory: web
         run: npm run build
 
+      # Coverage thresholds live in web/vitest.config.js; below them this fails.
       - name: Run Vitest tests
         working-directory: web
-        run: npm run test:ci
+        run: npm run test:coverage -- --reporter=dot
+
+      - name: Upload web coverage report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: web-coverage
+          path: web/coverage/
+          retention-days: 30
 
       # The Pi's deploy agent (scripts/deploy-agent.sh) downloads this rather
       # than running npm on the Pi, when it has a token to fetch it with and
