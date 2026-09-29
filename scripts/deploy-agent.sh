@@ -34,6 +34,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
+# shellcheck source=lib/notify.sh
+source "${SCRIPT_DIR}/lib/notify.sh"
 
 DEPLOY_CONFIG="${DEPLOY_CONFIG:-${PROJECT_DIR}/config/deploy.conf}"
 if [ -f "$DEPLOY_CONFIG" ]; then
@@ -46,7 +48,10 @@ DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 DEPLOY_WORKFLOW="${DEPLOY_WORKFLOW:-main.yml}"
 DEPLOY_REQUIRE_CI="${DEPLOY_REQUIRE_CI:-true}"
 DEPLOY_GITHUB_TOKEN="${DEPLOY_GITHUB_TOKEN:-}"
-DEPLOY_NTFY_URL="${DEPLOY_NTFY_URL:-}"
+# DEPLOY_NTFY_URL is deploy.conf's older, deploy-specific name for the same
+# thing notify.conf's NTFY_URL now covers for every script; keep it working
+# as a fallback so an existing Pi config doesn't need editing.
+NTFY_URL="${DEPLOY_NTFY_URL:-${NTFY_URL:-}}"
 DEPLOY_API_HEALTH_URL="${DEPLOY_API_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
 DEPLOY_HEALTH_TIMEOUT="${DEPLOY_HEALTH_TIMEOUT:-60}"
 DEPLOY_API_SERVICE="${DEPLOY_API_SERVICE:-minecraft-api.service}"
@@ -84,12 +89,6 @@ usage() {
 # ---------------------------------------------------------------------------
 
 short() { echo "${1:0:7}"; }
-
-# Function to send a push notification, if configured. Never fails the deploy.
-notify() {
-    [ -n "$DEPLOY_NTFY_URL" ] || return 0
-    curl -fsS -m 10 -H "Title: Minecraft server deploy" -d "$1" "$DEPLOY_NTFY_URL" >/dev/null 2>&1 || true
-}
 
 # Function to append an entry to the API's audit log (JSON lines)
 audit() {
@@ -211,7 +210,7 @@ apply_pending_restart() {
     if compose up -d "$SERVICE_NAME"; then
         rm -f "$PENDING_FILE"
         audit "deploy.server_restart" "{\"commit\": \"$(git rev-parse HEAD)\"}"
-        notify "Game server restarted on $(short "$(git rev-parse HEAD)")"
+        notify "Minecraft server deploy" "Game server restarted on $(short "$(git rev-parse HEAD)")"
     else
         log_error "Game server restart failed; will try again next run"
     fi
@@ -328,8 +327,11 @@ find_target() {
     branch="$(git symbolic-ref --short HEAD 2>/dev/null)" || branch=""
     if [ "$branch" != "$DEPLOY_BRANCH" ]; then
         log_warn "Checkout is on '${branch:-a detached HEAD}', not '${DEPLOY_BRANCH}'; not deploying"
+        notify_once "$STATE_DIR/notified-wrong-branch" "Minecraft deploy skipped" \
+            "Checkout is on '${branch:-a detached HEAD}', not '${DEPLOY_BRANCH}'; nothing will deploy until this is fixed"
         return 1
     fi
+    rm -f "$STATE_DIR/notified-wrong-branch"
 
     if ! git fetch --quiet "$DEPLOY_REMOTE" "$DEPLOY_BRANCH"; then
         log_warn "Could not fetch ${DEPLOY_REMOTE}/${DEPLOY_BRANCH}; trying again next run"
@@ -368,8 +370,11 @@ find_target() {
 
     if ! git diff --quiet || ! git diff --cached --quiet; then
         log_warn "Tracked files have local edits; not deploying over them (see 'git status')"
+        notify_once "$STATE_DIR/notified-dirty-checkout" "Minecraft deploy skipped" \
+            "Tracked files have local edits on the Pi; deploys are paused until they're committed, reset or stashed"
         return 1
     fi
+    rm -f "$STATE_DIR/notified-dirty-checkout"
 
     if [ -f "$FAILED_FILE" ] && [ "$(cat "$FAILED_FILE")" = "$TO" ]; then
         log_info "$(short "$TO") failed to deploy before; waiting for a newer commit"
@@ -432,7 +437,7 @@ rollback() {
 
     echo "$TO" >"$FAILED_FILE"
     audit "deploy.rollback" "{\"from\": \"$FROM\", \"to\": \"$TO\", \"reason\": \"$reason\"}"
-    notify "Deploy of $(short "$TO") failed (${reason}); rolled back to $(short "$FROM")"
+    notify "Minecraft server deploy" "Deploy of $(short "$TO") failed (${reason}); rolled back to $(short "$FROM")" high
     return 1
 }
 
@@ -528,7 +533,7 @@ run_deploy() {
 
     record_deployed "$TO" "$summary"
     audit "deploy.success" "{\"from\": \"$FROM\", \"to\": \"$TO\", \"applied\": \"$summary\"}"
-    notify "Deployed $(short "$TO"): ${summary}"
+    notify "Minecraft server deploy" "Deployed $(short "$TO"): ${summary}"
     log_success "Deployed $(short "$TO") (${summary})"
 }
 

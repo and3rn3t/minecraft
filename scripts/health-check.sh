@@ -9,6 +9,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# shellcheck source=lib/notify.sh
+source "${SCRIPT_DIR}/lib/notify.sh"
+
+UNHEALTHY_MARKER="${PROJECT_DIR}/.deploy/health-unhealthy-notified"
+
 # Health check thresholds
 MAX_CPU_PERCENT=90
 MAX_MEMORY_PERCENT=95
@@ -114,6 +119,13 @@ main() {
 
     if [ $exit_code -eq 0 ]; then
         echo "OK: Server is healthy"
+        rm -f "$UNHEALTHY_MARKER"
+    elif [ ! -f "$UNHEALTHY_MARKER" ]; then
+        # Only the first failed check notifies; a container stuck unhealthy
+        # would otherwise fire on every poll of this script until it recovers.
+        notify "Minecraft server unhealthy" "health-check.sh reported a failure; see the container logs" high
+        mkdir -p "$(dirname "$UNHEALTHY_MARKER")"
+        touch "$UNHEALTHY_MARKER"
     fi
 
     return $exit_code

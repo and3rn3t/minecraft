@@ -1,0 +1,9 @@
+# Push notification configuration, shared by every script that sources
+# scripts/lib/notify.sh (backup-scheduler.sh, backup-secrets.sh,
+# health-check.sh, deploy-agent.sh).
+#
+# Copy to config/notify.conf and edit. The real file is gitignored.
+
+# ntfy topic URL (https://ntfy.sh/your-topic or a self-hosted server). Leave
+# blank to disable notifications entirely; every caller no-ops silently.
+NTFY_URL=

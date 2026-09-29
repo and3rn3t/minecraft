@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Backups that actually get out of the house, and secrets to go with them**
+  (O2, O3, O4, O5) — `backup-scheduler.sh` now uploads offsite automatically
+  after a successful local backup, calling `cloud-backup-{r2,s3,b2}.sh` for
+  any provider whose config has `AUTO_UPLOAD="true"` (the integration
+  `docs/CLOUD_BACKUP.md` already documented but nothing called). New
+  `scripts/backup-secrets.sh` archives everything the admin panel needs that
+  isn't `./data` — accounts, API keys, the session-signing key, OAuth/RCON
+  config, tunnel and playit credentials — encrypted with
+  [age](https://age-encryption.org) against a key kept off the Pi, and runs
+  automatically after every scheduled backup; see
+  [`docs/CLOUD_BACKUP.md#secrets-backup`](docs/CLOUD_BACKUP.md#secrets-backup).
+  New `manage.sh restore <backup>` restores a world backup, moving the
+  existing `./data` aside rather than deleting it. New `scripts/lib/notify.sh`
+  is a shared ntfy helper (`deploy-agent.sh`'s own copy now delegates to it);
+  a failed scheduled backup, a failed offsite or secrets upload, `deploy-agent`
+  refusing to deploy (dirty checkout or wrong branch), and a container that
+  fails its health check all now send one notification each, debounced so a
+  condition that persists across many runs only notifies once. Covered by new
+  `tests/unit/test-backup-scheduler.sh`, `test-cleanup-backups.sh` and
+  `test-manage-restore.sh`, plus two new cases in `test-deploy-agent.sh`.
+  `cleanup-backups.sh` also gained portable date/stat/pattern-matching helpers
+  it was missing entirely (it silently found zero backups to evaluate on
+  macOS's BSD `find`/`grep`/`date`/`stat`, only working on the Pi's GNU
+  userland) so `make bash-tests` exercises it for real on a Mac too.
+  Still open: confirming the Pi's first live timer runs cleanly, setting
+  `AUTO_UPLOAD`/`AGE_RECIPIENT` on the Pi, and an actual restore drill against
+  a downloaded backup (see [`docs/LOCAL_TESTING.md`](docs/LOCAL_TESTING.md)).
+
 ### Fixed
 
 - **Deaths, joins, leaves and advancements are recognised again on 26.x** —
