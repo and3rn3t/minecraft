@@ -30,6 +30,20 @@ make_backup() {
     touch -t "$mtime" "$file"
 }
 
+# Prints a YYYYMMDD at least <min_days_ago> in the past that is neither a
+# Sunday nor the 1st of the month, so it classifies as "daily" regardless of
+# which real-world date the test happens to run on.
+pick_daily_date() {
+    local days_ago="$1" candidate dow dom
+    while :; do
+        candidate="$(date "-v-${days_ago}d" +%Y%m%d 2>/dev/null || date -d "${days_ago} days ago" +%Y%m%d)"
+        dow="$(date -j -f %Y%m%d "$candidate" +%w 2>/dev/null || date -d "$candidate" +%w)"
+        dom="$(date -j -f %Y%m%d "$candidate" +%d 2>/dev/null || date -d "$candidate" +%d)"
+        [ "$dow" != "0" ] && [ "$dom" != "01" ] && { echo "$candidate"; return; }
+        days_ago=$((days_ago + 1))
+    done
+}
+
 @test "reports nothing to clean up when the backup directory is empty" {
     run scripts/cleanup-backups.sh
     assert_success
@@ -59,9 +73,14 @@ KEEP_MONTHLY_DAYS=0' > config/backup-retention.conf
 @test "deletes a daily backup older than KEEP_DAILY_DAYS" {
     echo 'KEEP_LAST_N=0
 KEEP_DAILY_DAYS=7' > config/backup-retention.conf
+
+    # 30 days ago, comfortably past the 7-day window -- but nudged forward a
+    # day at a time if it happens to land on a Sunday or the 1st, which would
+    # classify it as weekly/monthly and let it survive on their far more
+    # generous default retention (30 and 365 days).
     local old_date
-    old_date="$(date -v-30d +%Y%m%d 2>/dev/null || date -d '30 days ago' +%Y%m%d)"
-    make_backup "$old_date" "$(date -v-30d +%Y%m%d%H%M 2>/dev/null || date -d '30 days ago' +%Y%m%d%H%M)"
+    old_date="$(pick_daily_date 30)"
+    make_backup "$old_date" "${old_date}1200"
 
     run scripts/cleanup-backups.sh
     assert_success
