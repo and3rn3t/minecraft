@@ -52,11 +52,12 @@ file_size_bytes() {
 # Function to get backup date from filename
 get_backup_date() {
     local filename="$1"
-    # Extract date from filename: minecraft_backup_YYYYMMDD_HHMMSS.tar.gz
+    # Extract date from filename: minecraft_backup_YYYYMMDD_HHMMSS.tar.gz or
+    # minecraft_secrets_YYYYMMDD_HHMMSS.tar.age (backup-secrets.sh).
     # Bash's own regex matching, not `grep -P`: BSD grep (macOS) has no -P.
     local date_part=""
-    if [[ "$filename" =~ minecraft_backup_([0-9]{8})_ ]]; then
-        date_part="${BASH_REMATCH[1]}"
+    if [[ "$filename" =~ minecraft_(backup|secrets)_([0-9]{8})_ ]]; then
+        date_part="${BASH_REMATCH[2]}"
     fi
     if [ -n "$date_part" ]; then
         echo "${date_part:0:4}-${date_part:4:2}-${date_part:6:2}"
@@ -110,14 +111,16 @@ main() {
     local kept_count=0
     local total_size_freed=0
 
-    # Get all backup files sorted by modification time (newest first). Built
-    # by hand rather than `find -printf`, a GNU-only flag BSD find (macOS)
-    # rejects.
+    # Get all backup and secrets-archive files sorted by modification time
+    # (newest first). Built by hand rather than `find -printf`, a GNU-only
+    # flag BSD find (macOS) rejects. World backups and secrets archives are
+    # created together each run (backup-scheduler.sh), so they share one
+    # retention pass; without this, secrets archives accumulated forever.
     local backups=() f
     while IFS= read -r f; do
         backups+=("${f#* }")
     done < <(
-        for f in "$BACKUP_DIR"/minecraft_backup_*.tar.gz; do
+        for f in "$BACKUP_DIR"/minecraft_backup_*.tar.gz "$BACKUP_DIR"/minecraft_secrets_*.tar.age; do
             [ -f "$f" ] || continue
             printf '%s %s\n' "$(file_mtime_epoch "$f")" "$f"
         done | sort -rn

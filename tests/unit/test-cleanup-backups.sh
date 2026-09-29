@@ -30,6 +30,13 @@ make_backup() {
     touch -t "$mtime" "$file"
 }
 
+# make_secrets_backup <date YYYYMMDD> <mtime YYYYMMDDHHMM>
+make_secrets_backup() {
+    local mtime="$2" file="backups/minecraft_secrets_${1}_120000.tar.age"
+    echo "x" > "$file"
+    touch -t "$mtime" "$file"
+}
+
 # Prints a YYYYMMDD at least <min_days_ago> in the past that is neither a
 # Sunday nor the 1st of the month, so it classifies as "daily" regardless of
 # which real-world date the test happens to run on.
@@ -102,4 +109,40 @@ KEEP_MONTHLY_DAYS=365' > config/backup-retention.conf
     run scripts/cleanup-backups.sh
     assert_success
     [ -f "backups/minecraft_backup_${first_of_month}_120000.tar.gz" ]
+}
+
+@test "prunes stale secrets archives the same as world backups" {
+    echo 'KEEP_LAST_N=0
+KEEP_DAILY_DAYS=7' > config/backup-retention.conf
+
+    local old_date
+    old_date="$(pick_daily_date 30)"
+    make_secrets_backup "$old_date" "${old_date}1200"
+
+    run scripts/cleanup-backups.sh
+    assert_success
+    [ ! -f "backups/minecraft_secrets_${old_date}_120000.tar.age" ]
+}
+
+@test "counts a same-run secrets archive toward KEEP_LAST_N alongside its world backup" {
+    # KEEP_LAST_N=2 covers exactly one run's pair (a world backup and its
+    # secrets archive); the older run's pair has nothing else keeping it.
+    echo 'KEEP_LAST_N=2
+KEEP_DAILY_DAYS=0
+KEEP_WEEKLY_DAYS=0
+KEEP_MONTHLY_DAYS=0' > config/backup-retention.conf
+
+    # An older, otherwise-stale pair, and a newer pair -- as backup-scheduler.sh
+    # creates them together each run.
+    make_backup 20240102 202401021200
+    make_secrets_backup 20240102 202401021201
+    make_backup 20240104 202401041200
+    make_secrets_backup 20240104 202401041201
+
+    run scripts/cleanup-backups.sh
+    assert_success
+    [ ! -f backups/minecraft_backup_20240102_120000.tar.gz ]
+    [ ! -f backups/minecraft_secrets_20240102_120000.tar.age ]
+    [ -f backups/minecraft_backup_20240104_120000.tar.gz ]
+    [ -f backups/minecraft_secrets_20240104_120000.tar.age ]
 }

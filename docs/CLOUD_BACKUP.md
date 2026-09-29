@@ -207,13 +207,26 @@ backup.
 ### Restoring
 
 ```bash
-age -d -i /path/to/secrets-key.txt backups/minecraft_secrets_<timestamp>.tar.age | tar -tf -   # inspect first
-age -d -i /path/to/secrets-key.txt backups/minecraft_secrets_<timestamp>.tar.age | tar -xf - -C /
+mkdir -m 700 -p /tmp/secrets-restore
+age -d -i /path/to/secrets-key.txt backups/minecraft_secrets_<timestamp>.tar.age \
+    | tar -xf - -C /tmp/secrets-restore
+find /tmp/secrets-restore -type f    # see what's in there before touching anything live
 ```
 
+Then copy back only what you actually need, one file at a time -- for
+example, to restore just the accounts database:
+
+```bash
+cp /tmp/secrets-restore/home/pi/minecraft-server/config/users.json \
+   /home/pi/minecraft-server/config/users.json
+```
+
+Clean up the staging directory once you're done: `rm -rf /tmp/secrets-restore`.
+
 There is no scripted restore for secrets: unlike the world, restoring these
-overwrites live accounts, sessions and tunnel credentials, so it is done by
-hand, deliberately, one file at a time.
+overwrites live accounts, sessions and tunnel credentials, so it is staged
+and copied by hand, deliberately, one file at a time -- never extracted
+straight over the live filesystem.
 
 ## Restore from Cloud
 

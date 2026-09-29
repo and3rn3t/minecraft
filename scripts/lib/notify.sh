@@ -40,8 +40,13 @@ notify() {
 # once the condition clears, so the next failure notifies again. Without this,
 # a condition that persists across many runs of a frequently-scheduled script
 # (a stuck deploy, a still-unhealthy container) would notify on every run.
+#
+# Does nothing at all, including creating the marker, when NTFY_URL is unset:
+# otherwise enabling ntfy mid-episode could never notify for that episode,
+# since the marker would already exist from runs before it was configured.
 notify_once() {
     local marker="$1" title="$2" message="$3" priority="${4:-default}"
+    [ -n "${NTFY_URL:-}" ] || return 0
     [ -f "$marker" ] && return 0
     notify "$title" "$message" "$priority"
     mkdir -p "$(dirname "$marker")"

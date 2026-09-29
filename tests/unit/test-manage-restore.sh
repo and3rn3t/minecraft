@@ -19,17 +19,25 @@ setup() {
     mkdir -p "$STATE_DIR"
     : > "$STATE_DIR/calls"
 
+    # log-line defaults to a clean startup; tests override it to simulate a
+    # failed or a silent world load.
+    echo '[Server thread/INFO]: Done (10.5s)! For help, type "help"' > "$STATE_DIR/log-line"
+
     cat > bin/docker <<STUB
 #!/bin/bash
 echo "docker \$*" >> "$STATE_DIR/calls"
 case "\$*" in
     "compose version") echo "Docker Compose version v2.0.0" ;;
     ps) [ -f "$STATE_DIR/running" ] && echo "abc123 minecraft-server Up" ;;
-    "compose logs -f minecraft") echo '[Server thread/INFO]: Done (10.5s)! For help, type "help"' ;;
+    "compose logs -f minecraft") cat "$STATE_DIR/log-line" ;;
 esac
 exit 0
 STUB
     chmod +x bin/docker
+    # scripts/lib/common.sh takes its update lock with util-linux flock, which
+    # macOS lacks. The shim takes a real lock, so the contention test still means
+    # something; on Linux the real flock is used.
+    command -v flock >/dev/null 2>&1 || cp "$REPO_DIR/tests/helpers/flock" "$TEST_DIR/bin/flock"
     export PATH="$TEST_DIR/bin:$PATH"
 
     # A good backup: a tar.gz of a single marker file, restore's expected input
@@ -140,4 +148,33 @@ restore_declined() {
     restore_confirmed good.tar.gz
     assert_success
     [ "$(cat data/marker.txt)" = "restored" ]
+}
+
+@test "restore refuses to run while a deploy holds the update lock" {
+    mkdir -p .deploy
+    exec 8>.deploy/lock
+    flock -n 8
+
+    restore_confirmed backups/good.tar.gz
+    exec 8>&-
+    assert_failure
+    assert_line "A deploy or update is running"
+    assert_not_called "compose down"
+    assert_not_called "compose up"
+}
+
+@test "restore fails when the log shows the world failed to load" {
+    echo '[Server thread/ERROR]: Exception in server tick loop' > "$STATE_DIR/log-line"
+
+    restore_confirmed backups/good.tar.gz
+    assert_failure
+    assert_line "World failed to load"
+}
+
+@test "restore fails when no load confirmation appears in the logs" {
+    : > "$STATE_DIR/log-line"
+
+    restore_confirmed backups/good.tar.gz
+    assert_failure
+    assert_line "No clean-load confirmation"
 }

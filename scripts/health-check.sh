@@ -120,12 +120,11 @@ main() {
     if [ $exit_code -eq 0 ]; then
         echo "OK: Server is healthy"
         rm -f "$UNHEALTHY_MARKER"
-    elif [ ! -f "$UNHEALTHY_MARKER" ]; then
-        # Only the first failed check notifies; a container stuck unhealthy
-        # would otherwise fire on every poll of this script until it recovers.
-        notify "Minecraft server unhealthy" "health-check.sh reported a failure; see the container logs" high
-        mkdir -p "$(dirname "$UNHEALTHY_MARKER")"
-        touch "$UNHEALTHY_MARKER"
+    else
+        # notify_once: only the first failed check notifies; a container
+        # stuck unhealthy would otherwise fire on every poll until it recovers.
+        notify_once "$UNHEALTHY_MARKER" "Minecraft server unhealthy" \
+            "health-check.sh reported a failure; see the container logs" high
     fi
 
     return $exit_code

@@ -121,7 +121,12 @@ main() {
         notify "Minecraft secrets backup failed" "See logs for details" high
         exit 1
     fi
-    [ -n "$out" ] && upload_secrets_backup "$out"
+    # An empty $out means nothing existed to back up, not a failure -- `if`
+    # here (not `[ -n "$out" ] && ...`) so that legitimate case doesn't leave
+    # this function's, and so the script's, exit status at the test's own 1.
+    if [ -n "$out" ]; then
+        upload_secrets_backup "$out"
+    fi
 }
 
 main "$@"

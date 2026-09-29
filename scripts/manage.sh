@@ -189,6 +189,14 @@ restore_backup() {
         exit 0
     fi
 
+    # Same lock deploy-agent.sh and auto-update.sh hold while they change the
+    # running container, so a deploy landing mid-restore can't recreate it out
+    # from under a data/ swap that is already in progress.
+    if ! take_update_lock; then
+        echo -e "${RED}A deploy or update is running; try the restore again once it finishes.${NC}"
+        exit 1
+    fi
+
     if docker ps | grep -q minecraft-server; then
         stop_server
     fi
@@ -217,9 +225,26 @@ restore_backup() {
     # the real command first. Wrapped in `timeout ... bash -c` (rather than
     # piping into `timeout grep`) so a `logs -f` that never produces a match
     # is killed too, instead of leaving grep's read end of the pipe orphaned.
-    local compose_bin
+    local compose_bin match
     compose_bin="$(compose_cmd)"
-    timeout 60 bash -c "$compose_bin logs -f minecraft 2>/dev/null | grep -m1 -E 'Done \\(|FAILED TO LOAD WORLD|Exception'" || true
+    # grep exits non-zero when nothing matches (including on a plain timeout);
+    # that is an expected outcome here, inspected via $match below, not a
+    # script-ending error -- `|| true` keeps `set -e` from exiting first.
+    match="$(timeout 60 bash -c "$compose_bin logs -f minecraft 2>/dev/null | grep -m1 -E 'Done \\(|FAILED TO LOAD WORLD|Exception'")" || true
+
+    case "$match" in
+        *'Done ('*)
+            echo -e "${GREEN}World loaded cleanly: ${match}${NC}"
+            ;;
+        '')
+            echo -e "${RED}No clean-load confirmation seen within 60s; check '$0 logs' by hand.${NC}"
+            exit 1
+            ;;
+        *)
+            echo -e "${RED}World failed to load: ${match}${NC}"
+            exit 1
+            ;;
+    esac
 
     if [ -n "$aside" ]; then
         echo -e "${YELLOW}Previous data kept at: $aside (remove it by hand once you've confirmed the restore)${NC}"
