@@ -141,9 +141,12 @@ The project supports three cloud backup providers:
 
 ### Integration with Backup Scheduler
 
-To automatically upload backups to cloud after creation:
+`scripts/backup-scheduler.sh` already does this for you: after every scheduled
+backup completes, it checks each `config/cloud-backup-<provider>.conf` in turn
+(R2, then S3, then B2) and uploads to any provider whose config has
+`AUTO_UPLOAD="true"`. There is nothing to wire up beyond:
 
-1. **Choose provider** and edit corresponding config:
+1. **Choose provider(s)** and edit the corresponding config:
 
    - `config/cloud-backup-r2.conf` for Cloudflare R2
    - `config/cloud-backup-s3.conf` for AWS S3
@@ -155,40 +158,75 @@ To automatically upload backups to cloud after creation:
    AUTO_UPLOAD="true"
    ```
 
-3. **Modify backup script** to call cloud upload after backup creation.
+A failed upload is logged and sent as a push notification (see
+[notify.conf.example](../config/notify.conf.example)) but does not fail the
+scheduled backup itself -- the local copy is still good.
 
-### Manual Integration
+### Manual Upload
 
-Add to your backup script:
+Outside the scheduler, upload a specific file by hand:
 
 ```bash
-# After creating backup
-BACKUP_FILE="backups/minecraft_backup_20250127.tar.gz"
-
-# Try R2 first (recommended)
-if [ -f "config/cloud-backup-r2.conf" ]; then
-    source config/cloud-backup-r2.conf
-    if [ "$AUTO_UPLOAD" = "true" ]; then
-        ./scripts/cloud-backup-r2.sh upload "$BACKUP_FILE"
-    fi
-fi
-
-# Or use S3
-if [ -f "config/cloud-backup-s3.conf" ]; then
-    source config/cloud-backup-s3.conf
-    if [ "$AUTO_UPLOAD" = "true" ]; then
-        ./scripts/cloud-backup-s3.sh upload "$BACKUP_FILE"
-    fi
-fi
-
-# Or use B2
-if [ -f "config/cloud-backup-b2.conf" ]; then
-    source config/cloud-backup-b2.conf
-    if [ "$AUTO_UPLOAD" = "true" ]; then
-        ./scripts/cloud-backup-b2.sh upload "$BACKUP_FILE"
-    fi
-fi
+./scripts/cloud-backup-r2.sh upload backups/minecraft_backup_20250127.tar.gz
 ```
+
+## Secrets Backup
+
+`manage.sh backup` only archives `./data` -- the world. Everything that makes
+the admin panel work lives outside it and exists only on the Pi: accounts and
+their 2FA secrets (`config/users.json`), API keys, the session-signing
+`SECRET_KEY` (`config/api.conf`), OAuth and RCON config, the Cloudflare Tunnel
+credentials (`~/.cloudflared/`) and the playit.gg agent's claim
+(`~/playit/secret.toml`). An SD card failure destroys these along with the
+world, and rebuilding them means re-creating every account and re-claiming
+the tunnel and the playit agent from scratch.
+
+`scripts/backup-secrets.sh` archives all of that and encrypts it with
+[age](https://age-encryption.org) against a public recipient key, so the
+result is safe to store next to the world backup, including offsite in R2/S3/B2.
+`backup-scheduler.sh` runs it automatically after every successful world
+backup.
+
+### One-time setup
+
+1. Install `age` (`brew install age` on a Mac, `apt install age` on the Pi).
+2. On a machine that is **not** the Pi, generate a keypair:
+
+   ```bash
+   age-keygen -o secrets-key.txt
+   ```
+
+3. Keep `secrets-key.txt` off the Pi entirely -- a password manager or a Mac
+   keychain item, not this repo, not `backups/`. Only this file can decrypt
+   the archive; losing it means the secrets backup is unrecoverable, same as
+   never having made one.
+4. On the Pi, copy `config/backup-secrets.conf.example` to
+   `config/backup-secrets.conf` and set `AGE_RECIPIENT` to the
+   `age1...` public key `age-keygen` printed.
+
+### Restoring
+
+```bash
+mkdir -m 700 -p /tmp/secrets-restore
+age -d -i /path/to/secrets-key.txt backups/minecraft_secrets_<timestamp>.tar.age \
+    | tar -xf - -C /tmp/secrets-restore
+find /tmp/secrets-restore -type f    # see what's in there before touching anything live
+```
+
+Then copy back only what you actually need, one file at a time -- for
+example, to restore just the accounts database:
+
+```bash
+cp /tmp/secrets-restore/home/pi/minecraft-server/config/users.json \
+   /home/pi/minecraft-server/config/users.json
+```
+
+Clean up the staging directory once you're done: `rm -rf /tmp/secrets-restore`.
+
+There is no scripted restore for secrets: unlike the world, restoring these
+overwrites live accounts, sessions and tunnel credentials, so it is staged
+and copied by hand, deliberately, one file at a time -- never extracted
+straight over the live filesystem.
 
 ## Restore from Cloud
 

@@ -38,15 +38,37 @@ log_message() {
     echo "[$timestamp] [$level] $message"
 }
 
+# Function to print a file's modification time as a Unix epoch, on GNU stat
+# (the Pi, CI) or BSD stat (a Mac running this by hand).
+file_mtime_epoch() {
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
+}
+
+# Function to print a file's size in bytes, portably (see file_mtime_epoch)
+file_size_bytes() {
+    stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null
+}
+
 # Function to get backup date from filename
 get_backup_date() {
     local filename="$1"
-    # Extract date from filename: minecraft_backup_YYYYMMDD_HHMMSS.tar.gz
-    local date_part
-    date_part=$(echo "$filename" | grep -oP 'minecraft_backup_\K\d{8}' || echo "")
+    # Extract date from filename: minecraft_backup_YYYYMMDD_HHMMSS.tar.gz or
+    # minecraft_secrets_YYYYMMDD_HHMMSS.tar.age (backup-secrets.sh).
+    # Bash's own regex matching, not `grep -P`: BSD grep (macOS) has no -P.
+    local date_part=""
+    if [[ "$filename" =~ minecraft_(backup|secrets)_([0-9]{8})_ ]]; then
+        date_part="${BASH_REMATCH[2]}"
+    fi
     if [ -n "$date_part" ]; then
         echo "${date_part:0:4}-${date_part:4:2}-${date_part:6:2}"
     fi
+}
+
+# Function to print one field of a YYYY-MM-DD date, on GNU date (the Pi, CI)
+# or BSD date (a Mac running this by hand).
+date_field() {
+    local date_str="$1" fmt="$2"
+    date -d "$date_str" "+$fmt" 2>/dev/null || date -j -f "%Y-%m-%d" "$date_str" "+$fmt" 2>/dev/null
 }
 
 # Function to check if backup is daily/weekly/monthly
@@ -61,9 +83,9 @@ classify_backup() {
     fi
 
     local day_of_month
-    day_of_month=$(date -d "$date_str" +%d 2>/dev/null || echo "")
+    day_of_month=$(date_field "$date_str" %d)
     local day_of_week
-    day_of_week=$(date -d "$date_str" +%w 2>/dev/null || echo "")
+    day_of_week=$(date_field "$date_str" %w)
 
     # Monthly backup: first day of month
     if [ "$day_of_month" = "01" ]; then
@@ -89,8 +111,20 @@ main() {
     local kept_count=0
     local total_size_freed=0
 
-    # Get all backup files sorted by modification time (newest first)
-    local backups=($(find "$BACKUP_DIR" -name "minecraft_backup_*.tar.gz" -type f -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-))
+    # Get all backup and secrets-archive files sorted by modification time
+    # (newest first). Built by hand rather than `find -printf`, a GNU-only
+    # flag BSD find (macOS) rejects. World backups and secrets archives are
+    # created together each run (backup-scheduler.sh), so they share one
+    # retention pass; without this, secrets archives accumulated forever.
+    local backups=() f
+    while IFS= read -r f; do
+        backups+=("${f#* }")
+    done < <(
+        for f in "$BACKUP_DIR"/minecraft_backup_*.tar.gz "$BACKUP_DIR"/minecraft_secrets_*.tar.age; do
+            [ -f "$f" ] || continue
+            printf '%s %s\n' "$(file_mtime_epoch "$f")" "$f"
+        done | sort -rn
+    )
 
     if [ ${#backups[@]} -eq 0 ]; then
         log_message "INFO" "No backups found to clean up"
@@ -109,7 +143,7 @@ main() {
         local backup_type
         backup_type=$(classify_backup "$filename")
         local file_age_days
-        file_age_days=$(( ($(date +%s) - $(stat -c %Y "$backup_file")) / 86400 ))
+        file_age_days=$(( ($(date +%s) - $(file_mtime_epoch "$backup_file")) / 86400 ))
         local should_keep=false
 
         # Always keep the last N backups
@@ -132,7 +166,7 @@ main() {
             kept_count=$((kept_count + 1))
         else
             local file_size
-            file_size=$(stat -c %s "$backup_file" 2>/dev/null || echo "0")
+            file_size=$(file_size_bytes "$backup_file" 2>/dev/null || echo "0")
             total_size_freed=$((total_size_freed + file_size))
             rm -f "$backup_file"
             deleted_count=$((deleted_count + 1))

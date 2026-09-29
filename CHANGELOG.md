@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Backups that actually get out of the house, and secrets to go with them**
+  (O2, O3, O4, O5) — `backup-scheduler.sh` now uploads offsite automatically
+  after a successful local backup, calling `cloud-backup-{r2,s3,b2}.sh` for
+  any provider whose config has `AUTO_UPLOAD="true"` (the integration
+  `docs/CLOUD_BACKUP.md` already documented but nothing called). New
+  `scripts/backup-secrets.sh` archives everything the admin panel needs that
+  isn't `./data` — accounts, API keys, the session-signing key, OAuth/RCON
+  config, tunnel and playit credentials — encrypted with
+  [age](https://age-encryption.org) against a key kept off the Pi, and runs
+  automatically after every scheduled backup; see
+  [`docs/CLOUD_BACKUP.md#secrets-backup`](docs/CLOUD_BACKUP.md#secrets-backup).
+  `cleanup-backups.sh` now prunes secrets archives under the same retention
+  pass as world backups, rather than letting them accumulate forever, and
+  gained the portable date/stat/pattern-matching helpers it was missing
+  entirely (it silently found zero backups to evaluate on macOS's BSD
+  `find`/`grep`/`date`/`stat`, only working on the Pi's GNU userland) so
+  `make bash-tests` exercises it for real on a Mac too.
+  New `manage.sh restore <backup>` restores a world backup: holds the same
+  update lock `deploy-agent.sh`/`auto-update.sh` hold while changing the
+  container, moves the existing `./data` aside rather than deleting it, and
+  fails loudly (exit nonzero) rather than reporting success when the log
+  never shows a clean `Done (` load. New `scripts/lib/notify.sh` is a shared
+  ntfy helper (`deploy-agent.sh`'s own copy now delegates to it). Health
+  checks and `deploy-agent` deploy-refusals (dirty checkout or wrong branch)
+  are debounced — a condition that persists across many runs of a frequently
+  scheduled script notifies only once, via `notify_once`, which now also
+  skips creating its marker at all when no `NTFY_URL` is configured, so
+  enabling ntfy mid-episode doesn't permanently suppress that episode's
+  alert. Backup, offsite-upload and secrets-upload failures are not
+  debounced — each is a distinct scheduled event, not a continuous polled
+  state, so every failed run notifies. Covered by new
+  `tests/unit/test-backup-scheduler.sh`, `test-cleanup-backups.sh` and
+  `test-manage-restore.sh`, plus new cases in `test-deploy-agent.sh`.
+  Still open: confirming the Pi's first live timer runs cleanly, setting
+  `AUTO_UPLOAD`/`AGE_RECIPIENT` on the Pi, and an actual restore drill against
+  a downloaded backup (see [`docs/LOCAL_TESTING.md`](docs/LOCAL_TESTING.md)).
+
 ### Fixed
 
 - **Deaths, joins, leaves and advancements are recognised again on 26.x** —

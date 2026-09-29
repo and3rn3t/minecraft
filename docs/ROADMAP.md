@@ -38,8 +38,8 @@ ahead of the dates written down:
 
 | Area | State | Guide |
 | --- | --- | --- |
-| Backups, retention, verification, scheduling | Running on the Pi every other day since 2026-09-28; not yet offsite — see [O2](#o2-backups-that-actually-run--green) | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
-| Offsite backup (R2, S3, B2) | Built, not configured or scheduled — see [O2](#o2-backups-that-actually-run--green) | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) |
+| Backups, retention, verification, scheduling | Running on the Pi every other day since 2026-09-28 — see [O2](#o2-backups-that-actually-run--green-code-done) | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
+| Offsite backup (R2, S3, B2) | Scheduler wired to upload automatically; not yet enabled on the Pi — see [O2](#o2-backups-that-actually-run--green-code-done) | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) |
 | Monitoring, TPS, metrics, Prometheus | Done | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
 | Analytics, trends, anomalies, predictions | Done | [ANALYTICS.md](ANALYTICS.md) |
 | Version checking and one-command updates | Done | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) |
@@ -132,58 +132,66 @@ dashboard button should make a one-tap job for a parent. Don't use
 `scripts/whitelist-manager.sh` for this yet: its RCON call is a stub, so it
 only edits `whitelist.json`, which the running server doesn't reread.
 
-### O2. Backups that actually run — Green
+### O2. Backups that actually run — Green, code done
 
 `minecraft-backup.timer` was enabled on the Pi on 2026-09-28 and backs up at
-03:00 every other day. What's left:
+03:00 every other day. `backup-scheduler.sh` now also uploads offsite (R2,
+S3 or B2, whichever has `AUTO_UPLOAD="true"`) after a successful local
+backup. What's left is on the Pi, not in the repo:
 
 - **Confirm the first runs.** Check `systemctl list-timers` and
   `logs/backup-scheduler.log` after the first night; a "Skipping backup" line
   there means the scheduler's time check is still in the way.
-- **Every backup sits on the same SD card as the world** (`/` is
-  `mmcblk0p2`). One card failure loses both, so offsite is the real fix:
-  no `config/cloud-backup-*.conf` exists, and even with one
-  `scripts/backup-scheduler.sh` never calls the cloud upload — offsite is
-  manual-only as written. Have the scheduler upload to R2 after a successful
-  local backup when a config is present.
+- **Set `AUTO_UPLOAD="true"`** in `config/cloud-backup-r2.conf` (or s3/b2) on
+  the Pi and confirm an object actually lands (`cloud-backup-r2.sh list`).
+  Every backup still sits on the same SD card as the world until this is on.
 
-### O3. Back up the secrets, not just the world — Green
+### O3. Back up the secrets, not just the world — Green, code done
 
 `manage.sh backup` tars `./data` only. Everything that makes the admin panel
 work lives outside it and exists only on the Pi: `config/users.json`
 (accounts and their 2FA secrets), `config/api-keys.json`, `config/api.conf`
 (the `SECRET_KEY` that signs sessions and API tokens), `config/oauth.conf`,
-`config/rcon.conf`, `~/.cloudflared/` (tunnel credentials),
-`~/playit/secret.toml` (the playit.gg agent's claim), and the
-`minecraft-api.service` systemd override that sets `ALLOWED_ORIGINS`.
-Rebuilding those after an SD card failure means re-creating every account,
-re-claiming the playit agent and re-registering the tunnel.
+`config/rcon.conf`, `~/.cloudflared/` (tunnel credentials), and
+`~/playit/secret.toml` (the playit.gg agent's claim). Rebuilding those after
+an SD card failure means re-creating every account, re-claiming the playit
+agent and re-registering the tunnel.
 
-Add a small, separate, encrypted config archive (these are secrets, so not in
-the world tarball that goes to R2 in the clear) — `age` or `gpg` with a key
-kept off the Pi — uploaded alongside the world backup.
+`scripts/backup-secrets.sh` now archives all of that into an
+[age](https://age-encryption.org)-encrypted `.tar.age`, uploaded offsite the
+same way as the world backup, and runs automatically after every scheduled
+backup — see [CLOUD_BACKUP.md#secrets-backup](CLOUD_BACKUP.md#secrets-backup).
+Still open on the Pi: install `age`, generate a keypair (keeping the private
+key off the Pi), and set `AGE_RECIPIENT` in `config/backup-secrets.conf`. Also
+still open: confirming the exact path of the `minecraft-api.service` systemd
+override that sets `ALLOWED_ORIGINS` (`systemctl cat minecraft-api.service`
+on the Pi) — `backup-secrets.sh` doesn't back it up yet, only the config files
+above.
 
-### O4. A restore command, and one real restore — Green
+### O4. A restore command, and one real restore — Green, code done
 
 There is no world-restore command in `scripts/`: restores exist only for
-plugin configs and for pulling a file down from cloud storage. Add
-`manage.sh restore <backup>` (stop the server, move `data/` aside rather than
-deleting it, extract, start, check the log for a clean world load), then
-restore last night's backup into a scratch directory on the Mac and join it
-with [LOCAL_TESTING.md](LOCAL_TESTING.md)'s local server. A backup that has
-never been restored is a hope, not a backup. Add bats tests for
-`backup-scheduler.sh`, `cleanup-backups.sh` and the restore path —
-`tests/unit/` covers none of them today.
+plugin configs and for pulling a file down from cloud storage. `manage.sh
+restore <backup>` now does this (stops the server, moves `data/` aside rather
+than deleting it, extracts, starts, checks the log for a clean world load),
+covered by `tests/unit/test-manage-restore.sh`. Still open: actually running
+it against a real backup downloaded from the Pi and joining with
+[LOCAL_TESTING.md](LOCAL_TESTING.md#restoring-a-real-backup)'s local server —
+a backup that has never been restored is a hope, not a backup.
 
-### O5. Tell someone when something breaks — Green
+### O5. Tell someone when something breaks — Green, code done
 
-Nothing notifies anyone when a backup fails, the container goes unhealthy, or
-the deploy agent no-ops on a dirty checkout — which is how the Pi silently
-stayed behind `main` for several merges before it was noticed. Take the ntfy
-plumbing from R3 and build the operations half first: a `notify` helper in
-`scripts/lib/`, called on backup failure, on a failed `health-check.sh`, and
-from `deploy-agent.sh` when it refuses to pull. R3's gameplay notifications
-then reuse the same helper.
+Nothing notified anyone when a backup failed, the container went unhealthy, or
+the deploy agent no-opped on a dirty checkout — which is how the Pi silently
+stayed behind `main` for several merges before it was noticed. New
+`scripts/lib/notify.sh` is a shared ntfy helper (`config/notify.conf`),
+called on backup failure, on a failed `health-check.sh` (debounced so a
+container stuck unhealthy notifies once, not on every poll), and from
+`deploy-agent.sh` when it refuses to deploy over local edits or the wrong
+branch (also debounced). R3's gameplay notifications can reuse the same
+helper. Still open: setting `NTFY_URL` in `config/notify.conf` on the Pi and
+forcing each failure path once to confirm exactly one notification fires, not
+a flood.
 
 ### O6. Re-check what the scheduler is for — Green
 

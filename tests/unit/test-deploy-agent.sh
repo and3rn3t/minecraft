@@ -323,6 +323,21 @@ Description=changed"
     [ "$(pi_head)" = "$before" ]
 }
 
+@test "run notifies once when local edits block a deploy, not on every run" {
+    export NTFY_URL="http://example.invalid/topic"
+    echo "edited on the Pi" >> "$PI/README.md"
+    push_change api/server.py "print('api v2')"
+
+    deploy run
+    assert_success
+    assert_called "example.invalid"
+
+    : > "$STATE_DIR/calls"
+    deploy run
+    assert_success
+    assert_not_called "example.invalid"
+}
+
 @test "run leaves a checkout on another branch alone" {
     git -C "$PI" checkout -q -b experiment
     push_change api/server.py "print('api v2')"
@@ -330,6 +345,21 @@ Description=changed"
     deploy run
     assert_success
     assert_line "not 'main'"
+}
+
+@test "run notifies once when on the wrong branch, not on every run" {
+    export NTFY_URL="http://example.invalid/topic"
+    git -C "$PI" checkout -q -b experiment
+    push_change api/server.py "print('api v2')"
+
+    deploy run
+    assert_success
+    assert_called "example.invalid"
+
+    : > "$STATE_DIR/calls"
+    deploy run
+    assert_success
+    assert_not_called "example.invalid"
 }
 
 @test "run waits for an empty server before restarting the game" {

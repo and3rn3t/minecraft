@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/lib/common.sh"
 usage() {
     echo -e "${BLUE}Minecraft Server Management Script${NC}"
     echo -e ""
-    echo -e "Usage: $0 {start|stop|restart|status|logs|backup|console|update|check-version|check-compatibility}"
+    echo -e "Usage: $0 {start|stop|restart|status|logs|backup|restore|console|update|check-version|check-compatibility}"
     echo -e ""
     echo -e "Commands:"
     echo -e "  start              - Start the Minecraft server"
@@ -24,6 +24,7 @@ usage() {
     echo -e "  status             - Check server status"
     echo -e "  logs               - View server logs"
     echo -e "  backup             - Create a backup of the server"
+    echo -e "  restore <file>     - Restore a backup (stops server, moves data/ aside, extracts, starts)"
     echo -e "  console            - Attach to server console"
     echo -e "  update [ver]       - Update server to latest or specified version"
     echo -e "  check-version      - Check for available server updates"
@@ -161,6 +162,95 @@ create_backup() {
     fi
 }
 
+# Function to restore a backup. Never deletes the current ./data: it is moved
+# aside so a bad restore can be undone, and so this can never make a bad
+# situation worse. "A backup that has never been restored is a hope, not a
+# backup" -- this is also what makes that real, not just a script that exists.
+restore_backup() {
+    local backup_file="$1"
+    if [ -z "$backup_file" ]; then
+        echo -e "${RED}Usage: $0 restore <backup-file>${NC}"
+        exit 1
+    fi
+    if [ ! -f "$backup_file" ]; then
+        # Accept a bare filename too, resolved against ./backups
+        backup_file="./backups/$(basename "$backup_file")"
+        if [ ! -f "$backup_file" ]; then
+            echo -e "${RED}Backup not found: $1${NC}"
+            exit 1
+        fi
+    fi
+
+    echo -e "${YELLOW}This stops the server and replaces ./data with $backup_file. Continue? (y/N)${NC}"
+    read -p "" -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelled"
+        exit 0
+    fi
+
+    # Same lock deploy-agent.sh and auto-update.sh hold while they change the
+    # running container, so a deploy landing mid-restore can't recreate it out
+    # from under a data/ swap that is already in progress.
+    if ! take_update_lock; then
+        echo -e "${RED}A deploy or update is running; try the restore again once it finishes.${NC}"
+        exit 1
+    fi
+
+    if docker ps | grep -q minecraft-server; then
+        stop_server
+    fi
+
+    local aside=""
+    if [ -d ./data ]; then
+        aside="./data.pre-restore.$(date +%Y%m%d_%H%M%S)"
+        echo -e "${BLUE}Moving current data aside: $aside${NC}"
+        mv ./data "$aside"
+    fi
+    mkdir -p ./data
+
+    echo -e "${BLUE}Extracting $backup_file...${NC}"
+    if ! tar -xzf "$backup_file" -C ./data; then
+        echo -e "${RED}Extraction failed; restoring previous ./data${NC}"
+        rm -rf ./data
+        [ -n "$aside" ] && mv "$aside" ./data
+        exit 1
+    fi
+
+    echo -e "${GREEN}Starting server...${NC}"
+    start_server
+
+    echo -e "${BLUE}Watching logs for a clean world load (up to 60s)...${NC}"
+    # compose() is a shell function, not visible to the `bash -c` below; resolve
+    # the real command first. Wrapped in `timeout ... bash -c` (rather than
+    # piping into `timeout grep`) so a `logs -f` that never produces a match
+    # is killed too, instead of leaving grep's read end of the pipe orphaned.
+    local compose_bin match
+    compose_bin="$(compose_cmd)"
+    # grep exits non-zero when nothing matches (including on a plain timeout);
+    # that is an expected outcome here, inspected via $match below, not a
+    # script-ending error -- `|| true` keeps `set -e` from exiting first.
+    match="$(timeout 60 bash -c "$compose_bin logs -f minecraft 2>/dev/null | grep -m1 -E 'Done \\(|FAILED TO LOAD WORLD|Exception'")" || true
+
+    case "$match" in
+        *'Done ('*)
+            echo -e "${GREEN}World loaded cleanly: ${match}${NC}"
+            ;;
+        '')
+            echo -e "${RED}No clean-load confirmation seen within 60s; check '$0 logs' by hand.${NC}"
+            exit 1
+            ;;
+        *)
+            echo -e "${RED}World failed to load: ${match}${NC}"
+            exit 1
+            ;;
+    esac
+
+    if [ -n "$aside" ]; then
+        echo -e "${YELLOW}Previous data kept at: $aside (remove it by hand once you've confirmed the restore)${NC}"
+    fi
+}
+
 # Function to attach to console
 attach_console() {
     echo -e "${BLUE}Attaching to server console (Press Ctrl+P then Ctrl+Q to detach)...${NC}"
@@ -291,6 +381,9 @@ case "${1}" in
         ;;
     backup)
         create_backup
+        ;;
+    restore)
+        restore_backup "$2"
         ;;
     console)
         attach_console

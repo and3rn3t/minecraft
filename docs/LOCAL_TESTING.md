@@ -160,6 +160,29 @@ toast — connect a real Minecraft Java Edition 1.20.4 client to
 `localhost:25565`. Everything built through RCON above will already be
 there waiting.
 
+## Restoring a real backup
+
+This is the actual restore drill: proving a real backup from the Pi loads
+cleanly, not just that `manage.sh restore` runs without error. Do this
+periodically, not just once -- see [`CLOUD_BACKUP.md`](CLOUD_BACKUP.md) for
+uploading and downloading backups.
+
+```bash
+# Get a real backup, e.g. from R2:
+./scripts/cloud-backup-r2.sh download minecraft_backup_<latest>.tar.gz
+
+# Follow "First-time setup" above through `make build`, then instead of a
+# fresh `make start`, restore into it:
+./scripts/manage.sh restore backups/minecraft_backup_<latest>.tar.gz
+make logs   # watch for "Done (...)!" with no "FAILED TO LOAD WORLD" or exception
+```
+
+Then connect a real client (see above) and confirm it's actually the real
+world -- spawn point, builds and inventories match what you expect, not just
+that *a* world loaded. Record the date and which backup you restored in
+[`CHANGELOG.md`](../CHANGELOG.md); a backup that has never been restored is a
+hope, not a backup.
+
 ## Cleaning up
 
 ```bash

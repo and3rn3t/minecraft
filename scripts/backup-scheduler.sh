@@ -16,6 +16,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG_FILE="${PROJECT_DIR}/config/backup-schedule.conf"
 
+# shellcheck source=lib/notify.sh
+source "${SCRIPT_DIR}/lib/notify.sh"
+
 # Default configuration
 BACKUP_ENABLED=true
 BACKUP_TIME="03:00"
@@ -60,6 +63,39 @@ should_run_backup() {
             return 1
             ;;
     esac
+}
+
+# Function to upload a backup to whichever cloud provider is configured.
+# Reads config/cloud-backup-<provider>.conf; a provider config with
+# AUTO_UPLOAD="true" opts in. Offsite is best-effort: a failed upload is
+# logged and notified, but does not fail the scheduled backup, since the
+# local copy the rest of this run produced is still good.
+upload_offsite() {
+    local backup_file="$1" provider conf script status
+    for provider in r2 s3 b2; do
+        conf="${PROJECT_DIR}/config/cloud-backup-${provider}.conf"
+        script="${SCRIPT_DIR}/cloud-backup-${provider}.sh"
+        [ -f "$conf" ] || continue
+
+        # Subshell: keep the provider config's AUTO_UPLOAD and credentials out
+        # of this script's own scope and out of the next provider's check.
+        status=0
+        (
+            # shellcheck source=/dev/null
+            source "$conf"
+            [ "${AUTO_UPLOAD:-false}" = "true" ] || exit 3
+            "$script" upload "$backup_file"
+        ) || status=$?
+
+        case "$status" in
+            0) log_message "INFO" "Uploaded $(basename "$backup_file") to ${provider}" ;;
+            3) ;; # AUTO_UPLOAD not set for this provider; not an error
+            *)
+                log_message "ERROR" "Offsite upload to ${provider} failed"
+                notify "Minecraft backup" "Local backup OK, but offsite upload to ${provider} failed" high
+                ;;
+        esac
+    done
 }
 
 # Main backup execution
@@ -108,8 +144,22 @@ main() {
                 log_message "INFO" "Running backup cleanup"
                 "${SCRIPT_DIR}/cleanup-backups.sh" >> "${PROJECT_DIR}/logs/backup-scheduler.log" 2>&1 || true
             fi
+
+            local latest_backup
+            latest_backup="$(ls -t "${PROJECT_DIR}"/backups/minecraft_backup_*.tar.gz 2>/dev/null | head -1)"
+            if [ -n "$latest_backup" ]; then
+                upload_offsite "$latest_backup" >> "${PROJECT_DIR}/logs/backup-scheduler.log" 2>&1
+            fi
+
+            # Secrets archive: config, credentials, tunnel state -- not part of
+            # ./data, and lost along with it on the same SD card failure.
+            if [ -f "${SCRIPT_DIR}/backup-secrets.sh" ]; then
+                "${SCRIPT_DIR}/backup-secrets.sh" >> "${PROJECT_DIR}/logs/backup-scheduler.log" 2>&1 || \
+                    log_message "ERROR" "Secrets backup failed; see the log above"
+            fi
         else
             log_message "ERROR" "Scheduled backup failed"
+            notify "Minecraft backup failed" "manage.sh backup exited non-zero; check logs/backup-scheduler.log" high
             exit 1
         fi
     else
