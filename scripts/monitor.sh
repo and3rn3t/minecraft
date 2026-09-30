@@ -4,15 +4,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 METRICS_DIR="${PROJECT_DIR}/metrics"
 LOGS_DIR="${PROJECT_DIR}/logs"
@@ -35,7 +31,7 @@ log_metric() {
 
 # Function to get Docker container stats
 get_container_stats() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         docker stats minecraft-server --no-stream --format "{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}}"
     else
         echo "0%,0B / 0B,0%,0B / 0B,0B / 0B"
@@ -44,7 +40,7 @@ get_container_stats() {
 
 # Function to get memory usage
 get_memory_usage() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         local stats
         stats=$(docker stats minecraft-server --no-stream --format "{{.MemUsage}}")
         echo "$stats"
@@ -55,7 +51,7 @@ get_memory_usage() {
 
 # Function to get CPU usage
 get_cpu_usage() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         local cpu
         cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//')
         echo "$cpu"
@@ -66,7 +62,7 @@ get_cpu_usage() {
 
 # Function to get player count
 get_player_count() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         # Try to get player count from server logs or RCON
         local players
         players=$(docker logs minecraft-server --tail 100 2>/dev/null | grep -oP 'There are \K\d+' | tail -1 || echo "0")
@@ -78,7 +74,7 @@ get_player_count() {
 
 # Function to check server status
 get_server_status() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         # Check if container is healthy
         local health
         health=$(docker inspect --format='{{.State.Health.Status}}' minecraft-server 2>/dev/null || echo "unknown")
@@ -94,7 +90,7 @@ get_server_status() {
 
 # Function to get server uptime
 get_server_uptime() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         local started
         started=$(docker inspect --format='{{.State.StartedAt}}' minecraft-server 2>/dev/null)
         if [ -n "$started" ]; then
@@ -115,7 +111,7 @@ get_server_uptime() {
 
 # Function to get TPS (Ticks Per Second) from logs
 get_tps() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         # Try to extract TPS from recent logs
         # Minecraft servers often log TPS in format like "TPS: 20.0"
         local tps

@@ -5,13 +5,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Minecraft Server Setup for Raspberry Pi 5${NC}"
@@ -41,7 +37,7 @@ fi
 
 # Install Docker Compose
 echo -e "${GREEN}[3/11] Installing Docker Compose...${NC}"
-if ! docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
+if ! compose_cmd &> /dev/null; then
     # Compose v1 reached end of life in July 2023; install the v2 plugin
     sudo apt-get install -y docker-compose-plugin
     echo -e "${GREEN}Docker Compose installed successfully${NC}"

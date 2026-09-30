@@ -29,6 +29,7 @@ echo "docker \$*" >> "$STATE_DIR/calls"
 case "\$*" in
     "compose version") echo "Docker Compose version v2.0.0" ;;
     ps) [ -f "$STATE_DIR/running" ] && echo "abc123 minecraft-server Up" ;;
+    "ps --format {{.Names}}") [ -f "$STATE_DIR/running" ] && echo "minecraft-server" ;;
     "compose logs -f minecraft") cat "$STATE_DIR/log-line" ;;
 esac
 exit 0

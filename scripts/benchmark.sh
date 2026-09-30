@@ -38,7 +38,7 @@ print_header() {
 
 # Function to check if server is running
 check_server_running() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo -e "${RED}Error: Minecraft server is not running${NC}"
         echo "Start the server with: ./manage.sh start"
         exit 1

@@ -4,16 +4,12 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
+CYAN='\033[0;36m'
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 LOGS_DIR="${PROJECT_DIR}/logs"
 INDEX_DIR="${LOGS_DIR}/index"
@@ -66,7 +62,7 @@ search_in_files() {
     fi
 
     # Search in Docker logs
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         docker logs minecraft-server 2>/dev/null | grep $grep_flags -E "$query" | head -n $((max_results - count)) | while IFS= read -r line; do
             echo -e "${GREEN}[docker]${NC} $line"
             count=$((count + 1))

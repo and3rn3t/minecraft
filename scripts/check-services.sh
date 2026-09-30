@@ -4,15 +4,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Configuration
@@ -27,7 +23,7 @@ echo -e "${BLUE}=== Minecraft Server Component Health Check ===${NC}\n"
 
 # Check Minecraft server (Docker container)
 echo -e "${BLUE}Checking Minecraft server...${NC}"
-if docker ps --format '{{.Names}}' | grep -q "^minecraft-server$"; then
+if container_running; then
     CONTAINER_STATUS=$(docker inspect --format='{{.State.Status}}' minecraft-server 2>/dev/null || echo "not found")
     if [ "$CONTAINER_STATUS" = "running" ]; then
         echo -e "${GREEN}✓ Minecraft server container is running${NC}"

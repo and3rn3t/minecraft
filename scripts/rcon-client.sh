@@ -4,15 +4,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 RCON_CONFIG="${PROJECT_DIR}/config/rcon.conf"
 
@@ -29,7 +25,7 @@ fi
 # Function to check if RCON is available
 check_rcon_available() {
     # Check if rcon-cli is available in container
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         if docker exec minecraft-server command -v rcon-cli >/dev/null 2>&1; then
             return 0
         fi
@@ -59,7 +55,7 @@ send_rcon_command() {
     fi
 
     # Try to use rcon-cli from container first
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         if docker exec minecraft-server command -v rcon-cli >/dev/null 2>&1; then
             local result
             result=$(docker exec minecraft-server rcon-cli -H "$RCON_HOST" -p "$RCON_PORT" -P "$RCON_PASSWORD" "$command" 2>&1)
@@ -222,5 +218,9 @@ EOF
     esac
 }
 
-# Run main function
-main "$@"
+# Run main function, but only when executed directly -- other scripts (e.g.
+# ban-manager.sh) source this file to reuse check_rcon_available/
+# send_rcon_command without triggering this script's own CLI.
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    main "$@"
+fi

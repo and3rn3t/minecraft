@@ -74,7 +74,7 @@ view_logs() {
 # Function to send command to server
 send_server_command() {
     local command="$1"
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         return 1
     fi
 
@@ -103,7 +103,7 @@ create_backup() {
     mkdir -p "$BACKUP_DIR"
 
     # Check if server is running
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         echo -e "${BLUE}Saving world before backup...${NC}"
         # Try multiple methods to send save-all command
         send_server_command "save-all"
@@ -197,7 +197,7 @@ restore_backup() {
         exit 1
     fi
 
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         stop_server
     fi
 
