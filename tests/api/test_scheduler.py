@@ -20,6 +20,7 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+from api.blueprints import scheduler as scheduler_bp  # noqa: E402
 
 
 @pytest.fixture
@@ -383,10 +384,10 @@ class TestAtomicWrites:
 
         def add(i):
             try:
-                with api_module._schedule_lock():
-                    data = api_module._load_schedules()
+                with scheduler_bp._schedule_lock():
+                    data = scheduler_bp._load_schedules()
                     data.setdefault("schedules", []).append({"id": str(i), "command": f"say {i}"})
-                    api_module._save_schedules(data)
+                    scheduler_bp._save_schedules(data)
             except Exception as exc:  # noqa: BLE001 - surfaced by the assert below
                 errors.append(exc)
 
@@ -410,7 +411,7 @@ class TestAtomicWrites:
         spec.loader.exec_module(scheduler)
         monkeypatch.setattr(scheduler, "SCHEDULE_FILE", schedule_file)
 
-        with api_module._schedule_lock():
+        with scheduler_bp._schedule_lock():
             pass
         with scheduler.schedule_lock():
             pass

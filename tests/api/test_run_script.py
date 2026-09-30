@@ -119,3 +119,19 @@ class TestRunScriptOutcomes:
 
         assert mock_run.call_args.kwargs["capture_output"] is True
         assert mock_run.call_args.kwargs["text"] is True
+
+    def test_input_text_defaults_to_none(self):
+        """Every caller that doesn't need a confirmation prompt gets a plain stdin."""
+        with patch("api.server.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
+            run_script("manage.sh", "status")
+
+        assert mock_run.call_args.kwargs["input"] is None
+
+    def test_input_text_is_forwarded_to_stdin(self):
+        """manage.sh restore reads a y/N confirmation from stdin."""
+        with patch("api.server.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
+            run_script("manage.sh", "restore", "backup.tar.gz", input_text="y\n")
+
+        assert mock_run.call_args.kwargs["input"] == "y\n"
