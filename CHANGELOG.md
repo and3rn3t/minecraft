@@ -53,6 +53,42 @@ All notable changes to this project will be documented in this file.
   now strips the prefix, after the player-chat check, so a typed fake death
   still counts as chat.
 
+- **Bans and unbans reach the live server again** — `ban-manager.sh`'s RCON
+  notification was a stub that always returned success without sending
+  anything, so a banned player already connected was never kicked and
+  `pardon`/`pardon-ip` never lifted a ban in the running server's own memory
+  until a restart. It now sources `rcon-client.sh` and calls its
+  `check_rcon_available`/`send_rcon_command`, the same containerized RCON
+  path the RCON CLI already uses, and the notification remains best-effort:
+  a container that isn't running, doesn't have `rcon-cli`, or an RCON call
+  that fails no longer stops the ban/unban from being recorded. Also fixes
+  `ban-ip` raising `NameError: name 'sys' is not defined` on a fresh
+  `banned-ips.json` (the heredoc called `sys.exit()` without importing
+  `sys`), masked until something first banned an IP with no prior entries.
+  Covered by new `tests/unit/test-ban-manager.sh`.
+
+- **The admin panel's restore now gets the same safety net the CLI has** —
+  `POST /api/backups/{filename}/restore` reimplemented restore in Python
+  (extract in place, snapshot the old `data/` to a `.tar.gz`), a second,
+  materially different safety model from `manage.sh restore`'s (stop, move
+  `data/` aside rather than deleting it, extract, restart, and refuse to
+  report success unless the log shows a clean world load). The route now
+  delegates to `manage.sh restore` itself — `run_script()` gained an
+  `input_text` parameter to feed its confirmation prompt — so there is one
+  restore path instead of two, and the API gets the log-watch and
+  automatic rollback-on-corrupt-archive behavior the CLI already had.
+  `pre_restore_backup` in the response is now the moved-aside data
+  directory rather than a tar.gz path. Also anchors `/api/status`'s
+  `docker ps` filter to the exact container name (`^minecraft-server$`),
+  matching `container_running()`'s exact-match convention, so a
+  similarly-named container can't be mistaken for it.
+
+- **Op/deop no longer show stale player state for up to 3 seconds** —
+  `opPlayer`/`deopPlayer` in `web/src/services/api.js` mutate the same
+  operator list `getPlayers`/`getOps` cache, but didn't clear that cache the
+  way every other mutation in the file does, so the panel could show a
+  player as still (or not yet) an operator until the 3s cache TTL expired.
+
 ## [1.6.0] - 2026-09-28
 
 ### Added
