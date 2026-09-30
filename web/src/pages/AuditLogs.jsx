@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { ErrorState } from '../components/ui/Alert';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Input, Select } from '../components/ui/FormField';
+import { LoadingState } from '../components/ui/LoadingState';
 import { PageHeader } from '../components/ui/PageHeader';
 import {
   Table,
@@ -130,9 +131,7 @@ const AuditLogs = () => {
       {/* Logs Table */}
       <Card padding="md">
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING...
-          </div>
+          <LoadingState />
         ) : logs.length === 0 ? (
           <EmptyState icon="📋" title="No audit logs found" />
         ) : (

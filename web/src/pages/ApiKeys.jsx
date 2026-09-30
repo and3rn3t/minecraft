@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Input, Select, Textarea } from '../components/ui/FormField';
+import { LoadingState } from '../components/ui/LoadingState';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import {
@@ -262,9 +263,7 @@ const ApiKeys = () => {
       {/* API Keys Table */}
       <Card padding="lg">
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING API KEYS...
-          </div>
+          <LoadingState>LOADING API KEYS...</LoadingState>
         ) : keys.length === 0 ? (
           <EmptyState icon="🔑" title="No API keys found" hint="Create an API key to get started" />
         ) : (

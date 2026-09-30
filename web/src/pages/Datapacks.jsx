@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Input, Select } from '../components/ui/FormField';
+import { LoadingState } from '../components/ui/LoadingState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
@@ -196,10 +197,8 @@ const Datapacks = () => {
 
       <Card padding="lg">
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING DATAPACKS...
-          </div>
-        ) : error && !datapacks.length ? null : datapacks.length === 0 ? (
+          <LoadingState>LOADING DATAPACKS...</LoadingState>
+        ) :error && !datapacks.length ? null : datapacks.length === 0 ? (
           <EmptyState
             icon="📦"
             title="NO DATAPACKS YET"

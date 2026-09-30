@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/Alert';
+import { LoadingState } from '../components/ui/LoadingState';
 import { PageHeader } from '../components/ui/PageHeader';
 
 const Players = () => {
@@ -101,9 +102,7 @@ const Players = () => {
           Online Players ({players.length})
         </h2>
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING...
-          </div>
+          <LoadingState />
         ) : players.length === 0 ? (
           <EmptyState icon="💤" title="No players online" />
         ) : (

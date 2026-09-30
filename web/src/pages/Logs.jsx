@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Input } from '../components/ui/FormField';
+import { LoadingState } from '../components/ui/LoadingState';
 import { StatusPill } from '../components/ui/Badge';
 import { PageHeader } from '../components/ui/PageHeader';
 import { VirtualList } from '../components/VirtualList';
@@ -194,10 +195,8 @@ const Logs = () => {
       {/* Log Display */}
       <Card padding="md">
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING LOGS...
-          </div>
-        ) : filteredLogs.length === 0 ? (
+          <LoadingState>LOADING LOGS...</LoadingState>
+        ) :filteredLogs.length === 0 ? (
           <EmptyState icon="📜" title="No logs found" />
         ) : filteredLogs.length > 100 ? (
           // Use virtual scrolling for large lists

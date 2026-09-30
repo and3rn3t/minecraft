@@ -1,7 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+import LazyRoute from './components/LazyRoute';
 import { ToastProvider } from './components/ToastContainer';
 
 // Lazy load components for code splitting
@@ -30,12 +29,32 @@ const Register = lazy(() => import('./pages/Register'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-// Loading component for Suspense fallback
-const PageLoading = () => (
-  <div className="min-h-screen flex items-center justify-center bg-minecraft-background">
-    <div className="text-minecraft-text-light font-minecraft text-sm">LOADING...</div>
-  </div>
-);
+const RedirectToDashboard = () => <Navigate to="/dashboard" replace />;
+
+// Every protected page here, path -> component. Auth + layout + the
+// Suspense fallback are LazyRoute's job, not repeated per route.
+const PROTECTED_ROUTES = [
+  ['/dashboard', Dashboard],
+  ['/logs', Logs],
+  ['/console', Console],
+  ['/players', Players],
+  ['/backups', Backups],
+  ['/bedtime', Bedtime],
+  ['/oracle', Oracle],
+  ['/deaths', HallOfDeaths],
+  ['/worlds', Worlds],
+  ['/plugins', Plugins],
+  ['/datapacks', Datapacks],
+  ['/config', ConfigFiles],
+  ['/files', FileBrowser],
+  ['/settings', Settings],
+  ['/api-keys', ApiKeys],
+  ['/users', Users],
+  ['/audit', AuditLogs],
+  ['/scheduler', Scheduler],
+  ['/ddns', DynamicDNS],
+  ['/analytics', Analytics],
+];
 
 function App() {
   return (
@@ -43,294 +62,18 @@ function App() {
       <Router>
         <Routes>
           {/* Public routes */}
-          <Route
-            path="/login"
-            element={
-              <Suspense fallback={<PageLoading />}>
-                <Login />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <Suspense fallback={<PageLoading />}>
-                <Register />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/oauth/callback"
-            element={
-              <Suspense fallback={<PageLoading />}>
-                <OAuthCallback />
-              </Suspense>
-            }
-          />
+          <Route path="/login" element={<LazyRoute component={Login} protectedRoute={false} />} />
+          <Route path="/register" element={<LazyRoute component={Register} protectedRoute={false} />} />
+          <Route path="/oauth/callback" element={<LazyRoute component={OAuthCallback} protectedRoute={false} />} />
 
           {/* Protected routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Navigate to="/dashboard" replace />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Dashboard />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/logs"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Logs />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/console"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Console />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/players"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Players />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/backups"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Backups />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/bedtime"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Bedtime />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/oracle"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Oracle />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/deaths"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <HallOfDeaths />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/worlds"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Worlds />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/plugins"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Plugins />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/datapacks"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Datapacks />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/config"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <ConfigFiles />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/files"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <FileBrowser />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Settings />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/api-keys"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <ApiKeys />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Users />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/audit"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <AuditLogs />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/scheduler"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Scheduler />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/ddns"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <DynamicDNS />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/analytics"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suspense fallback={<PageLoading />}>
-                    <Analytics />
-                  </Suspense>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/" element={<LazyRoute component={RedirectToDashboard} />} />
+          {PROTECTED_ROUTES.map(([path, Component]) => (
+            <Route key={path} path={path} element={<LazyRoute component={Component} />} />
+          ))}
 
           {/* Catch-all: an unknown URL previously rendered nothing at all */}
-          <Route
-            path="*"
-            element={
-              <Suspense fallback={<PageLoading />}>
-                <NotFound />
-              </Suspense>
-            }
-          />
+          <Route path="*" element={<LazyRoute component={NotFound} protectedRoute={false} />} />
         </Routes>
       </Router>
     </ToastProvider>

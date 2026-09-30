@@ -252,11 +252,13 @@ export const api = {
 
   async opPlayer(player, level = 4) {
     const response = await apiClient.post('/players/op', { player, level });
+    invalidateCache(); // Clear cache so getOps/getPlayers reflect the change immediately
     return response.data;
   },
 
   async deopPlayer(player) {
     const response = await apiClient.delete(`/players/op/${encodeURIComponent(player)}`);
+    invalidateCache(); // Clear cache so getOps/getPlayers reflect the change immediately
     return response.data;
   },
 

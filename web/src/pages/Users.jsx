@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingState } from '../components/ui/LoadingState';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import {
@@ -194,10 +195,8 @@ const Users = () => {
       {/* Users Table */}
       <Card padding="lg">
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING USERS...
-          </div>
-        ) : users.length === 0 ? (
+          <LoadingState>LOADING USERS...</LoadingState>
+        ) :users.length === 0 ? (
           <EmptyState icon="👤" title="No users found" />
         ) : (
           <Table caption="Registered users">

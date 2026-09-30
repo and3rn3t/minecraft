@@ -1,15 +1,9 @@
-import { useEffect } from 'react';
+import { useCallback } from 'react';
+import { useAutoDismiss } from '../hooks/useAutoDismiss';
 
 const Toast = ({ id, message, type = 'info', onClose, duration = 5000 }) => {
-  useEffect(() => {
-    if (duration > 0) {
-      const timer = setTimeout(() => {
-        onClose(id);
-      }, duration);
-
-      return () => clearTimeout(timer);
-    }
-  }, [id, duration, onClose]);
+  const dismiss = useCallback(() => onClose(id), [id, onClose]);
+  useAutoDismiss(duration > 0 ? id : null, dismiss, duration);
 
   const typeClasses = {
     success: 'toast-success',
