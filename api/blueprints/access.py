@@ -208,9 +208,11 @@ def enable_api_key(key_id):
     if not key_to_enable:
         return jsonify({"error": "API key not found"}), 404
 
+    was_enabled = server.API_KEYS[key_to_enable].get("enabled", True)
     server.API_KEYS[key_to_enable]["enabled"] = True
 
     if not server.save_api_keys():
+        server.API_KEYS[key_to_enable]["enabled"] = was_enabled
         return jsonify({"error": "Failed to save changes"}), 500
 
     return jsonify({"success": True, "message": "API key enabled"}), 200
@@ -225,9 +227,11 @@ def disable_api_key(key_id):
     if not key_to_disable:
         return jsonify({"error": "API key not found"}), 404
 
+    was_enabled = server.API_KEYS[key_to_disable].get("enabled", True)
     server.API_KEYS[key_to_disable]["enabled"] = False
 
     if not server.save_api_keys():
+        server.API_KEYS[key_to_disable]["enabled"] = was_enabled
         return jsonify({"error": "Failed to save changes"}), 500
 
     return jsonify({"success": True, "message": "API key disabled"}), 200
@@ -411,9 +415,11 @@ def enable_user(username):
     if username not in server.USERS:
         return jsonify({"error": "User not found"}), 404
 
+    was_enabled = server.USERS[username].get("enabled", True)
     server.USERS[username]["enabled"] = True
 
     if not server.save_users():
+        server.USERS[username]["enabled"] = was_enabled
         return jsonify({"error": "Failed to save changes"}), 500
 
     return jsonify({"success": True, "message": "User enabled"}), 200

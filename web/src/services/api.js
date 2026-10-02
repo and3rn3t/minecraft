@@ -2,7 +2,8 @@ import axios from 'axios';
 import {
   clearAllCache,
   getCachedResponse,
-  setCachedResponse,
+  getCacheGeneration,
+  setCachedResponseIfCurrent,
   setPendingRequest,
   subscribeToPendingRequest,
 } from '../utils/apiCache';
@@ -79,11 +80,15 @@ async function cachedGet(url, params = {}, cacheTTL = 5000, signal) {
   // Nothing pending: issue the request ourselves, behind our own internal
   // controller (never an external caller's signal directly).
   const controller = new AbortController();
+  const generation = getCacheGeneration();
   const requestPromise = apiClient
     .get(url, { params, signal: controller.signal })
     .then(response => {
-      // Cache successful responses
-      setCachedResponse(url, 'GET', params, response.data, cacheTTL);
+      // Only cache if nothing invalidated the cache while this request was
+      // in flight -- otherwise a mutation's invalidateCache() would be
+      // undone the instant this now-stale response lands, repopulating the
+      // cache with pre-mutation data for the rest of its TTL.
+      setCachedResponseIfCurrent(generation, url, 'GET', params, response.data, cacheTTL);
       return response.data;
     });
 

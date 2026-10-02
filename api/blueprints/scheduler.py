@@ -89,17 +89,32 @@ def _schedule_type_fields(schedule_type, data):
 
     Returns (fields, error). The defaults match
     ``scripts/command-scheduler.py``'s own reader, so a record written here
-    behaves the same as one the script wrote.
+    behaves the same as one the script wrote. Fields are validated here
+    because the daemon's own reads of interval_minutes and run_time aren't
+    wrapped in a try/except (unlike cron_expression and run_datetime), so a
+    malformed value saved via the API would make that schedule fail on every
+    single pass instead of just the one that wrote it.
     """
     if schedule_type == "interval":
-        return {"interval_minutes": data.get("interval_minutes", 60)}, None
+        interval_minutes = data.get("interval_minutes", 60)
+        if isinstance(interval_minutes, bool) or not isinstance(interval_minutes, (int, float)):
+            return None, "interval_minutes must be a number"
+        if interval_minutes <= 0:
+            return None, "interval_minutes must be greater than 0"
+        return {"interval_minutes": interval_minutes}, None
     if schedule_type == "daily":
-        return {"run_time": data.get("run_time", "00:00")}, None
+        run_time, error = _validate_run_time(data.get("run_time", "00:00"))
+        if error:
+            return None, error
+        return {"run_time": run_time}, None
     if schedule_type == "weekly":
-        return {
-            "day_of_week": data.get("day_of_week", 0),
-            "run_time": data.get("run_time", "00:00"),
-        }, None
+        day_of_week = data.get("day_of_week", 0)
+        if isinstance(day_of_week, bool) or not isinstance(day_of_week, int) or not 0 <= day_of_week <= 6:
+            return None, "day_of_week must be an integer from 0 (Monday) to 6 (Sunday)"
+        run_time, error = _validate_run_time(data.get("run_time", "00:00"))
+        if error:
+            return None, error
+        return {"day_of_week": day_of_week, "run_time": run_time}, None
     if schedule_type == "cron":
         expression = data.get("cron_expression")
         if not expression:
@@ -109,8 +124,28 @@ def _schedule_type_fields(schedule_type, data):
         run_datetime = data.get("run_datetime")
         if not run_datetime:
             return None, "run_datetime is required for once schedules"
+        try:
+            datetime.fromisoformat(str(run_datetime).replace("Z", "+00:00"))
+        except ValueError:
+            return None, "run_datetime must be an ISO 8601 datetime"
         return {"run_datetime": run_datetime}, None
     return None, f"Invalid type. Valid types: {', '.join(SCHEDULE_TYPES)}"
+
+
+def _validate_run_time(run_time):
+    """Validate an "HH:MM" string the way command-scheduler.py parses it
+    (``hour, minute = map(int, run_time.split(":"))``), so a bad value is
+    rejected here instead of raising ValueError on every daemon pass.
+    """
+    if not isinstance(run_time, str):
+        return None, "run_time must be a string in HH:MM format"
+    parts = run_time.split(":")
+    if len(parts) != 2 or not all(p.isdigit() for p in parts):
+        return None, "run_time must be in HH:MM format"
+    hour, minute = int(parts[0]), int(parts[1])
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None, "run_time must be a valid 24-hour time (00:00 to 23:59)"
+    return run_time, None
 
 
 @bp.route("/api/scheduler/schedules", methods=["POST"])

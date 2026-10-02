@@ -4,6 +4,13 @@
 
 set -e
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
 echo -e "${BLUE}=== System and Filesystem Optimization ===${NC}\n"
 
 # Check if running as root for some operations
@@ -140,11 +147,6 @@ fi
 
 # 7. Log Rotation
 echo -e "\n${BLUE}[7/9] Configuring log rotation...${NC}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source-path=SCRIPTDIR
-# shellcheck source=lib/common.sh
-source "${SCRIPT_DIR}/lib/common.sh"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 if [ -f /etc/logrotate.d/minecraft ]; then
     echo -e "${YELLOW}⚠ Log rotation already configured${NC}"

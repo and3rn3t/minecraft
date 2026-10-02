@@ -106,6 +106,31 @@ class TestCreateSchedule:
 
         assert response.status_code == 400
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"type": "interval", "interval_minutes": "five"},
+            {"type": "interval", "interval_minutes": 0},
+            {"type": "interval", "interval_minutes": -5},
+            {"type": "interval", "interval_minutes": True},
+            {"type": "daily", "run_time": "not-a-time"},
+            {"type": "daily", "run_time": "25:00"},
+            {"type": "daily", "run_time": "12:60"},
+            {"type": "weekly", "day_of_week": 7},
+            {"type": "weekly", "day_of_week": "monday"},
+            {"type": "once", "run_datetime": "not-a-datetime"},
+        ],
+    )
+    def test_malformed_schedule_fields_are_rejected(self, client, auth, schedule_file, body):
+        """command-scheduler.py reads interval_minutes/run_time/day_of_week
+        without a try/except (unlike cron_expression and run_datetime), so a
+        bad value saved here would make that schedule fail every single pass
+        instead of being caught once, up front, at creation time."""
+        response = _create(client, auth, **body)
+
+        assert response.status_code == 400
+        assert not schedule_file.exists()
+
     def test_command_is_required(self, client, auth, schedule_file):
         response = client.post("/api/scheduler/schedules", headers=auth, json={"type": "interval"})
 

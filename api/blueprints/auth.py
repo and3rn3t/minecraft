@@ -235,7 +235,7 @@ def setup_2fa():
             "secret": secret,
             "qr_code": qr_code,
             "uri": uri,
-            "message": "Scan QR code with authenticator server.app, then verify to enable 2FA",
+            "message": "Scan QR code with authenticator app, then verify to enable 2FA",
         }
     )
 
@@ -754,9 +754,12 @@ def unlink_oauth_account(provider):
         return jsonify({"error": "Cannot unlink last authentication method"}), 400
 
     # Remove OAuth provider
-    oauth_providers = [p for p in oauth_providers if not p.startswith(f"{provider}:")]
+    previous_providers = user.get("oauth_providers", [])
+    oauth_providers = [p for p in previous_providers if not p.startswith(f"{provider}:")]
     user["oauth_providers"] = oauth_providers
-    server.save_users()
+    if not server.save_users():
+        user["oauth_providers"] = previous_providers
+        return jsonify({"error": "Failed to save user"}), 500
 
     return jsonify(
         {

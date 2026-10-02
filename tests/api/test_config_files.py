@@ -152,6 +152,30 @@ class TestConfigFileSave:
         backup_files = list(backup_dir.glob("server.properties.*.backup"))
         assert len(backup_files) > 0
 
+    def test_save_config_file_succeeds_without_a_prior_backup(
+        self, client, mock_api_keys, temp_config_dir, monkeypatch
+    ):
+        """Saving a file that doesn't exist yet (no backup to make) still succeeds"""
+        config_dir, data_dir = temp_config_dir
+        test_file = data_dir / "server.properties"
+        assert not test_file.exists()
+
+        import api.server as api_module
+
+        monkeypatch.setattr(api_module, "PROJECT_ROOT", PathLib(temp_config_dir[0]))
+
+        valid_content = "# Valid config\nkey=value\n"
+        response = client.post(
+            "/api/config/files/server.properties",
+            headers={"X-API-Key": mock_api_keys},
+            json={"content": valid_content},
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data.get("success") is True
+        assert data.get("backup") is None
+
 
 class TestConfigFileValidate:
     """Tests for POST /api/config/files/<filename>/validate endpoint"""

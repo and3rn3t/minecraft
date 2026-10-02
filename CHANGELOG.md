@@ -89,6 +89,48 @@ All notable changes to this project will be documented in this file.
   way every other mutation in the file does, so the panel could show a
   player as still (or not yet) an operator until the 3s cache TTL expired.
 
+- **A failed save could silently leave state only half-applied** — enabling
+  an API key or user, disabling an API key, and unlinking an OAuth provider
+  all mutated in-memory state and called `save_api_keys()`/`save_users()`
+  without checking the result, unlike the sibling operations
+  (`disable_user`, re-scoping or creating a key, linking an OAuth provider)
+  that already roll back on a failed save. A disk write that failed (full
+  disk, permissions) left the change live in memory and returning success,
+  only to revert on the next restart with no record anything had gone wrong.
+  `enable_api_key`, `disable_api_key`, `enable_user` (`api/blueprints/access.py`)
+  and `unlink_oauth_account` (`api/blueprints/auth.py`) now roll back and
+  return 500 the same way their siblings do.
+
+- **Saving a config file for the first time could report failure even
+  though it succeeded** — `save_config_file` only assigned `backup_path`
+  when a prior version of the file existed, but then referenced it
+  unconditionally in the response and the rollback-on-failure branch,
+  raising `UnboundLocalError` for any file that didn't already exist yet.
+  The write itself succeeded; the API still returned a 500. Now initializes
+  `backup_path = None` up front, matching the pattern already used by
+  `write_file` and `save_ddns_config`.
+
+- **A scheduled command with a malformed field could silently stop firing
+  forever** — the scheduler API accepted `interval_minutes`, `run_time` and
+  `day_of_week` without validating their type or range. `command-scheduler.py`
+  reads those three fields without a `try`/`except` (unlike
+  `cron_expression`/`run_datetime`, which already are wrapped), so a bad
+  value — a string where a number was expected, an out-of-range hour — made
+  that schedule raise on every single pass rather than failing once, up
+  front, at creation time. `api/blueprints/scheduler.py` now validates all
+  five schedule-type fields before saving.
+
+- **A mutation's cache invalidation could be silently undone by a slower,
+  already-in-flight read** — `invalidateCache()` only clears resolved cache
+  entries; a `getPlayers()`/`getOps()` GET issued just before an op/deop
+  mutation could resolve just after it, with its `.then` callback
+  re-caching the pre-mutation response. The dashboard could keep showing
+  stale data for the rest of that GET's TTL despite the cache having just
+  been cleared. `web/src/utils/apiCache.js` now tracks a cache generation,
+  bumped on every `clearAllCache()`; `cachedGet` in `web/src/services/api.js`
+  captures the generation before issuing a request and only caches the
+  response if nothing invalidated the cache while it was in flight.
+
 ## [1.6.0] - 2026-09-28
 
 ### Added

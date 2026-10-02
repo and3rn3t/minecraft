@@ -286,6 +286,32 @@ describe('API Service', () => {
       await api.getOps();
       expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
     });
+
+    it('a getPlayers that was already in flight when opPlayer invalidates the cache does not resurrect stale data', async () => {
+      // Reproduces the race: a GET issued before the mutation resolves AFTER
+      // invalidateCache() has run. Without generation-guarded caching, its
+      // stale response would repopulate the cache and getPlayers would keep
+      // serving pre-mutation data for the rest of the TTL.
+      let resolveGet;
+      mockAxiosInstance.get.mockReturnValueOnce(
+        new Promise(resolve => {
+          resolveGet = resolve;
+        })
+      );
+      mockAxiosInstance.post.mockResolvedValue({ data: { success: true } });
+
+      const inFlight = api.getPlayers();
+
+      await api.opPlayer('Player1');
+      resolveGet({ data: { players: ['stale'], count: 1 } });
+      await inFlight;
+
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: { players: ['fresh'], count: 1 } });
+      const result = await api.getPlayers();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+      expect(result.players).toEqual(['fresh']);
+    });
   });
 
   describe('getMetrics', () => {

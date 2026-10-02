@@ -6,6 +6,11 @@
 const cache = new Map();
 const pendingRequests = new Map();
 
+// Bumped every time the cache is invalidated, so a request that was already
+// in flight at invalidation time can tell its response is now stale and skip
+// re-caching it (see setCachedResponseIfCurrent / getCacheGeneration).
+let cacheGeneration = 0;
+
 // Default TTL: 30 seconds
 const DEFAULT_TTL = 30 * 1000;
 
@@ -68,6 +73,29 @@ export function clearCache(url, method = 'GET', params = {}) {
  */
 export function clearAllCache() {
   cache.clear();
+  cacheGeneration += 1;
+}
+
+/**
+ * The current cache generation. A caller that captured this before issuing a
+ * request can compare it after the request resolves to tell whether
+ * clearAllCache() ran in the meantime — see setCachedResponseIfCurrent.
+ */
+export function getCacheGeneration() {
+  return cacheGeneration;
+}
+
+/**
+ * Cache a response unless the cache has been invalidated since `generation`
+ * was captured. Without this, a GET already in flight when a mutation calls
+ * invalidateCache() would land afterward and silently repopulate the cache
+ * with the pre-mutation data for the rest of its TTL.
+ */
+export function setCachedResponseIfCurrent(generation, url, method = 'GET', params = {}, data, ttl = DEFAULT_TTL) {
+  if (generation !== cacheGeneration) {
+    return;
+  }
+  setCachedResponse(url, method, params, data, ttl);
 }
 
 /**

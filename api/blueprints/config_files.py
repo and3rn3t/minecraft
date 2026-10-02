@@ -109,6 +109,7 @@ def save_config_file(filename):
     backup_dir = server.PROJECT_ROOT / "backups" / "config"
     backup_dir.mkdir(parents=True, exist_ok=True)
 
+    backup_path = None
     if file_path.exists():
         backup_path = backup_dir / f"{filename}.{server.datetime.now().strftime('%Y%m%d_%H%M%S')}.backup"
         try:
@@ -165,12 +166,12 @@ def save_config_file(filename):
             {
                 "success": True,
                 "message": "File saved successfully",
-                "backup": str(backup_path.relative_to(server.PROJECT_ROOT)) if file_path.exists() else None,
+                "backup": str(backup_path.relative_to(server.PROJECT_ROOT)) if backup_path else None,
             }
         )
     except Exception as e:
         # Restore from backup on failure
-        if file_path.exists() and "backup_path" in locals() and backup_path.exists():
+        if backup_path and backup_path.exists():
             try:
                 import shutil
 

@@ -72,7 +72,7 @@ function App() {
             <Route key={path} path={path} element={<LazyRoute component={Component} />} />
           ))}
 
-          {/* Catch-all: an unknown URL previously rendered nothing at all */}
+          {/* Catch-all for unknown URLs */}
           <Route path="*" element={<LazyRoute component={NotFound} protectedRoute={false} />} />
         </Routes>
       </Router>
