@@ -76,6 +76,14 @@ assert_not_called() {
 
 @test "fails and notifies when age is not installed" {
     rm -f bin/age
+    # A real age elsewhere on PATH (e.g. Homebrew) would still be found, so
+    # drop every PATH directory that provides one.
+    local dir kept=""
+    local IFS=:
+    for dir in $PATH; do
+        [ -x "$dir/age" ] || kept="${kept:+$kept:}$dir"
+    done
+    PATH="$kept"
     echo "NTFY_URL=http://example.invalid/topic" > config/notify.conf
 
     run scripts/backup-secrets.sh

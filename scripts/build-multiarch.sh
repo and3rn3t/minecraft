@@ -1,6 +1,6 @@
 #!/bin/bash
 # Multi-Architecture Docker Build Script
-# Builds Docker images for multiple architectures (ARM64, ARM32, x86_64)
+# Builds Docker images for multiple architectures (ARM64, x86_64)
 
 set -e
 
@@ -17,7 +17,7 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 MINECRAFT_VERSION="${MINECRAFT_VERSION:-26.3}"
 
 # Supported architectures
-ARCHITECTURES="${ARCHITECTURES:-linux/arm64,linux/arm/v7,linux/amd64}"
+ARCHITECTURES="${ARCHITECTURES:-linux/arm64,linux/amd64}"
 
 # Function to print header
 print_header() {
@@ -63,10 +63,8 @@ build_all() {
 
     cd "$PROJECT_DIR"
 
-    # Note: For ARM64, use arm64v8/openjdk base image
-    # For ARM32, use arm32v7/openjdk base image
-    # For AMD64, use openjdk base image
-    # Docker buildx will handle architecture selection automatically
+    # The eclipse-temurin base image is multi-arch; buildx selects the right
+    # variant per platform. Temurin 25 has no linux/arm/v7 image.
 
     docker buildx build \
         --platform "$ARCHITECTURES" \
@@ -91,7 +89,7 @@ build_arch() {
     if [ -z "$arch" ]; then
         echo -e "${RED}Error: Architecture not specified${NC}"
         echo "Usage: $0 arch <architecture>"
-        echo "Supported: arm64, arm32, amd64"
+        echo "Supported: arm64, amd64"
         exit 1
     fi
 
@@ -100,15 +98,12 @@ build_arch() {
         arm64|aarch64)
             local platform="linux/arm64"
             ;;
-        arm32|armv7|arm)
-            local platform="linux/arm/v7"
-            ;;
         amd64|x86_64)
             local platform="linux/amd64"
             ;;
         *)
             echo -e "${RED}Error: Unknown architecture: $arch${NC}"
-            echo "Supported: arm64, arm32, amd64"
+            echo "Supported: arm64, amd64"
             exit 1
             ;;
     esac
@@ -144,10 +139,6 @@ list_architectures() {
     echo "    - Apple Silicon (M1/M2/M3)"
     echo "    - AWS Graviton"
     echo ""
-    echo "  arm32 (linux/arm/v7)"
-    echo "    - Raspberry Pi 4 and earlier (32-bit)"
-    echo "    - Older ARM devices"
-    echo ""
     echo "  amd64 (linux/amd64)"
     echo "    - Intel/AMD x86_64 processors"
     echo "    - Most desktop and server systems"
@@ -164,14 +155,6 @@ create_arch_dockerfiles() {
     cat > Dockerfile.arm64 <<'EOF'
 # ARM64 (Raspberry Pi 5, Apple Silicon)
 FROM arm64v8/openjdk:21-jdk-slim AS base
-
-# ... rest of Dockerfile content ...
-EOF
-
-    # ARM32 Dockerfile (Raspberry Pi 4 and earlier)
-    cat > Dockerfile.arm32 <<'EOF'
-# ARM32 (Raspberry Pi 4 and earlier)
-FROM arm32v7/openjdk:21-jdk-slim AS base
 
 # ... rest of Dockerfile content ...
 EOF
@@ -218,7 +201,7 @@ main() {
             echo ""
             echo "Commands:"
             echo "  all                - Build for all architectures and push to registry"
-            echo "  arch <architecture> - Build for specific architecture (arm64|arm32|amd64)"
+            echo "  arch <architecture> - Build for specific architecture (arm64|amd64)"
             echo "  list               - List supported architectures"
             echo "  setup              - Setup buildx builder"
             echo "  create-dockerfiles - Create architecture-specific Dockerfile templates"

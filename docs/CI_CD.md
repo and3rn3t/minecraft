@@ -9,7 +9,7 @@ The project uses GitHub Actions for CI/CD, providing:
 - **Automated Testing** - Runs on every push and pull request
 - **Code Quality Checks** - Linting and static analysis
 - **Automated Releases** - Version tagging and Docker image publishing
-- **Multi-Architecture Builds** - ARM64, ARM32, and x86_64 support
+- **Multi-Architecture Builds** - ARM64 and x86_64 support
 - **Raspberry Pi Image Building** - Automated pre-configured image creation
 
 ## Pipeline Structure
@@ -395,7 +395,6 @@ docker pull ghcr.io/<username>/minecraft-server:latest
 Images are built for:
 
 - `linux/arm64` - Raspberry Pi 5, Apple Silicon
-- `linux/arm/v7` - Raspberry Pi 4 and earlier
 - `linux/amd64` - Intel/AMD x86_64
 
 Docker automatically selects the correct architecture when pulling.
@@ -704,7 +703,7 @@ Potential improvements:
 2. **Docker registry push**: Push images to GHCR (already implemented)
 3. **Image signing**: Sign images for security
 4. **Automated testing**: Test the built image in QEMU
-5. **Multi-architecture**: Support Raspberry Pi 4 (ARM32) - partially implemented
+5. **Multi-architecture**: ARM64 and x86_64 supported (no 32-bit ARM: Temurin 25 has no arm/v7 image)
 6. **Larger runners**: Use 4-core runners for image builds
 7. **Parallel operations**: Further parallelize image customization
 8. **Test Result Caching**: Cache test results for faster runs

@@ -21,12 +21,17 @@ MINECRAFT_VERSION=${MINECRAFT_VERSION:-1.20.4}
 DOWNLOAD_DIR="${PROJECT_DIR}/data"
 TEMP_DIR="${PROJECT_DIR}/.tmp"
 
+# Retry transient failures (first boot on a flaky network, a brief API
+# outage) instead of failing straight into a container restart loop. -f makes
+# HTTP errors fail rather than saving an error page as the jar.
+CURL_OPTS=(-fsSL --retry 4 --retry-delay 3 --retry-connrefused --connect-timeout 15)
+
 # Function to get vanilla server download URL
 get_vanilla_url() {
     local version="$1"
     local api_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
     local manifest
-    manifest=$(curl -s "$api_url" 2>/dev/null)
+    manifest=$(curl "${CURL_OPTS[@]}" "$api_url" 2>/dev/null)
 
     if [ -z "$manifest" ]; then
         echo "ERROR: Failed to fetch version manifest" >&2
@@ -44,7 +49,7 @@ get_vanilla_url() {
 
     # Get version details
     local version_details
-    version_details=$(curl -s "$version_url" 2>/dev/null)
+    version_details=$(curl "${CURL_OPTS[@]}" "$version_url" 2>/dev/null)
 
     if [ -z "$version_details" ]; then
         echo "ERROR: Failed to fetch version details" >&2
@@ -64,7 +69,7 @@ get_paper_url() {
     # First, get latest build for version
     local api_url="https://api.papermc.io/v2/projects/paper/versions/$version"
     local version_info
-    version_info=$(curl -s "$api_url" 2>/dev/null)
+    version_info=$(curl "${CURL_OPTS[@]}" "$api_url" 2>/dev/null)
 
     if [ -z "$version_info" ]; then
         echo "ERROR: Failed to fetch Paper version info" >&2
@@ -100,7 +105,7 @@ get_fabric_url() {
     # Get installer version
     local installer_api="https://meta.fabricmc.net/v2/versions/installer"
     local installer_info
-    installer_info=$(curl -s "$installer_api" 2>/dev/null)
+    installer_info=$(curl "${CURL_OPTS[@]}" "$installer_api" 2>/dev/null)
 
     if [ -z "$installer_info" ]; then
         echo "ERROR: Failed to fetch Fabric installer info" >&2
@@ -129,12 +134,12 @@ download_file() {
 
     # Download with wget or curl
     if command -v wget >/dev/null 2>&1; then
-        wget --progress=bar:force -O "$output" "$url" 2>&1 || {
+        wget --tries=5 --waitretry=3 --progress=bar:force -O "$output" "$url" 2>&1 || {
             echo -e "${RED}Download failed${NC}"
             return 1
         }
     elif command -v curl >/dev/null 2>&1; then
-        curl -L -o "$output" "$url" || {
+        curl "${CURL_OPTS[@]}" -o "$output" "$url" || {
             echo -e "${RED}Download failed${NC}"
             return 1
         }
