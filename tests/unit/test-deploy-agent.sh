@@ -50,6 +50,7 @@ setup() {
     echo 0 > "$STATE_DIR/health"
     echo 0 > "$STATE_DIR/players"
     echo "running" > "$STATE_DIR/ps"
+    echo healthy > "$STATE_DIR/container-health"
 
     cat > "$TEST_DIR/bin/curl" <<STUB
 #!/bin/bash
@@ -93,6 +94,8 @@ echo "docker \$*" >> "$STATE_DIR/calls"
 case "\$*" in
     "compose version") echo "Docker Compose version v2.0.0" ;;
     *"ps --status running"*) cat "$STATE_DIR/ps" ;;
+    *"ps --quiet"*) echo game-container-id ;;
+    "inspect "*) cat "$STATE_DIR/container-health" ;;
     *"compose config"*) printf 'services:\n  minecraft:\n    image: example\n' ;;
 esac
 exit 0
@@ -108,6 +111,8 @@ STUB
     export DEPLOY_CONFIG="$TEST_DIR/no-such-deploy.conf"
     export DEPLOY_REPO="example/minecraft"
     export DEPLOY_HEALTH_TIMEOUT=2
+    export DEPLOY_SERVER_HEALTH_TIMEOUT=2
+    export DEPLOY_SERVER_HEALTH_INTERVAL=1
     export AUDIT_LOG_FILE="$TEST_DIR/audit.log"
 }
 
@@ -377,6 +382,34 @@ Description=changed"
     assert_success
     assert_called "compose up -d minecraft"
     [ ! -f "$PI/.deploy/pending-server-restart" ]
+}
+
+@test "run reports a game server that does not become healthy after the restart" {
+    echo 0 > "$STATE_DIR/players"
+    echo unhealthy > "$STATE_DIR/container-health"
+    export NTFY_URL="http://example.invalid/topic"
+    push_change Dockerfile "FROM example"
+
+    deploy run
+    assert_success
+    assert_called "compose up -d minecraft"
+    [[ "$output" == *"did not become healthy"* ]]
+    assert_called "example.invalid"
+    grep -q "deploy.server_unhealthy" "$TEST_DIR/audit.log"
+    # not retried on the next run
+    [ ! -f "$PI/.deploy/pending-server-restart" ]
+}
+
+@test "run gives a starting game server time to become healthy" {
+    echo 0 > "$STATE_DIR/players"
+    echo starting > "$STATE_DIR/container-health"
+    ( sleep 1; echo healthy > "$STATE_DIR/container-health" ) >/dev/null 2>&1 &
+    push_change Dockerfile "FROM example"
+
+    deploy run
+    assert_success
+    [[ "$output" != *"did not become healthy"* ]]
+    grep -q "deploy.server_restart" "$TEST_DIR/audit.log"
 }
 
 @test "run does not start a stopped game server" {

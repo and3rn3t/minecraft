@@ -29,3 +29,10 @@ DEPLOY_NTFY_URL=
 # deploy is rolled back, in seconds.
 DEPLOY_HEALTH_TIMEOUT=60
 DEPLOY_API_HEALTH_URL=http://127.0.0.1:8080/api/health
+
+# After the game container is recreated on a new image, how long it gets to
+# report healthy (world loading can take a few minutes), and how often to check,
+# in seconds. If it never does, the deploy is not rolled back: an audit entry is
+# written and a high-priority notification is sent so you can look at it.
+DEPLOY_SERVER_HEALTH_TIMEOUT=300
+DEPLOY_SERVER_HEALTH_INTERVAL=5
