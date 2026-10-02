@@ -72,6 +72,16 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# The service runs this file as a script (`python api/server.py`), so it is
+# loaded as `__main__`. The blueprints do `from api import server`; without an
+# alias that would load this file a second time as `api.server`, re-enter the
+# blueprint imports below while they are half-initialised, and fail with a
+# circular ImportError (and, if it did not, leave two copies of the app and
+# its state). Registering this module under its package name makes both names
+# the same module. Tests import `api.server` normally and are unaffected.
+if __name__ == "__main__":
+    sys.modules.setdefault("api.server", sys.modules[__name__])
+
 # Import security utilities
 try:
     from api.security import (
