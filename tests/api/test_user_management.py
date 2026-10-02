@@ -143,6 +143,14 @@ class TestDisable:
         assert response.status_code == 500
         assert users["alice"]["enabled"] is True
 
+    def test_a_failed_save_leaves_the_account_disabled(self, client, users, monkeypatch):
+        users["alice"]["enabled"] = False
+        monkeypatch.setattr(api_module, "save_users", lambda: False)
+
+        response = client.put("/api/users/alice/enable")
+        assert response.status_code == 500
+        assert users["alice"]["enabled"] is False, "not enabled in memory while still disabled on disk"
+
 
 class TestAuditLog:
     @pytest.fixture

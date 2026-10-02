@@ -53,6 +53,84 @@ All notable changes to this project will be documented in this file.
   now strips the prefix, after the player-chat check, so a typed fake death
   still counts as chat.
 
+- **Bans and unbans reach the live server again** — `ban-manager.sh`'s RCON
+  notification was a stub that always returned success without sending
+  anything, so a banned player already connected was never kicked and
+  `pardon`/`pardon-ip` never lifted a ban in the running server's own memory
+  until a restart. It now sources `rcon-client.sh` and calls its
+  `check_rcon_available`/`send_rcon_command`, the same containerized RCON
+  path the RCON CLI already uses, and the notification remains best-effort:
+  a container that isn't running, doesn't have `rcon-cli`, or an RCON call
+  that fails no longer stops the ban/unban from being recorded. Also fixes
+  `ban-ip` raising `NameError: name 'sys' is not defined` on a fresh
+  `banned-ips.json` (the heredoc called `sys.exit()` without importing
+  `sys`), masked until something first banned an IP with no prior entries.
+  Covered by new `tests/unit/test-ban-manager.sh`.
+
+- **The admin panel's restore now gets the same safety net the CLI has** —
+  `POST /api/backups/{filename}/restore` reimplemented restore in Python
+  (extract in place, snapshot the old `data/` to a `.tar.gz`), a second,
+  materially different safety model from `manage.sh restore`'s (stop, move
+  `data/` aside rather than deleting it, extract, restart, and refuse to
+  report success unless the log shows a clean world load). The route now
+  delegates to `manage.sh restore` itself — `run_script()` gained an
+  `input_text` parameter to feed its confirmation prompt — so there is one
+  restore path instead of two, and the API gets the log-watch and
+  automatic rollback-on-corrupt-archive behavior the CLI already had.
+  `pre_restore_backup` in the response is now the moved-aside data
+  directory rather than a tar.gz path. Also anchors `/api/status`'s
+  `docker ps` filter to the exact container name (`^minecraft-server$`),
+  matching `container_running()`'s exact-match convention, so a
+  similarly-named container can't be mistaken for it.
+
+- **Op/deop no longer show stale player state for up to 3 seconds** —
+  `opPlayer`/`deopPlayer` in `web/src/services/api.js` mutate the same
+  operator list `getPlayers`/`getOps` cache, but didn't clear that cache the
+  way every other mutation in the file does, so the panel could show a
+  player as still (or not yet) an operator until the 3s cache TTL expired.
+
+- **A failed save could silently leave state only half-applied** — enabling
+  an API key or user, disabling an API key, and unlinking an OAuth provider
+  all mutated in-memory state and called `save_api_keys()`/`save_users()`
+  without checking the result, unlike the sibling operations
+  (`disable_user`, re-scoping or creating a key, linking an OAuth provider)
+  that already roll back on a failed save. A disk write that failed (full
+  disk, permissions) left the change live in memory and returning success,
+  only to revert on the next restart with no record anything had gone wrong.
+  `enable_api_key`, `disable_api_key`, `enable_user` (`api/blueprints/access.py`)
+  and `unlink_oauth_account` (`api/blueprints/auth.py`) now roll back and
+  return 500 the same way their siblings do.
+
+- **Saving a config file for the first time could report failure even
+  though it succeeded** — `save_config_file` only assigned `backup_path`
+  when a prior version of the file existed, but then referenced it
+  unconditionally in the response and the rollback-on-failure branch,
+  raising `UnboundLocalError` for any file that didn't already exist yet.
+  The write itself succeeded; the API still returned a 500. Now initializes
+  `backup_path = None` up front, matching the pattern already used by
+  `write_file` and `save_ddns_config`.
+
+- **A scheduled command with a malformed field could silently stop firing
+  forever** — the scheduler API accepted `interval_minutes`, `run_time` and
+  `day_of_week` without validating their type or range. `command-scheduler.py`
+  reads those three fields without a `try`/`except` (unlike
+  `cron_expression`/`run_datetime`, which already are wrapped), so a bad
+  value — a string where a number was expected, an out-of-range hour — made
+  that schedule raise on every single pass rather than failing once, up
+  front, at creation time. `api/blueprints/scheduler.py` now validates all
+  five schedule-type fields before saving.
+
+- **A mutation's cache invalidation could be silently undone by a slower,
+  already-in-flight read** — `invalidateCache()` only clears resolved cache
+  entries; a `getPlayers()`/`getOps()` GET issued just before an op/deop
+  mutation could resolve just after it, with its `.then` callback
+  re-caching the pre-mutation response. The dashboard could keep showing
+  stale data for the rest of that GET's TTL despite the cache having just
+  been cleared. `web/src/utils/apiCache.js` now tracks a cache generation,
+  bumped on every `clearAllCache()`; `cachedGet` in `web/src/services/api.js`
+  captures the generation before issuing a request and only caches the
+  response if nothing invalidated the cache while it was in flight.
+
 ## [1.6.0] - 2026-09-28
 
 ### Added

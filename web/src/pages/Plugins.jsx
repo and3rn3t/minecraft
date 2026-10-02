@@ -4,6 +4,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingState } from '../components/ui/LoadingState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { api } from '../services/api';
 
@@ -37,9 +38,7 @@ const Plugins = () => {
 
       <Card padding="lg">
         {loading ? (
-          <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-            LOADING PLUGINS...
-          </div>
+          <LoadingState>LOADING PLUGINS...</LoadingState>
         ) : error ? null : plugins.length === 0 ? (
           <EmptyState icon="🧩" title="NO PLUGINS INSTALLED" />
         ) : (

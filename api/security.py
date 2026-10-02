@@ -4,7 +4,6 @@ Includes input validation, sanitization, and security helpers
 """
 
 import re
-from pathlib import Path
 from typing import Optional, Tuple
 
 # Dangerous command patterns that should be blocked
@@ -155,50 +154,6 @@ def sanitize_minecraft_command(command: str) -> Tuple[bool, Optional[str], Optio
     return True, command, None
 
 
-def sanitize_file_path(file_path: str, base_dir: Path) -> Tuple[bool, Optional[Path], Optional[str]]:
-    """
-    Sanitize a file path to prevent directory traversal attacks.
-
-    Args:
-        file_path: The file path to sanitize
-        base_dir: The base directory that paths must be within
-
-    Returns:
-        Tuple of (is_valid, sanitized_path, error_message)
-    """
-    if not file_path:
-        return False, None, "File path cannot be empty"
-
-    # Remove any leading slashes
-    file_path = file_path.lstrip("/").strip()
-
-    if not file_path:
-        return False, None, "File path cannot be empty"
-
-    # Normalize the path
-    try:
-        # Resolve relative paths
-        normalized = Path(file_path).resolve()
-        # Get relative path from base directory
-        try:
-            relative_path = normalized.relative_to(base_dir.resolve())
-        except ValueError:
-            return False, None, "Path traversal detected - path outside allowed directory"
-
-        # Reconstruct path within base directory
-        safe_path = base_dir / relative_path
-
-        # Double check it's still within base directory
-        try:
-            safe_path.resolve().relative_to(base_dir.resolve())
-        except ValueError:
-            return False, None, "Path traversal detected - resolved path outside allowed directory"
-
-        return True, safe_path, None
-    except Exception as e:
-        return False, None, f"Invalid file path: {str(e)}"
-
-
 def sanitize_string(input_str: str, max_length: int = 1000, allow_newlines: bool = False) -> str:
     """
     Sanitize a string input to prevent XSS and injection attacks.
@@ -237,32 +192,6 @@ def sanitize_string(input_str: str, max_length: int = 1000, allow_newlines: bool
             cleaned += char
 
     return cleaned.strip()
-
-
-def validate_username(username: str) -> Tuple[bool, Optional[str]]:
-    """
-    Validate a username for security.
-
-    Args:
-        username: The username to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if not username:
-        return False, "Username cannot be empty"
-
-    if len(username) < 3:
-        return False, "Username must be at least 3 characters"
-
-    if len(username) > 32:
-        return False, "Username must be at most 32 characters"
-
-    # Only allow alphanumeric, underscore, hyphen
-    if not re.match(r"^[a-zA-Z0-9_-]+$", username):
-        return False, "Username can only contain letters, numbers, underscores, and hyphens"
-
-    return True, None
 
 
 def sanitize_for_json(value) -> str:

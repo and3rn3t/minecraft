@@ -171,7 +171,8 @@ wrapper from `scripts/lib/common.sh`.
 - Tailwind utility classes for styling — no separate CSS modules.
 - All HTTP goes through `web/src/services/api.js`; components never call `axios` directly.
 - Reuse the existing hooks (`usePolling`, `useErrorHandler`, `useAutoDismiss`,
-  `useDebounce`, `useThrottle`) instead of re-implementing them.
+  `useDebounce`) instead of re-implementing them. There is no `useThrottle` yet;
+  reach for `useDebounce` first if a real need for one comes up.
 - Routes are lazy-loaded in `App.jsx` via `LazyRoute`; keep new pages lazy.
 - `npm run lint` runs with `--max-warnings 0`, so warnings break the build.
 

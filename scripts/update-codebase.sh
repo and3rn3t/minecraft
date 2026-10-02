@@ -3,15 +3,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo -e "${BLUE}=== Codebase Update Script ===${NC}\n"
@@ -183,11 +179,11 @@ if [ "$DOCKER_CHANGED" = true ] || [ "$1" = "--all" ]; then
     # Check if using registry-based compose
     if grep -q "image:" docker-compose.yml 2>/dev/null && ! grep -q "build:" docker-compose.yml 2>/dev/null; then
         echo -e "${BLUE}Pulling latest Docker image...${NC}"
-        docker compose pull || echo -e "${YELLOW}⚠ Failed to pull image (may need authentication)${NC}"
+        compose pull || echo -e "${YELLOW}⚠ Failed to pull image (may need authentication)${NC}"
     fi
 
     echo -e "${BLUE}Recreating containers...${NC}"
-    docker compose up -d --force-recreate || echo -e "${YELLOW}⚠ Failed to recreate containers${NC}"
+    compose up -d --force-recreate || echo -e "${YELLOW}⚠ Failed to recreate containers${NC}"
 
     echo -e "${GREEN}✓ Docker updated${NC}"
 fi

@@ -27,7 +27,12 @@ setup() {
 #!/bin/bash
 case "\$1" in
     ps)
-        [ -f "$STATE_DIR/running" ] && echo "abc123 minecraft-server Up 2 hours"
+        if [ -f "$STATE_DIR/running" ]; then
+            case "\$*" in
+                *--format*) echo "minecraft-server" ;;
+                *) echo "abc123 minecraft-server Up 2 hours" ;;
+            esac
+        fi
         ;;
     logs)
         echo "[12:00:00] [Server thread/INFO]: alice joined the game"

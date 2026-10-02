@@ -12,14 +12,14 @@ import pytest
 PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.server import app
+import api.server as api_module
 
 
 @pytest.fixture
 def client():
     """Create test client"""
-    app.config["TESTING"] = True
-    with app.test_client() as client:
+    api_module.app.config["TESTING"] = True
+    with api_module.app.test_client() as client:
         yield client
 
 
@@ -27,7 +27,6 @@ def client():
 def mock_api_keys(monkeypatch):
     """Mock API keys for testing"""
     test_key = "test-api-key-123456789012345678901234567890"
-    import api.server as api_module
 
     api_module.API_KEYS = {
         test_key: {"name": "test-key", "enabled": True, "created": "2025-01-15T00:00:00Z", "role": "admin"}
@@ -42,8 +41,6 @@ def temp_config_dir(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     config_dir.mkdir()
     data_dir.mkdir()
-
-    import api.server as api_module
 
     monkeypatch.setattr(api_module, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(api_module, "CONFIG_ALLOWED_PATHS", {"server.properties": data_dir / "server.properties"})
@@ -132,8 +129,6 @@ class TestConfigFileSave:
         backup_dir = PathLib(temp_config_dir[0]) / "backups" / "config"
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        import api.server as api_module
-
         monkeypatch.setattr(api_module, "PROJECT_ROOT", PathLib(temp_config_dir[0]))
 
         valid_content = "# Valid config\nkey=value\n"
@@ -151,6 +146,28 @@ class TestConfigFileSave:
         # Verify backup was created
         backup_files = list(backup_dir.glob("server.properties.*.backup"))
         assert len(backup_files) > 0
+
+    def test_save_config_file_succeeds_without_a_prior_backup(
+        self, client, mock_api_keys, temp_config_dir, monkeypatch
+    ):
+        """Saving a file that doesn't exist yet (no backup to make) still succeeds"""
+        config_dir, data_dir = temp_config_dir
+        test_file = data_dir / "server.properties"
+        assert not test_file.exists()
+
+        monkeypatch.setattr(api_module, "PROJECT_ROOT", PathLib(temp_config_dir[0]))
+
+        valid_content = "# Valid config\nkey=value\n"
+        response = client.post(
+            "/api/config/files/server.properties",
+            headers={"X-API-Key": mock_api_keys},
+            json={"content": valid_content},
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data.get("success") is True
+        assert data.get("backup") is None
 
 
 class TestConfigFileValidate:

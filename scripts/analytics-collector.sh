@@ -4,15 +4,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 ANALYTICS_DIR="${PROJECT_DIR}/analytics"
 METRICS_DIR="${PROJECT_DIR}/metrics"
@@ -37,7 +33,7 @@ log_analytics() {
 
 # Function to get detailed player information
 get_player_analytics() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo "[]"
         return
     fi
@@ -75,7 +71,7 @@ get_player_analytics() {
 
 # Function to get player join/leave events from logs
 get_player_events() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo "[]"
         return
     fi
@@ -113,7 +109,7 @@ get_player_events() {
 
 # Function to get server performance metrics
 get_performance_metrics() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo "{\"tps\":0,\"cpu\":0,\"memory\":0,\"chunks_loaded\":0}"
         return
     fi
@@ -166,7 +162,7 @@ get_performance_metrics() {
 
 # Function to get network metrics
 get_network_metrics() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo "{\"bytes_sent\":0,\"bytes_recv\":0,\"packets_sent\":0,\"packets_recv\":0}"
         return
     fi
@@ -187,7 +183,7 @@ get_network_metrics() {
 
 # Function to get world statistics
 get_world_stats() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo "{\"world_size_mb\":0,\"region_count\":0,\"entities\":0}"
         return
     fi

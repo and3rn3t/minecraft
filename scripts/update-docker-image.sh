@@ -3,15 +3,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 IMAGE_NAME="ghcr.io/and3rn3t/minecraft-server:latest"
@@ -42,7 +38,7 @@ fi
 echo -e "\n${BLUE}Pulling latest image from registry...${NC}"
 cd "$PROJECT_DIR" || exit 1
 
-if docker compose pull; then
+if compose pull; then
     echo -e "${GREEN}✓ Image pull completed${NC}"
 else
     echo -e "${RED}✗ Failed to pull image${NC}"
@@ -52,7 +48,7 @@ fi
 
 # Check if update is needed
 echo -e "\n${BLUE}Checking if update is needed...${NC}"
-if docker compose up -d --dry-run 2>&1 | grep -q "would be created\|would be recreated"; then
+if compose up -d --dry-run 2>&1 | grep -q "would be created\|would be recreated"; then
     echo -e "${YELLOW}⚠ New image available!${NC}"
 
     # Ask for confirmation
@@ -60,12 +56,12 @@ if docker compose up -d --dry-run 2>&1 | grep -q "would be created\|would be rec
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}Updating container...${NC}"
-        docker compose up -d --force-recreate
+        compose up -d --force-recreate
 
         echo -e "\n${GREEN}✓ Container updated!${NC}"
         echo -e "${BLUE}Checking status...${NC}"
         sleep 2
-        docker ps | grep minecraft-server || echo -e "${YELLOW}Container may be starting...${NC}"
+        container_running || echo -e "${YELLOW}Container may be starting...${NC}"
     else
         echo -e "${YELLOW}Update cancelled. Run 'docker compose up -d --force-recreate' when ready.${NC}"
     fi

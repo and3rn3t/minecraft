@@ -4,13 +4,12 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
 
 # Check if running on Raspberry Pi
 if [ ! -f /proc/device-tree/model ]; then
@@ -97,7 +96,7 @@ if command -v docker &> /dev/null; then
     DOCKER_VERSION=$(docker --version)
     echo -e "Version: ${GREEN}${DOCKER_VERSION}${NC}"
 
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         echo -e "Minecraft Container: ${GREEN}Running${NC}"
         echo ""
         echo -e "${CYAN}Container Stats:${NC}"

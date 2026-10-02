@@ -3,8 +3,10 @@ import {
   clearAllCache,
   clearCache,
   getCachedResponse,
+  getCacheGeneration,
   getPendingRequest,
   setCachedResponse,
+  setCachedResponseIfCurrent,
   setPendingRequest,
   subscribeToPendingRequest,
 } from '../apiCache';
@@ -56,6 +58,30 @@ describe('apiCache', () => {
 
       expect(getCachedResponse('/status', 'GET', {})).toBeNull();
       expect(getCachedResponse('/players', 'GET', {})).toEqual({ players: [] });
+    });
+  });
+
+  describe('cache generation', () => {
+    it('clearAllCache bumps the generation', () => {
+      const before = getCacheGeneration();
+      clearAllCache();
+      expect(getCacheGeneration()).toBe(before + 1);
+    });
+
+    it('setCachedResponseIfCurrent caches when the generation still matches', () => {
+      const generation = getCacheGeneration();
+      setCachedResponseIfCurrent(generation, '/players', 'GET', {}, { players: ['a'] });
+      expect(getCachedResponse('/players', 'GET', {})).toEqual({ players: ['a'] });
+    });
+
+    it('setCachedResponseIfCurrent is a no-op once the cache has moved on', () => {
+      // Simulates a GET still in flight when a mutation invalidates the
+      // cache: the response lands afterward and must not resurrect stale
+      // data for the rest of its TTL.
+      const generation = getCacheGeneration();
+      clearAllCache();
+      setCachedResponseIfCurrent(generation, '/players', 'GET', {}, { players: ['stale'] });
+      expect(getCachedResponse('/players', 'GET', {})).toBeNull();
     });
   });
 

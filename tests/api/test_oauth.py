@@ -329,6 +329,19 @@ class TestOAuthUnlink:
         data = json.loads(response.data)
         assert "last authentication method" in data.get("error", "").lower()
 
+    def test_an_unlink_that_cannot_be_saved_is_undone(self, client, mock_auth_session, monkeypatch):
+        """A failed save must not leave the provider unlinked only in memory"""
+        api_module.USERS["testuser"]["password_hash"] = "hashed"
+        api_module.USERS["testuser"]["oauth_providers"] = ["google:12345"]
+        monkeypatch.setattr(api_module, "save_users", lambda: False)
+
+        response = client.post("/api/auth/oauth/google/unlink")
+
+        assert response.status_code == 500
+        assert api_module.USERS["testuser"]["oauth_providers"] == ["google:12345"], (
+            "still linked in memory while still linked on disk"
+        )
+
 
 def _generate_rsa_keypair():
     """A fresh throwaway RSA keypair standing in for Apple's real signing key."""

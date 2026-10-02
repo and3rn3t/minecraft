@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ErrorState } from '../components/ui/Alert';
+import { LoadingState } from '../components/ui/LoadingState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Textarea } from '../components/ui/FormField';
 import { api } from '../services/api';
@@ -181,9 +182,7 @@ const FileBrowser = () => {
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-              LOADING...
-            </div>
+            <LoadingState />
           ) : (
             <div className="font-minecraft text-[10px]">
               {files.length === 0 ? (

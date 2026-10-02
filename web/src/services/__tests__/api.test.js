@@ -258,6 +258,62 @@ describe('API Service', () => {
     });
   });
 
+  describe('opPlayer/deopPlayer', () => {
+    it('invalidates the cache so a subsequent getOps refetches', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { operators: [] } });
+      mockAxiosInstance.post.mockResolvedValue({ data: { success: true } });
+
+      await api.getOps();
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+
+      // Without cache invalidation this would still be served from cache.
+      await api.getOps();
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+
+      await api.opPlayer('Player1');
+      await api.getOps();
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('deopPlayer also invalidates the cache', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { operators: [] } });
+      mockAxiosInstance.delete.mockResolvedValue({ data: { success: true } });
+
+      await api.getOps();
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+
+      await api.deopPlayer('Player1');
+      await api.getOps();
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('a getPlayers that was already in flight when opPlayer invalidates the cache does not resurrect stale data', async () => {
+      // Reproduces the race: a GET issued before the mutation resolves AFTER
+      // invalidateCache() has run. Without generation-guarded caching, its
+      // stale response would repopulate the cache and getPlayers would keep
+      // serving pre-mutation data for the rest of the TTL.
+      let resolveGet;
+      mockAxiosInstance.get.mockReturnValueOnce(
+        new Promise(resolve => {
+          resolveGet = resolve;
+        })
+      );
+      mockAxiosInstance.post.mockResolvedValue({ data: { success: true } });
+
+      const inFlight = api.getPlayers();
+
+      await api.opPlayer('Player1');
+      resolveGet({ data: { players: ['stale'], count: 1 } });
+      await inFlight;
+
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: { players: ['fresh'], count: 1 } });
+      const result = await api.getPlayers();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+      expect(result.players).toEqual(['fresh']);
+    });
+  });
+
   describe('getMetrics', () => {
     it('calls metrics endpoint', async () => {
       mockAxiosInstance.get.mockResolvedValue({

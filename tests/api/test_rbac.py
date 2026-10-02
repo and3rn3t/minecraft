@@ -873,6 +873,42 @@ class TestAPIKeyScopeManagement:
         assert response.status_code == 500
         assert api_module.API_KEYS[test_key]["role"] == "admin"
 
+    def test_disable_rolls_back_a_failed_save(
+        self, client, admin_user, temp_users_file, temp_api_keys_file, monkeypatch
+    ):
+        """A disable that could not be written must not stay live in this process"""
+        test_key = "test-api-key-123456789012345678901234567890"  # gitleaks:allow
+        api_module.API_KEYS[test_key] = {"name": "legacy", "enabled": True, "role": "admin"}
+        monkeypatch.setattr(api_module, "save_api_keys", lambda: False)
+
+        with client.session_transaction() as session:
+            session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
+
+        response = client.put(f"/api/keys/{test_key}/disable")
+
+        assert response.status_code == 500
+        assert api_module.API_KEYS[test_key]["enabled"] is True
+
+    def test_enable_rolls_back_a_failed_save(
+        self, client, admin_user, temp_users_file, temp_api_keys_file, monkeypatch
+    ):
+        """An enable that could not be written must not stay live in this process"""
+        test_key = "test-api-key-123456789012345678901234567890"  # gitleaks:allow
+        api_module.API_KEYS[test_key] = {"name": "legacy", "enabled": False, "role": "admin"}
+        monkeypatch.setattr(api_module, "save_api_keys", lambda: False)
+
+        with client.session_transaction() as session:
+            session["username"] = "admin"
+            session["csrf_token"] = "test-csrf-token"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
+
+        response = client.put(f"/api/keys/{test_key}/enable")
+
+        assert response.status_code == 500
+        assert api_module.API_KEYS[test_key]["enabled"] is False
+
     def test_rescope_requires_a_scope(self, client, admin_user, temp_users_file, temp_api_keys_file):
         """An empty body is a bad request"""
         test_key = "test-api-key-123456789012345678901234567890"

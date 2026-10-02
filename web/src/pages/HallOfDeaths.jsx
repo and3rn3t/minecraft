@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/Alert';
 import { Input } from '../components/ui/FormField';
+import { LoadingState } from '../components/ui/LoadingState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../services/api';
@@ -173,9 +174,7 @@ const HallOfDeaths = () => {
             </div>
 
             {loading ? (
-              <div className="text-center py-8 text-[10px] font-minecraft text-minecraft-text-light">
-                CONSULTING THE RECORDS...
-              </div>
+              <LoadingState>CONSULTING THE RECORDS...</LoadingState>
             ) : noDeathsYet ? (
               <EmptyState icon="🕊️" title="Nobody has died yet" hint="Give it time" />
             ) : deaths.length === 0 ? (

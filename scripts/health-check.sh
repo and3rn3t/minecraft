@@ -7,6 +7,9 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # shellcheck source=lib/notify.sh
@@ -22,7 +25,7 @@ MAX_RESPONSE_TIME=5
 
 # Function to check if server container is running
 check_container_running() {
-    if ! docker ps | grep -q minecraft-server; then
+    if ! container_running; then
         echo "ERROR: Server container is not running"
         return 1
     fi
@@ -31,7 +34,7 @@ check_container_running() {
 
 # Function to check CPU usage
 check_cpu() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         local cpu
         cpu=$(docker stats minecraft-server --no-stream --format "{{.CPUPerc}}" | sed 's/%//')
         local cpu_int=${cpu%.*}
@@ -46,7 +49,7 @@ check_cpu() {
 
 # Function to check memory usage
 check_memory() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         local mem_perc
         mem_perc=$(docker stats minecraft-server --no-stream --format "{{.MemPerc}}" | sed 's/%//')
         local mem_int=${mem_perc%.*}
@@ -61,7 +64,7 @@ check_memory() {
 
 # Function to check if Java process is running
 check_java_process() {
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         if docker exec minecraft-server pgrep -f java > /dev/null 2>&1; then
             return 0
         else

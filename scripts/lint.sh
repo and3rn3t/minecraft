@@ -4,15 +4,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Lint results
@@ -234,14 +230,14 @@ lint_yaml() {
 validate_docker_compose() {
     print_header "Validating Docker Compose Configuration"
 
-    if ! command_exists docker-compose && ! docker compose version >/dev/null 2>&1; then
+    if ! compose_cmd >/dev/null 2>&1; then
         echo -e "${YELLOW}Docker Compose not found. Skipping validation.${NC}"
         return 0
     fi
 
     if [ -f "$PROJECT_DIR/docker-compose.yml" ]; then
         echo -e "${BLUE}Validating docker-compose.yml...${NC}"
-        if docker-compose config >/dev/null 2>&1 || docker compose config >/dev/null 2>&1; then
+        if compose config >/dev/null 2>&1; then
             echo -e "${GREEN}✓ docker-compose.yml is valid${NC}"
         else
             echo -e "${RED}✗ docker-compose.yml has errors${NC}"

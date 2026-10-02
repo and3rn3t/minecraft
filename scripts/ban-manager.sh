@@ -4,33 +4,21 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BANNED_PLAYERS_FILE="${BANNED_PLAYERS_FILE:-${PROJECT_DIR}/data/banned-players.json}"
 BANNED_IPS_FILE="${BANNED_IPS_FILE:-${PROJECT_DIR}/data/banned-ips.json}"
 
-# Function to check if RCON is available
-check_rcon() {
-    if ! command -v rcon-cli >/dev/null 2>&1; then
-        return 1
-    fi
-    return 0
-}
-
-# Function to send RCON command
-send_rcon() {
-    local command="$1"
-    # This would use rcon-cli or manage.sh rcon
-    return 0
-}
+# check_rcon_available and send_rcon_command come from rcon-client.sh, which
+# already knows how to reach RCON both inside the container and locally, and
+# is guarded so sourcing it here doesn't also run its own CLI.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=rcon-client.sh
+source "${SCRIPT_DIR}/rcon-client.sh"
 
 # Function to ban player
 ban_player() {
@@ -56,11 +44,11 @@ ban_player() {
     fi
 
     # Ban via RCON if available
-    if check_rcon; then
+    if check_rcon_available; then
         if [ -n "$expires" ]; then
-            send_rcon "ban $player $reason" >/dev/null 2>&1
+            send_rcon_command "ban $player $reason" >/dev/null 2>&1 || true
         else
-            send_rcon "ban $player $reason" >/dev/null 2>&1
+            send_rcon_command "ban $player $reason" >/dev/null 2>&1 || true
         fi
     fi
 
@@ -129,8 +117,8 @@ unban_player() {
     fi
 
     # Unban via RCON if available
-    if check_rcon; then
-        send_rcon "pardon $player" >/dev/null 2>&1
+    if check_rcon_available; then
+        send_rcon_command "pardon $player" >/dev/null 2>&1 || true
     fi
 
     # Remove from banned-players.json
@@ -259,8 +247,8 @@ ban_ip() {
     fi
 
     # Ban IP via RCON if available
-    if check_rcon; then
-        send_rcon "ban-ip $ip" >/dev/null 2>&1
+    if check_rcon_available; then
+        send_rcon_command "ban-ip $ip" >/dev/null 2>&1 || true
     fi
 
     # Add to banned-ips.json
@@ -270,6 +258,7 @@ ban_ip() {
 
     python3 << EOF
 import json
+import sys
 from datetime import datetime
 
 ip_address = "$ip"
@@ -321,8 +310,8 @@ unban_ip() {
     fi
 
     # Unban IP via RCON if available
-    if check_rcon; then
-        send_rcon "pardon-ip $ip" >/dev/null 2>&1
+    if check_rcon_available; then
+        send_rcon_command "pardon-ip $ip" >/dev/null 2>&1 || true
     fi
 
     # Remove from banned-ips.json

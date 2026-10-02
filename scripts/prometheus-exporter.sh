@@ -6,6 +6,9 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 METRICS_DIR="${PROJECT_DIR}/metrics"
 EXPORTER_PORT=${PROMETHEUS_EXPORTER_PORT:-9091}
@@ -44,7 +47,7 @@ generate_metrics() {
     echo "# HELP minecraft_server_up Server is running (1) or stopped (0)"
     echo "# TYPE minecraft_server_up gauge"
 
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         echo "minecraft_server_up 1"
     else
         echo "minecraft_server_up 0"

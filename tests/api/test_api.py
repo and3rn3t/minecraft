@@ -56,6 +56,21 @@ class TestStatusEndpoint:
         data = json.loads(response.data)
         assert 'error' in data
 
+    def test_status_filter_is_anchored_to_the_exact_container_name(self, client, mock_api_keys):
+        """A container merely named similarly (e.g. minecraft-server-test) must not match.
+
+        This is the same exact-name check scripts/lib/common.sh's
+        container_running() makes for every other caller.
+        """
+        with patch("api.server.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="Up 2 hours", stderr="")
+            client.get('/api/status', headers={'X-API-Key': mock_api_keys})
+
+        docker_args = mock_run.call_args.args[0]
+        assert "--filter" in docker_args
+        filter_arg = docker_args[docker_args.index("--filter") + 1]
+        assert filter_arg == "name=^minecraft-server$"
+
     def test_status_with_invalid_key(self, client):
         """Status endpoint rejects invalid API key"""
         response = client.get(

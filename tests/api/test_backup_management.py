@@ -6,7 +6,7 @@ Tests for backup management API endpoints (restore/delete)
 import json
 import sys
 from pathlib import Path as PathLib
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -80,26 +80,69 @@ class TestBackupRestore:
         assert response.status_code == 400
 
     @patch("api.server.run_script")
-    def test_restore_backup_stops_server(self, mock_run_script, client, mock_api_keys, temp_backup_environment):
-        """Restore backup stops server before restore"""
+    def test_restore_backup_delegates_to_manage_sh(
+        self, mock_run_script, client, mock_api_keys, temp_backup_environment
+    ):
+        """Restore backup delegates the whole operation to manage.sh restore.
+
+        manage.sh restore -- not this route -- is what stops the server,
+        moves the existing ./data aside, extracts and restarts: one safety
+        model instead of two. The confirmation prompt it reads from stdin is
+        auto-accepted since the permission check already gates this route.
+        """
         _, _, backup_file = temp_backup_environment
-        mock_run_script.return_value = (None, None, 0)
+        mock_run_script.return_value = (
+            "Moving current data aside: ./data.pre-restore.20250115_120000\nDone (10.5s)!\n",
+            "",
+            0,
+        )
 
-        # Mock tarfile extraction
-        with patch("tarfile.open") as mock_tarfile:
-            mock_tar = MagicMock()
-            mock_tarfile.return_value.__enter__.return_value = mock_tar
+        response = client.post(
+            f"/api/backups/{backup_file.name}/restore",
+            headers={"X-API-Key": mock_api_keys},
+        )
 
-            client.post(
-                f"/api/backups/{backup_file.name}/restore",
-                headers={"X-API-Key": mock_api_keys},
-            )
+        assert mock_run_script.called
+        call_args = mock_run_script.call_args
+        assert call_args[0][0] == "manage.sh"
+        assert call_args[0][1] == "restore"
+        assert call_args[0][2] == backup_file.name
+        assert call_args.kwargs["input_text"] == "y\n"
 
-            # Should attempt to stop server
-            assert mock_run_script.called
-            call_args = mock_run_script.call_args
-            assert call_args[0][0] == "manage.sh"
-            assert call_args[0][1] == "stop"
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is True
+        assert data["pre_restore_backup"] == "./data.pre-restore.20250115_120000"
+
+    @patch("api.server.run_script")
+    def test_restore_backup_surfaces_failure(self, mock_run_script, client, mock_api_keys, temp_backup_environment):
+        """A failed restore (e.g. world didn't load cleanly) is reported, not swallowed"""
+        _, _, backup_file = temp_backup_environment
+        mock_run_script.return_value = ("World failed to load: Exception in server tick loop\n", "", 1)
+
+        response = client.post(
+            f"/api/backups/{backup_file.name}/restore",
+            headers={"X-API-Key": mock_api_keys},
+        )
+
+        assert response.status_code == 500
+        data = json.loads(response.data)
+        assert "World failed to load" in data["error"]
+
+    @patch("api.server.run_script")
+    def test_restore_backup_treats_cancelled_as_failure(
+        self, mock_run_script, client, mock_api_keys, temp_backup_environment
+    ):
+        """manage.sh restore exits 0 on a declined confirmation too; that must not read as success"""
+        _, _, backup_file = temp_backup_environment
+        mock_run_script.return_value = ("Cancelled\n", "", 0)
+
+        response = client.post(
+            f"/api/backups/{backup_file.name}/restore",
+            headers={"X-API-Key": mock_api_keys},
+        )
+
+        assert response.status_code == 500
 
 
 class TestBackupDelete:

@@ -4,15 +4,11 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # The repo-root server.properties only seeds the Docker image; once the
 # container has booted once, ./data is bind-mounted over /minecraft/server
@@ -125,7 +121,7 @@ EOF
     echo -e "${YELLOW}Note: Restart server for RCON to take effect${NC}"
 
     # Check if server is running
-    if docker ps | grep -q minecraft-server; then
+    if container_running; then
         echo -e "${YELLOW}Server is running. Restart to enable RCON:${NC}"
         echo -e "  ./scripts/manage.sh restart"
     fi
