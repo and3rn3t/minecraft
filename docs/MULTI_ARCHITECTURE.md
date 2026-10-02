@@ -1,13 +1,12 @@
 # Multi-Architecture Support Guide
 
-This guide covers building and running the Minecraft Server on multiple CPU architectures, including ARM64, ARM32, and x86_64.
+This guide covers building and running the Minecraft Server on multiple CPU architectures, including ARM64 and x86_64.
 
 ## Overview
 
 The project supports multiple architectures:
 
 - **ARM64 (linux/arm64)** - Raspberry Pi 5, Apple Silicon, AWS Graviton
-- **ARM32 (linux/arm/v7)** - Raspberry Pi 4 and earlier
 - **AMD64/x86_64 (linux/amd64)** - Intel/AMD processors
 
 ## Quick Start
@@ -24,9 +23,6 @@ The project supports multiple architectures:
 ```bash
 # Build for ARM64 (Raspberry Pi 5)
 ./scripts/build-multiarch.sh arch arm64
-
-# Build for ARM32 (Raspberry Pi 4)
-./scripts/build-multiarch.sh arch arm32
 
 # Build for x86_64
 ./scripts/build-multiarch.sh arch amd64
@@ -66,23 +62,9 @@ This creates a buildx builder instance with QEMU emulation support.
 - AWS Graviton instances
 - Modern ARM servers
 
-**Base Image**: `arm64v8/openjdk:21-jdk-slim`
+**Base Image**: `eclipse-temurin:25-jre-noble`
 
 **Performance**: Best performance on ARM64 hardware
-
-### ARM32 (linux/arm/v7)
-
-**Use Cases**:
-
-- Raspberry Pi 4 and earlier
-- Older ARM devices
-- Embedded systems
-
-**Base Image**: `arm32v7/openjdk:21-jdk-slim`
-
-**Performance**: Lower performance than ARM64, but compatible with older hardware
-
-**Note**: ARM32 support may have limitations due to 32-bit architecture constraints.
 
 ### AMD64/x86_64 (linux/amd64)
 
@@ -92,7 +74,7 @@ This creates a buildx builder instance with QEMU emulation support.
 - Most cloud providers (AWS, GCP, Azure)
 - Development machines
 
-**Base Image**: `openjdk:21-jdk-slim`
+**Base Image**: `eclipse-temurin:25-jre-noble`
 
 **Performance**: Excellent performance on x86_64 hardware
 
@@ -117,7 +99,7 @@ Build for multiple architectures:
 
 # Or manually with docker buildx
 docker buildx build \
-  --platform linux/arm64,linux/arm/v7,linux/amd64 \
+  --platform linux/arm64,linux/amd64 \
   --tag minecraft-server:latest \
   --push .
 ```
@@ -130,9 +112,6 @@ Build for a specific architecture:
 # ARM64
 ./scripts/build-multiarch.sh arch arm64
 
-# ARM32
-./scripts/build-multiarch.sh arch arm32
-
 # AMD64
 ./scripts/build-multiarch.sh arch amd64
 ```
@@ -144,16 +123,15 @@ The Dockerfile uses Docker's automatic architecture detection:
 ```dockerfile
 # Docker buildx automatically selects the correct base image
 # based on the --platform flag
-FROM openjdk:21-jdk-slim AS base
+FROM eclipse-temurin:25-jre-noble
 ```
 
 When building with `--platform`, Docker automatically:
 
 - For `linux/arm64`: Uses ARM64-compatible base image
-- For `linux/arm/v7`: Uses ARM32-compatible base image
 - For `linux/amd64`: Uses x86_64 base image
 
-The `openjdk:21-jdk-slim` image is multi-architecture and Docker will pull the correct variant.
+The `eclipse-temurin:25-jre-noble` image is multi-architecture (Temurin 25 publishes no `linux/arm/v7` variant, so 32-bit ARM is unsupported), and Docker pulls the correct variant.
 
 ## Running on Different Architectures
 
@@ -162,18 +140,6 @@ The `openjdk:21-jdk-slim` image is multi-architecture and Docker will pull the c
 ```bash
 # Standard setup (already ARM64)
 ./scripts/setup-rpi.sh
-./scripts/manage.sh start
-```
-
-### Raspberry Pi 4 (ARM32)
-
-```bash
-# Use ARM32 image
-docker pull minecraft-server:latest-arm32
-docker tag minecraft-server:latest-arm32 minecraft-server:latest
-
-# Or build locally
-./scripts/build-multiarch.sh arch arm32
 ./scripts/manage.sh start
 ```
 
@@ -245,11 +211,6 @@ docker pull minecraft-server:latest
 ```
 
 ## Performance Considerations
-
-### ARM64 vs ARM32
-
-- **ARM64**: Better performance, 64-bit addressing, recommended for Raspberry Pi 5
-- **ARM32**: Compatibility with older hardware, 32-bit limitations
 
 ### x86_64 vs ARM
 
@@ -327,7 +288,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          platforms: linux/arm64,linux/arm/v7,linux/amd64
+          platforms: linux/arm64,linux/amd64
           push: true
           tags: minecraft-server:latest
 ```

@@ -152,13 +152,10 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/arm64,linux/arm/v7,linux/amd64
+          platforms: linux/arm64,linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            MINECRAFT_VERSION=26.3
-            BUILDKIT_INLINE_CACHE=1
           cache-from: |
             type=gha,scope=release
             type=registry,ref=ghcr.io/${{ github.repository_owner }}/minecraft-server:buildcache

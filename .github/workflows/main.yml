@@ -292,7 +292,9 @@ jobs:
   # Build Docker image
   build-docker:
     name: Build Docker Image
-    runs-on: ubuntu-latest
+    # Native arm64 runner: the image is linux/arm64 only, so this avoids QEMU
+    # emulation (free for public repos).
+    runs-on: ubuntu-24.04-arm
     # pre-commit is included so a lint failure can't publish an image: this
     # job pushes to ghcr.io on push-to-main, and pre-commit was previously
     # only a dependency of `summary`, which runs in parallel with this job
@@ -350,9 +352,6 @@ jobs:
           load: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            MINECRAFT_VERSION=26.3
-            BUILDKIT_INLINE_CACHE=1
           cache-from: type=gha,scope=build-docker
           cache-to: type=gha,mode=max,scope=build-docker
 

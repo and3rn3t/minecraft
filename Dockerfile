@@ -1,13 +1,14 @@
 # Minecraft Server - Multi-Architecture Support
-# Supports: ARM64 (Raspberry Pi 5), ARM32 (Raspberry Pi 4), x86_64
+# Supports: ARM64 (Raspberry Pi 5), x86_64. Temurin 25 publishes no 32-bit ARM
+# image, so linux/arm/v7 is not buildable.
 #
 # Docker buildx selects the correct base image per --platform. Eclipse Temurin
 # replaces the deprecated official OpenJDK images. The JRE variant is used
 # because the server only ever runs jars; nothing in the image compiles Java.
 
-ARG MINECRAFT_VERSION=26.3
-
-FROM eclipse-temurin:25-jre-jammy
+# Pinned by digest (the multi-arch index) so builds are reproducible; Renovate
+# bumps the tag and digest together.
+FROM eclipse-temurin:25-jre-noble@sha256:693fdaf83831eeeefd9709eae44c8b8706622652f972cf5903bd0e481bbf6ad3
 
 ARG MINECRAFT_VERSION=26.3
 
@@ -51,13 +52,15 @@ RUN groupadd -r minecraft && \
 
 WORKDIR /minecraft/server
 
+# server.properties and eula.txt are deliberately not copied: /minecraft/server
+# is a volume (bind-mounted ./data in compose), which hides anything baked in
+# there, and start.sh writes eula.txt itself. Copying them only invalidated
+# the layers below on every edit.
 # Least-frequently-changed files first, for layer caching.
 # download-server.sh resolves the jar URL for MINECRAFT_VERSION at runtime, so
 # the image is not pinned to a single hard-coded download.
 COPY --chown=minecraft:minecraft scripts/download-server.sh /minecraft/scripts/download-server.sh
 COPY --chown=minecraft:minecraft scripts/start.sh /minecraft/start.sh
-COPY --chown=minecraft:minecraft server.properties /minecraft/server/
-COPY --chown=minecraft:minecraft eula.txt /minecraft/server/
 
 RUN chmod +x /minecraft/start.sh /minecraft/scripts/download-server.sh
 
