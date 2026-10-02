@@ -55,6 +55,10 @@ NTFY_URL="${DEPLOY_NTFY_URL:-${NTFY_URL:-}}"
 DEPLOY_API_HEALTH_URL="${DEPLOY_API_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
 DEPLOY_HEALTH_TIMEOUT="${DEPLOY_HEALTH_TIMEOUT:-60}"
 DEPLOY_API_SERVICE="${DEPLOY_API_SERVICE:-minecraft-api.service}"
+# How long a recreated game container gets to report healthy (the image's
+# healthcheck allows a 180s start period for world loading), and how often to look.
+DEPLOY_SERVER_HEALTH_TIMEOUT="${DEPLOY_SERVER_HEALTH_TIMEOUT:-300}"
+DEPLOY_SERVER_HEALTH_INTERVAL="${DEPLOY_SERVER_HEALTH_INTERVAL:-5}"
 GITHUB_API="${GITHUB_API:-https://api.github.com}"
 
 STATE_DIR="${PROJECT_DIR}/.deploy"
@@ -66,9 +70,9 @@ AUDIT_LOG_FILE="${AUDIT_LOG_FILE:-${PROJECT_DIR}/config/audit.log}"
 SERVICE_NAME="minecraft"
 
 # Paths whose change means the game server's image or container config changed.
-# Not server.properties or eula.txt, although the Dockerfile copies them in:
-# ./data is mounted over /minecraft/server, so the live copies are the ones in
-# data/, which the admin panel edits. The tracked files only seed a new world.
+# Not server.properties or eula.txt: ./data is mounted over /minecraft/server,
+# so the live copies are the ones in data/, which the admin panel edits. The
+# tracked files are not part of the image.
 IMAGE_PATHS_RE='^(Dockerfile|docker-compose[^/]*\.ya?ml|scripts/download-server\.sh|scripts/start\.sh)$'
 
 usage() {
@@ -171,6 +175,27 @@ server_is_running() {
     [ -n "$(compose ps --status running --quiet "$SERVICE_NAME" 2>/dev/null)" ]
 }
 
+# Function to wait until the game container reports healthy. Succeeds at once
+# for a container with no healthcheck that is simply running. Fails if the
+# container goes unhealthy, stops, or has not become healthy within the timeout.
+wait_for_server_healthy() {
+    local waited=0 id state
+    while :; do
+        id="$(compose ps --quiet "$SERVICE_NAME" 2>/dev/null)"
+        state=""
+        if [ -n "$id" ]; then
+            state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id" 2>/dev/null)"
+        fi
+        case "$state" in
+            healthy | running) return 0 ;;
+            unhealthy | exited | dead) return 1 ;;
+        esac
+        [ "$waited" -lt "$DEPLOY_SERVER_HEALTH_TIMEOUT" ] || return 1
+        sleep "$DEPLOY_SERVER_HEALTH_INTERVAL"
+        waited=$((waited + DEPLOY_SERVER_HEALTH_INTERVAL))
+    done
+}
+
 # Function to recreate the game container if a change is waiting and it is safe
 apply_pending_restart() {
     [ -f "$PENDING_FILE" ] || return 0
@@ -208,9 +233,18 @@ apply_pending_restart() {
 
     log_info "Server is empty; restarting the game server on the new version"
     if compose up -d "$SERVICE_NAME"; then
+        # Done either way: retrying would recreate a crashing server every run
         rm -f "$PENDING_FILE"
-        audit "deploy.server_restart" "{\"commit\": \"$(git rev-parse HEAD)\"}"
-        notify "Minecraft server deploy" "Game server restarted on $(short "$(git rev-parse HEAD)")"
+        local head
+        head="$(git rev-parse HEAD)"
+        if wait_for_server_healthy; then
+            audit "deploy.server_restart" "{\"commit\": \"$head\"}"
+            notify "Minecraft server deploy" "Game server restarted on $(short "$head")"
+        else
+            log_error "Game server did not become healthy after restarting on $(short "$head"); check 'docker logs minecraft-server'"
+            audit "deploy.server_unhealthy" "{\"commit\": \"$head\"}"
+            notify "Minecraft server deploy" "Game server is NOT healthy after restarting on $(short "$head"); check it" high
+        fi
     else
         log_error "Game server restart failed; will try again next run"
     fi
