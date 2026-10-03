@@ -6,7 +6,6 @@ Provides HTTP API for remote server management
 
 import json
 import os
-import re
 import secrets
 import subprocess
 import sys
@@ -57,6 +56,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 if __name__ == "__main__":
     sys.modules.setdefault("api.server", sys.modules[__name__])
 
+from api import auth_crypto  # noqa: E402
 from api.security import sanitize_minecraft_command, sanitize_string
 
 # In-process RCON client. Keeps one authenticated connection open instead of
@@ -633,155 +633,6 @@ def health():
     return jsonify({"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat(), "version": "1.0.0"})
 
 
-# User Authentication Endpoints
-try:
-    import bcrypt
-    import jwt
-
-    BCRYPT_AVAILABLE = True
-    JWT_AVAILABLE = True
-except ImportError:
-    BCRYPT_AVAILABLE = False
-    JWT_AVAILABLE = False
-    bcrypt = None
-    jwt = None
-
-# Two-Factor Authentication
-try:
-    import base64
-    import io
-
-    import pyotp
-    import qrcode
-
-    TOTP_AVAILABLE = True
-except ImportError:
-    TOTP_AVAILABLE = False
-    pyotp = None
-    qrcode = None
-
-
-def hash_password(password):
-    """Hash password using bcrypt"""
-    if not BCRYPT_AVAILABLE:
-        raise ImportError("bcrypt not available")
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def verify_password(password, hashed):
-    """Verify password against hash"""
-    if not BCRYPT_AVAILABLE:
-        raise ImportError("bcrypt not available")
-    return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
-
-
-def generate_token(username):
-    """Generate JWT token for user"""
-    if not JWT_AVAILABLE:
-        # Fallback to simple session
-        return None
-    payload = {
-        "username": username,
-        "exp": datetime.now(timezone.utc) + timedelta(days=7),
-        "iat": datetime.now(timezone.utc),
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-
-
-def verify_token(token):
-    """Verify JWT token"""
-    if not JWT_AVAILABLE:
-        return None
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return payload.get("username")
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
-
-
-# Cached client for Apple's public signing keys (https://appleid.apple.com/auth/keys).
-# Built lazily so importing this module never makes a network call, and reused across
-# requests so verifying an Apple ID token doesn't refetch the JWKS every login.
-_apple_jwk_client = None
-
-
-def _get_apple_jwk_client():
-    global _apple_jwk_client
-    if _apple_jwk_client is None:
-        _apple_jwk_client = jwt.PyJWKClient("https://appleid.apple.com/auth/keys")
-    return _apple_jwk_client
-
-
-def verify_apple_id_token(id_token):
-    """Verify an Apple Sign In ID token and return its decoded claims.
-
-    Checks the RS256 signature against Apple's published JWKS, plus audience
-    (our OAuth client id) and issuer. Returns None if the token is missing,
-    expired, mis-scoped, or simply not signed by Apple. Callers must never
-    trust an Apple ID token's claims (e.g. `sub`, `email`) without going
-    through this first -- a caller-supplied id_token is untrusted input.
-    """
-    if not JWT_AVAILABLE:
-        return None
-    client_id = OAUTH_CONFIG["apple"].get("client_id")
-    if not client_id:
-        return None
-    try:
-        signing_key = _get_apple_jwk_client().get_signing_key_from_jwt(id_token)
-        return jwt.decode(
-            id_token,
-            signing_key.key,
-            algorithms=["RS256"],
-            audience=client_id,
-            issuer="https://appleid.apple.com",
-        )
-    except jwt.PyJWTError:
-        return None
-    except Exception as e:
-        app.logger.error(f"Failed to verify Apple ID token: {e}")
-        return None
-
-
-def generate_totp_secret():
-    """Generate a TOTP secret for 2FA"""
-    if not TOTP_AVAILABLE:
-        raise ImportError("pyotp not available")
-    return pyotp.random_base32()
-
-
-def generate_totp_uri(username, secret, issuer="Minecraft Server"):
-    """Generate TOTP URI for QR code"""
-    if not TOTP_AVAILABLE:
-        raise ImportError("pyotp not available")
-    totp = pyotp.TOTP(secret)
-    return totp.provisioning_uri(name=username, issuer_name=issuer)
-
-
-def generate_qr_code(uri):
-    """Generate QR code image from URI"""
-    if not TOTP_AVAILABLE:
-        raise ImportError("qrcode not available")
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(uri)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    buffer.seek(0)
-    return base64.b64encode(buffer.read()).decode("utf-8")
-
-
-def verify_totp(secret, token):
-    """Verify TOTP token"""
-    if not TOTP_AVAILABLE:
-        raise ImportError("pyotp not available")
-    totp = pyotp.TOTP(secret)
-    return totp.verify(token, valid_window=1)  # Allow 1 time step window
-
-
-# Audit Logging
 def log_audit_event(username, action, details=None, ip_address=None):
     """Log an audit event"""
     try:
@@ -820,7 +671,7 @@ def get_username_from_request():
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
-        username = verify_token(token)
+        username = auth_crypto.verify_token(token)
         if username:
             return username
 
@@ -1107,7 +958,7 @@ def require_auth(f):
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            username = verify_token(token)
+            username = auth_crypto.verify_token(token)
             if username and _account_active(username):
                 request.user = username
                 request.user_info = USERS.get(username, {})
@@ -1174,22 +1025,6 @@ CONFIG_ALLOWED_PATHS = {
 
 
 # File Browser - Allowed directories (for security)
-def describe_yaml_error(error):
-    """Describe a YAML parse failure using only the parser's own fields.
-
-    str(a YAMLError) formats the problem together with the surrounding context
-    and the stream name. Taking `problem` and `problem_mark` keeps what the
-    caller needs — what is wrong and where — without passing the exception's
-    rendering through to the response.
-    """
-    problem = getattr(error, "problem", None) or "could not be parsed"
-    mark = getattr(error, "problem_mark", None)
-    if mark is not None:
-        # Marks are zero-based; editors are not.
-        return f"Invalid YAML: {problem} (line {mark.line + 1}, column {mark.column + 1})"
-    return f"Invalid YAML: {problem}"
-
-
 ALLOWED_FILE_PATHS = [
     PROJECT_ROOT / "data",
     PROJECT_ROOT / "config",
@@ -1198,136 +1033,7 @@ ALLOWED_FILE_PATHS = [
 ]
 
 
-# Keys whose values are credentials: rcon.password, SECRET_KEY,
-# CLOUDFLARE_API_TOKEN, NOIP_PASSWORD, ANTHROPIC_API_KEY and the like.
-_SECRET_KEY_PATTERN = re.compile(r"pass|secret|token|api[_.-]?key|private[_.-]?key|credential", re.IGNORECASE)
-# `key=value` (.properties, .conf, compose list entries) or `key: value` (YAML).
-# The value may be empty: in YAML that opens a nested block.
-_CONFIG_LINE_PATTERN = re.compile(r"^(\s*(?:-\s*)?(?:export\s+)?)([A-Za-z0-9_.\-]+)(\s*[=:])(\s*)(.*)$")
-# A YAML block scalar header: `|`, `>`, optionally with chomping/indent indicators
-_YAML_BLOCK_SCALAR = re.compile(r"^[|>][0-9+-]*\s*(#.*)?$")
-REDACTED_VALUE = "********"
-
-
-def _indent(line):
-    return len(line) - len(line.lstrip())
-
-
-def redact_config_secrets(content):
-    """Replace credential values in config text, leaving everything else intact.
-
-    Returns ``(content, redacted)``. config.view is held by every role, and
-    these files carry the RCON password, the session signing key and the
-    Cloudflare token; reading them used to be enough to take over the server.
-
-    A value can span lines, and all of it is withheld: a YAML block scalar
-    (``KEY: |``) or nested block under ``KEY:``, whose lines are those indented
-    deeper than the key; or a quoted .conf value (``KEY="...``) running to its
-    closing quote. Those continuation lines are dropped, leaving the masked key.
-    """
-    redacted = False
-    lines = []
-    block_indent = None  # indent of a masked key whose indented block is being skipped
-    open_quote = None  # quote character of a masked value still running on
-
-    for line in content.split("\n"):
-        if open_quote is not None:
-            if open_quote in line:
-                open_quote = None
-            continue
-
-        if block_indent is not None:
-            if not line.strip():
-                continue
-            if _indent(line) > block_indent:
-                redacted = True
-                continue
-            block_indent = None
-
-        match = _CONFIG_LINE_PATTERN.match(line)
-        # Comments never match: "#" is not a key character
-        if match and _SECRET_KEY_PATTERN.search(match.group(2)):
-            prefix, key, separator, space, value = match.groups()
-            value = value.strip()
-            if not value or _YAML_BLOCK_SCALAR.match(value):
-                # The value is whatever is indented below, if anything is
-                block_indent = _indent(line)
-                if value:
-                    lines.append(f"{prefix}{key}{separator}{space}{REDACTED_VALUE}")
-                    redacted = True
-                else:
-                    lines.append(line)
-                continue
-            if value[0] in "\"'" and value[1:].find(value[0]) == -1:
-                open_quote = value[0]
-            lines.append(f"{prefix}{key}{separator}{space}{REDACTED_VALUE}")
-            redacted = True
-            continue
-
-        lines.append(line)
-
-    return "\n".join(lines), redacted
-
-
 # File Browser Endpoints
-def _within_allowed_roots(real_path):
-    """Whether an already-resolved path sits inside one of the allowed roots.
-
-    Written with os.path and a separator-terminated prefix rather than
-    ``Path.is_relative_to``: the two are equivalent, but this form is one
-    CodeQL recognises as a path sanitizer, so the file browser gets real
-    analysis instead of a standing exemption.
-
-    The trailing separator is what stops ``/srv/data-evil`` passing because it
-    begins with ``/srv/data``.
-    """
-    for allowed_path in ALLOWED_FILE_PATHS:
-        try:
-            root = os.path.realpath(str(allowed_path))
-        except (ValueError, OSError):
-            continue
-        if real_path == root or real_path.startswith(root + os.sep):
-            return True
-    return False
-
-
-def is_path_allowed(file_path):
-    """Check if a file path is within allowed directories"""
-    try:
-        return _within_allowed_roots(os.path.realpath(str(file_path)))
-    except (ValueError, OSError):
-        return False
-
-
-def resolve_allowed_path(path_param):
-    """Resolve a caller-supplied path and confirm it is inside an allowed root.
-
-    Returns ``(path, None)`` when the path is usable, or ``(None, response)``
-    with the refusal to return.
-
-    Resolving first matters: ``.resolve()`` collapses ``..`` and follows
-    symlinks, so a link inside an allowed directory pointing outside one is
-    checked at its destination rather than by its name. Checking the string
-    before resolving would miss that.
-
-    The explicit rejections below are the paths that never reach the allowlist
-    check at all, because resolving them raises first — a null byte used to
-    surface as a 500 carrying the raw OS error.
-    """
-    if not isinstance(path_param, str) or "\x00" in path_param:
-        return None, (jsonify({"error": "Invalid path"}), 400)
-
-    try:
-        candidate = os.path.realpath(os.path.join(str(PROJECT_ROOT), path_param))
-    except (ValueError, OSError):
-        return None, (jsonify({"error": "Invalid path"}), 400)
-
-    if not _within_allowed_roots(candidate):
-        return None, (jsonify({"error": "Path not allowed"}), 403)
-
-    return Path(candidate), None
-
-
 # WebSocket event handlers for real-time log streaming
 if SOCKETIO_AVAILABLE:
     # Session ids currently subscribed to the log stream
@@ -1528,7 +1234,7 @@ if SOCKETIO_AVAILABLE:
 
             identity = ("api_key", api_key)
         elif token:
-            username = verify_token(token)
+            username = auth_crypto.verify_token(token)
             if not username or username not in USERS:
                 socketio.emit("error", {"message": "Invalid or expired token"}, room=request.sid)
                 disconnect(request.sid)

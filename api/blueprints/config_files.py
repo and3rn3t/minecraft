@@ -2,15 +2,14 @@
 of files the admin panel can edit (server.properties, docker-compose.yml,
 ...).
 
-describe_yaml_error, redact_config_secrets and CONFIG_ALLOWED_PATHS stay on
-`server` rather than moving here: get_ddns_config (api.blueprints.ddns) also
-calls redact_config_secrets, so it's shared infrastructure, not this
-blueprint's alone.
+CONFIG_ALLOWED_PATHS stays on `server`. describe_yaml_error and
+redact_config_secrets live in api.config_redaction, shared with
+get_ddns_config (api.blueprints.ddns).
 """
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import config_redaction, server
 
 bp = Blueprint("config_files", __name__)
 
@@ -66,7 +65,7 @@ def get_config_file(filename):
     # save, so a masked value can never be written back over a real one.
     redacted = False
     if not server.has_permission(request.user, "config.edit"):
-        content, redacted = server.redact_config_secrets(content)
+        content, redacted = config_redaction.redact_config_secrets(content)
     return jsonify(
         {
             "name": filename,
@@ -152,7 +151,7 @@ def save_config_file(filename):
             # and column are reported — but built from the parser's own fields
             # rather than str(e), which formats the surrounding context and is
             # a route for anything else in the exception to reach the response.
-            return jsonify({"error": server.describe_yaml_error(e)}), 400
+            return jsonify({"error": config_redaction.describe_yaml_error(e)}), 400
 
     # Save file
     try:
@@ -222,7 +221,7 @@ def validate_config_file(filename):
             errors.append(
                 {
                     "line": (mark.line + 1) if mark is not None else 0,
-                    "message": server.describe_yaml_error(e),
+                    "message": config_redaction.describe_yaml_error(e),
                 }
             )
 

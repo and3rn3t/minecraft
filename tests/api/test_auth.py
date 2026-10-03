@@ -57,9 +57,9 @@ def mock_bcrypt(monkeypatch):
                 hashed_str = hashed
             return f"hashed_{password_str}" == hashed_str
 
-        monkeypatch.setattr("api.server.hash_password", lambda p: f"hashed_{p}")
-        monkeypatch.setattr("api.server.verify_password", mock_checkpw)
-        monkeypatch.setattr("api.server.BCRYPT_AVAILABLE", True)
+        monkeypatch.setattr("api.auth_crypto.hash_password", lambda p: f"hashed_{p}")
+        monkeypatch.setattr("api.auth_crypto.verify_password", mock_checkpw)
+        monkeypatch.setattr("api.auth_crypto.BCRYPT_AVAILABLE", True)
         return True
     except ImportError:
         return False
@@ -80,9 +80,9 @@ def mock_jwt(monkeypatch):
                 return token.replace("token_", "")
             return None
 
-        monkeypatch.setattr("api.server.generate_token", mock_generate_token)
-        monkeypatch.setattr("api.server.verify_token", mock_verify_token)
-        monkeypatch.setattr("api.server.JWT_AVAILABLE", True)
+        monkeypatch.setattr("api.auth_crypto.generate_token", mock_generate_token)
+        monkeypatch.setattr("api.auth_crypto.verify_token", mock_verify_token)
+        monkeypatch.setattr("api.auth_crypto.JWT_AVAILABLE", True)
         return True
     except ImportError:
         return False
@@ -265,7 +265,7 @@ class TestUserLogin:
         def mock_verify_password(password, hashed):
             return password == "password123" and hashed == "hashed_password123"
 
-        monkeypatch.setattr("api.server.verify_password", mock_verify_password)
+        monkeypatch.setattr("api.auth_crypto.verify_password", mock_verify_password)
 
         with client.session_transaction() as session:
             response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
@@ -372,7 +372,7 @@ class TestGetCurrentUser:
         def mock_verify_token(token):
             return "testuser" if token == "token_testuser" else None
 
-        monkeypatch.setattr("api.server.verify_token", mock_verify_token)
+        monkeypatch.setattr("api.auth_crypto.verify_token", mock_verify_token)
 
         response = client.get("/api/auth/me", headers={"Authorization": "Bearer token_testuser"})
 
@@ -476,7 +476,7 @@ class TestSessionCookieHardening:
             "role": "user",
             "enabled": True,
         }
-        monkeypatch.setattr("api.server.verify_password", lambda password, hashed: password == "password123")
+        monkeypatch.setattr("api.auth_crypto.verify_password", lambda password, hashed: password == "password123")
 
         response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
         assert response.status_code == 200
@@ -507,7 +507,7 @@ class TestCsrfProtection:
             "role": "user",
             "enabled": True,
         }
-        monkeypatch.setattr("api.server.verify_password", lambda password, hashed: password == "password123")
+        monkeypatch.setattr("api.auth_crypto.verify_password", lambda password, hashed: password == "password123")
 
         response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
         data = json.loads(response.data)
@@ -633,7 +633,7 @@ class TestAuthAuditLogging:
             "role": "user",
             "enabled": True,
         }
-        monkeypatch.setattr("api.server.verify_password", lambda password, hashed: password == "password123")
+        monkeypatch.setattr("api.auth_crypto.verify_password", lambda password, hashed: password == "password123")
 
         response = client.post("/api/auth/login", json={"username": "testuser", "password": "password123"})
         assert response.status_code == 200

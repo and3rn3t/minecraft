@@ -18,15 +18,14 @@ triaged:
     path: api/blueprints/files.py
     count: 25
     reason: >-
-      The file browser routes resolve the path through server.py's
-      resolve_allowed_path(), which checks is_relative_to against an
-      allowlist (os.path.realpath + a separator-terminated prefix, the shape
-      CodeQL recognises as a sanitizer in-file). That recognition does not
-      cross the module boundary once the routes moved to their own blueprint
-      file and call it as server.resolve_allowed_path(...) -- confirmed by
-      trying a direct `from api.server import resolve_allowed_path` too,
-      which changed nothing here and added a real cyclic-import flag of its
-      own. tests/api/test_path_traversal.py attacks all of these routes
+      The file browser routes resolve the path through api/paths.py's
+      resolve_allowed_path(), which checks an allowlist (os.path.realpath +
+      a separator-terminated prefix, the shape CodeQL recognises as a
+      sanitizer in-file). That recognition does not cross the module
+      boundary, so the routes in their own blueprint file are not credited
+      with the check -- this held when the function lived in server.py and
+      is unchanged now that it lives in api/paths.py (the repository totals
+      were identical before and after the move). tests/api/test_path_traversal.py attacks all of these routes
       directly, symlink escapes included, so the defense cannot be removed
       quietly regardless of what CodeQL can see. (Formerly a single 32-count
       entry on api/server.py, before the file-browser, config-file and backup

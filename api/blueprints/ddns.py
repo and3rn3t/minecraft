@@ -12,7 +12,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import config_redaction, server
 
 bp = Blueprint("ddns", __name__)
 
@@ -80,7 +80,7 @@ def get_ddns_config():
     # credentials; mask them exactly as the config-file viewer does.
     redacted = False
     if not server.has_permission(request.user, "config.edit"):
-        content, redacted = server.redact_config_secrets(content)
+        content, redacted = config_redaction.redact_config_secrets(content)
     return jsonify({"content": content, "is_example": False, "redacted": redacted}), 200
 
 

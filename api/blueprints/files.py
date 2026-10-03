@@ -1,29 +1,19 @@
 """The file browser: list/read/write/delete/upload/download within the
 allow-listed roots.
 
-_within_allowed_roots, is_path_allowed, resolve_allowed_path and
-ALLOWED_FILE_PATHS stay defined on `server` rather than moving here,
-deliberately:
+ALLOWED_FILE_PATHS stays defined on `server` (with PROJECT_ROOT) rather than
+moving here: it is monkeypatched directly (`setattr(api_module,
+"ALLOWED_FILE_PATHS", ...)`) in tests/api/test_file_browser.py and
+test_file_access.py, which requires the attribute to already exist on
+api.server. The checks themselves live in api.paths
+(_within_allowed_roots, is_path_allowed, resolve_allowed_path) and read it
+from there at call time.
 
-- tests/api/test_path_traversal.py calls api_module.is_path_allowed(...)
-  directly as a white-box test of the sanitizer itself, not through these
-  routes.
-- ALLOWED_FILE_PATHS is monkeypatched directly (`setattr(api_module,
-  "ALLOWED_FILE_PATHS", ...)`) in tests/api/test_file_browser.py and
-  test_file_access.py, which requires the attribute to already exist on
-  api.server.
-
-Calling it as `server.resolve_allowed_path(...)` rather than importing the
-name directly costs CodeQL's sanitizer recognition for this file: it credited
-the same call written in-file (see the py/path-injection entries this
-displaced in .codeql-triage.yaml). A direct `from api.server import
-resolve_allowed_path` was tried and didn't change that -- CodeQL's dataflow
-does not carry the sanitizer's effect across the module boundary either way
--- and it introduced a real module-level cyclic-import flag of its own
-(server.py registers this blueprint at the bottom of the file, after
-resolve_allowed_path is defined, which only a plain module import survives
-safely). The routes are still attacked directly by
-tests/api/test_path_traversal.py, which is what actually guards this.
+CodeQL does not carry the sanitizer's effect across the module boundary: the
+routes here, calling api.paths.resolve_allowed_path(...), are not credited
+with the check (see the py/path-injection entries in .codeql-triage.yaml).
+The routes are still attacked directly by tests/api/test_path_traversal.py,
+which is what actually guards this.
 """
 
 import os
@@ -33,7 +23,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
-from api import server
+from api import paths, server
 
 bp = Blueprint("files", __name__)
 
@@ -59,7 +49,7 @@ def list_files():
         return jsonify({"success": True, "files": roots, "path": ""}), 200
 
     # Resolve path (canonicalises .., resolves symlinks — required before any FS operation)
-    file_path, refusal = server.resolve_allowed_path(path_param)
+    file_path, refusal = paths.resolve_allowed_path(path_param)
     if refusal:
         return refusal
 
@@ -112,7 +102,7 @@ def read_file():
     if not path_param:
         return jsonify({"error": "Path required"}), 400
 
-    file_path, refusal = server.resolve_allowed_path(path_param)
+    file_path, refusal = paths.resolve_allowed_path(path_param)
     if refusal:
         return refusal
 
@@ -155,7 +145,7 @@ def write_file():
     if not path_param:
         return jsonify({"error": "Path required"}), 400
 
-    file_path, refusal = server.resolve_allowed_path(path_param)
+    file_path, refusal = paths.resolve_allowed_path(path_param)
     if refusal:
         return refusal
 
@@ -211,7 +201,7 @@ def delete_file():
     if not path_param:
         return jsonify({"error": "Path required"}), 400
 
-    file_path, refusal = server.resolve_allowed_path(path_param)
+    file_path, refusal = paths.resolve_allowed_path(path_param)
     if refusal:
         return refusal
 
@@ -259,7 +249,7 @@ def upload_file():
     safe_name = secure_filename(file.filename)
     if not safe_name:
         return jsonify({"error": "Invalid filename"}), 400
-    file_path, refusal = server.resolve_allowed_path(str(server.Path(path_param) / safe_name))
+    file_path, refusal = paths.resolve_allowed_path(str(server.Path(path_param) / safe_name))
     if refusal:
         return refusal
 
@@ -289,7 +279,7 @@ def download_file():
     if not path_param:
         return jsonify({"error": "Path required"}), 400
 
-    file_path, refusal = server.resolve_allowed_path(path_param)
+    file_path, refusal = paths.resolve_allowed_path(path_param)
     if refusal:
         return refusal
 

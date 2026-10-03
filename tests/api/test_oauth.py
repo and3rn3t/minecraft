@@ -13,6 +13,7 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.auth_crypto as auth_crypto  # noqa: E402
 
 app = api_module.app
 
@@ -278,7 +279,7 @@ class TestLinkingAnAccount:
         self, client, mock_auth_session, temp_oauth_config, rsa_keypair, monkeypatch
     ):
         private_pem, public_pem = rsa_keypair
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
         token = _sign_rs256(
             private_pem, {"sub": "a-456", "aud": "test-apple-client-id", "iss": "https://appleid.apple.com"}
         )
@@ -291,7 +292,7 @@ class TestLinkingAnAccount:
         assert api_module.USERS["testuser"]["oauth_providers"] == ["apple:a-456"]
 
     def test_apple_refuses_a_forged_token(self, client, mock_auth_session, temp_oauth_config, monkeypatch):
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
         with client.session_transaction() as session:
             session["oauth_state"] = "state"
 
@@ -402,7 +403,7 @@ class TestVerifyAppleIdToken:
 
     def test_returns_none_when_apple_not_configured(self, monkeypatch):
         monkeypatch.setitem(api_module.OAUTH_CONFIG["apple"], "client_id", "")
-        assert api_module.verify_apple_id_token("whatever") is None
+        assert auth_crypto.verify_apple_id_token("whatever") is None
 
     def test_rejects_token_signed_with_wrong_key(self, temp_oauth_config, monkeypatch):
         """The forged-login attack: a token signed by a key that isn't the
@@ -417,13 +418,13 @@ class TestVerifyAppleIdToken:
             {"sub": "attacker-chosen-id", "aud": "test-apple-client-id", "iss": "https://appleid.apple.com"},
         )
 
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=real_public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=real_public_pem))
 
-        assert api_module.verify_apple_id_token(forged_token) is None
+        assert auth_crypto.verify_apple_id_token(forged_token) is None
 
     def test_rejects_unreachable_or_unknown_key(self, temp_oauth_config, monkeypatch):
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
-        assert api_module.verify_apple_id_token("not-even-a-real-jwt") is None
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
+        assert auth_crypto.verify_apple_id_token("not-even-a-real-jwt") is None
 
     def test_accepts_correctly_signed_token(self, temp_oauth_config, rsa_keypair, monkeypatch):
         private_pem, public_pem = rsa_keypair
@@ -431,9 +432,9 @@ class TestVerifyAppleIdToken:
             private_pem,
             {"sub": "real-apple-user-id", "aud": "test-apple-client-id", "iss": "https://appleid.apple.com"},
         )
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
 
-        decoded = api_module.verify_apple_id_token(token)
+        decoded = auth_crypto.verify_apple_id_token(token)
         assert decoded is not None
         assert decoded["sub"] == "real-apple-user-id"
 
@@ -443,9 +444,9 @@ class TestVerifyAppleIdToken:
             private_pem,
             {"sub": "real-apple-user-id", "aud": "someone-elses-client-id", "iss": "https://appleid.apple.com"},
         )
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
 
-        assert api_module.verify_apple_id_token(token) is None
+        assert auth_crypto.verify_apple_id_token(token) is None
 
     def test_rejects_expired_token(self, temp_oauth_config, rsa_keypair, monkeypatch):
         import time
@@ -460,9 +461,9 @@ class TestVerifyAppleIdToken:
                 "exp": int(time.time()) - 60,
             },
         )
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
 
-        assert api_module.verify_apple_id_token(token) is None
+        assert auth_crypto.verify_apple_id_token(token) is None
 
 
 @pytest.fixture
@@ -482,7 +483,7 @@ class TestAppleOAuthCallback:
     """Integration tests for POST /api/auth/oauth/apple/callback."""
 
     def test_callback_rejects_forged_token(self, client, temp_oauth_config, temp_users_file, oauth_state, monkeypatch):
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(raises=True))
 
         response = client.post(
             "/api/auth/oauth/apple/callback", json={"id_token": "forged.token.value", "state": oauth_state}
@@ -512,7 +513,7 @@ class TestAppleOAuthCallback:
                 "iss": "https://appleid.apple.com",
             },
         )
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
         # This is a new identity, so it is a sign-up; registration has to be
         # open for it (see TestOAuthSignUpPolicy).
         monkeypatch.setattr(api_module, "REGISTRATION_ENABLED", True)
@@ -532,7 +533,7 @@ class TestOAuthSignUpPolicy:
     @pytest.fixture
     def apple_sign_in(self, client, temp_oauth_config, rsa_keypair, monkeypatch):
         private_pem, public_pem = rsa_keypair
-        monkeypatch.setattr(api_module, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
+        monkeypatch.setattr(auth_crypto, "_get_apple_jwk_client", lambda: _fake_jwk_client(public_pem=public_pem))
 
         def sign_in(apple_id="stranger-apple-id"):
             with client.session_transaction() as session:
