@@ -42,9 +42,8 @@ PrivateTmp=true
 # enough of the tree under here that a tighter allowlist would need
 # real-hardware testing to get right without breaking something (see
 # AGENTS.md's hardware-testing note) -- left for a follow-up pass, along
-# with SystemCallFilter= and MemoryDenyWriteExecute= (the latter is a known
-# friction point with eventlet/greenlet's stack-switching on some
-# platforms, so it isn't included here either).
+# with SystemCallFilter= and MemoryDenyWriteExecute= (neither is included
+# here; both need real-hardware testing).
 ProtectSystem=strict
 ReadWritePaths=/home/pi/minecraft-server
 

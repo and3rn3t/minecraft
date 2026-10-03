@@ -27,25 +27,15 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# Optional WebSocket support
+# Optional WebSocket support. Runs in Flask-SocketIO's threading mode (with
+# simple-websocket for the upgrade), which needs no monkey-patching. eventlet
+# was used before and is deprecated upstream.
 try:
-    import eventlet  # type: ignore[import-untyped]
     from flask_socketio import (
         SocketIO,  # type: ignore[import-untyped]
         disconnect,  # type: ignore[import-untyped]
     )
 
-    # Only monkey patch if not in testing environment
-    # eventlet.monkey_patch() can interfere with pytest parallel execution
-    # Check multiple environment variables that indicate testing
-    is_testing = (
-        os.environ.get("TESTING") == "true"
-        or os.environ.get("PYTEST_CURRENT_TEST")
-        or os.environ.get("PYTEST_RUNNING") == "1"
-        or "pytest" in sys.modules
-    )
-    if not is_testing:
-        eventlet.monkey_patch()
     SOCKETIO_AVAILABLE = True
 except ImportError:
     SOCKETIO_AVAILABLE = False
@@ -180,7 +170,7 @@ ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 
 # Initialize SocketIO if available
 if SOCKETIO_AVAILABLE:
-    socketio = SocketIO(app, cors_allowed_origins=ALLOWED_ORIGINS, async_mode="eventlet")
+    socketio = SocketIO(app, cors_allowed_origins=ALLOWED_ORIGINS, async_mode="threading")
 else:
     socketio = None
 
@@ -1803,7 +1793,11 @@ if __name__ == "__main__":
         print("WebSocket support enabled")
         if start_event_capture():
             print("Game event capture enabled")
-        socketio.run(app, host=API_HOST, port=API_PORT, debug=False)
+        # Threading mode serves through Werkzeug, which Flask-SocketIO only
+        # runs outside debug if told it is intended. That is the case here: a
+        # single process behind nginx, which is also what the in-memory rate
+        # limiter assumes.
+        socketio.run(app, host=API_HOST, port=API_PORT, debug=False, allow_unsafe_werkzeug=True)
     else:
         print("WebSocket support disabled (Flask-SocketIO not available)")
         app.run(host=API_HOST, port=API_PORT, debug=False)

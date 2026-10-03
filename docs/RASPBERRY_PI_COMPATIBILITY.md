@@ -93,7 +93,7 @@ All Python dependencies in `api/requirements.txt` are pure Python and should wor
 - Flask==3.0.0 ✅
 - flask-cors==4.0.0 ✅
 - flask-socketio==5.3.5 ✅
-- eventlet==0.33.3 ✅
+- simple-websocket (threading-mode WebSocket upgrade) ✅
 - bcrypt==4.1.2 ✅ (has C extensions, but supports ARM64)
 - pyjwt==2.8.0 ✅
 - authlib==1.3.0 ✅
