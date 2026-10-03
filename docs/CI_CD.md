@@ -62,6 +62,17 @@ succeed, so nothing that failed a check can be pushed to the registry.
   expected and diff images for a screenshot mismatch), kept 14 days.
 - **Locally**: `make test-visual` runs the suite exactly as CI does, and
   `make test-visual-update` re-renders baselines after an intended UI change.
+- **Bumping Playwright**: the version lives in four places that must agree:
+  `@playwright/test` and `playwright` in `web/package.json` (pinned exactly, so the
+  coupling shows), the lockfile, `PLAYWRIGHT_IMAGE` in the `Makefile`, and the
+  `playwright-tests` job's `container.image` plus its version check in
+  `.github/workflows/main.yml`. Renovate groups the npm packages but does not touch
+  the image tag, so a bump arrives as an npm PR that fails the check in that job
+  until the image is updated too. Change all four, run `make test-visual`, and only
+  if screenshots differ run `make test-visual-update` and look at the new images
+  before committing them. `scripts/check-playwright-pin.sh` checks that all four agree
+  (CI runs it first, and so does `make ci`); it reads the image tag from the workflow
+  and the Makefile rather than repeating the version, so one pin updated alone fails.
 
 ## Pipeline Triggers
 
