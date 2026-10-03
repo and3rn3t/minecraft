@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **BATS suites for `world-manager.sh` and `plugin-manager.sh`** — the two largest
+  management scripts had no tests (`tests/unit/test-world-manager.sh`,
+  `tests/unit/test-plugin-manager.sh`). They cover listing and the JSON the API
+  reads, create/delete/switch/info/backup/templates, install/enable/disable/
+  remove/update, dependency handling, config backup/restore and reload, with
+  every prompt answered through stdin so nothing can hang. The sizes tests need
+  GNU `du -b`, so they skip on macOS and run on the Pi and in CI.
 - **Backups that actually get out of the house, and secrets to go with them**
   (O2, O3, O4, O5) — `backup-scheduler.sh` now uploads offsite automatically
   after a successful local backup, calling `cloud-backup-{r2,s3,b2}.sh` for
@@ -101,6 +108,38 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`world-manager.sh`: per-world config actually applies, and nothing moves a
+  world aside** — `create` wrote `CREATED=2026-10-03 15:26:46` unquoted and
+  `apply_world_config` then `source`d the file, so the shell tried to run
+  `15:26:46`, failed, and `set -e` ended the script before the world type or seed
+  was applied: `config` never worked, and `switch` stopped after it had already
+  edited `level-name`. Config files are now read as plain data and never
+  executed (a text seed such as `hello world`, or one holding `;` or `$()`, is
+  stored literally). `config` and `switch` on a world with no config file (any
+  world the server generated itself) used to call `create`, which asks whether to
+  overwrite the world and, on yes, moved it into a `.backup.` directory; they now
+  just write a default config. Also: `delete` no longer removes a world when its
+  backup could not be written (the `tar` was followed by `|| true`, and the
+  message claimed it was saved); values written into `server.properties` are
+  escaped for `sed`, so a name or seed containing `/` or `&` no longer breaks the
+  edit; world and template names that could leave `data/` or the template
+  directory (`../x`) are refused; and the `tar` fallback used when `rsync` is
+  missing now puts `--exclude` before the path, since after it GNU tar ignored it
+  (player data ended up in templates) and BSD tar rejected it.
+  `create` also refuses a type or seed containing a line break or other control
+  character, which would otherwise have started another line in the config file.
+- **Worlds are listed whatever they are called** — `list`, `list-json` (what
+  `GET /api/worlds` returns) and `sizes` only looked at `data/world*`, so a world
+  made with `create survival` never appeared, in the CLI or the web panel. Any
+  directory under `data/` with a `level.dat` is now a world, except the
+  `<name>.backup.<timestamp>` copies `create` leaves beside a world it replaces.
+- **`plugin-manager.sh`: dependencies written as a YAML list** — `depend: [Vault,
+  WorldEdit]` and the block form were read as one bogus name, so installs warned
+  about missing dependencies that were present. A jar's declared `name:` is no
+  longer trusted as a path component when its config directory is backed up or
+  deleted, plugin names given to `enable`/`disable`/`remove`/`update` that point
+  outside `plugins/` are refused, and a failed `unzip` no longer leaks a
+  temporary directory.
 - **A missing auth library no longer disables an unrelated feature** — bcrypt and
   PyJWT shared one `try/except`, so losing bcrypt also turned off JWTs and Apple
   sign-in. pyotp and qrcode did the same, which would have blocked 2FA logins

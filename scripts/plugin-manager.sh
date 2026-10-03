@@ -34,6 +34,41 @@ find_plugin_dir() {
     echo "$PLUGIN_DIR"
 }
 
+# Plugin names come from the command line (enable/disable/remove/update) and
+# from a jar's own plugin.yml (the config directory to back up or delete), and
+# end up in paths, so refuse anything that is not a plain file name.
+_valid_plugin_ref() {
+    case "$1" in
+        "" | . | .. | */* | -* | *$'\n'*)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+# One plugin.yml list as comma-separated names. Handles `key: Name`,
+# `key: [A, B]` and the block form (`key:` followed by `- A` lines).
+#
+# Brackets, quotes, spaces and CRs are deleted outright, not trimmed: YAML
+# allows `["Vault", 'WorldEdit']`, and Bukkit does not allow spaces in plugin
+# names (it turns them into underscores), so a space inside a name could never
+# match a real plugin. get_plugin_info strips spaces from each jar's own name:
+# the same way, which keeps the two sides of the comparison consistent.
+_yml_list() {
+    local file="$1" key="$2"
+    awk -v key="$key" '
+        $0 ~ "^" key ":" {
+            rest = $0
+            sub("^" key ":[ \t]*", "", rest)
+            if (rest != "") { print rest; inlist = 0 } else { inlist = 1 }
+            next
+        }
+        inlist && /^[ \t]*-[ \t]*/ { line = $0; sub(/^[ \t]*-[ \t]*/, "", line); print line; next }
+        inlist && /^[ \t]*$/ { next }
+        { inlist = 0 }
+    ' "$file" 2>/dev/null | tr -d "[]\"' \r" | paste -sd, -
+}
+
 # Function to get plugin info from jar
 get_plugin_info() {
     local plugin_file="$1"
@@ -45,7 +80,10 @@ get_plugin_info() {
     # Try to extract plugin.yml or paper-plugin.yml
     local temp_dir
     temp_dir=$(mktemp -d)
-    unzip -q -o "$plugin_file" -d "$temp_dir" 2>/dev/null || return 1
+    if ! unzip -q -o "$plugin_file" -d "$temp_dir" 2>/dev/null; then
+        rm -rf "$temp_dir"
+        return 1
+    fi
 
     local plugin_yml=""
     if [ -f "$temp_dir/plugin.yml" ]; then
@@ -68,9 +106,9 @@ get_plugin_info() {
     # Extract dependencies
     local dependencies=""
     if grep -qE "^depend:" "$plugin_yml" 2>/dev/null; then
-        dependencies=$(grep -E "^depend:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | tr '\n' ',' | sed 's/,$//')
+        dependencies=$(_yml_list "$plugin_yml" depend)
     elif grep -qE "^softdepend:" "$plugin_yml" 2>/dev/null; then
-        dependencies=$(grep -E "^softdepend:" "$plugin_yml" 2>/dev/null | cut -d: -f2 | tr -d ' ' | tr '\n' ',' | sed 's/,$//')
+        dependencies=$(_yml_list "$plugin_yml" softdepend)
     fi
 
     # Extract load order
@@ -259,9 +297,9 @@ install_plugin() {
     cp "$plugin_file" "$dest_file"
 
     # Backup plugin configs if they exist
-    if [ -d "${PLUGIN_CONFIG_DIR}/${name}" ]; then
+    if _valid_plugin_ref "$name" && [ -d "${PLUGIN_CONFIG_DIR}/${name}" ]; then
         echo -e "${BLUE}Backing up existing plugin configuration...${NC}"
-        mkdir -p "${PLUGIN_BACKUP_DIR}/configs/${name}"
+        mkdir -p "${PLUGIN_BACKUP_DIR}/configs"
         cp -r "${PLUGIN_CONFIG_DIR}/${name}" "${PLUGIN_BACKUP_DIR}/configs/${name}.backup.$(date +%Y%m%d_%H%M%S)"
     fi
 
@@ -378,6 +416,7 @@ list_plugins_json() {
 # Function to enable plugin
 enable_plugin() {
     local plugin_name="$1"
+    _valid_plugin_ref "$plugin_name" || { echo -e "${RED}Error: Invalid plugin name${NC}"; return 1; }
     local plugin_dir
     plugin_dir=$(find_plugin_dir)
     local disabled_dir="$PLUGIN_DISABLED_DIR"
@@ -410,6 +449,7 @@ enable_plugin() {
 # Function to disable plugin
 disable_plugin() {
     local plugin_name="$1"
+    _valid_plugin_ref "$plugin_name" || { echo -e "${RED}Error: Invalid plugin name${NC}"; return 1; }
     local plugin_dir
     plugin_dir=$(find_plugin_dir)
     local disabled_dir="$PLUGIN_DISABLED_DIR"
@@ -442,6 +482,7 @@ disable_plugin() {
 # Function to remove plugin
 remove_plugin() {
     local plugin_name="$1"
+    _valid_plugin_ref "$plugin_name" || { echo -e "${RED}Error: Invalid plugin name${NC}"; return 1; }
     local plugin_dir
     plugin_dir=$(find_plugin_dir)
 
@@ -486,7 +527,7 @@ remove_plugin() {
     rm -f "$plugin_file"
 
     # Remove config if exists
-    if [ "$name" != "Unknown" ] && [ -d "${PLUGIN_CONFIG_DIR}/${name}" ]; then
+    if [ "$name" != "Unknown" ] && _valid_plugin_ref "$name" && [ -d "${PLUGIN_CONFIG_DIR}/${name}" ]; then
         echo -e "${YELLOW}Removing plugin configuration...${NC}"
         rm -rf "${PLUGIN_CONFIG_DIR}/${name}"
     fi
@@ -540,6 +581,7 @@ check_plugin_updates() {
 update_plugin() {
     local plugin_name="$1"
     local new_plugin_file="$2"
+    _valid_plugin_ref "$plugin_name" || { echo -e "${RED}Error: Invalid plugin name${NC}"; return 1; }
     local plugin_dir
     plugin_dir=$(find_plugin_dir)
 
@@ -598,8 +640,8 @@ update_plugin() {
     echo -e "${BLUE}Backing up old plugin and configuration...${NC}"
     cp "$old_plugin_file" "${PLUGIN_BACKUP_DIR}/$(basename "$old_plugin_file").backup.$(date +%Y%m%d_%H%M%S)"
 
-    if [ "$old_name" != "Unknown" ] && [ -d "${PLUGIN_CONFIG_DIR}/${old_name}" ]; then
-        mkdir -p "${PLUGIN_BACKUP_DIR}/configs/${old_name}"
+    if [ "$old_name" != "Unknown" ] && _valid_plugin_ref "$old_name" && [ -d "${PLUGIN_CONFIG_DIR}/${old_name}" ]; then
+        mkdir -p "${PLUGIN_BACKUP_DIR}/configs"
         cp -r "${PLUGIN_CONFIG_DIR}/${old_name}" "${PLUGIN_BACKUP_DIR}/configs/${old_name}.backup.$(date +%Y%m%d_%H%M%S)"
     fi
 

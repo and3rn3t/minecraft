@@ -32,6 +32,59 @@ get_current_world() {
     fi
 }
 
+# World names come from the command line and end up in paths, in `rm -rf` and
+# in sed expressions, so refuse anything that could leave data/ or break one of
+# those. This is looser than create's own rule on purpose: worlds that already
+# exist may be named with hyphens or dots.
+_valid_world_ref() {
+    local name="$1"
+    case "$name" in
+        "" | . | .. | */* | -* | *$'\n'*)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+# Escape a value for use as the replacement half of a sed s/// that uses / as
+# its delimiter: backslash, slash and ampersand are the characters it reads.
+_sed_escape() {
+    printf '%s' "$1" | sed -e 's/[\\/&]/\\&/g'
+}
+
+# Read one KEY=value line from a world config as plain text. The file is data,
+# not a script: sourcing it ran its contents, and the CREATED line (a date
+# with a space in it, written by create_world) made every source fail.
+_world_config_value() {
+    local file="$1" key="$2"
+    sed -n "s/^${key}=//p" "$file" | head -n 1 | tr -d '\r'
+}
+
+# Write a world's config file. Values are stored as given, one per line.
+_write_world_config() {
+    local world_name="$1" world_type="$2" seed="$3"
+    cat > "${WORLD_CONFIG_DIR}/${world_name}.conf" <<EOF
+# World configuration for $world_name
+WORLD_NAME=$world_name
+WORLD_TYPE=$world_type
+WORLD_SEED=$seed
+CREATED=$(date '+%Y-%m-%d %H:%M:%S')
+EOF
+}
+
+# A world is any directory under data/ that holds a level.dat, whatever it is
+# called ("survival" as much as "world_nether"). The backups create leaves beside
+# a world it replaces (<name>.backup.<timestamp>) hold a level.dat too, but are
+# not worlds.
+_is_world_dir() {
+    local dir="$1"
+    [ -d "$dir" ] && [ -f "${dir}/level.dat" ] || return 1
+    case "$(basename "$dir")" in
+        *.backup.*) return 1 ;;
+    esac
+    return 0
+}
+
 # Function to list all worlds
 list_worlds() {
     echo -e "${BLUE}Available Worlds:${NC}"
@@ -42,8 +95,8 @@ list_worlds() {
     local count=0
 
     # Find all world directories
-    for world_dir in "$WORLDS_DIR"/world*; do
-        if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
+    for world_dir in "$WORLDS_DIR"/*; do
+        if _is_world_dir "$world_dir"; then
             count=$((count + 1))
             local world_name
             world_name=$(basename "$world_dir")
@@ -96,8 +149,8 @@ list_worlds_json() {
 
     local entries=()
     local world_dir
-    for world_dir in "$WORLDS_DIR"/world*; do
-        [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ] || continue
+    for world_dir in "$WORLDS_DIR"/*; do
+        _is_world_dir "$world_dir" || continue
 
         local world_name
         world_name=$(basename "$world_dir")
@@ -141,6 +194,13 @@ create_world() {
         return 1
     fi
 
+    # The type and seed are written into a one-value-per-line config file and
+    # from there into server.properties; a newline would start another line.
+    if [[ "$world_type$seed" =~ [[:cntrl:]] ]]; then
+        echo -e "${RED}Error: World type and seed must not contain control characters or line breaks${NC}"
+        return 1
+    fi
+
     local world_path="${WORLDS_DIR}/${world_name}"
 
     # Check if world already exists
@@ -179,14 +239,7 @@ create_world() {
     mkdir -p "$world_path"
 
     # Create world configuration
-    local world_config="${WORLD_CONFIG_DIR}/${world_name}.conf"
-    cat > "$world_config" <<EOF
-# World configuration for $world_name
-WORLD_NAME=$world_name
-WORLD_TYPE=$world_type
-WORLD_SEED=$seed
-CREATED=$(date +%Y-%m-%d\ %H:%M:%S)
-EOF
+    _write_world_config "$world_name" "$world_type" "$seed"
 
     if [ "$server_running" = false ]; then
         # If server is not running, we can prepare the world
@@ -218,6 +271,7 @@ delete_world() {
         return 1
     fi
 
+    _valid_world_ref "$world_name" || { echo -e "${RED}Error: Invalid world name${NC}"; return 1; }
     local world_path="${WORLDS_DIR}/${world_name}"
 
     if [ ! -d "$world_path" ] || [ ! -f "${world_path}/level.dat" ]; then
@@ -242,7 +296,12 @@ delete_world() {
     local backup_name
     backup_name="${world_name}.deleted.$(date +%Y%m%d_%H%M%S)"
     echo -e "${BLUE}Creating backup before deletion...${NC}"
-    tar -czf "${PROJECT_DIR}/backups/${backup_name}.tar.gz" -C "$WORLDS_DIR" "$world_name" 2>/dev/null || true
+    mkdir -p "${PROJECT_DIR}/backups"
+    if ! tar -czf "${PROJECT_DIR}/backups/${backup_name}.tar.gz" -C "$WORLDS_DIR" "$world_name" 2>/dev/null; then
+        rm -f "${PROJECT_DIR}/backups/${backup_name}.tar.gz"
+        echo -e "${RED}Error: could not write the backup, so the world was NOT deleted${NC}"
+        return 1
+    fi
 
     # Delete world
     rm -rf "$world_path"
@@ -272,6 +331,7 @@ switch_world() {
         return 0
     fi
 
+    _valid_world_ref "$world_name" || { echo -e "${RED}Error: Invalid world name${NC}"; return 1; }
     local world_path="${WORLDS_DIR}/${world_name}"
 
     # Check if world exists (or will be created)
@@ -301,7 +361,7 @@ switch_world() {
 
         # Update level-name
         if grep -q "^level-name=" "$SERVER_PROPERTIES"; then
-            sed -i.bak "s/^level-name=.*/level-name=$world_name/" "$SERVER_PROPERTIES"
+            sed -i.bak "s/^level-name=.*/level-name=$(_sed_escape "$world_name")/" "$SERVER_PROPERTIES"
         else
             echo "level-name=$world_name" >> "$SERVER_PROPERTIES"
         fi
@@ -327,6 +387,7 @@ world_info() {
         world_name=$(get_current_world)
     fi
 
+    _valid_world_ref "$world_name" || { echo -e "${RED}Error: Invalid world name${NC}"; return 1; }
     local world_path="${WORLDS_DIR}/${world_name}"
 
     if [ ! -d "$world_path" ] || [ ! -f "${world_path}/level.dat" ]; then
@@ -346,7 +407,7 @@ world_info() {
     if [ -d "${world_path}/region" ]; then
         echo "Type: Overworld"
         local region_count
-        region_count=$(find "${world_path}/region" -name "*.mca" 2>/dev/null | wc -l)
+        region_count=$(find "${world_path}/region" -name "*.mca" 2>/dev/null | wc -l | tr -d ' ')
         echo "Regions: $region_count"
     fi
 
@@ -387,6 +448,7 @@ backup_world() {
         world_name=$(get_current_world)
     fi
 
+    _valid_world_ref "$world_name" || { echo -e "${RED}Error: Invalid world name${NC}"; return 1; }
     local world_path="${WORLDS_DIR}/${world_name}"
 
     if [ ! -d "$world_path" ] || [ ! -f "${world_path}/level.dat" ]; then
@@ -439,8 +501,8 @@ monitor_world_sizes() {
     local total_size=0
     local count=0
 
-    for world_dir in "$WORLDS_DIR"/world*; do
-        if [ -d "$world_dir" ] && [ -f "${world_dir}/level.dat" ]; then
+    for world_dir in "$WORLDS_DIR"/*; do
+        if _is_world_dir "$world_dir"; then
             count=$((count + 1))
             local world_name
             world_name=$(basename "$world_dir")
@@ -492,55 +554,52 @@ apply_world_config() {
     if [ -z "$world_name" ]; then
         world_name=$(get_current_world)
     fi
+    if ! _valid_world_ref "$world_name"; then
+        echo -e "${RED}Error: Invalid world name${NC}"
+        return 1
+    fi
 
     local world_config="${WORLD_CONFIG_DIR}/${world_name}.conf"
 
     if [ ! -f "$world_config" ]; then
+        # A world the server generated itself has no config yet. Write a default
+        # one directly: going through create_world would ask whether to
+        # overwrite the world that is already there, and answering yes moves it
+        # aside.
         echo -e "${YELLOW}No configuration found for world: $world_name${NC}"
         echo -e "${BLUE}Creating default configuration...${NC}"
-        create_world "$world_name" "normal" ""
-        world_config="${WORLD_CONFIG_DIR}/${world_name}.conf"
+        _write_world_config "$world_name" "normal" ""
     fi
 
-    # Source the world configuration
-    if [ -f "$world_config" ]; then
-        source "$world_config"
+    local WORLD_TYPE WORLD_SEED
+    WORLD_TYPE=$(_world_config_value "$world_config" WORLD_TYPE)
+    WORLD_SEED=$(_world_config_value "$world_config" WORLD_SEED)
 
-        # Apply world-specific server.properties settings if they exist
-        if [ -f "$SERVER_PROPERTIES" ]; then
-            # Backup server.properties
-            cp "$SERVER_PROPERTIES" "${SERVER_PROPERTIES}.bak"
-
-            # Apply world type
-            if [ -n "$WORLD_TYPE" ]; then
-                case "$WORLD_TYPE" in
-                    flat)
-                        sed -i.bak "s/^level-type=.*/level-type=minecraft\\:flat/" "$SERVER_PROPERTIES"
-                        ;;
-                    amplified)
-                        sed -i.bak "s/^level-type=.*/level-type=minecraft\\:amplified/" "$SERVER_PROPERTIES"
-                        ;;
-                    large_biomes)
-                        sed -i.bak "s/^level-type=.*/level-type=minecraft\\:large_biomes/" "$SERVER_PROPERTIES"
-                        ;;
-                    normal|*)
-                        sed -i.bak "s/^level-type=.*/level-type=minecraft\\:normal/" "$SERVER_PROPERTIES"
-                        ;;
-                esac
-            fi
-
-            # Apply seed if specified
-            if [ -n "$WORLD_SEED" ] && [ "$WORLD_SEED" != "" ]; then
-                if grep -q "^level-seed=" "$SERVER_PROPERTIES"; then
-                    sed -i.bak "s/^level-seed=.*/level-seed=$WORLD_SEED/" "$SERVER_PROPERTIES"
-                else
-                    echo "level-seed=$WORLD_SEED" >> "$SERVER_PROPERTIES"
-                fi
-            fi
-
-            rm -f "${SERVER_PROPERTIES}.bak"
-            echo -e "${GREEN}World configuration applied: $world_name${NC}"
+    # Apply world-specific server.properties settings if they exist
+    if [ -f "$SERVER_PROPERTIES" ]; then
+        # Apply world type
+        if [ -n "$WORLD_TYPE" ]; then
+            case "$WORLD_TYPE" in
+                flat | amplified | large_biomes)
+                    sed -i.bak "s/^level-type=.*/level-type=minecraft\\:$WORLD_TYPE/" "$SERVER_PROPERTIES"
+                    ;;
+                normal | *)
+                    sed -i.bak "s/^level-type=.*/level-type=minecraft\\:normal/" "$SERVER_PROPERTIES"
+                    ;;
+            esac
         fi
+
+        # Apply seed if specified
+        if [ -n "$WORLD_SEED" ]; then
+            if grep -q "^level-seed=" "$SERVER_PROPERTIES"; then
+                sed -i.bak "s/^level-seed=.*/level-seed=$(_sed_escape "$WORLD_SEED")/" "$SERVER_PROPERTIES"
+            else
+                printf 'level-seed=%s\n' "$WORLD_SEED" >> "$SERVER_PROPERTIES"
+            fi
+        fi
+
+        rm -f "${SERVER_PROPERTIES}.bak"
+        echo -e "${GREEN}World configuration applied: $world_name${NC}"
     fi
 }
 
@@ -559,6 +618,8 @@ create_world_template() {
         source_world=$(get_current_world)
     fi
 
+    _valid_world_ref "$source_world" || { echo -e "${RED}Error: Invalid world name${NC}"; return 1; }
+    _valid_world_ref "$template_name" || { echo -e "${RED}Error: Invalid template name${NC}"; return 1; }
     local source_path="${WORLDS_DIR}/${source_world}"
     local template_path="${WORLD_TEMPLATES_DIR}/${template_name}"
 
@@ -579,7 +640,12 @@ create_world_template() {
           --exclude='*.log' --exclude='logs' \
           "$source_path/" "$template_path/" 2>/dev/null || {
         # Fallback to tar if rsync not available
-        tar -czf "${template_path}/world.tar.gz" -C "$WORLDS_DIR" "$source_world" --exclude='playerdata' --exclude='stats' --exclude='advancements' 2>/dev/null
+        # The excludes come before the path: tar applies them positionally, so
+        # after it they excluded nothing (GNU) or were rejected (BSD).
+        tar -czf "${template_path}/world.tar.gz" \
+            --exclude='playerdata' --exclude='stats' --exclude='advancements' \
+            --exclude='*.log' --exclude='logs' \
+            -C "$WORLDS_DIR" "$source_world"
     }
 
     # Copy world configuration
@@ -603,6 +669,8 @@ create_from_template() {
         return 1
     fi
 
+    _valid_world_ref "$world_name" || { echo -e "${RED}Error: Invalid world name${NC}"; return 1; }
+    _valid_world_ref "$template_name" || { echo -e "${RED}Error: Invalid template name${NC}"; return 1; }
     local template_path="${WORLD_TEMPLATES_DIR}/${template_name}"
     local world_path="${WORLDS_DIR}/${world_name}"
 
