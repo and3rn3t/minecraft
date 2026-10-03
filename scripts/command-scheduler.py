@@ -184,8 +184,8 @@ def get_player_count():
             match = re.search(r"There are (\d+) of", result.stdout)
             if match:
                 return int(match.group(1))
-    except Exception:
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"Could not read player count: {exc}", file=sys.stderr)
     return 0
 
 

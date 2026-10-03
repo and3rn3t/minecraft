@@ -135,10 +135,6 @@ def sanitize_minecraft_command(command: str) -> Tuple[bool, Optional[str], Optio
         if first_word == blocked.lower():
             return False, None, f"Command '{blocked}' is not allowed"
 
-    # Extract base command (first word) — used as a future hook for whitelist validation
-    parts = command.split()
-    _base_command = parts[0].lower() if parts else ""
-
     # Whitelist check - if command list is provided, validate against it
     # Allow any command that doesn't match dangerous patterns and starts with allowed prefix
     # This is more permissive but safer than allowing everything

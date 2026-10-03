@@ -51,6 +51,7 @@ class AnalyticsProcessor:
                     except json.JSONDecodeError:
                         continue
         except FileNotFoundError:
+            # Rotated or deleted between the exists() check and open(): no data.
             pass
 
         return sorted(data, key=lambda x: x.get("timestamp", 0))

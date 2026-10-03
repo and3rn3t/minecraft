@@ -194,23 +194,15 @@ lint_yaml() {
     local issues=0
     local checked=0
 
-    # Check docker-compose.yml
-    if [ -f "$PROJECT_DIR/docker-compose.yml" ]; then
-        checked=$((checked + 1))
-        echo -e "${BLUE}Checking: docker-compose.yml${NC}"
-        if ! yamllint "$PROJECT_DIR/docker-compose.yml" 2>&1; then
-            issues=$((issues + 1))
-        fi
-    fi
-
-    # Check other YAML files
+    # Tracked files only, like pre-commit: untracked output such as the local
+    # .codeql-db/ is generated YAML we don't own. Rules come from .yamllint.
     while IFS= read -r -d '' yaml_file; do
         checked=$((checked + 1))
         echo -e "${BLUE}Checking: $yaml_file${NC}"
-        if ! yamllint "$yaml_file" 2>&1; then
+        if ! yamllint -c "$PROJECT_DIR/.yamllint" "$PROJECT_DIR/$yaml_file" 2>&1; then
             issues=$((issues + 1))
         fi
-    done < <(find "$PROJECT_DIR" -type f \( -name "*.yml" -o -name "*.yaml" \) -not -path "*/node_modules/*" -not -path "*/.git/*" -print0)
+    done < <(git -C "$PROJECT_DIR" ls-files -z '*.yml' '*.yaml')
 
     if [ $issues -eq 0 ] && [ $checked -gt 0 ]; then
         echo -e "${GREEN}✓ All $checked YAML files passed linting${NC}"

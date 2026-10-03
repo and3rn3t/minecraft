@@ -194,6 +194,7 @@ class FakeRconServer:
             try:
                 conn.close()
             except OSError:
+                # The client may already have torn the socket down.
                 pass
 
     def _process_packet(self, conn, request_id, packet_type, body, authenticated):

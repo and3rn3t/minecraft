@@ -19,6 +19,6 @@ on:
 
 jobs:
   noop:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - run: echo "Enable Lighthouse by calling reusable-lighthouse.yml — see and3rn3t for a working example."

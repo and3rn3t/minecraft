@@ -1,0 +1,9 @@
+---
+# Shared by pre-commit and scripts/lint.sh so both enforce the same rules.
+extends: default
+ignore: |
+  node_modules/
+  web/node_modules/
+rules:
+  line-length:
+    max: 120

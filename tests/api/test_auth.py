@@ -421,7 +421,9 @@ class TestSecretKeyResolution:
     def test_placeholder_is_rejected_and_replaced(self, placeholder):
         _resolve_secret_key = api_module._resolve_secret_key
 
-        resolved = _resolve_secret_key(placeholder, placeholder)
+        # Real placeholders warn "known placeholder"; blank ones warn "ephemeral".
+        with pytest.warns(UserWarning, match="placeholder|ephemeral"):
+            resolved = _resolve_secret_key(placeholder, placeholder)
 
         assert resolved != placeholder.strip()
         assert len(resolved) == 64
@@ -429,8 +431,9 @@ class TestSecretKeyResolution:
     def test_falls_back_to_random_key_when_nothing_configured(self):
         _resolve_secret_key = api_module._resolve_secret_key
 
-        first = _resolve_secret_key(None, None)
-        second = _resolve_secret_key(None, None)
+        with pytest.warns(UserWarning, match="ephemeral"):
+            first = _resolve_secret_key(None, None)
+            second = _resolve_secret_key(None, None)
 
         assert len(first) == 64
         assert first != second
