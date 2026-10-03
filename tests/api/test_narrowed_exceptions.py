@@ -114,23 +114,31 @@ class TestFileWriteBackup:
         assert target.read_text() == "new"
         assert response.get_json()["backup"] is None
 
-    def test_a_failed_write_restores_the_original_and_reports_a_generic_error(self, client, root):
+    def test_a_write_that_fails_partway_restores_the_original(self, client, root):
+        """The write truncates the file and then fails, so the original is gone from
+        disk until the route copies it back from its backup. (An earlier version of
+        this test failed before touching the file, so it passed even with the
+        restore deleted.)"""
         target = root / "data" / "notes.txt"
-        target.write_text("old")
+        target.write_text("old content")
 
         real_open = open
 
-        def failing_open(path, mode="r", *args, **kwargs):
-            if str(path) == str(target) and "w" in mode:
-                raise OSError("read-only filesystem")
+        def open_that_fails_partway(path, mode="r", *args, **kwargs):
+            # Only the route's text-mode write; the restore copies with "wb"
+            if str(path) == str(target) and mode == "w":
+                handle = real_open(path, mode, *args, **kwargs)  # truncates the target now
+                handle.write("PARTIAL")
+                handle.close()
+                raise OSError("disk full mid-write")
             return real_open(path, mode, *args, **kwargs)
 
-        with patch("builtins.open", side_effect=failing_open):
-            response = client.post("/api/files/write", json={"path": "data/notes.txt", "content": "new"})
+        with patch("builtins.open", side_effect=open_that_fails_partway):
+            response = client.post("/api/files/write", json={"path": "data/notes.txt", "content": "new content"})
 
         assert response.status_code == 500
         assert response.get_json() == {"error": "Internal server error"}
-        assert target.read_text() == "old"
+        assert target.read_text() == "old content"
 
 
 # -- command-scheduler.py -----------------------------------------------------------
