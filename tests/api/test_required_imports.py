@@ -31,6 +31,7 @@ def test_server_refuses_to_start_without(missing):
         text=True,
         timeout=60,
         env={"PYTEST_RUNNING": "1", "PATH": "/usr/bin:/bin"},
+        check=False,
     )
     assert result.returncode != 0
     assert f"import of {missing} halted" in result.stderr
@@ -61,6 +62,7 @@ def test_one_missing_auth_library_does_not_disable_the_other(missing, flag_off, 
         text=True,
         timeout=60,
         env={"PYTEST_RUNNING": "1", "PATH": "/usr/bin:/bin"},
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().splitlines()[-1] == "False True"

@@ -52,6 +52,14 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Two more ruff rules, `subprocess.run` and swallowed exceptions** — `PLW1510`, `S110`
+  and `S112` are enforced. All 14 `subprocess.run` calls already read `returncode`, so
+  each now says `check=False` instead of leaving it implicit. Five classes (the event
+  bus, Hall of Deaths, Pet Cemetery, Bedtime and the Oracle) each carried an identical
+  copy of `set_error_logger` and `_log_error`, including the one deliberate `except
+  Exception: pass` (reporting a failure must not raise on a worker thread); they now
+  share a single `ErrorReporting` mixin in `api/error_reporting.py`, so that decision
+  and its reason live in one place, with tests that fail if the swallow is removed.
 - **More of ruff is enforced** — beyond pyflakes (`F`), the lint now enforces
   pycodestyle's error classes (`E4`, `E7`, `E9`), bugbear (`B`), isort (`I`), blind
   `except` (`BLE`) and stale `# noqa` comments (`RUF100`); the tree has no findings
@@ -139,6 +147,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`GET /api/logs` no longer waits 30 seconds** — it ran `manage.sh logs` first and
+  kept only its `stderr` as a fallback, but that script follows the log (`compose logs
+  -f`), so every request waited for `run_script`'s 30-second timeout before it even
+  asked Docker for the tail. The Logs page polls this endpoint. It now calls `docker
+  logs --tail` directly, and when that fails it reports Docker's own message (or "Unable
+  to retrieve logs" if Docker is missing or too slow) instead of the unrelated script's.
+  Found through a code-review comment that was itself mistaken (it claimed `stderr` was
+  undefined); the question it raised, where that `stderr` came from, was the real bug.
 - **`cleanup-system.sh` no longer deletes what it should not** — it deleted every
   `*.tar.gz` backup older than 30 days as soon as there were more than 10 (its comment
   said "keep at least 10", but nothing enforced it, so it could leave one), including

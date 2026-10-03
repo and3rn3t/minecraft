@@ -27,6 +27,8 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Callable, Optional
 
+from api.error_reporting import ErrorReporting
+
 PROJECT_ROOT = Path(__file__).parent.parent
 BEDTIME_CONFIG_FILE = PROJECT_ROOT / "config" / "bedtime.conf"
 
@@ -174,7 +176,7 @@ class _NightState:
         self.enforced = False
 
 
-class Bedtime:
+class Bedtime(ErrorReporting):
     """Runs the countdown and enforces the closed window."""
 
     def __init__(
@@ -193,23 +195,10 @@ class Bedtime:
         self._lock = threading.RLock()
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
-        self._error_logger: Optional[Callable[[str], None]] = None
         self._bossbar_shown = False
         # Commands raised from other threads, chiefly the event bus. See
         # on_player_join for why they cannot be sent where they are raised.
         self._actions: queue.Queue = queue.Queue()
-
-    def set_error_logger(self, logger: Callable[[str], None]) -> None:
-        self._error_logger = logger
-
-    def _log_error(self, message: str) -> None:
-        if self._error_logger is not None:
-            try:
-                self._error_logger(message)
-            except Exception:  # noqa: BLE001 - reporting a failure must not fail
-                # Supplied by the caller and possibly closed. Losing the report
-                # beats raising on the timer thread.
-                pass
 
     def _run(self, command: str) -> bool:
         """Send one command, reporting rather than raising on failure."""

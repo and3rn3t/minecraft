@@ -67,16 +67,20 @@ def get_logs():
     """Get server logs"""
     lines = request.args.get("lines", 100, type=int)
 
-    _, stderr, _ = server.run_script("manage.sh", "logs")
-
-    # Get last N lines from Docker logs
+    # Ask Docker for the tail directly. This used to run `manage.sh logs` first and
+    # keep only its stderr as a fallback; that script follows the log (`compose logs
+    # -f`), so every request waited for its 30-second timeout before getting here.
     try:
         result = subprocess.run(
-            ["docker", "logs", "--tail", str(lines), "minecraft-server"], capture_output=True, text=True, timeout=10
+            ["docker", "logs", "--tail", str(lines), "minecraft-server"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
-        logs = result.stdout if result.returncode == 0 else stderr
+        logs = result.stdout if result.returncode == 0 else (result.stderr or "Unable to retrieve logs")
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        logs = stderr or "Unable to retrieve logs"
+        logs = "Unable to retrieve logs"
 
     return jsonify({"logs": logs.split("\n"), "lines": len(logs.split("\n"))})
 

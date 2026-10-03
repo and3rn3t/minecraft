@@ -28,5 +28,6 @@ def test_module_imports_first(module):
         text=True,
         timeout=60,
         env={"PYTEST_RUNNING": "1", "PATH": "/usr/bin:/bin"},
+        check=False,
     )
     assert result.returncode == 0, result.stderr

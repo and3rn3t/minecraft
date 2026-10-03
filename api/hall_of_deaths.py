@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from api.epitaphs import Death, EpitaphWriter, write_epitaph
+from api.error_reporting import ErrorReporting
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DEATHS_DIR = PROJECT_ROOT / "data" / "deaths"
@@ -114,7 +115,7 @@ def build_tellraw(epitaph: str, color: str = DEFAULT_COLOR) -> str:
     return f"tellraw @a {component}"
 
 
-class HallOfDeaths:
+class HallOfDeaths(ErrorReporting):
     """Records deaths, writes their epitaphs and announces them in game."""
 
     def __init__(
@@ -134,7 +135,6 @@ class HallOfDeaths:
         self.retention_days = retention_days
 
         self._lock = threading.Lock()
-        self._error_logger: Optional[Callable[[str], None]] = None
         self._last_pruned_date: Optional[str] = None
 
         # Announcing talks to the game server over the network, and handlers run
@@ -144,19 +144,6 @@ class HallOfDeaths:
         self._worker: Optional[threading.Thread] = None
         self._pending = 0
         self._pending_cv = threading.Condition()
-
-    def set_error_logger(self, logger: Callable[[str], None]) -> None:
-        self._error_logger = logger
-
-    def _log_error(self, message: str) -> None:
-        if self._error_logger is not None:
-            try:
-                self._error_logger(message)
-            except Exception:  # noqa: BLE001 - reporting a failure must not fail
-                # The logger is supplied by the caller and may be closed or
-                # broken. Losing the report is preferable to raising on the
-                # thread that feeds the event bus.
-                pass
 
     def handle_event(self, event) -> Optional[DeathRecord]:
         """Event bus handler. Ignores everything that is not a death.

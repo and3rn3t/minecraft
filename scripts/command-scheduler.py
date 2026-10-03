@@ -94,6 +94,7 @@ def execute_command(command):
             text=True,
             timeout=30,
             cwd=str(PROJECT_ROOT),
+            check=False,
         )
         if result.returncode == 0:
             return True, result.stdout
@@ -177,6 +178,7 @@ def get_player_count():
             text=True,
             timeout=10,
             cwd=str(PROJECT_ROOT),
+            check=False,
         )
 
         if result.returncode == 0 and result.stdout:

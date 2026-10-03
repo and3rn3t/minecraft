@@ -60,6 +60,7 @@ def get_log_tail(lines=100):
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
         if result.returncode == 0:
             return result.stdout.split("\n")

@@ -37,6 +37,7 @@ from typing import Callable, Literal, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
+from api.error_reporting import ErrorReporting
 from api.security import is_rate_limit_exceeded, sanitize_string
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -370,7 +371,7 @@ class PersistedQuest:
         return json.dumps(self.to_dict(), separators=(",", ":"))
 
 
-class Oracle:
+class Oracle(ErrorReporting):
     """Triages chat messages, replies to the ones that warrant it, and can generate quests."""
 
     def __init__(
@@ -388,7 +389,6 @@ class Oracle:
         self._rate_limit_storage: dict = rate_limit_storage if rate_limit_storage is not None else {}
 
         self._lock = threading.Lock()
-        self._error_logger: Optional[Callable[[str], None]] = None
         self._audit_logger: Optional[Callable[[str, str, dict], None]] = None
         self._last_pruned_date: Optional[str] = None
 
@@ -400,16 +400,6 @@ class Oracle:
         self._pending = 0
         self._pending_cv = threading.Condition()
 
-    def set_error_logger(self, logger: Callable[[str], None]) -> None:
-        self._error_logger = logger
-
-    def _log_error(self, message: str) -> None:
-        if self._error_logger is not None:
-            try:
-                self._error_logger(message)
-            except Exception:  # noqa: BLE001 - reporting a failure must not fail
-                pass
-
     def set_audit_logger(self, logger: Callable[[str, str, dict], None]) -> None:
         self._audit_logger = logger
 
@@ -418,7 +408,7 @@ class Oracle:
             return
         try:
             self._audit_logger(player, action, details)
-        except Exception:  # noqa: BLE001 - a broken audit sink must not break the Oracle
+        except Exception:  # noqa: BLE001, S110 - a broken audit sink must not break the Oracle
             pass
 
     @property

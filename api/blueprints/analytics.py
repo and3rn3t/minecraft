@@ -45,6 +45,7 @@ def get_analytics_report():
         text=True,
         timeout=30,
         cwd=str(server.PROJECT_ROOT),
+        check=False,
     )
 
     if result.returncode != 0:

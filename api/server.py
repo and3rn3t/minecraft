@@ -517,6 +517,7 @@ def run_script(script_name, *args, timeout=DEFAULT_SCRIPT_TIMEOUT, input_text=No
             timeout=timeout,
             cwd=str(PROJECT_ROOT),
             input=input_text,
+            check=False,
         )
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
