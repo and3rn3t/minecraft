@@ -4,7 +4,7 @@
 # Prefer the Docker Compose v2 plugin, fall back to the legacy v1 binary
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests test-visual test-visual-update
+.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests check-playwright-pin test-visual test-visual-update
 
 # Default target
 help:
@@ -143,6 +143,10 @@ test-playwright:
 PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.63.0-noble
 PLAYWRIGHT_DOCKER = docker run --rm -v "$(CURDIR)/web":/work -v minecraft-web-node-modules:/work/node_modules \
 	-w /work -e CI=1 -e PW_VISUAL=1 $(PLAYWRIGHT_IMAGE) bash -c
+
+# The playwright-tests job's first step: every place the version is pinned agrees.
+check-playwright-pin:
+	@./scripts/check-playwright-pin.sh
 
 test-visual:
 	@echo "Running all Playwright tests in $(PLAYWRIGHT_IMAGE), as CI does..."
@@ -409,6 +413,7 @@ ci:
 	@$(MAKE) --no-print-directory pre-commit
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory shell-syntax
+	@$(MAKE) --no-print-directory check-playwright-pin
 	@$(MAKE) --no-print-directory actionlint
 	@$(MAKE) --no-print-directory secrets
 	@$(MAKE) --no-print-directory test
