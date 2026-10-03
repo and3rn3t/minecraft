@@ -52,6 +52,14 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Playwright 1.56.1 → 1.63.0** — `@playwright/test` and `playwright` are now pinned
+  exactly in `web/package.json` (the version has to equal the CI container's tag, so a
+  caret range only invited a lockfile that drifts ahead of it), the lockfile,
+  `PLAYWRIGHT_IMAGE` in the `Makefile`, and the `playwright-tests` job's image and
+  version check all move to 1.63.0. All 17 browser tests pass in the 1.63.0 image
+  against the existing screenshot baselines, so none were re-rendered. `docs/CI_CD.md`
+  now lists the four places to change together, since Renovate bumps the npm packages
+  but not the image tag.
 - **Two more ruff rules, `subprocess.run` and swallowed exceptions** — `PLW1510`, `S110`
   and `S112` are enforced. All 14 `subprocess.run` calls already read `returncode`, so
   each now says `check=False` instead of leaving it implicit. Five classes (the event

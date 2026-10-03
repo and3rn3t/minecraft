@@ -140,7 +140,7 @@ test-playwright:
 # and to the playwright-tests job's container in .github/workflows/main.yml.
 # node_modules lives in a named volume, because the host's (macOS) native
 # binaries don't run in the Linux container.
-PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.56.1-noble
+PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.63.0-noble
 PLAYWRIGHT_DOCKER = docker run --rm -v "$(CURDIR)/web":/work -v minecraft-web-node-modules:/work/node_modules \
 	-w /work -e CI=1 -e PW_VISUAL=1 $(PLAYWRIGHT_IMAGE) bash -c
 

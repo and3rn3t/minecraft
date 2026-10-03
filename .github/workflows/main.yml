@@ -254,7 +254,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     container:
-      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       PW_VISUAL: '1'
     steps:
@@ -266,8 +266,8 @@ jobs:
         working-directory: web
         run: |
           locked=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
-          if [ "$locked" != "1.56.1" ]; then
-            echo "::error::@playwright/test is $locked, the image is v1.56.1: update both," \
+          if [ "$locked" != "1.63.0" ]; then
+            echo "::error::@playwright/test is $locked, the image is v1.63.0: update both," \
               "then re-render baselines with make test-visual-update"
             exit 1
           fi
