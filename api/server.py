@@ -12,10 +12,9 @@ import sys
 import threading
 import warnings
 from datetime import datetime, timedelta, timezone
-from functools import wraps
 from pathlib import Path
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, request
 
 # CORS, rate limiting and the security helpers are required, not optional: a
 # missing one used to be swallowed and replaced with a no-op, which left the
@@ -56,7 +55,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 if __name__ == "__main__":
     sys.modules.setdefault("api.server", sys.modules[__name__])
 
-from api import auth_crypto  # noqa: E402
+from api import auth_crypto, auth_guard, rbac  # noqa: E402
 from api.security import sanitize_minecraft_command, sanitize_string
 
 # In-process RCON client. Keeps one authenticated connection open instead of
@@ -155,11 +154,11 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max request size
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=24)
 
-# The session cookie authenticates state-changing requests (see require_auth
+# The session cookie authenticates state-changing requests (see auth_guard.require_auth
 # below), so it needs the same hardening any auth cookie does: HttpOnly so
 # client-side JS/XSS can't read it, Secure so it's never sent over plain
 # HTTP, SameSite=Strict so a cross-site request never carries it at all. The
-# CSRF check in require_auth is defense in depth on top of SameSite, for
+# CSRF check in auth_guard.require_auth is defense in depth on top of SameSite, for
 # browsers that don't enforce SameSite=Strict (or don't yet).
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = True
@@ -413,7 +412,7 @@ def _migrate_api_key_roles(keys):
     """Give pre-scoping keys an explicit role.
 
     Keys created before API keys were scoped carried no role and were treated
-    as admins by ``has_permission()``. Silently demoting them would break
+    as admins by ``auth_guard.has_permission()``. Silently demoting them would break
     whatever is holding them, so they keep admin rights — but explicitly, where
     they show up in ``GET /api/keys`` and can be narrowed with
     ``PUT /api/keys/<id>``. Written back on the next save.
@@ -494,40 +493,6 @@ def generate_api_key():
     # Generate 32-character alphanumeric key
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     return "".join(secrets.choice(alphabet) for _ in range(32))
-
-
-def require_api_key(f):
-    """Decorator to require API key authentication (grants admin permissions)"""
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Header only -- see the matching comment in require_auth.
-        api_key = request.headers.get("X-API-Key")
-
-        if not api_key:
-            return jsonify({"error": "API key required"}), 401
-
-        # Check if API key is valid
-        if api_key not in API_KEYS:
-            return jsonify({"error": "Invalid API key"}), 401
-
-        # Check if key is enabled
-        key_info = API_KEYS.get(api_key, {})
-        if not key_info.get("enabled", True):
-            return jsonify({"error": "API key disabled"}), 401
-
-        # Store key info in request context. has_permission() reads it to scope
-        # the key; without it the key would fall back to no permissions.
-        request.api_key_info = key_info
-        request.user = "__api_key__"
-        request.user_info = {
-            "username": "__api_key__",
-            "role": key_info.get("role", DEFAULT_API_KEY_ROLE),
-            "key_name": key_info.get("name", "unknown"),
-        }
-        return f(*args, **kwargs)
-
-    return decorated_function
 
 
 # Most management scripts answer in well under a second. Backups, restores and
@@ -654,331 +619,6 @@ def log_audit_event(username, action, details=None, ip_address=None):
     except Exception as e:
         # Don't fail the request if audit logging fails
         print(f"Audit logging error: {e}")
-
-
-def get_username_from_request():
-    """Get username from request (API key, session, or token)"""
-    # Check API key. Header only -- see the matching comment in require_auth.
-    api_key = request.headers.get("X-API-Key")
-    if api_key and api_key in API_KEYS:
-        return f"api_key:{API_KEYS[api_key].get('name', 'unknown')}"
-
-    # Check session
-    if "username" in session:
-        return session.get("username")
-
-    # Check JWT token
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        username = auth_crypto.verify_token(token)
-        if username:
-            return username
-
-    return "unknown"
-
-
-# Permission System
-# Define permissions as constants
-PERMISSIONS = {
-    # Server control
-    "server.view": "View server status",
-    "server.control": "Control server (start/stop/restart)",
-    "server.command": "Send commands to server",
-    "server.manage": "Manage server configuration (properties, presets, announcements, schedules)",
-    # Backup management
-    "backup.create": "Create backups",
-    "backup.restore": "Restore backups",
-    "backup.delete": "Delete backups",
-    "backup.view": "View backup list",
-    # Configuration
-    "config.view": "View configuration files",
-    "config.edit": "Edit configuration files",
-    # Deliberately granted to no role below except admin. The file browser
-    # reads anything under data/, config/, backups/ and scripts/, which is
-    # where every secret lives: users.json, api-keys.json, rcon.conf,
-    # rcon.password in server.properties. While it only needed config.view,
-    # any "user" account or key could read the admin API keys.
-    "files.view": "Browse and download files in the file browser",
-    # Player management
-    "players.view": "View player list",
-    "players.manage": "Manage players (ban/whitelist/op)",
-    # World management
-    "worlds.view": "View world list",
-    "worlds.manage": "Manage worlds (create/delete/switch)",
-    # Plugin management
-    "plugins.view": "View plugin list",
-    "plugins.manage": "Manage plugins (install/remove/enable/disable)",
-    # Datapack management
-    "datapacks.view": "View datapack list",
-    "datapacks.manage": "Manage datapacks (install/remove/enable/disable)",
-    # User management
-    "users.view": "View user list",
-    "users.manage": "Manage users (create/edit/delete/roles)",
-    # API key management
-    "api_keys.view": "View API keys",
-    "api_keys.manage": "Manage API keys (create/delete/enable/disable)",
-    # Logs
-    "logs.view": "View server logs",
-    # Admin only, like files.view: the audit log holds every account's IP
-    # addresses, failed sign-ins and the commands people ran. It needed
-    # logs.view, which the "user" role holds.
-    "audit.view": "View the audit log",
-    # Metrics
-    "metrics.view": "View server metrics",
-    "analytics.view": "View analytics and reports",
-    "analytics.generate": "Generate analytics reports",
-    # Settings
-    "settings.view": "View application settings",
-    "settings.edit": "Edit application settings",
-    # The Oracle -- deliberately not granted to any role below except admin.
-    # It spends real money on every allowlisted chat message and talks
-    # directly to children; who can flip its kill switch or edit its
-    # allowlist is a decision that should be made explicitly, not inherited
-    # from a broader role's existing grants.
-    "oracle.view": "View Oracle status and chat/quest log",
-    "oracle.manage": "Manage the Oracle (enable/disable, allowlist, rate limit)",
-}
-
-# Role to permissions mapping
-ROLE_PERMISSIONS = {
-    "admin": list(PERMISSIONS.keys()),  # Admins have all permissions
-    "user": [
-        "server.view",
-        "backup.view",
-        "config.view",
-        "players.view",
-        "worlds.view",
-        "plugins.view",
-        "datapacks.view",
-        "logs.view",
-        "metrics.view",
-        "analytics.view",
-        "settings.view",
-    ],
-    "operator": [
-        "server.view",
-        "server.control",
-        "server.command",
-        "analytics.view",
-        "analytics.generate",
-        "backup.create",
-        "backup.view",
-        "backup.restore",
-        "config.view",
-        "players.view",
-        "players.manage",
-        "worlds.view",
-        "plugins.view",
-        "datapacks.view",
-        "logs.view",
-        "metrics.view",
-        "settings.view",
-    ],
-}
-
-
-# New API keys start here rather than at "admin": a key lives in a Shortcut, a
-# browser or a script, so it is the credential most likely to leak.
-DEFAULT_API_KEY_ROLE = "user"
-
-
-def get_api_key_permissions(key_info):
-    """Get the list of permissions an API key record grants.
-
-    A key carries either an explicit ``permissions`` allowlist or a ``role``
-    from the same ladder users use. Unknown permission names are dropped so a
-    typo in the config file cannot widen a key's reach.
-    """
-    explicit = key_info.get("permissions")
-    if isinstance(explicit, list):
-        return [p for p in explicit if p in PERMISSIONS]
-    key_role = key_info.get("role", DEFAULT_API_KEY_ROLE)
-    return ROLE_PERMISSIONS.get(key_role, ROLE_PERMISSIONS[DEFAULT_API_KEY_ROLE])
-
-
-def validate_api_key_scope(role, permissions):
-    """Return an error string if a requested key scope is not usable, else None."""
-    if role not in ROLE_PERMISSIONS:
-        return f"Invalid role. Valid roles: {', '.join(ROLE_PERMISSIONS.keys())}"
-    if permissions is None:
-        return None
-    if not isinstance(permissions, list) or not all(isinstance(p, str) for p in permissions):
-        return "permissions must be a list of permission names"
-    unknown = [p for p in permissions if p not in PERMISSIONS]
-    if unknown:
-        return f"Unknown permissions: {', '.join(sorted(unknown))}"
-    return None
-
-
-def get_user_permissions(username):
-    """Get list of permissions for a user based on their role"""
-    if username == "__api_key__":
-        return get_api_key_permissions(getattr(request, "api_key_info", {}))
-    if username not in USERS:
-        return []
-    user_role = USERS[username].get("role", "user")
-    return ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS["user"])
-
-
-def has_permission(username, permission):
-    """Check if user has a specific permission"""
-    # API keys are scoped by their own role, not by the caller's. This used to
-    # return True unconditionally, which made every key a full admin
-    # credential regardless of what it was created for.
-    if username == "__api_key__":
-        key_info = getattr(request, "api_key_info", {})
-        # An admin-scoped key matches an admin user, which is what the check
-        # just below does. Without this, an admin key is refused any permission
-        # missing from PERMISSIONS while an admin user sails through — the
-        # asymmetry that locked admin keys out of the server.manage endpoints.
-        # A key carrying an explicit allowlist is held to that list instead.
-        if key_info.get("permissions") is None and key_info.get("role") == "admin":
-            return True
-        return permission in get_api_key_permissions(key_info)
-    if username not in USERS:
-        return False
-    user_role = USERS[username].get("role", "user")
-    # Admins have all permissions
-    if user_role == "admin":
-        return True
-    user_permissions = ROLE_PERMISSIONS.get(user_role, ROLE_PERMISSIONS["user"])
-    return permission in user_permissions
-
-
-def require_permission(permission):
-    """Decorator to require a specific permission"""
-
-    def decorator(f):
-        @wraps(f)
-        @require_auth
-        def decorated_function(*args, **kwargs):
-            username = getattr(request, "user", None)
-            if not username:
-                return jsonify({"error": "Authentication required"}), 401
-
-            if not has_permission(username, permission):
-                return (
-                    jsonify(
-                        {
-                            "error": "Permission denied",
-                            "required_permission": permission,
-                        }
-                    ),
-                    403,
-                )
-
-            return f(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
-
-
-def _issue_csrf_token():
-    """Generate a fresh CSRF token, store it in the session, and return it.
-
-    Call this everywhere a session cookie gets created (login, register,
-    OAuth callbacks) so the response can hand the token to the client for it
-    to echo back via X-CSRF-Token on later mutating requests.
-    """
-    token = secrets.token_urlsafe(32)
-    session["csrf_token"] = token
-    return token
-
-
-def _csrf_check_failed():
-    """True if the current request is session-cookie-authenticated, mutating,
-    and missing/wrong the CSRF token -- see require_auth's session branch.
-
-    Only the session-cookie path needs this: a browser attaches cookies to a
-    cross-site request automatically (that's the CSRF vector), but never
-    attaches a custom header or an Authorization/X-API-Key value on its own,
-    so the Bearer-JWT and API-key paths aren't exploitable the same way and
-    don't need a token.
-    """
-    if request.method in ("GET", "HEAD", "OPTIONS"):
-        return False
-    expected = session.get("csrf_token")
-    provided = request.headers.get("X-CSRF-Token")
-    return not expected or not provided or not secrets.compare_digest(expected, provided)
-
-
-def _account_active(username):
-    """True while the account behind a session or token may still be used."""
-    user = USERS.get(username)
-    return user is not None and user.get("enabled", True)
-
-
-def require_auth(f):
-    """Decorator to require user authentication (session, token, or API key)"""
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # For OAuth routes, check provider validity first (if provider in args)
-        # This allows provider validation errors to return 400 instead of 401
-        if len(kwargs) > 0 and "provider" in kwargs:
-            provider = kwargs["provider"]
-            if provider not in ["google", "apple"]:
-                return jsonify({"error": "Invalid OAuth provider"}), 400
-
-        # Check API key first (for backward compatibility). Header only --
-        # a key in the URL (?api_key=...) leaks into nginx access logs,
-        # browser history, and any Referer header a follow-on request sends.
-        api_key = request.headers.get("X-API-Key")
-        if api_key:
-            if api_key in API_KEYS and API_KEYS[api_key].get("enabled", True):
-                key_info = API_KEYS[api_key]
-                request.api_key_info = key_info
-                request.user = "__api_key__"
-                request.user_info = {
-                    "username": "__api_key__",
-                    "role": key_info.get("role", DEFAULT_API_KEY_ROLE),
-                    "key_name": key_info.get("name", "unknown"),
-                }
-                return f(*args, **kwargs)
-            else:
-                return jsonify({"error": "Invalid API key"}), 401
-
-        # Check JWT token before the session cookie. The web panel is
-        # same-origin behind nginx, so the browser attaches the session
-        # cookie to every request automatically -- including ones where the
-        # panel is deliberately authenticating with its Bearer token
-        # instead. If the session branch were checked first, every such
-        # request would be forced through the CSRF check below even though
-        # a valid, non-forgeable Bearer credential was already presented,
-        # which breaks every mutating panel action once a cookie exists
-        # from the same login. A Bearer token can't be attached by a
-        # cross-site page the way a cookie can, so trusting it here doesn't
-        # weaken the CSRF protection the cookie path still needs.
-        #
-        # Both user branches re-check that the account still exists and is
-        # enabled. Only password login used to: disabling or deleting a user
-        # left their session cookie and bearer token working until expiry.
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            username = auth_crypto.verify_token(token)
-            if username and _account_active(username):
-                request.user = username
-                request.user_info = USERS.get(username, {})
-                return f(*args, **kwargs)
-
-        # Check session
-        if "username" in session:
-            if not _account_active(session["username"]):
-                session.pop("username", None)
-                session.pop("csrf_token", None)
-                return jsonify({"error": "Authentication required"}), 401
-            if _csrf_check_failed():
-                return jsonify({"error": "Missing or invalid CSRF token"}), 403
-            request.user = session.get("username")
-            request.user_info = USERS.get(session.get("username"), {})
-            return f(*args, **kwargs)
-
-        return jsonify({"error": "Authentication required"}), 401
-
-    return decorated_function
 
 
 @app.errorhandler(404)
@@ -1210,7 +850,7 @@ if SOCKETIO_AVAILABLE:
     def handle_connect(auth):
         """Handle WebSocket connection.
 
-        Accepts either an API key or a JWT, mirroring require_auth's REST
+        Accepts either an API key or a JWT, mirroring auth_guard.require_auth's REST
         behavior — without the token path, any user who logged in with a
         username/password (no API key ever issued) could use every REST
         endpoint but not the log/console stream.
@@ -1286,11 +926,11 @@ if SOCKETIO_AVAILABLE:
             key_info = API_KEYS.get(value)
             if not key_info or not key_info.get("enabled", True):
                 return False
-            return permission in get_api_key_permissions(key_info)
+            return permission in rbac.get_api_key_permissions(key_info)
         if kind == "user":
             if value not in USERS or not USERS[value].get("enabled", True):
                 return False
-            return has_permission(value, permission)
+            return auth_guard.has_permission(value, permission)
         return False
 
     def _stream_may(permission):
@@ -1307,7 +947,7 @@ if SOCKETIO_AVAILABLE:
         return _identity_has_permission(identity, permission)
 
     def _stream_actor():
-        """Who opened this socket, named as get_username_from_request() names
+        """Who opened this socket, named as auth_guard.get_username_from_request() names
         REST callers, for the audit log. Commands sent over the socket were all
         recorded as "__api_key__", whoever sent them."""
         with _log_streams_lock:

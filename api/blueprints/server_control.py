@@ -5,14 +5,13 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("server_control", __name__)
 
 
 @bp.route("/api/status", methods=["GET"])
-@server.require_auth
-@server.require_permission("server.view")
+@auth_guard.require_permission("server.view")
 def get_status():
     """Get server status"""
     # Check if server is running. The filter is anchored (^...$) so a
@@ -36,10 +35,10 @@ def get_status():
 
 
 @bp.route("/api/server/start", methods=["POST"])
-@server.require_permission("server.control")
+@auth_guard.require_permission("server.control")
 def start_server():
     """Start the server"""
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "server.start", {"action": "start_server"})
 
     stdout, stderr, code = server.run_script("manage.sh", "start", timeout=server.LONG_SCRIPT_TIMEOUT)
@@ -50,7 +49,7 @@ def start_server():
 
 
 @bp.route("/api/server/stop", methods=["POST"])
-@server.require_permission("server.control")
+@auth_guard.require_permission("server.control")
 def stop_server():
     """Stop the server"""
     stdout, stderr, code = server.run_script("manage.sh", "stop", timeout=server.LONG_SCRIPT_TIMEOUT)
@@ -61,7 +60,7 @@ def stop_server():
 
 
 @bp.route("/api/server/restart", methods=["POST"])
-@server.require_permission("server.control")
+@auth_guard.require_permission("server.control")
 def restart_server():
     """Restart the server"""
     stdout, stderr, code = server.run_script("manage.sh", "restart", timeout=server.LONG_SCRIPT_TIMEOUT)
@@ -72,7 +71,7 @@ def restart_server():
 
 
 @bp.route("/api/server/command", methods=["POST"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 @server.auth_rate_limit("30/minute")
 def send_command():
     """Send a command to the server via RCON"""
@@ -92,14 +91,14 @@ def send_command():
     is_valid, sanitized_command, error_msg = server.sanitize_minecraft_command(command)
     if not is_valid:
         server.log_audit_event(
-            server.get_username_from_request(),
+            auth_guard.get_username_from_request(),
             "server.command.rejected",
             {"original_command": server.sanitize_string(command[:100]), "reason": error_msg},
         )
         return jsonify({"error": "Invalid command format"}), 400
     command = sanitized_command
 
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "server.command", {"command": server.sanitize_string(command[:100])})
 
     stdout, stderr, code = server.run_rcon_command(command)

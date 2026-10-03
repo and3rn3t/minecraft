@@ -14,13 +14,13 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("scheduler", __name__)
 
 
 @bp.route("/api/scheduler/schedules", methods=["GET"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 def list_schedules():
     """List all scheduled commands"""
     return jsonify({"success": True, "schedules": _load_schedules().get("schedules", [])}), 200
@@ -149,7 +149,7 @@ def _validate_run_time(run_time):
 
 
 @bp.route("/api/scheduler/schedules", methods=["POST"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 def create_schedule():
     """Create a new scheduled command"""
     data = request.get_json() or {}
@@ -189,21 +189,21 @@ def create_schedule():
         schedule_data.setdefault("schedules", []).append(schedule)
         _save_schedules(schedule_data)
 
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "scheduler.create", {"schedule_id": schedule["id"], "command": command})
 
     return jsonify({"success": True, "schedule": schedule}), 201
 
 
 @bp.route("/api/scheduler/schedules/<schedule_id>/enable", methods=["PUT"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 def enable_schedule(schedule_id):
     """Enable a scheduled command"""
     return _set_schedule_enabled(schedule_id, True)
 
 
 @bp.route("/api/scheduler/schedules/<schedule_id>/disable", methods=["PUT"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 def disable_schedule(schedule_id):
     """Disable a scheduled command"""
     return _set_schedule_enabled(schedule_id, False)
@@ -221,7 +221,7 @@ def _set_schedule_enabled(schedule_id, enabled):
         _save_schedules(schedule_data)
 
     server.log_audit_event(
-        server.get_username_from_request(),
+        auth_guard.get_username_from_request(),
         "scheduler.enable" if enabled else "scheduler.disable",
         {"schedule_id": schedule_id},
     )
@@ -238,7 +238,7 @@ def _set_schedule_enabled(schedule_id, enabled):
 
 
 @bp.route("/api/scheduler/schedules/<schedule_id>", methods=["PUT"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 def update_schedule(schedule_id):
     """Update a scheduled command"""
     data = request.get_json() or {}
@@ -289,13 +289,13 @@ def _update_schedule_locked(schedule_id, data):
 
     _save_schedules(schedule_data)
 
-    server.log_audit_event(server.get_username_from_request(), "scheduler.update", {"schedule_id": schedule_id})
+    server.log_audit_event(auth_guard.get_username_from_request(), "scheduler.update", {"schedule_id": schedule_id})
 
     return jsonify({"success": True, "schedule": schedule}), 200
 
 
 @bp.route("/api/scheduler/schedules/<schedule_id>", methods=["DELETE"])
-@server.require_permission("server.command")
+@auth_guard.require_permission("server.command")
 def delete_schedule(schedule_id):
     """Delete a scheduled command"""
     with _schedule_lock():
@@ -311,7 +311,7 @@ def delete_schedule(schedule_id):
         schedule_data["schedules"] = remaining
         _save_schedules(schedule_data)
 
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "scheduler.delete", {"schedule_id": schedule_id})
 
     return jsonify({"success": True, "message": "Schedule deleted"}), 200

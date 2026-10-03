@@ -5,16 +5,16 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("backups", __name__)
 
 
 @bp.route("/api/backup", methods=["POST"])
-@server.require_permission("backup.create")
+@auth_guard.require_permission("backup.create")
 def create_backup():
     """Create a server backup"""
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "backup.create", {"action": "create_backup"})
 
     stdout, stderr, code = server.run_script("manage.sh", "backup", timeout=server.LONG_SCRIPT_TIMEOUT)
@@ -25,7 +25,7 @@ def create_backup():
 
 
 @bp.route("/api/backups", methods=["GET"])
-@server.require_permission("backup.view")
+@auth_guard.require_permission("backup.view")
 def list_backups():
     """List available backups"""
     backups_dir = server.PROJECT_ROOT / "backups"
@@ -50,10 +50,10 @@ def list_backups():
 
 
 @bp.route("/api/backups/<path:filename>/restore", methods=["POST"])
-@server.require_permission("backup.restore")
+@auth_guard.require_permission("backup.restore")
 def restore_backup(filename):
     """Restore a backup"""
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "backup.restore", {"filename": filename})
 
     # Check for path traversal attacks first
@@ -107,7 +107,7 @@ def restore_backup(filename):
 
 
 @bp.route("/api/backups/<path:filename>", methods=["DELETE"])
-@server.require_permission("backup.delete")
+@auth_guard.require_permission("backup.delete")
 def delete_backup(filename):
     """Delete a backup"""
     # Check for path traversal attacks first

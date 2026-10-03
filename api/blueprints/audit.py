@@ -7,13 +7,13 @@ import subprocess
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("audit", __name__)
 
 
 @bp.route("/api/audit/logs", methods=["GET"])
-@server.require_permission("audit.view")
+@auth_guard.require_permission("audit.view")
 def get_audit_logs():
     """Get audit logs"""
     # Clamped: a negative limit sliced from the end ("-1" returned all but
@@ -61,7 +61,7 @@ def get_audit_logs():
 
 
 @bp.route("/api/logs", methods=["GET"])
-@server.require_permission("logs.view")
+@auth_guard.require_permission("logs.view")
 def get_logs():
     """Get server logs"""
     lines = request.args.get("lines", 100, type=int)
@@ -81,7 +81,7 @@ def get_logs():
 
 
 @bp.route("/api/events", methods=["GET"])
-@server.require_permission("logs.view")
+@auth_guard.require_permission("logs.view")
 def get_game_events():
     """Return recent game events, newest first.
 
@@ -110,7 +110,7 @@ def get_game_events():
 
 
 @bp.route("/api/events/types", methods=["GET"])
-@server.require_permission("logs.view")
+@auth_guard.require_permission("logs.view")
 def get_game_event_types():
     """List the event types the bus can produce."""
     if not server.EVENTS_AVAILABLE:
@@ -119,7 +119,7 @@ def get_game_event_types():
 
 
 @bp.route("/api/deaths", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_deaths():
     """Return recent deaths with their epitaphs, newest first.
 
@@ -152,7 +152,7 @@ def get_deaths():
 
 
 @bp.route("/api/deaths/leaderboard", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_deaths_leaderboard():
     """Per-player death totals, most deaths first."""
     if not server.DEATHS_AVAILABLE:

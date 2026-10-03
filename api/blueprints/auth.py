@@ -1,9 +1,9 @@
 """Authentication: register/login/logout, 2FA, session/CSRF, and OAuth
 (Google + Apple).
 
-Every shared helper, flag and dict below (USERS, require_auth, ...) is
-reached through the `server` module object, and the password/JWT/TOTP helpers
-through `auth_crypto`, rather than imported by name: the test suite
+Every shared helper, flag and dict below is reached through its module object
+rather than imported by name: `server` (USERS, ...), `auth_guard`
+(require_auth, CSRF) and `auth_crypto` (password/JWT/TOTP): the test suite
 extensively does `patch("api.server.some_name", ...)` or
 `monkeypatch.setattr(api_module, "some_name", ...)`, which rebinds that name
 in the module's own namespace. A name copied into this module at import time
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, redirect, request, session
 
-from api import auth_crypto, server
+from api import auth_crypto, auth_guard, server
 
 bp = Blueprint("auth", __name__)
 
@@ -88,7 +88,7 @@ def register():
 
     # Create session or token
     session["username"] = username
-    csrf_token = server._issue_csrf_token()
+    csrf_token = auth_guard.issue_csrf_token()
 
     token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
@@ -159,7 +159,7 @@ def login():
 
     # Create session or token
     session["username"] = username
-    csrf_token = server._issue_csrf_token()
+    csrf_token = auth_guard.issue_csrf_token()
 
     token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
@@ -188,7 +188,7 @@ def logout():
 
 @bp.route("/api/auth/2fa/setup", methods=["POST"])
 @server.auth_rate_limit("10/hour")
-@server.require_auth
+@auth_guard.require_auth
 def setup_2fa():
     """Setup 2FA for current user"""
     if not (auth_crypto.PYOTP_AVAILABLE and auth_crypto.QRCODE_AVAILABLE):
@@ -243,7 +243,7 @@ def setup_2fa():
 
 @bp.route("/api/auth/2fa/verify", methods=["POST"])
 @server.auth_rate_limit("10/minute")
-@server.require_auth
+@auth_guard.require_auth
 def verify_2fa_setup():
     """Verify 2FA setup with token"""
     if not auth_crypto.PYOTP_AVAILABLE:
@@ -283,7 +283,7 @@ def verify_2fa_setup():
 
 @bp.route("/api/auth/2fa/disable", methods=["POST"])
 @server.auth_rate_limit("10/minute")
-@server.require_auth
+@auth_guard.require_auth
 def disable_2fa():
     """Disable 2FA for current user"""
     username = request.user
@@ -330,7 +330,7 @@ def disable_2fa():
 
 
 @bp.route("/api/auth/2fa/status", methods=["GET"])
-@server.require_auth
+@auth_guard.require_auth
 def get_2fa_status():
     """Get 2FA status for current user"""
     username = request.user
@@ -350,7 +350,7 @@ def get_2fa_status():
 
 
 @bp.route("/api/auth/me", methods=["GET"])
-@server.require_auth
+@auth_guard.require_auth
 def get_current_user():
     """Get current user info"""
     username = request.user
@@ -367,15 +367,15 @@ def get_current_user():
 
 
 @bp.route("/api/auth/csrf-token", methods=["GET"])
-@server.require_auth
+@auth_guard.require_auth
 def get_csrf_token():
     """Return the CSRF token for the current session, minting one if needed.
 
-    Only meaningful for session-cookie auth (see server.require_auth /
+    Only meaningful for session-cookie auth (see auth_guard.require_auth /
     _csrf_check_failed); Bearer-JWT and API-key clients don't send this
     header and don't need to, since only the cookie path is CSRF-checked.
     """
-    token = session.get("csrf_token") or server._issue_csrf_token()
+    token = session.get("csrf_token") or auth_guard.issue_csrf_token()
     return jsonify({"csrf_token": token})
 
 
@@ -577,7 +577,7 @@ def google_oauth_callback():
 
         # Create session or token
         session["username"] = username
-        csrf_token = server._issue_csrf_token()
+        csrf_token = auth_guard.issue_csrf_token()
         token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
         server.log_audit_event(username, "oauth_login_success", {"provider": "google"})
@@ -637,7 +637,7 @@ def _link_identity(username, provider, oauth_id):
 
 @bp.route("/api/auth/oauth/<provider>/link", methods=["POST"])
 @server.auth_rate_limit("10/minute")
-@server.require_auth
+@auth_guard.require_auth
 def link_oauth_account(provider):
     """Link OAuth account to existing user"""
     # Provider validity is checked in the require_auth decorator
@@ -732,7 +732,7 @@ def link_oauth_account(provider):
 
 
 @bp.route("/api/auth/oauth/<provider>/unlink", methods=["POST"])
-@server.require_auth
+@auth_guard.require_auth
 def unlink_oauth_account(provider):
     """Unlink OAuth account from user"""
     # Provider validity is checked in the require_auth decorator
@@ -841,7 +841,7 @@ def apple_oauth_callback():
             return refusal
 
         session["username"] = username
-        csrf_token = server._issue_csrf_token()
+        csrf_token = auth_guard.issue_csrf_token()
         token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
         server.log_audit_event(username, "oauth_login_success", {"provider": "apple"})

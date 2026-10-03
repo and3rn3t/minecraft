@@ -146,20 +146,31 @@ wrapper from `scripts/lib/common.sh`.
 - Type hints where they help; docstrings on functions and classes.
 - `pathlib.Path` for filesystem work; catch specific exceptions.
 - Imports grouped stdlib / third-party / local.
-- Flask endpoints: decorate with `@app.route(...)` then `@require_permission("<scope>")`
-  for anything privileged. Return `jsonify({...})` with an explicit status code on
-  error paths:
+- Flask endpoints live in `api/blueprints/<area>.py`, one `Blueprint` per area, registered
+  with the others near the bottom of `api/server.py`. Decorate a route with `@bp.route(...)`
+  then `@auth_guard.require_permission("<scope>")` for anything privileged
+  (`api/auth_guard.py`; the permission names and role table are in `api/rbac.py`). Return
+  `jsonify({...})` with an explicit status code on error paths. Reach shared state and
+  helpers through their module (`server.USERS`, `server.run_script`, ...) rather than
+  importing the names, so values that tests patch are the ones used:
 
   ```python
-  @app.route("/api/keys", methods=["GET"])
-  @require_permission("api_keys.view")
+  from flask import Blueprint, jsonify
+
+  from api import auth_guard, server
+
+  bp = Blueprint("keys", __name__)
+
+
+  @bp.route("/api/keys", methods=["GET"])
+  @auth_guard.require_permission("api_keys.view")
   def list_api_keys():
       """List all API keys (without showing full key values)."""
       try:
           ...
           return jsonify({"keys": keys_list})
       except Exception as e:
-          app.logger.error(f"Error listing keys: {e}")
+          server.app.logger.error(f"Error listing keys: {e}")
           return jsonify({"error": "Internal server error"}), 500
   ```
 

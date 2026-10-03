@@ -23,13 +23,13 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
-from api import paths, server
+from api import auth_guard, paths, server
 
 bp = Blueprint("files", __name__)
 
 
 @bp.route("/api/files/list", methods=["GET"])
-@server.require_permission("files.view")
+@auth_guard.require_permission("files.view")
 def list_files():
     """List files and directories in a given path"""
     path_param = request.args.get("path", "")
@@ -95,7 +95,7 @@ def list_files():
 
 
 @bp.route("/api/files/read", methods=["GET"])
-@server.require_permission("files.view")
+@auth_guard.require_permission("files.view")
 def read_file():
     """Read file content"""
     path_param = request.args.get("path", "")
@@ -135,7 +135,7 @@ def read_file():
 
 
 @bp.route("/api/files/write", methods=["POST"])
-@server.require_permission("config.edit")
+@auth_guard.require_permission("config.edit")
 def write_file():
     """Write file content"""
     data = request.get_json() or {}
@@ -194,7 +194,7 @@ def write_file():
 
 
 @bp.route("/api/files/delete", methods=["DELETE"])
-@server.require_permission("config.edit")
+@auth_guard.require_permission("config.edit")
 def delete_file():
     """Delete a file or directory"""
     path_param = request.args.get("path", "")
@@ -224,7 +224,7 @@ def delete_file():
 
 
 @bp.route("/api/files/upload", methods=["POST"])
-@server.require_permission("config.edit")
+@auth_guard.require_permission("config.edit")
 def upload_file():
     """Upload a file"""
     if "file" not in request.files:
@@ -272,7 +272,7 @@ def upload_file():
 
 
 @bp.route("/api/files/download", methods=["GET"])
-@server.require_permission("files.view")
+@auth_guard.require_permission("files.view")
 def download_file():
     """Download a file"""
     path_param = request.args.get("path", "")

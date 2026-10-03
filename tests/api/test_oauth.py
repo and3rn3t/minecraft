@@ -61,7 +61,7 @@ def mock_auth_session(client, temp_users_file):
         session["username"] = "testuser"
         session["csrf_token"] = csrf_token
     # A session-authenticated mutating request must carry a matching
-    # X-CSRF-Token header (see require_auth's CSRF check in api/server.py).
+    # X-CSRF-Token header (see require_auth's CSRF check in api/auth_guard.py).
     # environ_base is merged into every request this client makes, so this
     # covers all of them without touching each call site individually.
     client.environ_base["HTTP_X_CSRF_TOKEN"] = csrf_token

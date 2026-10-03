@@ -12,13 +12,13 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from api import config_redaction, server
+from api import auth_guard, config_redaction, server
 
 bp = Blueprint("ddns", __name__)
 
 
 @bp.route("/api/ddns/status", methods=["GET"])
-@server.require_permission("settings.view")
+@auth_guard.require_permission("settings.view")
 def get_ddns_status():
     """Get DDNS configuration status and current IP"""
     # Run status command
@@ -39,7 +39,7 @@ def get_ddns_status():
 
 
 @bp.route("/api/ddns/update", methods=["POST"])
-@server.require_permission("settings.edit")
+@auth_guard.require_permission("settings.edit")
 def update_ddns():
     """Manually trigger DDNS update"""
     try:
@@ -63,7 +63,7 @@ def update_ddns():
 
 
 @bp.route("/api/ddns/config", methods=["GET"])
-@server.require_permission("config.view")
+@auth_guard.require_permission("config.view")
 def get_ddns_config():
     """Get DDNS configuration file content"""
     config_file = server.DDNS_CONFIG_FILE
@@ -79,13 +79,13 @@ def get_ddns_config():
     # ddns.conf holds the Cloudflare token and the No-IP and DuckDNS
     # credentials; mask them exactly as the config-file viewer does.
     redacted = False
-    if not server.has_permission(request.user, "config.edit"):
+    if not auth_guard.has_permission(request.user, "config.edit"):
         content, redacted = config_redaction.redact_config_secrets(content)
     return jsonify({"content": content, "is_example": False, "redacted": redacted}), 200
 
 
 @bp.route("/api/ddns/config", methods=["POST"])
-@server.require_permission("config.edit")
+@auth_guard.require_permission("config.edit")
 def save_ddns_config():
     """Save DDNS configuration file"""
     data = request.get_json()
