@@ -1,4 +1,3 @@
-/* eslint-env node */
 import { expect, test } from './fixtures';
 
 // Screenshots only compare against baselines rendered the same way: fonts and

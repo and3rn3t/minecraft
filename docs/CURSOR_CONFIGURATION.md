@@ -125,7 +125,7 @@ Every editor-specific file is a thin pointer to it — edit `AGENTS.md`, never t
 
 ---
 
-### `.eslintrc.json`
+### `web/eslint.config.js`
 
 **Purpose**: ESLint configuration for JavaScript/React code quality.
 
@@ -222,9 +222,9 @@ Every editor-specific file is a thin pointer to it — edit `AGENTS.md`, never t
 
 Files and directories to exclude from Prettier formatting.
 
-### `.eslintignore`
+### ESLint ignores
 
-Files and directories to exclude from ESLint linting.
+Files and directories excluded from ESLint are listed in the `ignores` entry of `web/eslint.config.js`; there is no separate `.eslintignore`.
 
 ---
 
@@ -274,7 +274,7 @@ Edit `.vscode/launch.json` and add new configuration objects.
 
 ### Changing Linting Rules
 
-- **JavaScript/React**: Edit `.eslintrc.json`
+- **JavaScript/React**: Edit `web/eslint.config.js`
 - **Python**: Edit `pyproject.toml` under `[tool.flake8]`
 - **Shell**: Edit `.shellcheckrc`
 
@@ -286,7 +286,7 @@ Edit `.vscode/launch.json` and add new configuration objects.
 
 1. Check if formatter extension is installed
 2. Verify file type is recognized
-3. Check `.prettierignore` or `.eslintignore` for exclusions
+3. Check `.prettierignore` or the `ignores` entry in `web/eslint.config.js` for exclusions
 
 ### Linting Not Working
 

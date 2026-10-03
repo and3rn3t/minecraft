@@ -60,6 +60,41 @@ describe('AuthContext', () => {
     });
   });
 
+  it('does not log a 401 on mount, since that just means nobody is logged in', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    api.getCurrentUser.mockRejectedValue(
+      Object.assign(new Error('Unauthorized'), { response: { status: 401 } })
+    );
+
+    renderWithRouter(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument());
+
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it('logs an unexpected failure on mount but still ends up logged out', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    api.getCurrentUser.mockRejectedValue(
+      Object.assign(new Error('Server error'), { response: { status: 500 } })
+    );
+
+    renderWithRouter(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument());
+
+    expect(consoleError).toHaveBeenCalledWith('Failed to check authentication:', expect.any(Error));
+    expect(screen.queryByText(/Authenticated/i)).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+
   it('clears user state when not authenticated', async () => {
     api.getCurrentUser.mockRejectedValue(new Error('Not authenticated'));
 

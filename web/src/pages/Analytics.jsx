@@ -80,6 +80,7 @@ const Analytics = () => {
       const result = await api.generateCustomReport(config);
       success(`Custom report generated: ${result.saved_as}`);
     } catch (err) {
+      console.error('Failed to generate custom report:', err);
       error('Failed to generate custom report');
     }
   };
