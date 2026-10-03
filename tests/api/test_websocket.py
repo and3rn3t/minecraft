@@ -18,6 +18,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.realtime as realtime  # noqa: E402
 import api.auth_crypto as auth_crypto  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
@@ -38,18 +39,18 @@ def socket(monkeypatch):
     request.sid = SID
     request.remote_addr = "10.0.0.9"  # the audit log writes it as JSON
     with (
-        patch("api.server.request", request),
+        patch("api.realtime.request", request), patch("api.server.request", request),
         patch.object(api_module.socketio, "emit") as emit,
-        patch.object(api_module, "disconnect") as disconnect,
-        patch.object(api_module, "get_log_tail", return_value=["[12:00] Done"]),
-        patch.object(api_module, "_ensure_log_reader"),
+        patch.object(realtime, "disconnect") as disconnect,
+        patch.object(realtime, "get_log_tail", return_value=["[12:00] Done"]),
+        patch.object(realtime, "ensure_log_reader"),
         patch.object(api_module, "run_rcon_command", return_value=("There are 0 players", "", 0)) as rcon,
     ):
         emit.disconnect = disconnect
         emit.rcon = rcon
         yield emit
-    api_module._stream_keys.pop(SID, None)
-    api_module.active_log_streams.discard(SID)
+    realtime._stream_keys.pop(SID, None)
+    realtime.active_log_streams.discard(SID)
 
 
 @pytest.fixture
@@ -68,11 +69,11 @@ def _events(emit, name):
 
 class TestConnect:
     def _refused(self, socket, auth, message):
-        accepted = api_module.handle_connect(auth)
+        accepted = realtime.handle_connect(auth)
         assert accepted is False
         assert _events(socket, "error") == [{"message": message}]
         socket.disconnect.assert_called_once_with(SID)
-        assert SID not in api_module.active_log_streams
+        assert SID not in realtime.active_log_streams
 
     def test_needs_a_key_or_token(self, socket):
         self._refused(socket, None, "API key or token required")
@@ -96,37 +97,37 @@ class TestConnect:
             self._refused(socket, {"token": "t"}, "Account disabled")
 
     def test_a_valid_key_gets_the_backlog_then_the_live_stream(self, socket, key):
-        accepted = api_module.handle_connect({"api_key": key()})
+        accepted = realtime.handle_connect({"api_key": key()})
         assert accepted is True
 
         assert _events(socket, "logs") == [{"logs": ["[12:00] Done"], "type": "initial"}]
         assert _events(socket, "connected")
-        assert SID in api_module.active_log_streams
+        assert SID in realtime.active_log_streams
         socket.disconnect.assert_not_called()
 
     def test_a_signed_in_user_can_connect_with_their_token(self, socket, monkeypatch):
         monkeypatch.setitem(api_module.USERS, "alice", {"username": "alice", "role": "user", "enabled": True})
         with patch.object(auth_crypto, "verify_token", return_value="alice"):
-            accepted = api_module.handle_connect({"token": "t"})
+            accepted = realtime.handle_connect({"token": "t"})
             assert accepted is True
-        assert api_module._stream_keys[SID] == ("user", "alice")
+        assert realtime._stream_keys[SID] == ("user", "alice")
 
     def test_disconnecting_forgets_the_socket(self, socket, key):
-        api_module.handle_connect({"api_key": key()})
+        realtime.handle_connect({"api_key": key()})
 
-        api_module.handle_disconnect()
+        realtime.handle_disconnect()
 
-        assert SID not in api_module.active_log_streams
-        assert SID not in api_module._stream_keys
+        assert SID not in realtime.active_log_streams
+        assert SID not in realtime._stream_keys
 
 
 class TestRequestLogs:
     def test_sends_the_requested_tail(self, socket, key):
-        api_module.handle_connect({"api_key": key()})
+        realtime.handle_connect({"api_key": key()})
         socket.reset_mock()
 
-        with patch.object(api_module, "get_log_tail", return_value=["a", "b"]) as tail:
-            api_module.handle_request_logs({"lines": 2})
+        with patch.object(realtime, "get_log_tail", return_value=["a", "b"]) as tail:
+            realtime.handle_request_logs({"lines": 2})
 
         tail.assert_called_once_with(2)
         assert _events(socket, "logs") == [{"logs": ["a", "b"], "type": "request"}]
@@ -140,12 +141,12 @@ class TestExecuteCommand:
         return lambda: [json.loads(line) for line in path.read_text().splitlines()]
 
     def _connect(self, key_value):
-        api_module._stream_keys[SID] = ("api_key", key_value)
+        realtime._stream_keys[SID] = ("api_key", key_value)
 
     def test_runs_the_command_and_returns_the_response(self, socket, key):
         self._connect(key())
 
-        api_module.handle_execute_command({"command": "list"})
+        realtime.handle_execute_command({"command": "list"})
 
         socket.rcon.assert_called_once_with("list")
         assert _events(socket, "command_response") == [
@@ -156,7 +157,7 @@ class TestExecuteCommand:
         self._connect(key())
         socket.rcon.return_value = ("", "Unknown command", 1)
 
-        api_module.handle_execute_command({"command": "list"})
+        realtime.handle_execute_command({"command": "list"})
 
         assert _events(socket, "command_response") == [
             {"command": "list", "response": "Unknown command", "success": False}
@@ -166,14 +167,14 @@ class TestExecuteCommand:
         self._connect(key())
         socket.rcon.side_effect = ConnectionError("RCON down")
 
-        api_module.handle_execute_command({"command": "list"})
+        realtime.handle_execute_command({"command": "list"})
 
         assert _events(socket, "command_error") == [{"message": "Failed to execute command", "command": "list"}]
 
     def test_a_key_without_server_command_cannot_run_anything(self, socket, key):
         self._connect(key(role="user"))
 
-        api_module.handle_execute_command({"command": "list"})
+        realtime.handle_execute_command({"command": "list"})
 
         socket.rcon.assert_not_called()
         assert _events(socket, "command_error") == [{"message": "Permission denied: server.command"}]
@@ -182,16 +183,16 @@ class TestExecuteCommand:
         """Every socket command used to be recorded as "__api_key__"."""
         self._connect(key(name="phone-shortcut"))
 
-        api_module.handle_execute_command({"command": "say hi"})
+        realtime.handle_execute_command({"command": "say hi"})
 
         assert audit()[-1]["username"] == "api_key:phone-shortcut"
         assert audit()[-1]["action"] == "server.command"
 
     def test_the_audit_log_names_the_user_that_ran_it(self, socket, audit, monkeypatch):
         monkeypatch.setitem(api_module.USERS, "boss", {"username": "boss", "role": "admin", "enabled": True})
-        api_module._stream_keys[SID] = ("user", "boss")
+        realtime._stream_keys[SID] = ("user", "boss")
 
-        api_module.handle_execute_command({"command": "say hi; reboot"})
+        realtime.handle_execute_command({"command": "say hi; reboot"})
 
         socket.rcon.assert_not_called()
         assert audit()[-1] == {**audit()[-1], "username": "boss", "action": "server.command.rejected"}
