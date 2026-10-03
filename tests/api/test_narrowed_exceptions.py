@@ -127,9 +127,8 @@ class TestFileWriteBackup:
         def open_that_fails_partway(path, mode="r", *args, **kwargs):
             # Only the route's text-mode write; the restore copies with "wb"
             if str(path) == str(target) and mode == "w":
-                handle = real_open(path, mode, *args, **kwargs)  # truncates the target now
-                handle.write("PARTIAL")
-                handle.close()
+                with real_open(path, mode, *args, **kwargs) as handle:  # truncates the target now
+                    handle.write("PARTIAL")
                 raise OSError("disk full mid-write")
             return real_open(path, mode, *args, **kwargs)
 
