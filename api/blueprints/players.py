@@ -287,7 +287,7 @@ def get_player_stats_leaderboard():
         # internals to reach the caller.
         valid = ", ".join(sorted(server.player_stats.LEADERBOARD_METRICS))
         return jsonify({"error": f"Unknown metric. Valid: {valid}"}), 400
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to build the leaderboard: {e}")
         return jsonify({"error": "Internal server error"}), 500
 

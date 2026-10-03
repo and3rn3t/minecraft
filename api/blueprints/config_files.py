@@ -115,7 +115,7 @@ def save_config_file(filename):
             import shutil
 
             shutil.copy2(file_path, backup_path)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
             server.app.logger.error(f"Failed to create backup: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
@@ -168,14 +168,14 @@ def save_config_file(filename):
                 "backup": str(backup_path.relative_to(server.PROJECT_ROOT)) if backup_path else None,
             }
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         # Restore from backup on failure
         if backup_path and backup_path.exists():
             try:
                 import shutil
 
                 shutil.copy2(backup_path, file_path)
-            except Exception:
+            except OSError:
                 pass  # Restore attempt is best-effort
         server.app.logger.error(f"Failed to save file: {e}")
         return jsonify({"error": "Internal server error"}), 500

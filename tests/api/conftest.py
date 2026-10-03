@@ -21,8 +21,8 @@ import api.server as api_module  # noqa: E402
 app = api_module.app
 
 # Imports must come after sys.path modification
-from tests.api.factories import (
-    create_api_key_data,  # noqa: E402
+from tests.api.factories import (  # noqa: E402
+    create_api_key_data,
     create_backup_metadata,
     create_server_properties,
     create_user_data,

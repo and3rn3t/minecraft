@@ -101,7 +101,7 @@ def execute_command(command):
             return False, result.stderr
     except subprocess.TimeoutExpired:
         return False, "Command execution timeout"
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
         return False, str(e)
 
 
@@ -314,7 +314,10 @@ def should_run_schedule(schedule, current_time):
             # Never run: only fire if that slot is the one we are standing in,
             # rather than replaying every slot since the schedule was created.
             return (current_time - previous_due).total_seconds() < 60
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
+            # A bad cron expression or timestamp (croniter's errors are ValueErrors).
+            # Narrow on purpose: a blanket except here once hid an
+            # UnboundLocalError and silently skipped the schedule for good.
             return False
 
     elif schedule_type == "once":
@@ -330,8 +333,8 @@ def should_run_schedule(schedule, current_time):
             # Run if current time is within 1 minute of scheduled time
             time_diff_seconds = abs((current_time - run_datetime).total_seconds())
             return time_diff_seconds < 60
-        except Exception:
-            return False
+        except (ValueError, TypeError, AttributeError):
+            return False  # an unparseable run_datetime
 
     return False
 

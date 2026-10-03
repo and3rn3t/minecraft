@@ -57,7 +57,7 @@ def update_ddns():
             return jsonify({"success": False, "error": result.stderr or "DDNS update failed"}), 500
     except subprocess.TimeoutExpired:
         return jsonify({"error": "DDNS update timed out"}), 504
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to update DDNS: {e}")
         return jsonify({"error": "Internal server error"}), 500
 

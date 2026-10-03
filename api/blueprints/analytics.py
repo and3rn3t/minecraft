@@ -85,7 +85,7 @@ def get_analytics_trends():
     except ImportError:
         # Fallback: return basic trends from metrics
         return jsonify({"trends": {}, "period_hours": hours, "note": "Full analytics not available"}), 200
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to get trends: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -112,7 +112,7 @@ def get_analytics_anomalies():
 
     except ImportError:
         return jsonify({"anomalies": [], "note": "Full analytics not available"}), 200
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to get anomalies: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -139,7 +139,7 @@ def get_analytics_predictions():
 
     except ImportError:
         return jsonify({"prediction": {}, "note": "Full analytics not available"}), 200
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to get predictions: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -161,7 +161,7 @@ def get_player_behavior():
 
     except ImportError:
         return jsonify({"behavior": {}, "note": "Full analytics not available"}), 200
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to get player behavior: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -201,6 +201,6 @@ def generate_custom_report():
 
     except ImportError:
         return jsonify({"error": "Analytics processor not available"}), 500
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to generate report: {e}")
         return jsonify({"error": "Internal server error"}), 500

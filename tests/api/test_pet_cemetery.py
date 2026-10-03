@@ -12,8 +12,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from api.events import GameEvent  # noqa: E402
 from api.pet_cemetery import (  # noqa: E402
     CEMETERY_ORIGIN,
-    CEMETERY_ROW_LENGTH,
     CEMETERY_PLOT_SPACING,
+    CEMETERY_ROW_LENGTH,
     PetCemetery,
     PetDeath,
     PetDeathRecord,

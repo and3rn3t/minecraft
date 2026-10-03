@@ -129,7 +129,7 @@ def verify_apple_id_token(id_token):
         )
     except jwt.PyJWTError:
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - a failed key fetch or a malformed token must deny, not raise
         server.app.logger.error(f"Failed to verify Apple ID token: {e}")
         return None
 

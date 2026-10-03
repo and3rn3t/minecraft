@@ -21,7 +21,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 # Create a mock analytics_processor module for patching
 # The actual file is analytics-processor.py (with hyphen), but it's imported as analytics_processor
 # We need to create a mock module that can be patched
-import types
+import types  # noqa: E402
 
 from api.server import app  # noqa: E402
 

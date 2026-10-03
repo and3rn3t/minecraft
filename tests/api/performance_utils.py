@@ -61,7 +61,7 @@ def run_load_test(func: Callable, num_requests: int = 100, num_threads: int = 10
             results["durations"].append(duration)
             results["success_count"] += 1
             return result
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - a failed request is counted and recorded, not fatal to the run
             results["error_count"] += 1
             results["errors"].append(str(e))
             return None

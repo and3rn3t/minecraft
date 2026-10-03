@@ -15,8 +15,8 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import api.server as api_module  # noqa: E402
 import api.rbac as rbac  # noqa: E402
+import api.server as api_module  # noqa: E402
 
 
 @pytest.fixture

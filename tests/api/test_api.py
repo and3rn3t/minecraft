@@ -4,11 +4,12 @@ API Tests
 Tests for the REST API server
 """
 
-import pytest
 import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add project root to path before importing api.server
 PROJECT_ROOT = Path(__file__).parent.parent.parent

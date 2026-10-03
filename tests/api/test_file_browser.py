@@ -9,7 +9,6 @@ file is what they do for an admin who is allowed to.
 
 import io
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -21,13 +20,13 @@ import api.server as api_module  # noqa: E402
 
 
 @pytest.fixture
-def root(monkeypatch):
+def root(monkeypatch, tmp_path):
     """A throwaway project root with the four allowed directories.
 
     resolve()d because macOS's /var is a symlink to /private/var, and the
     allowlist compares real paths.
     """
-    root = Path(tempfile.mkdtemp()).resolve()
+    root = tmp_path.resolve()
     for name in ("data", "config", "backups", "scripts"):
         (root / name).mkdir()
     monkeypatch.setattr(api_module, "PROJECT_ROOT", root)
