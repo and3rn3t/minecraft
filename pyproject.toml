@@ -51,8 +51,13 @@ exclude = [
 #            route handler that logs and returns a generic 500, a worker that must
 #            outlive a bad item), so those say why: `# noqa: BLE001 - <reason>`.
 #            Where the failure modes are known, catch those instead.
+#   PLW1510  subprocess.run without an explicit `check=`: say whether a failing
+#            command is an error (check=True) or is handled by reading returncode
+#            (check=False)
+#   S110 S112 try/except that does nothing but pass (or continue): either log it or
+#            say why there is nowhere to
 #   RUF100   a `# noqa` that no longer suppresses anything
-select = ["F", "E4", "E7", "E9", "B", "I", "BLE", "RUF100"]
+select = ["F", "E4", "E7", "E9", "B", "I", "BLE", "PLW1510", "S110", "S112", "RUF100"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["api"]

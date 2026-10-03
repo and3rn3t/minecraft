@@ -34,6 +34,7 @@ def test_server_starts_when_run_as_a_script():
             # As the systemd unit sets it; otherwise a piped stdout is
             # block-buffered and the kill discards the "Starting" line.
             env={**os.environ, "PYTHONUNBUFFERED": "1"},
+            check=False,
         )
         output = (result.stdout or "") + (result.stderr or "")
     except subprocess.TimeoutExpired as exc:

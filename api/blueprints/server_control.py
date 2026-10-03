@@ -25,6 +25,7 @@ def get_status():
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
         is_running = "Up" in result.stdout if result.returncode == 0 else False
         status_text = result.stdout if result.returncode == 0 else "Unknown"

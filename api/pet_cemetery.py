@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from api.epitaphs import classify_cause, extract_culprit
+from api.error_reporting import ErrorReporting
 
 PROJECT_ROOT = Path(__file__).parent.parent
 PET_CEMETERY_DIR = PROJECT_ROOT / "data" / "pet_cemetery"
@@ -202,7 +203,7 @@ def build_gravestone_commands(record: PetDeathRecord) -> list[str]:
     return commands
 
 
-class PetCemetery:
+class PetCemetery(ErrorReporting):
     """Records pet deaths, writes gentle epitaphs and places gravestones."""
 
     def __init__(
@@ -216,7 +217,6 @@ class PetCemetery:
         self.retention_days = retention_days
 
         self._lock = threading.Lock()
-        self._error_logger: Optional[Callable[[str], None]] = None
         self._last_pruned_date: Optional[str] = None
         self._next_plot: Optional[int] = None
 
@@ -224,16 +224,6 @@ class PetCemetery:
         self._worker: Optional[threading.Thread] = None
         self._pending = 0
         self._pending_cv = threading.Condition()
-
-    def set_error_logger(self, logger: Callable[[str], None]) -> None:
-        self._error_logger = logger
-
-    def _log_error(self, message: str) -> None:
-        if self._error_logger is not None:
-            try:
-                self._error_logger(message)
-            except Exception:  # noqa: BLE001 - reporting a failure must not fail
-                pass
 
     def handle_event(self, event) -> Optional[PetDeathRecord]:
         """Event bus handler. Ignores everything that is not a pet death."""

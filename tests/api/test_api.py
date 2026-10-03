@@ -5,6 +5,7 @@ Tests for the REST API server
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -158,6 +159,41 @@ class TestLogsEndpoint:
         assert response.status_code == 200
         assert response.get_json() == {'logs': ['first', 'second'], 'lines': 2}
         assert mock_run.call_args.args[0] == ['docker', 'logs', '--tail', '50', 'minecraft-server']
+
+    def test_logs_never_runs_the_following_manage_script(self, client, mock_api_keys):
+        """`manage.sh logs` follows the log forever (compose logs -f). The endpoint used to
+        run it first, so every request waited for run_script's 30s timeout."""
+        with patch('api.server.run_script') as mock_script, \
+             patch('api.server.subprocess.run') as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout='a\nb')
+            response = client.get('/api/logs', headers={'X-API-Key': mock_api_keys})
+
+        assert response.status_code == 200
+        mock_script.assert_not_called()
+
+    def test_a_docker_failure_reports_dockers_own_message(self, client, mock_api_keys):
+        message = 'Error response from daemon: No such container: minecraft-server'
+        with patch('api.server.subprocess.run') as mock_run:
+            mock_run.return_value = MagicMock(returncode=1, stdout='', stderr=message)
+            response = client.get('/api/logs', headers={'X-API-Key': mock_api_keys})
+
+        assert response.status_code == 200
+        assert response.get_json() == {'logs': [message], 'lines': 1}
+
+    def test_a_docker_failure_with_no_message_says_so(self, client, mock_api_keys):
+        with patch('api.server.subprocess.run') as mock_run:
+            mock_run.return_value = MagicMock(returncode=1, stdout='', stderr='')
+            response = client.get('/api/logs', headers={'X-API-Key': mock_api_keys})
+
+        assert response.get_json() == {'logs': ['Unable to retrieve logs'], 'lines': 1}
+
+    @pytest.mark.parametrize('error', [FileNotFoundError('docker'), subprocess.TimeoutExpired('docker', 10)])
+    def test_docker_missing_or_too_slow_is_reported_not_raised(self, client, mock_api_keys, error):
+        with patch('api.server.subprocess.run', side_effect=error):
+            response = client.get('/api/logs', headers={'X-API-Key': mock_api_keys})
+
+        assert response.status_code == 200
+        assert response.get_json() == {'logs': ['Unable to retrieve logs'], 'lines': 1}
 
 
 class TestPlayersEndpoint:

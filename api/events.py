@@ -28,6 +28,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Iterator, Optional
 
+from api.error_reporting import ErrorReporting
+
 PROJECT_ROOT = Path(__file__).parent.parent
 
 
@@ -342,7 +344,7 @@ def parse_line(line: str) -> Optional[GameEvent]:
     return None
 
 
-class EventBus:
+class EventBus(ErrorReporting):
     """Parses, persists and dispatches game events.
 
     Handlers are called synchronously in registration order. A handler that
@@ -371,23 +373,7 @@ class EventBus:
         self._write_lock = threading.Lock()
         self._last_flush = datetime.now(timezone.utc)
         self._last_pruned_date: Optional[str] = None
-        self._error_logger: Optional[Callable[[str], None]] = None
         self._flush_timer: Optional[threading.Timer] = None
-
-    def set_error_logger(self, logger: Callable[[str], None]) -> None:
-        """Route handler errors somewhere visible, normally ``app.logger``."""
-        self._error_logger = logger
-
-    def _log_error(self, message: str) -> None:
-        if self._error_logger is not None:
-            try:
-                self._error_logger(message)
-            except Exception:  # noqa: BLE001 - logging must never raise
-                # The error logger is supplied by the caller and may itself be
-                # broken or closed. Swallowing it here is deliberate: a failure
-                # to report a problem must not become a second problem on the
-                # thread that feeds the bus.
-                pass
 
     def subscribe(self, handler: Callable[[GameEvent], None]) -> Callable[[GameEvent], None]:
         """Register a handler. Returns it, so it can be used as a decorator."""

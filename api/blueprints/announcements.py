@@ -97,6 +97,7 @@ def get_metrics():
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
         if result.returncode == 0 and result.stdout:
             parts = result.stdout.strip().split(",")

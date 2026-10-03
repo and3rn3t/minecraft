@@ -28,6 +28,7 @@ def get_ddns_status():
         text=True,
         timeout=10,
         cwd=str(server.PROJECT_ROOT),
+        check=False,
     )
 
     if result.returncode == 0:
@@ -49,6 +50,7 @@ def update_ddns():
             text=True,
             timeout=30,
             cwd=str(server.PROJECT_ROOT),
+            check=False,
         )
 
         if result.returncode == 0:
