@@ -157,7 +157,7 @@ def write_file():
         backup_path = backup_dir / f"{file_path.name}.{datetime.now().strftime('%Y%m%d_%H%M%S')}.backup"
         try:
             shutil.copy2(file_path, backup_path)
-        except Exception:
+        except OSError:
             pass  # Backup copy is optional; failure is non-fatal
 
     # Ensure parent directory exists
@@ -182,12 +182,12 @@ def write_file():
             ),
             200,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         # Restore from backup on failure
         if backup_path and backup_path.exists():
             try:
                 shutil.copy2(backup_path, file_path)
-            except Exception:
+            except OSError:
                 pass  # Restore attempt is best-effort
         server.app.logger.error(f"Failed to write file: {e}")
         return jsonify({"error": "Internal server error"}), 500

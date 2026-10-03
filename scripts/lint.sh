@@ -105,14 +105,16 @@ lint_python() {
             issues=$((issues + 1))
         fi
     elif command_exists flake8; then
-        # Same paths and the same defect-focused selection as the ruff branch,
-        # so the fallback is not quietly weaker: F is pyflakes, which is what
-        # flake8's F checks are. The flags stay explicit here because flake8
-        # does not read pyproject.toml without a plugin.
+        # The same paths and the part of the ruff selection flake8 can do on its
+        # own: F is pyflakes and E4/E7/E9 are pycodestyle's error classes. Bugbear,
+        # isort and the blind-except rule need flake8 plugins, so this fallback is
+        # weaker than ruff and ruff is the real gate (pre-commit and CI use it).
+        # The flags stay explicit here because flake8 does not read pyproject.toml
+        # without a plugin.
         echo -e "${BLUE}Running flake8...${NC}"
         linted=1
         if ! flake8 "$PROJECT_DIR/api" "$PROJECT_DIR/scripts" "$PROJECT_DIR/tests" \
-            --select=F --max-line-length=120 2>&1; then
+            --select=F,E4,E7,E9 --max-line-length=120 2>&1; then
             issues=$((issues + 1))
         fi
     fi

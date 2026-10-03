@@ -8,7 +8,6 @@ config.view but masks credential values for anyone who cannot edit config.
 """
 
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -16,21 +15,21 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import api.server as api_module  # noqa: E402
 import api.rbac as rbac  # noqa: E402
+import api.server as api_module  # noqa: E402
 from api.config_redaction import redact_config_secrets  # noqa: E402
 
 ADMIN_KEYS_CONTENT = '{"the-real-admin-key": {"role": "admin"}}'
 
 
 @pytest.fixture
-def tree(monkeypatch):
+def tree(monkeypatch, tmp_path):
     """A throwaway project root holding the files an attacker would want.
 
     resolve()d because macOS's /var is a symlink to /private/var, and the
     allowlist check compares real paths.
     """
-    root = Path(tempfile.mkdtemp()).resolve()
+    root = tmp_path.resolve()
     (root / "config").mkdir()
     (root / "data").mkdir()
     (root / "config" / "api-keys.json").write_text(ADMIN_KEYS_CONTENT)

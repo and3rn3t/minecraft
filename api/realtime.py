@@ -166,7 +166,7 @@ def _log_reader():
             if proc is not None:
                 try:
                     proc.kill()
-                except Exception:
+                except OSError:
                     # Best effort: the process has usually exited on its
                     # own by this point, and failing to reap it must not
                     # stop the reader from re-attaching.
@@ -209,7 +209,7 @@ def stop_log_reader():
     if proc is not None:
         try:
             proc.kill()
-        except Exception:
+        except OSError:
             # Already exited, which is the outcome we wanted anyway.
             pass
 
@@ -391,7 +391,7 @@ def handle_execute_command(data):
                 {"command": command, "response": stderr or "Command failed", "success": False},
                 room=request.sid,
             )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - socket handler boundary: logged, generic error to the client
         server.app.logger.error(f"Failed to execute command over the socket: {e}")
         server.socketio.emit(
             "command_error",

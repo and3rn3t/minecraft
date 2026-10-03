@@ -128,7 +128,7 @@ class AnalyticsProcessor:
             return []
 
         anomalies = []
-        for i, (record, value) in enumerate(zip(data, values)):
+        for record, value in zip(data, values, strict=True):
             z_score = abs((value - mean) / stdev) if stdev > 0 else 0
             if z_score > threshold:
                 anomalies.append(

@@ -18,19 +18,18 @@ only because the path is resolved *before* the allowlist check.
 """
 
 import sys
-import tempfile
 import uuid
 from io import BytesIO
 from pathlib import Path as PathLib
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 
 PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import api.server as api_module  # noqa: E402
 import api.auth_crypto as auth_crypto  # noqa: E402
+import api.server as api_module  # noqa: E402
 from api.paths import is_path_allowed  # noqa: E402
 
 # Payloads that defeat a naive check. Encoded forms are included because a
@@ -68,7 +67,7 @@ def auth(monkeypatch):
 
 
 @pytest.fixture
-def escaping_symlink():
+def escaping_symlink(tmp_path):
     """A symlink inside an allowed directory pointing outside every allowed root.
 
     The name is unique per test. CI runs `pytest -n auto`, and a fixed name
@@ -79,7 +78,7 @@ def escaping_symlink():
     allowed_root = api_module.PROJECT_ROOT / "data"
     allowed_root.mkdir(parents=True, exist_ok=True)
 
-    outside = PathLib(tempfile.mkdtemp()) / "secret.txt"
+    outside = tmp_path / "secret.txt"
     outside.write_text("SENSITIVE-CONTENT-OUTSIDE-ALLOWED-ROOTS\n")
 
     name = f"traversal-test-symlink-{uuid.uuid4().hex}"

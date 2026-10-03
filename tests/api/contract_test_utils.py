@@ -79,7 +79,7 @@ def validate_response_schema(
 
     except ValidationError as e:
         return False, f"Schema validation error: {e.message}"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - any schema-library error is reported as a validation result
         error_msg = str(e)
         # If schema has reference issues or missing components, treat as skip (not a failure)
         if "does not exist" in error_msg or "$ref" in error_msg or "PointerToNowhere" in error_msg:
@@ -123,7 +123,7 @@ def validate_request_schema(
 
     except ValidationError as e:
         return False, f"Schema validation error: {e.message}"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - any schema-library error is reported as a validation result
         error_msg = str(e)
         # If schema has reference issues or missing components, treat as skip (not a failure)
         if "does not exist" in error_msg or "$ref" in error_msg or "PointerToNowhere" in error_msg:

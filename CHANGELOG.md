@@ -52,6 +52,23 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **More of ruff is enforced** — beyond pyflakes (`F`), the lint now enforces
+  pycodestyle's error classes (`E4`, `E7`, `E9`), bugbear (`B`), isort (`I`), blind
+  `except` (`BLE`) and stale `# noqa` comments (`RUF100`); the tree has no findings
+  under any of them. Of the 30 `except Exception` handlers that said nothing about why,
+  10 now catch only what can actually fail there (`OSError` for file and process
+  cleanup, `ValueError` for unparseable schedules, `OSError`/`TypeError`/`ValueError`
+  for saving users and keys) and 20 say why they must catch everything (`# noqa: BLE001`
+  plus a reason, such as "route boundary: logged, generic 500 to the client"); the 26
+  existing reasons, written for a rule that was not on, are now live. Narrowing means a
+  genuine bug in those spots now surfaces instead of being turned into "returned False":
+  `command-scheduler.py` documents an `UnboundLocalError` that a blanket `except` once
+  hid until every schedule was skipped. Also: `zip(..., strict=True)` in the analytics
+  anomaly check, and `tests/api/test_narrowed_exceptions.py` pins both halves of the
+  narrowed handlers. Four test fixtures that made temp directories with
+  `tempfile.mkdtemp()` and never removed them now use `tmp_path`. `scripts/lint.sh`'s
+  flake8 fallback covers the part of this flake8 can do without plugins; ruff is the
+  gate.
 - **Setup docs consolidated** — `MINECRAFT_SERVER_SETUP.md`, `DOCKER_BOOT_SETUP.md`
   and `DOCKER_DEPLOYMENT_FLOW.md` are removed. The first two were a walkthrough and a
   generic "boot any Docker image" template that duplicated `INSTALL.md` and

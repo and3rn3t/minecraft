@@ -129,9 +129,8 @@ class TestConfigFilesComprehensive:
     def test_get_config_file_success(self, mock_open, client, mock_api_key):
         """Test successful config file retrieval"""
         from pathlib import Path
-        from unittest.mock import MagicMock
+        from unittest.mock import MagicMock, patch
         from unittest.mock import mock_open as mock_file_open
-        from unittest.mock import patch
 
         # Create a proper mock path
         mock_path = MagicMock(spec=Path)

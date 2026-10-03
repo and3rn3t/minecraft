@@ -592,7 +592,7 @@ def google_oauth_callback():
             }
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"OAuth callback error: {e}")
         server.log_audit_event("unknown", "oauth_login_failure", {"provider": "google", "reason": "internal_error"})
         return jsonify({"error": "Internal server error"}), 500
@@ -856,7 +856,7 @@ def apple_oauth_callback():
             }
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         server.app.logger.error(f"Failed to process Apple OAuth: {e}")
         server.log_audit_event("unknown", "oauth_login_failure", {"provider": "apple", "reason": "internal_error"})
         return jsonify({"error": "Internal server error"}), 500

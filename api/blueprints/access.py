@@ -173,7 +173,7 @@ def update_api_key_scope(key_id):
             ),
             200,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
         # The message is logged rather than returned: an exception raised while
         # re-scoping a credential can carry internals the caller should not see.
         server.app.logger.error(f"Failed to update API key scope: {e}")

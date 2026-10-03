@@ -458,7 +458,8 @@ def save_users():
         with open(USERS_FILE, "w") as f:
             json.dump(USERS, f, indent=2)
         return True
-    except Exception:
+    except (OSError, TypeError, ValueError):
+        # Could not write the file, or the data is not JSON-serialisable
         return False
 
 
@@ -477,7 +478,7 @@ def save_api_keys():
             # Windows doesn't support chmod the same way, skip
             pass
         return True
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return False
 
 
@@ -520,7 +521,7 @@ def run_script(script_name, *args, timeout=DEFAULT_SCRIPT_TIMEOUT, input_text=No
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
         return None, f"Script execution timeout after {timeout}s", 504
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - script runner boundary: logged, reported through the return value
         # The second element is treated as the script's stderr by callers, and
         # several return it to the client, so the exception text would reach
         # them by that route. It goes to the log instead.
@@ -609,7 +610,7 @@ def log_audit_event(username, action, details=None, ip_address=None):
         # Append to audit log file (JSONL format)
         with open(AUDIT_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - audit logging must never fail the request
         # Don't fail the request if audit logging fails
         print(f"Audit logging error: {e}")
 
@@ -776,7 +777,6 @@ app.register_blueprint(server_control_bp)
 # everything they read from this module exists. Imported unconditionally so
 # `realtime` is always defined for start_event_capture.
 from api import realtime  # noqa: E402
-
 
 if __name__ == "__main__":
     if not API_ENABLED:
