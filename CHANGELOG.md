@@ -167,6 +167,18 @@ All notable changes to this project will be documented in this file.
   to retrieve logs" if Docker is missing or too slow) instead of the unrelated script's.
   Found through a code-review comment that was itself mistaken (it claimed `stderr` was
   undefined); the question it raised, where that `stderr` came from, was the real bug.
+- **A crashed script's traceback no longer reaches an API client** — `GET
+  /api/analytics/report` returned the processing script's raw `stderr` as `"details"`
+  when it failed, which for a Python script is a traceback with file paths and source
+  lines. It now returns a fixed message and logs the detail. `script_error()`, which
+  about 25 endpoints use to surface a script's message, now does the same for any
+  traceback it is given (readable messages such as "Player not found" still pass
+  through), and the two DDNS routes that returned `stderr` directly go through it. The
+  panel never read `details`. The detail that is logged goes through a new
+  `sanitize_for_log()` (control characters dropped, continuation lines indented so text
+  imitating a log entry cannot start a line, capped at 4,000 characters) and uses lazy
+  `%s` formatting. New tests in `tests/api/test_script_error.py`; six of them fail
+  against the old code.
 - **`cleanup-system.sh` no longer deletes what it should not** — it deleted every
   `*.tar.gz` backup older than 30 days as soon as there were more than 10 (its comment
   said "keep at least 10", but nothing enforced it, so it could leave one), including

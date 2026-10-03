@@ -64,6 +64,8 @@ known-first-party = ["api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/api"]
+# Same as tests/api/pytest.ini: let test modules import `api` without touching sys.path
+pythonpath = ["."]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"

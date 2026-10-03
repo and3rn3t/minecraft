@@ -207,6 +207,31 @@ def sanitize_for_json(value) -> str:
     return json.dumps(str(value))[1:-1]  # Remove surrounding quotes
 
 
+def sanitize_for_log(value, limit: int = 4000) -> str:
+    """
+    Make untrusted, possibly multi-line text (a script's stderr) safe to write to a log.
+
+    Newlines and tabs are kept, because a traceback is the point, but every other
+    control character is dropped (NULs, carriage returns and escape sequences can
+    overwrite or colour what a reader sees). Continuation lines are indented, so text
+    that imitates a log entry cannot start at column zero, and the result is capped
+    at ``limit`` characters.
+
+    Args:
+        value: The text (or bytes) to sanitize
+        limit: The most characters to keep
+
+    Returns:
+        A string safe to pass as a logging argument
+    """
+    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+    text = "".join(ch for ch in text if ch in "\n\t" or ch.isprintable())
+    truncated = len(text) - limit
+    if truncated > 0:
+        text = text[:limit] + f"... [{truncated} more characters]"
+    return text.replace("\n", "\n    ")
+
+
 def is_rate_limit_exceeded(identifier: str, limit: int, window: int, storage: dict) -> bool:
     """
     Simple in-memory rate limiting check.
