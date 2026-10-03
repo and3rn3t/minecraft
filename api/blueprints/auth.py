@@ -1,11 +1,12 @@
 """Authentication: register/login/logout, 2FA, session/CSRF, and OAuth
 (Google + Apple).
 
-Every shared helper, flag and dict below (USERS, require_auth, hash_password,
-...) is reached through the `server` module object rather than imported by
-name: the test suite extensively does `patch("api.server.some_name", ...)` or
+Every shared helper, flag and dict below (USERS, require_auth, ...) is
+reached through the `server` module object, and the password/JWT/TOTP helpers
+through `auth_crypto`, rather than imported by name: the test suite
+extensively does `patch("api.server.some_name", ...)` or
 `monkeypatch.setattr(api_module, "some_name", ...)`, which rebinds that name
-in api.server's own namespace. A name copied into this module at import time
+in the module's own namespace. A name copied into this module at import time
 would keep pointing at the pre-patch original.
 """
 
@@ -15,7 +16,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, redirect, request, session
 
-from api import server
+from api import auth_crypto, server
 
 bp = Blueprint("auth", __name__)
 
@@ -38,7 +39,7 @@ def register():
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
 
-    if not server.BCRYPT_AVAILABLE:
+    if not auth_crypto.BCRYPT_AVAILABLE:
         return jsonify({"error": "Password hashing not available"}), 500
 
     # Validate username
@@ -49,7 +50,7 @@ def register():
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    hashed_password = server.hash_password(password)
+    hashed_password = auth_crypto.hash_password(password)
 
     # Held across the whole decide-role-and-insert sequence: two registrations
     # arriving together could otherwise both find USERS empty and both be
@@ -89,7 +90,7 @@ def register():
     session["username"] = username
     csrf_token = server._issue_csrf_token()
 
-    token = server.generate_token(username) if server.JWT_AVAILABLE else None
+    token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
     server.log_audit_event(username, "user_registered", {"role": server.USERS[username]["role"]})
 
@@ -116,7 +117,7 @@ def login():
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
 
-    if not server.BCRYPT_AVAILABLE:
+    if not auth_crypto.BCRYPT_AVAILABLE:
         return jsonify({"error": "Password hashing not available"}), 500
 
     # Check if user exists
@@ -136,7 +137,7 @@ def login():
         return jsonify({"error": "Account disabled"}), 401
 
     # Verify password
-    if not server.verify_password(password, user["password_hash"]):
+    if not auth_crypto.verify_password(password, user["password_hash"]):
         server.log_audit_event(username, "login_failure", {"reason": "unknown_username_or_password"})
         return jsonify({"error": "Invalid username or password"}), 401
 
@@ -149,10 +150,10 @@ def login():
         if not totp_secret:
             return jsonify({"error": "2FA not properly configured"}), 500
 
-        if not server.TOTP_AVAILABLE:
+        if not auth_crypto.PYOTP_AVAILABLE:
             return jsonify({"error": "2FA not available"}), 500
 
-        if not server.verify_totp(totp_secret, totp_token):
+        if not auth_crypto.verify_totp(totp_secret, totp_token):
             server.log_audit_event(username, "login_failure", {"reason": "invalid_2fa_token"})
             return jsonify({"error": "Invalid 2FA token"}), 401
 
@@ -160,7 +161,7 @@ def login():
     session["username"] = username
     csrf_token = server._issue_csrf_token()
 
-    token = server.generate_token(username) if server.JWT_AVAILABLE else None
+    token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
     server.log_audit_event(username, "login_success", {"method": "password"})
 
@@ -190,7 +191,7 @@ def logout():
 @server.require_auth
 def setup_2fa():
     """Setup 2FA for current user"""
-    if not server.TOTP_AVAILABLE:
+    if not (auth_crypto.PYOTP_AVAILABLE and auth_crypto.QRCODE_AVAILABLE):
         return jsonify({"error": "2FA not available"}), 500
 
     username = request.user
@@ -218,13 +219,13 @@ def setup_2fa():
         )
 
     # Generate new secret
-    secret = server.generate_totp_secret()
+    secret = auth_crypto.generate_totp_secret()
     user["totp_secret"] = secret
     user["totp_enabled"] = False  # Not enabled until verified
 
     # Generate QR code
-    uri = server.generate_totp_uri(username, secret)
-    qr_code = server.generate_qr_code(uri)
+    uri = auth_crypto.generate_totp_uri(username, secret)
+    qr_code = auth_crypto.generate_qr_code(uri)
 
     if not server.save_users():
         return jsonify({"error": "Failed to save user"}), 500
@@ -245,7 +246,7 @@ def setup_2fa():
 @server.require_auth
 def verify_2fa_setup():
     """Verify 2FA setup with token"""
-    if not server.TOTP_AVAILABLE:
+    if not auth_crypto.PYOTP_AVAILABLE:
         return jsonify({"error": "2FA not available"}), 500
 
     data = request.get_json() or {}
@@ -264,7 +265,7 @@ def verify_2fa_setup():
     if not secret:
         return jsonify({"error": "2FA not set up. Please set up 2FA first."}), 400
 
-    if server.verify_totp(secret, token):
+    if auth_crypto.verify_totp(secret, token):
         user["totp_enabled"] = True
         if not server.save_users():
             return jsonify({"error": "Failed to save user"}), 500
@@ -299,7 +300,7 @@ def disable_2fa():
         password = data.get("password")
         if not password:
             return jsonify({"error": "Password required to disable 2FA"}), 400
-        if not server.verify_password(password, user["password_hash"]):
+        if not auth_crypto.verify_password(password, user["password_hash"]):
             server.log_audit_event(username, "2fa_disable_failed", {"reason": "invalid_password"})
             return jsonify({"error": "Invalid password"}), 401
     else:
@@ -307,7 +308,7 @@ def disable_2fa():
         if not token:
             return jsonify({"error": "A current 2FA code is required to disable 2FA"}), 400
         secret = user.get("totp_secret")
-        if not secret or not server.TOTP_AVAILABLE or not server.verify_totp(secret, str(token)):
+        if not secret or not auth_crypto.PYOTP_AVAILABLE or not auth_crypto.verify_totp(secret, str(token)):
             server.log_audit_event(username, "2fa_disable_failed", {"reason": "invalid_2fa_token"})
             return jsonify({"error": "Invalid 2FA code"}), 401
 
@@ -577,7 +578,7 @@ def google_oauth_callback():
         # Create session or token
         session["username"] = username
         csrf_token = server._issue_csrf_token()
-        token = server.generate_token(username) if server.JWT_AVAILABLE else None
+        token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
         server.log_audit_event(username, "oauth_login_success", {"provider": "google"})
 
@@ -712,10 +713,10 @@ def link_oauth_account(provider):
         if not server.OAUTH_CONFIG["apple"].get("client_id"):
             return jsonify({"error": "Apple OAuth not configured"}), 500
 
-        if not server.JWT_AVAILABLE:
+        if not auth_crypto.JWT_AVAILABLE:
             return jsonify({"error": "JWT library required for Apple OAuth"}), 500
 
-        decoded = server.verify_apple_id_token(id_token)
+        decoded = auth_crypto.verify_apple_id_token(id_token)
         if decoded is None:
             return jsonify({"error": "Invalid ID token from Apple"}), 401
         apple_id = decoded.get("sub")
@@ -822,10 +823,10 @@ def apple_oauth_callback():
         return jsonify({"error": "Apple OAuth not configured"}), 500
 
     try:
-        if not server.JWT_AVAILABLE:
+        if not auth_crypto.JWT_AVAILABLE:
             return jsonify({"error": "JWT library required for Apple OAuth"}), 500
 
-        decoded = server.verify_apple_id_token(id_token)
+        decoded = auth_crypto.verify_apple_id_token(id_token)
         if decoded is None:
             server.log_audit_event("unknown", "oauth_login_failure", {"provider": "apple", "reason": "invalid_id_token"})
             return jsonify({"error": "Invalid ID token from Apple"}), 401
@@ -841,7 +842,7 @@ def apple_oauth_callback():
 
         session["username"] = username
         csrf_token = server._issue_csrf_token()
-        token = server.generate_token(username) if server.JWT_AVAILABLE else None
+        token = auth_crypto.generate_token(username) if auth_crypto.JWT_AVAILABLE else None
 
         server.log_audit_event(username, "oauth_login_success", {"provider": "apple"})
 

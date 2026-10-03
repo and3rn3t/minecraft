@@ -14,6 +14,7 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.auth_crypto as auth_crypto  # noqa: E402
 PERMISSIONS = api_module.PERMISSIONS
 ROLE_PERMISSIONS = api_module.ROLE_PERMISSIONS
 app = api_module.app
@@ -606,8 +607,8 @@ class TestCreateUser:
 
     @staticmethod
     def _mock_hashing(monkeypatch):
-        monkeypatch.setattr(api_module, "BCRYPT_AVAILABLE", True)
-        monkeypatch.setattr(api_module, "hash_password", lambda p: f"hashed_{p}")
+        monkeypatch.setattr(auth_crypto, "BCRYPT_AVAILABLE", True)
+        monkeypatch.setattr(auth_crypto, "hash_password", lambda p: f"hashed_{p}")
 
     def test_admin_can_create_a_user(self, client, admin_user, temp_users_file, monkeypatch):
         """The happy path: an admin adds an account with the default role"""

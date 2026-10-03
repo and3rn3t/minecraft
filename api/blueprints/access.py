@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_crypto, server
 
 bp = Blueprint("access", __name__)
 
@@ -268,7 +268,7 @@ def create_user():
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
 
-    if not server.BCRYPT_AVAILABLE:
+    if not auth_crypto.BCRYPT_AVAILABLE:
         return jsonify({"error": "Password hashing not available"}), 500
 
     if len(username) < 3 or len(username) > 32:
@@ -283,7 +283,7 @@ def create_user():
             400,
         )
 
-    hashed_password = server.hash_password(password)
+    hashed_password = auth_crypto.hash_password(password)
 
     with server._users_lock:
         if username in server.USERS:

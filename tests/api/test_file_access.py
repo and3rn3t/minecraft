@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+from api.config_redaction import redact_config_secrets  # noqa: E402
 
 ADMIN_KEYS_CONTENT = '{"the-real-admin-key": {"role": "admin"}}'
 
@@ -125,7 +126,7 @@ class TestRedactConfigSecrets:
     )
     def test_credential_values_are_masked(self, template):
         line = template.format(PLACEHOLDER)
-        assert api_module.redact_config_secrets(line) == (template.format("********"), True)
+        assert redact_config_secrets(line) == (template.format("********"), True)
 
     @pytest.mark.parametrize(
         "line",
@@ -140,7 +141,7 @@ class TestRedactConfigSecrets:
         ],
     )
     def test_everything_else_is_left_alone(self, line):
-        assert api_module.redact_config_secrets(line) == (line, False)
+        assert redact_config_secrets(line) == (line, False)
 
     @pytest.mark.parametrize(
         "template, expected",
@@ -160,7 +161,7 @@ class TestRedactConfigSecrets:
     def test_values_spanning_lines_are_withheld_entirely(self, template, expected):
         content = template.format(v=PLACEHOLDER)
 
-        result, redacted = api_module.redact_config_secrets(content)
+        result, redacted = redact_config_secrets(content)
 
         assert PLACEHOLDER not in result
         assert (result, redacted) == (expected, True)

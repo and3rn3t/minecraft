@@ -18,6 +18,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.auth_crypto as auth_crypto  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
     not api_module.SOCKETIO_AVAILABLE,
@@ -86,12 +87,12 @@ class TestConnect:
         self._refused(socket, {"api_key": key(permissions=["server.view"])}, "Permission denied: logs.view")
 
     def test_an_invalid_token_is_refused(self, socket):
-        with patch.object(api_module, "verify_token", return_value=None):
+        with patch.object(auth_crypto, "verify_token", return_value=None):
             self._refused(socket, {"token": "bad"}, "Invalid or expired token")
 
     def test_a_disabled_user_is_refused(self, socket, monkeypatch):
         monkeypatch.setitem(api_module.USERS, "gone", {"username": "gone", "role": "admin", "enabled": False})
-        with patch.object(api_module, "verify_token", return_value="gone"):
+        with patch.object(auth_crypto, "verify_token", return_value="gone"):
             self._refused(socket, {"token": "t"}, "Account disabled")
 
     def test_a_valid_key_gets_the_backlog_then_the_live_stream(self, socket, key):
@@ -105,7 +106,7 @@ class TestConnect:
 
     def test_a_signed_in_user_can_connect_with_their_token(self, socket, monkeypatch):
         monkeypatch.setitem(api_module.USERS, "alice", {"username": "alice", "role": "user", "enabled": True})
-        with patch.object(api_module, "verify_token", return_value="alice"):
+        with patch.object(auth_crypto, "verify_token", return_value="alice"):
             accepted = api_module.handle_connect({"token": "t"})
             assert accepted is True
         assert api_module._stream_keys[SID] == ("user", "alice")

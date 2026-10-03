@@ -203,3 +203,64 @@ class TestConfigFileValidate:
         data = json.loads(response.data)
         assert data.get("valid") is False
         assert len(data.get("errors", [])) > 0
+
+
+class TestInvalidYamlReporting:
+    """A YAML syntax error is reported with its line and column.
+
+    These go through api.config_redaction.describe_yaml_error. When that
+    function moved out of server.py, nothing caught the callers losing it,
+    because no test sent invalid YAML.
+    """
+
+    BAD_YAML = "services:\n  web:\n    image: nginx\n   ports: [80\n"
+
+    @pytest.fixture
+    def compose_file(self, tmp_path, monkeypatch):
+        yaml = pytest.importorskip("yaml")
+        compose = tmp_path / "docker-compose.yml"
+        compose.write_text("services: {}\n")
+        monkeypatch.setattr(api_module, "CONFIG_ALLOWED_PATHS", {"docker-compose.yml": compose})
+        with pytest.raises(yaml.YAMLError):
+            yaml.safe_load(self.BAD_YAML)  # the fixture's premise: this really is invalid
+        return compose
+
+    def test_describe_yaml_error_names_problem_line_and_column(self):
+        yaml = pytest.importorskip("yaml")
+        from api.config_redaction import describe_yaml_error
+
+        with pytest.raises(yaml.YAMLError) as caught:
+            yaml.safe_load(self.BAD_YAML)
+
+        message = describe_yaml_error(caught.value)
+        assert message.startswith("Invalid YAML: ")
+        assert "line " in message and "column " in message
+
+    def test_describe_yaml_error_without_a_position(self):
+        from api.config_redaction import describe_yaml_error
+
+        assert describe_yaml_error(Exception("anything")) == "Invalid YAML: could not be parsed"
+
+    def test_save_rejects_invalid_yaml_with_a_location(self, client, mock_api_keys, compose_file):
+        response = client.post(
+            "/api/config/files/docker-compose.yml",
+            headers={"X-API-Key": mock_api_keys},
+            json={"content": self.BAD_YAML},
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()["error"].startswith("Invalid YAML: ")
+        assert compose_file.read_text() == "services: {}\n"  # nothing was written
+
+    def test_validate_reports_invalid_yaml_with_a_line(self, client, mock_api_keys, compose_file):
+        response = client.post(
+            "/api/config/files/docker-compose.yml/validate",
+            headers={"X-API-Key": mock_api_keys},
+            json={"content": self.BAD_YAML},
+        )
+
+        assert response.status_code == 200
+        errors = response.get_json()["errors"]
+        assert len(errors) == 1
+        assert errors[0]["message"].startswith("Invalid YAML: ")
+        assert errors[0]["line"] > 0

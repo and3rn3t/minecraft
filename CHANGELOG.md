@@ -68,7 +68,22 @@ All notable changes to this project will be documented in this file.
   JSX codebase needs. ESLint's stricter defaults reported two unused `catch`
   bindings, now removed; Playwright specs get Node globals.
 
+- **`api/server.py` split, part 1** — config redaction (`api/config_redaction.py`),
+  file-browser path validation (`api/paths.py`) and the password/JWT/TOTP helpers
+  (`api/auth_crypto.py`) move out of the app module. Callers and test patch
+  targets use the new modules directly, with no re-exports left behind. The
+  values that tests patch (`PROJECT_ROOT`, `ALLOWED_FILE_PATHS`, `SECRET_KEY`)
+  stay on `api.server` and are read at call time. CodeQL totals are unchanged.
+  Adds tests for the invalid-YAML error responses, which had none.
+
 ### Fixed
+
+- **A missing auth library no longer disables an unrelated feature** — bcrypt and
+  PyJWT shared one `try/except`, so losing bcrypt also turned off JWTs and Apple
+  sign-in. pyotp and qrcode did the same, which would have blocked 2FA logins
+  when only qrcode (needed just for the setup QR image) was missing. Each is now
+  imported on its own, with `PYOTP_AVAILABLE` and `QRCODE_AVAILABLE` replacing
+  `TOTP_AVAILABLE`.
 
 - **Deaths, joins, leaves and advancements are recognised again on 26.x** —
   Minecraft 26.x logs every broadcast system message as

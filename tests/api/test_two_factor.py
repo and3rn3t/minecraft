@@ -16,6 +16,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.auth_crypto as auth_crypto  # noqa: E402
 
 app = api_module.app
 
@@ -44,9 +45,9 @@ def users_file(tmp_path, monkeypatch):
     monkeypatch.setattr(api_module, "USERS_FILE", path)
     monkeypatch.setattr(api_module, "USERS", {})
     # Hashing is not what is under test, and real bcrypt is slow
-    monkeypatch.setattr(api_module, "BCRYPT_AVAILABLE", True)
-    monkeypatch.setattr(api_module, "hash_password", lambda p: f"hashed_{p}")
-    monkeypatch.setattr(api_module, "verify_password", lambda p, h: h == f"hashed_{p}")
+    monkeypatch.setattr(auth_crypto, "BCRYPT_AVAILABLE", True)
+    monkeypatch.setattr(auth_crypto, "hash_password", lambda p: f"hashed_{p}")
+    monkeypatch.setattr(auth_crypto, "verify_password", lambda p, h: h == f"hashed_{p}")
     return path
 
 
@@ -174,6 +175,28 @@ class TestLoginWith2fa:
     def test_accounts_without_2fa_need_no_code(self, client, alice):
         response = self._login(client)
         assert response.status_code == 200
+
+
+class TestWithoutQrcode:
+    """qrcode only draws the setup image; losing it must not lock 2FA users out."""
+
+    def test_existing_2fa_user_can_still_log_in(self, logged_in, monkeypatch):
+        secret = _enable_2fa(logged_in)
+        monkeypatch.setattr(auth_crypto, "QRCODE_AVAILABLE", False)
+
+        response = logged_in.post(
+            "/api/auth/login", json={"username": "alice", "password": PASSWORD, "totp_token": pyotp.TOTP(secret).now()}
+        )
+
+        assert response.status_code == 200
+
+    def test_setup_is_refused_cleanly_because_it_needs_the_image(self, logged_in, monkeypatch):
+        monkeypatch.setattr(auth_crypto, "QRCODE_AVAILABLE", False)
+
+        response = _post(logged_in, "/api/auth/2fa/setup")
+
+        assert response.status_code == 500
+        assert response.get_json()["error"] == "2FA not available"
 
 
 class TestDisable:

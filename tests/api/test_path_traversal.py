@@ -30,6 +30,8 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.auth_crypto as auth_crypto  # noqa: E402
+from api.paths import is_path_allowed  # noqa: E402
 
 # Payloads that defeat a naive check. Encoded forms are included because a
 # check running before URL decoding sees different bytes than the filesystem.
@@ -184,7 +186,7 @@ class TestUpload:
                 assert landed, "a successful upload should have written inside data/"
                 for path in landed:
                     assert ".." not in path.name
-                    assert api_module.is_path_allowed(str(path))
+                    assert is_path_allowed(str(path))
             else:
                 assert response.status_code in (400, 403, 404)
         finally:
@@ -283,23 +285,23 @@ class TestTheAllowlistItself:
     """is_path_allowed is the single point the file browser depends on."""
 
     def test_paths_inside_an_allowed_root_are_allowed(self):
-        assert api_module.is_path_allowed(api_module.PROJECT_ROOT / "data" / "anything.txt")
+        assert is_path_allowed(api_module.PROJECT_ROOT / "data" / "anything.txt")
 
     @pytest.mark.parametrize(
         "outside",
         ["/etc/passwd", "/tmp", "/", "/usr/bin/python3"],
     )
     def test_paths_outside_every_root_are_refused(self, outside):
-        assert not api_module.is_path_allowed(PathLib(outside))
+        assert not is_path_allowed(PathLib(outside))
 
     def test_a_sibling_with_a_shared_prefix_is_refused(self):
         """data-evil/ must not pass because it starts with data/. The check
         appends a separator to each root for exactly this reason."""
-        assert not api_module.is_path_allowed(PROJECT_ROOT.parent / "data-evil" / "x")
+        assert not is_path_allowed(PROJECT_ROOT.parent / "data-evil" / "x")
 
     def test_the_project_root_itself_is_refused(self):
         """The allowlist is four subdirectories, not the whole checkout."""
-        assert not api_module.is_path_allowed(api_module.PROJECT_ROOT)
+        assert not is_path_allowed(api_module.PROJECT_ROOT)
 
 
 class TestAuditLogDoesNotStoreSecrets:
@@ -348,8 +350,8 @@ class TestAuditLogDoesNotStoreSecrets:
         monkeypatch.setattr(api_module, "AUDIT_LOG_FILE", audit_log)
         monkeypatch.setattr(api_module, "USERS", {"admin": {"role": "admin", "enabled": True}})
         monkeypatch.setattr(api_module, "USERS_FILE", tmp_path / "users.json")
-        monkeypatch.setattr(api_module, "BCRYPT_AVAILABLE", True)
-        monkeypatch.setattr(api_module, "hash_password", lambda value: f"hashed_{value}")
+        monkeypatch.setattr(auth_crypto, "BCRYPT_AVAILABLE", True)
+        monkeypatch.setattr(auth_crypto, "hash_password", lambda value: f"hashed_{value}")
 
         # Constructed for the same reason as the key above.
         password = "pw-" + uuid.uuid4().hex
