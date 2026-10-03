@@ -1,7 +1,7 @@
 <!-- markdownlint-disable-next-line MD041 -->
 ## Description
 
-<!-- TODO: Describe your changes in detail. What does this PR do and why? -->
+<!-- What does this PR do and why? -->
 
 ## Type of Change
 

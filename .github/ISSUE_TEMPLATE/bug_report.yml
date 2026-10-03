@@ -52,11 +52,10 @@ body:
     attributes:
       label: Environment
       description: Where did you encounter this bug?
-      # TODO: Replace these options with your project's supported environments.
       options:
-        - Production
-        - Staging
-        - Development (local)
+        - Raspberry Pi 5 (production)
+        - x86_64 Linux
+        - macOS (local development)
         - CI/CD
         - Other
     validations:

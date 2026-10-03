@@ -73,7 +73,7 @@ def restart_server():
 
 @bp.route("/api/server/command", methods=["POST"])
 @server.require_permission("server.command")
-@server.rate_limit(max_per_minute=30, per_endpoint=True)
+@server.auth_rate_limit("30/minute")
 def send_command():
     """Send a command to the server via RCON"""
     data = request.get_json()
@@ -89,19 +89,15 @@ def send_command():
         return jsonify({"error": "Command must be a string"}), 400
 
     # Validate and sanitize command to prevent command injection
-    if server.SECURITY_AVAILABLE:
-        is_valid, sanitized_command, error_msg = server.sanitize_minecraft_command(command)
-        if not is_valid:
-            server.log_audit_event(
-                server.get_username_from_request(),
-                "server.command.rejected",
-                {"original_command": server.sanitize_string(command[:100]), "reason": error_msg},
-            )
-            return jsonify({"error": "Invalid command format"}), 400
-        command = sanitized_command
-    else:
-        # Basic sanitization if security module not available
-        command = server.sanitize_string(command, max_length=256) if server.SECURITY_AVAILABLE else command[:256]
+    is_valid, sanitized_command, error_msg = server.sanitize_minecraft_command(command)
+    if not is_valid:
+        server.log_audit_event(
+            server.get_username_from_request(),
+            "server.command.rejected",
+            {"original_command": server.sanitize_string(command[:100]), "reason": error_msg},
+        )
+        return jsonify({"error": "Invalid command format"}), 400
+    command = sanitized_command
 
     username = server.get_username_from_request()
     server.log_audit_event(username, "server.command", {"command": server.sanitize_string(command[:100])})
@@ -110,12 +106,12 @@ def send_command():
 
     if code == 0:
         # Sanitize response before returning
-        safe_stdout = server.sanitize_string(stdout, max_length=5000) if server.SECURITY_AVAILABLE and stdout else stdout
+        safe_stdout = server.sanitize_string(stdout, max_length=5000) if stdout else stdout
         return jsonify({"success": True, "response": safe_stdout, "command": server.sanitize_string(command[:100])}), 200
     else:
         # Don't expose detailed error messages - generic error only
         error_msg = "Command execution failed"
-        if server.SECURITY_AVAILABLE and stderr:
+        if stderr:
             # Only log detailed error, don't expose to client
             safe_stderr = server.sanitize_string(stderr[:500])
             server.log_audit_event(username, "server.command.failed", {"error": safe_stderr[:100]})

@@ -43,6 +43,20 @@ All notable changes to this project will be documented in this file.
   `AUTO_UPLOAD`/`AGE_RECIPIENT` on the Pi, and an actual restore drill against
   a downloaded backup (see [`docs/LOCAL_TESTING.md`](docs/LOCAL_TESTING.md)).
 
+### Changed
+
+- **Security dependencies are now required at startup** — `flask-cors`,
+  `flask-limiter` and `api/security.py` used to be imported inside
+  `try/except ImportError` with silent no-op fallbacks, so a broken install
+  ran with no rate limiting or command sanitising and said nothing. A missing
+  one now stops the API from starting (`tests/api/test_required_imports.py`).
+  `POST /api/server/command` moved from the hand-rolled `rate_limit()` to
+  Flask-Limiter (30/minute per client IP), which is removed along with its
+  storage. Template TODOs in `.github/` and `CODE_OF_CONDUCT.md` are
+  resolved, `start-all.sh` uses `lib/common.sh`, and web dev dependencies
+  are updated within their ranges (Playwright stays pinned to match the
+  browser image).
+
 ### Fixed
 
 - **Deaths, joins, leaves and advancements are recognised again on 26.x** —
