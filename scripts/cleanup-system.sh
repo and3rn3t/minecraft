@@ -19,24 +19,33 @@ SPACE_FREED=0
 # 1. Clean Docker
 echo -e "${BLUE}[1/7] Cleaning Docker...${NC}"
 BEFORE=$(df -h / | awk 'NR==2 {print $4}')
-docker system prune -af --volumes --filter "until=168h" 2>/dev/null || true
-AFTER=$(df -h / | awk 'NR==2 {print $4}')
-echo -e "${GREEN}✓ Docker cleaned${NC}"
-
-# 2. Clean old backups (keep last 10)
-echo -e "\n${BLUE}[2/7] Cleaning old backups...${NC}"
-if [ -d "$PROJECT_DIR/backups" ]; then
-    BACKUP_COUNT=$(find "$PROJECT_DIR/backups" -name "*.tar.gz" -type f | wc -l)
-    if [ "$BACKUP_COUNT" -gt 10 ]; then
-        # Delete backups older than 30 days, but keep at least 10
-        find "$PROJECT_DIR/backups" -name "*.tar.gz" -type f -mtime +30 -delete
-        echo -e "${GREEN}✓ Old backups cleaned (kept last 10)${NC}"
-    else
-        echo -e "${YELLOW}⚠ Only $BACKUP_COUNT backups found, keeping all${NC}"
-    fi
-else
-    echo -e "${YELLOW}⚠ Backups directory not found${NC}"
+# Dangling images and week-old build cache are what a Pi that builds its own
+# image piles up. This is deliberately not `docker system prune -af --volumes`:
+# that removes every image no running container uses (a stopped server's image
+# would have to be rebuilt) and every unused volume, whatever put it there.
+DOCKER_OK=true
+if ! docker image prune -f > /dev/null 2>&1; then
+    DOCKER_OK=false
+    echo -e "${YELLOW}⚠ Could not prune Docker images${NC}"
 fi
+if ! docker builder prune -f --filter "until=168h" > /dev/null 2>&1; then
+    DOCKER_OK=false
+    echo -e "${YELLOW}⚠ Could not prune the Docker build cache${NC}"
+fi
+AFTER=$(df -h / | awk 'NR==2 {print $4}')
+if [ "$DOCKER_OK" = true ]; then
+    echo -e "${GREEN}✓ Docker cleaned (free space ${BEFORE} -> ${AFTER})${NC}"
+else
+    echo -e "${YELLOW}⚠ Docker cleaned with warnings (free space ${BEFORE} -> ${AFTER})${NC}"
+fi
+
+# 2. Backups are not touched here. scripts/backup-scheduler.sh runs
+# scripts/cleanup-backups.sh after every backup, which prunes by the retention
+# policy in config/backup-retention.conf. A blanket "older than 30 days" delete
+# ignored that policy, could leave fewer backups than it promised to keep, and
+# also took the safety backups made when a world is deleted.
+echo -e "\n${BLUE}[2/7] Backups...${NC}"
+echo -e "${YELLOW}⚠ Left alone: pruned by the retention policy (scripts/cleanup-backups.sh)${NC}"
 
 # 3. Clean old logs
 echo -e "\n${BLUE}[3/7] Cleaning old logs...${NC}"
@@ -56,11 +65,11 @@ sudo apt-get clean -qq
 sudo apt-get autoremove -y -qq
 echo -e "${GREEN}✓ Package cache cleaned${NC}"
 
-# 5. Clean temporary files
-echo -e "\n${BLUE}[5/7] Cleaning temporary files...${NC}"
-rm -rf /tmp/* 2>/dev/null || true
-rm -rf ~/.cache/* 2>/dev/null || true
-echo -e "${GREEN}✓ Temporary files cleaned${NC}"
+# 5. Clean tool caches. Not /tmp or the whole of ~/.cache: other programs keep
+# live files there (sockets, lock files, a running build's scratch space).
+echo -e "\n${BLUE}[5/7] Cleaning tool caches...${NC}"
+rm -rf "${HOME}/.cache/pip" 2>/dev/null || true
+echo -e "${GREEN}✓ pip cache cleaned${NC}"
 
 # 6. Clean Python cache
 echo -e "\n${BLUE}[6/7] Cleaning Python cache...${NC}"

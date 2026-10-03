@@ -122,6 +122,18 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`cleanup-system.sh` no longer deletes what it should not** — it deleted every
+  `*.tar.gz` backup older than 30 days as soon as there were more than 10 (its comment
+  said "keep at least 10", but nothing enforced it, so it could leave one), including
+  the `*.deleted.*` safety backups `world-manager.sh delete` writes and ignoring
+  `config/backup-retention.conf`; backups are now left to `cleanup-backups.sh`, which
+  `backup-scheduler.sh` already runs after every backup. It also ran `rm -rf /tmp/*`
+  (live sockets, lock files and other programs' scratch space) and `docker system
+  prune -af --volumes` (every unused image, so a stopped server's image had to be
+  rebuilt, and every unused volume). It now prunes only dangling images and week-old
+  build cache, and only the pip cache. New BATS suite
+  (`tests/unit/test-cleanup-system.sh`); its `rm` and `sudo` are stubbed so a
+  regression cannot touch the machine running the tests.
 - **`world-manager.sh`: per-world config actually applies, and nothing moves a
   world aside** — `create` wrote `CREATED=2026-10-03 15:26:46` unquoted and
   `apply_world_config` then `source`d the file, so the shell tried to run
