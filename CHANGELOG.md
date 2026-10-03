@@ -57,6 +57,11 @@ All notable changes to this project will be documented in this file.
   are updated within their ranges (Playwright stays pinned to match the
   browser image).
 
+- **eventlet removed** (O7) — Flask-SocketIO now runs in threading mode with
+  `simple-websocket`, so the API no longer monkey-patches the standard library
+  at startup. Verified against a live server over both the polling and
+  WebSocket transports. `eventlet` is dropped from `api/requirements.txt`.
+
 ### Fixed
 
 - **Deaths, joins, leaves and advancements are recognised again on 26.x** —

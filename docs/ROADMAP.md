@@ -202,14 +202,14 @@ scheduler content. Enable it as the first step of whichever of those ships
 first, after reviewing what schedules are already configured, rather than
 switching on a timer that fires every minute with unknown contents.
 
-### O7. The API's websocket stack — Green
+### O7. The API's websocket stack — Green, done
 
-The API serves Socket.IO with `async_mode="eventlet"`, and eventlet is
-deprecated upstream and discouraged for new use. Move Flask-SocketIO to its
-threading mode (with `simple-websocket`) and keep the single-process
-deployment; the in-memory rate limiter already assumes one process. Do it
-when `api/server.py`'s startup block is next touched, and run
-`test_websocket.py` and the Playwright suite against it.
+The API served Socket.IO with `async_mode="eventlet"`, which is deprecated
+upstream. It now runs Flask-SocketIO in threading mode with `simple-websocket`
+and no monkey-patching, still as a single process (the in-memory rate limiter
+assumes one). `socketio.run` passes `allow_unsafe_werkzeug=True`, which is
+deliberate for a single process behind nginx; moving to a production WSGI
+server would need the rate limiter's storage moved out of memory first.
 
 ---
 
