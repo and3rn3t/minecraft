@@ -43,7 +43,7 @@ ahead of the dates written down:
 | Monitoring, TPS, metrics, Prometheus | Done | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
 | Analytics, trends, anomalies, predictions | Done | [ANALYTICS.md](ANALYTICS.md) |
 | Version checking and one-command updates | Done | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) |
-| Paper / Spigot / Fabric server types | Done | [MINECRAFT_SERVER_SETUP.md](MINECRAFT_SERVER_SETUP.md) |
+| Paper / Spigot / Fabric server types | Done | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md#server-type-support) |
 | Plugin and mod management | Done | [PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md), [MOD_SUPPORT.md](MOD_SUPPORT.md) |
 | Multi-world management | Done | [MULTI_WORLD.md](MULTI_WORLD.md) |
 | REST API, OpenAPI spec | Done | [API.md](API.md) |

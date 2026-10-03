@@ -16,10 +16,9 @@ Every guide in this project, grouped by what you are trying to do.
 
 | Guide | What it covers |
 | --- | --- |
-| [INSTALL.md](INSTALL.md) | Full installation on a Raspberry Pi 5, start to finish |
+| [INSTALL.md](INSTALL.md) | Full installation on a Raspberry Pi 5, start to finish, including starting at boot |
 | [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | One-page command cheat sheet |
 | [CONFIGURATION_EXAMPLES.md](CONFIGURATION_EXAMPLES.md) | Worked examples for every config file |
-| [MINECRAFT_SERVER_SETUP.md](MINECRAFT_SERVER_SETUP.md) | Getting the Minecraft server itself running with auto-start |
 
 New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 
@@ -29,11 +28,9 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 
 | Guide | What it covers |
 | --- | --- |
-| [RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md) | Deploying all components (server, API, web) together |
-| [DOCKER_BOOT_SETUP.md](DOCKER_BOOT_SETUP.md) | Pulling and running Docker images automatically at boot |
-| [DOCKER_DEPLOYMENT_FLOW.md](DOCKER_DEPLOYMENT_FLOW.md) | How an image gets from CI to the Pi |
-| [AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md) | Wiring up automatic deployment |
-| [UPDATE_DOCKER_IMAGE.md](UPDATE_DOCKER_IMAGE.md) | Checking for and pulling a newer image |
+| [RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md) | Installing the API, web panel and every systemd unit, so all of it starts at boot |
+| [AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md) | How a push to `main` reaches the Pi: the deploy agent, CI gating and rollback |
+| [UPDATE_DOCKER_IMAGE.md](UPDATE_DOCKER_IMAGE.md) | How the server image is updated, how to see which one is running, and switching to a registry image |
 | [UPDATE_CODEBASE.md](UPDATE_CODEBASE.md) | Updating the repository checkout on the Pi |
 | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) | Minecraft version updates and compatibility checks |
 | [MULTI_ARCHITECTURE.md](MULTI_ARCHITECTURE.md) | Building images for arm64 and amd64 |
@@ -90,7 +87,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | --- | --- |
 | [RASPBERRY_PI_COMPATIBILITY.md](RASPBERRY_PI_COMPATIBILITY.md) | What works on which Pi, and how to verify |
 | [RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md) | Pi-specific tuning (memory, JVM, thermals) |
-| [SYSTEM_OPTIMIZATIONS.md](SYSTEM_OPTIMIZATIONS.md) | OS and filesystem tuning |
+| [SYSTEM_OPTIMIZATIONS.md](SYSTEM_OPTIMIZATIONS.md) | Filesystem, kernel, swap and log tuning, and what `optimize-system.sh` applies |
 | [DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md) | Image size, build caching, layer strategy |
 | [PERFORMANCE_BENCHMARKING.md](PERFORMANCE_BENCHMARKING.md) | Measuring and comparing performance |
 

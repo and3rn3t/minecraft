@@ -1,18 +1,20 @@
 # System and Filesystem Optimizations
 
-This guide covers comprehensive system and filesystem optimizations for the Minecraft server on Raspberry Pi 5.
+Host-level tuning for the Raspberry Pi 5 that runs the server: filesystem options,
+the kernel, swap and logs. Pi-specific tuning (JVM flags, Docker limits, power,
+network) is in [RASPBERRY_PI_OPTIMIZATIONS.md](RASPBERRY_PI_OPTIMIZATIONS.md), and
+image size and build caching in [DOCKER_OPTIMIZATION.md](DOCKER_OPTIMIZATION.md).
+
+Most of this is applied for you by `scripts/optimize-system.sh`; see
+[What the Script Applies](#what-the-script-applies) for what it does and what stays manual.
 
 ## Table of Contents
 
 1. [Filesystem Optimizations](#filesystem-optimizations)
 2. [System-Level Optimizations](#system-level-optimizations)
-3. [Code Optimizations](#code-optimizations)
-4. [Docker Optimizations](#docker-optimizations)
-5. [Log Management](#log-management)
-6. [Disk Space Management](#disk-space-management)
-7. [Memory Optimizations](#memory-optimizations)
-8. [Network Optimizations](#network-optimizations)
-9. [Automated Cleanup](#automated-cleanup)
+3. [Log Management](#log-management)
+4. [Freeing Disk Space](#freeing-disk-space)
+5. [What the Script Applies](#what-the-script-applies)
 
 ## Filesystem Optimizations
 
@@ -156,110 +158,6 @@ sudo swapoff -a
 sudo systemctl disable dphys-swapfile.service
 ```
 
-## Code Optimizations
-
-### API Response Caching
-
-Add caching to reduce database/disk reads:
-
-```python
-# In api/server.py, add caching decorator
-from functools import lru_cache
-import time
-
-# Cache status endpoint for 5 seconds
-@lru_cache(maxsize=128)
-def get_cached_status():
-    # Expensive operation
-    return get_server_status()
-
-# Clear cache periodically
-def clear_cache():
-    get_cached_status.cache_clear()
-```
-
-### Lazy Loading
-
-Load heavy modules only when needed:
-
-```python
-# Instead of importing at top
-def get_heavy_module():
-    if not hasattr(get_heavy_module, '_module'):
-        import heavy_module
-        get_heavy_module._module = heavy_module
-    return get_heavy_module._module
-```
-
-### Connection Pooling
-
-Reuse database/API connections:
-
-```python
-# Use connection pooling for external APIs
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
-session = requests.Session()
-adapter = HTTPAdapter(
-    pool_connections=10,
-    pool_maxsize=20,
-    max_retries=Retry(total=3, backoff_factor=0.3)
-)
-session.mount('http://', adapter)
-session.mount('https://', adapter)
-```
-
-## Docker Optimizations
-
-### Build Cache Optimization
-
-```dockerfile
-# Order Dockerfile by change frequency
-# 1. Base image (rarely changes)
-FROM arm64v8/openjdk:21-jre-slim
-
-# 2. System packages (rarely changes)
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
-
-# 3. Configuration (changes occasionally)
-COPY server.properties /minecraft/server/
-
-# 4. Application code (changes frequently)
-COPY start.sh /minecraft/
-```
-
-### Layer Optimization
-
-```dockerfile
-# Combine RUN commands to reduce layers
-RUN apt-get update && \
-    apt-get install -y wget curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-```
-
-### Resource Limits
-
-```yaml
-# docker-compose.yml
-services:
-  minecraft:
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '3.0'
-        reservations:
-          memory: 1G
-          cpus: '2.0'
-    # Use tmpfs for temporary files
-    tmpfs:
-      - /tmp:size=512M,noatime
-      - /minecraft/server/logs:size=256M,noatime
-```
-
 ## Log Management
 
 ### Log Rotation
@@ -298,6 +196,9 @@ sudo nano /etc/logrotate.d/minecraft
 
 ### Docker Log Rotation
 
+`docker-compose.yml` already limits the container log to three files of 10 MB. This
+is the setting, if you need to change it:
+
 ```yaml
 # docker-compose.yml
 services:
@@ -326,168 +227,38 @@ MaxFileSec=1day
 sudo systemctl restart systemd-journald
 ```
 
-## Disk Space Management
+## Freeing Disk Space
 
-### Automated Cleanup Script
+Backups are pruned by retention policy, not by this guide: see
+[BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) and `scripts/cleanup-backups.sh`.
+Game and application logs rotate as above, and the log tools are in
+[LOG_MANAGEMENT.md](LOG_MANAGEMENT.md).
 
-```bash
-#!/bin/bash
-# scripts/cleanup-system.sh
+`scripts/cleanup-system.sh` is a manual clean-up for Docker leftovers, old logs and
+package and tool caches, and it reports disk usage before it finishes. Run it by hand
+when the disk is filling up. Read it first: it is a plain shell script, and nothing
+schedules it.
 
-# Clean Docker
-docker system prune -af --volumes --filter "until=168h"  # 7 days
+## What the Script Applies
 
-# Clean old backups (keep last 10)
-find ~/minecraft-server/backups -name "*.tar.gz" -type f -mtime +30 -delete
+`scripts/optimize-system.sh` makes nine changes, and skips any that are already in place:
 
-# Clean old logs
-find ~/minecraft-server/data/logs -name "*.log.gz" -type f -mtime +14 -delete
-find ~/minecraft-server/logs -name "*.log" -type f -mtime +30 -delete
+1. `noatime,nodiratime,commit=60` on the root filesystem (`/etc/fstab`)
+2. Enables the `fstrim.timer`
+3. An I/O scheduler rule (`/etc/udev/rules.d/60-ioscheduler.rules`)
+4. Kernel parameters (sysctl)
+5. The `performance` CPU governor
+6. Swap: shrunk on a 4GB Pi, and on an 8GB Pi it asks whether to disable it
+7. Log rotation
+8. systemd journal size limits
+9. File descriptor limits of 65535 in `/etc/security/limits.conf`
 
-# Clean package cache
-sudo apt-get clean
-sudo apt-get autoremove -y
+Not applied by the script, so do it by hand if you want it: tmpfs for temporary files.
+The container's own log is already limited by `docker-compose.yml`.
 
-# Clean temporary files
-rm -rf /tmp/*
-rm -rf ~/.cache/*
-
-# Report disk usage
-df -h
-du -sh ~/minecraft-server/*
-```
-
-### Disk Space Monitoring
-
-```bash
-# Add to crontab for daily check
-# crontab -e
-0 2 * * * /home/pi/minecraft-server/scripts/check-disk-space.sh
-```
-
-## Memory Optimizations
-
-### Python Memory Management
-
-```python
-# In api/server.py
-import gc
-
-# Force garbage collection periodically
-def periodic_gc():
-    gc.collect()
-
-# Use generators for large datasets
-def get_large_dataset():
-    for item in large_list:
-        yield process(item)
-```
-
-### Node.js Memory Limits
-
-```bash
-# For web build process
-export NODE_OPTIONS="--max-old-space-size=512"
-npm run build
-```
-
-## Network Optimizations
-
-### TCP Tuning
-
-Already covered in sysctl.conf above.
-
-### Connection Limits
-
-```bash
-# Increase file descriptor limits
-sudo nano /etc/security/limits.conf
-
-# Add:
-* soft nofile 65535
-* hard nofile 65535
-pi soft nofile 65535
-pi hard nofile 65535
-```
-
-## Automated Cleanup
-
-### Systemd Timer for Cleanup
-
-Create `/etc/systemd/system/minecraft-cleanup.service`:
-
-```ini
-[Unit]
-Description=Minecraft Server Cleanup
-After=network-online.target
-
-[Service]
-Type=oneshot
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/minecraft-server
-ExecStart=/home/pi/minecraft-server/scripts/cleanup-system.sh
-```
-
-Create `/etc/systemd/system/minecraft-cleanup.timer`:
-
-```ini
-[Unit]
-Description=Daily Minecraft Cleanup
-Requires=minecraft-cleanup.service
-
-[Timer]
-OnCalendar=daily
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable minecraft-cleanup.timer
-sudo systemctl start minecraft-cleanup.timer
-```
-
-## Implementation Script
-
-See `scripts/optimize-system.sh` for automated implementation.
-
-## Quick Reference
-
-### Essential Optimizations
-
-1. **Filesystem**: Add `noatime,nodiratime` to fstab
-2. **tmpfs**: Use RAM for temporary files
-3. **TRIM**: Enable fstrim.timer
-4. **sysctl**: Optimize kernel parameters
-5. **CPU Governor**: Set to performance
-6. **Swap**: Reduce or disable
-7. **Log Rotation**: Configure logrotate
-8. **Docker**: Set resource limits and log rotation
-9. **Cleanup**: Automated daily cleanup
-
-### Performance Targets
-
-- **Disk I/O**: <50% utilization
-- **Memory**: <90% usage
-- **CPU**: <80% average
-- **Disk Space**: >20% free
-- **Log Files**: <1GB total
-
-## Monitoring
-
-Use the monitoring script to track optimizations:
-
-```bash
-./scripts/monitor-rpi5.sh
-```
+To watch the effect, use `./scripts/monitor-rpi5.sh`.
 
 ## Additional Resources
 
 - [Raspberry Pi 5 Performance Tuning](https://www.raspberrypi.com/documentation/computers/configuration.html)
 - [Linux Performance Tuning](https://www.kernel.org/doc/Documentation/sysctl/)
-- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
