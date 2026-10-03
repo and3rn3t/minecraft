@@ -13,13 +13,13 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
-from api import auth_crypto, server
+from api import auth_crypto, auth_guard, rbac, server
 
 bp = Blueprint("access", __name__)
 
 
 @bp.route("/api/keys", methods=["GET"])
-@server.require_permission("api_keys.view")
+@auth_guard.require_permission("api_keys.view")
 def list_api_keys():
     """List all API keys (without showing full key values)"""
     keys_list = []
@@ -31,27 +31,27 @@ def list_api_keys():
                 "description": info.get("description", ""),
                 "enabled": info.get("enabled", True),
                 "created": info.get("created", ""),
-                "role": info.get("role", server.DEFAULT_API_KEY_ROLE),
-                "permissions": server.get_api_key_permissions(info),
+                "role": info.get("role", rbac.DEFAULT_API_KEY_ROLE),
+                "permissions": rbac.get_api_key_permissions(info),
             }
         )
     return jsonify({"success": True, "keys": keys_list}), 200
 
 
 @bp.route("/api/keys", methods=["POST"])
-@server.require_permission("api_keys.manage")
+@auth_guard.require_permission("api_keys.manage")
 def create_api_key():
     """Create a new API key"""
     data = request.get_json() or {}
     name = data.get("name")
     description = data.get("description", "")
-    role = data.get("role", server.DEFAULT_API_KEY_ROLE)
+    role = data.get("role", rbac.DEFAULT_API_KEY_ROLE)
     permissions = data.get("permissions")
 
     if not name:
         return jsonify({"error": "Key name is required"}), 400
 
-    scope_error = server.validate_api_key_scope(role, permissions)
+    scope_error = rbac.validate_api_key_scope(role, permissions)
     if scope_error:
         return jsonify({"error": scope_error}), 400
 
@@ -75,7 +75,7 @@ def create_api_key():
         return jsonify({"error": "Failed to save API key"}), 500
 
     server.log_audit_event(
-        server.get_username_from_request(),
+        auth_guard.get_username_from_request(),
         "api_keys.create",
         {"name": name, "role": role, "permissions": permissions},
     )
@@ -89,7 +89,7 @@ def create_api_key():
                 "name": name,
                 "description": description,
                 "role": role,
-                "permissions": server.get_api_key_permissions(entry),
+                "permissions": rbac.get_api_key_permissions(entry),
                 "message": "API key created. Save this key securely - it will not be shown again.",
             }
         ),
@@ -121,7 +121,7 @@ def _find_api_key(key_id):
 
 
 @bp.route("/api/keys/<key_id>", methods=["PUT"])
-@server.require_permission("api_keys.manage")
+@auth_guard.require_permission("api_keys.manage")
 def update_api_key_scope(key_id):
     """Narrow or widen what an API key may do."""
     try:
@@ -134,10 +134,10 @@ def update_api_key_scope(key_id):
             return jsonify({"error": "role or permissions required"}), 400
 
         entry = server.API_KEYS[key]
-        role = data.get("role", entry.get("role", server.DEFAULT_API_KEY_ROLE))
+        role = data.get("role", entry.get("role", rbac.DEFAULT_API_KEY_ROLE))
         permissions = data["permissions"] if "permissions" in data else entry.get("permissions")
 
-        scope_error = server.validate_api_key_scope(role, permissions)
+        scope_error = rbac.validate_api_key_scope(role, permissions)
         if scope_error:
             return jsonify({"error": scope_error}), 400
 
@@ -157,7 +157,7 @@ def update_api_key_scope(key_id):
             return jsonify({"error": "Failed to save changes"}), 500
 
         server.log_audit_event(
-            server.get_username_from_request(),
+            auth_guard.get_username_from_request(),
             "api_keys.scope",
             {"name": entry.get("name", "Unknown"), "role": role, "permissions": permissions},
         )
@@ -168,7 +168,7 @@ def update_api_key_scope(key_id):
                     "success": True,
                     "message": "API key scope updated",
                     "role": role,
-                    "permissions": server.get_api_key_permissions(entry),
+                    "permissions": rbac.get_api_key_permissions(entry),
                 }
             ),
             200,
@@ -181,7 +181,7 @@ def update_api_key_scope(key_id):
 
 
 @bp.route("/api/keys/<key_id>", methods=["DELETE"])
-@server.require_permission("api_keys.manage")
+@auth_guard.require_permission("api_keys.manage")
 def delete_api_key(key_id):
     """Delete an API key"""
     key_to_delete = _find_api_key(key_id)
@@ -200,7 +200,7 @@ def delete_api_key(key_id):
 
 
 @bp.route("/api/keys/<key_id>/enable", methods=["PUT"])
-@server.require_permission("api_keys.manage")
+@auth_guard.require_permission("api_keys.manage")
 def enable_api_key(key_id):
     """Enable an API key"""
     key_to_enable = _find_api_key(key_id)
@@ -219,7 +219,7 @@ def enable_api_key(key_id):
 
 
 @bp.route("/api/keys/<key_id>/disable", methods=["PUT"])
-@server.require_permission("api_keys.manage")
+@auth_guard.require_permission("api_keys.manage")
 def disable_api_key(key_id):
     """Disable an API key"""
     key_to_disable = _find_api_key(key_id)
@@ -238,7 +238,7 @@ def disable_api_key(key_id):
 
 
 @bp.route("/api/users", methods=["GET"])
-@server.require_permission("users.view")
+@auth_guard.require_permission("users.view")
 def list_users():
     """List all users (without sensitive information)"""
     users_list = []
@@ -256,7 +256,7 @@ def list_users():
 
 
 @bp.route("/api/users", methods=["POST"])
-@server.require_permission("users.manage")
+@auth_guard.require_permission("users.manage")
 def create_user():
     """Create a user. This is how accounts are added once registration closes."""
     data = request.get_json() or {}
@@ -277,9 +277,9 @@ def create_user():
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    if role not in server.ROLE_PERMISSIONS:
+    if role not in rbac.ROLE_PERMISSIONS:
         return (
-            jsonify({"error": f"Invalid role. Valid roles: {', '.join(server.ROLE_PERMISSIONS.keys())}"}),
+            jsonify({"error": f"Invalid role. Valid roles: {', '.join(rbac.ROLE_PERMISSIONS.keys())}"}),
             400,
         )
 
@@ -302,7 +302,7 @@ def create_user():
             del server.USERS[username]
             return jsonify({"error": "Failed to save user"}), 500
 
-    server.log_audit_event(server.get_username_from_request(), "users.create", {"username": username, "role": role})
+    server.log_audit_event(auth_guard.get_username_from_request(), "users.create", {"username": username, "role": role})
 
     return (
         jsonify(
@@ -332,7 +332,7 @@ def _is_last_enabled_admin(username):
 
 
 @bp.route("/api/users/<username>/role", methods=["PUT"])
-@server.require_permission("users.manage")
+@auth_guard.require_permission("users.manage")
 def update_user_role(username):
     """Update a user's role"""
     data = request.get_json() or {}
@@ -342,9 +342,9 @@ def update_user_role(username):
         return jsonify({"error": "Role is required"}), 400
 
     # Validate role
-    if new_role not in server.ROLE_PERMISSIONS:
+    if new_role not in rbac.ROLE_PERMISSIONS:
         return (
-            jsonify({"error": f"Invalid role. Valid roles: {', '.join(server.ROLE_PERMISSIONS.keys())}"}),
+            jsonify({"error": f"Invalid role. Valid roles: {', '.join(rbac.ROLE_PERMISSIONS.keys())}"}),
             400,
         )
 
@@ -379,7 +379,7 @@ def update_user_role(username):
 
 
 @bp.route("/api/users/<username>", methods=["DELETE"])
-@server.require_permission("users.manage")
+@auth_guard.require_permission("users.manage")
 def delete_user(username):
     """Delete a user"""
     # Prevent users from deleting themselves
@@ -409,7 +409,7 @@ def delete_user(username):
 
 
 @bp.route("/api/users/<username>/enable", methods=["PUT"])
-@server.require_permission("users.manage")
+@auth_guard.require_permission("users.manage")
 def enable_user(username):
     """Enable a user account"""
     if username not in server.USERS:
@@ -426,7 +426,7 @@ def enable_user(username):
 
 
 @bp.route("/api/users/<username>/disable", methods=["PUT"])
-@server.require_permission("users.manage")
+@auth_guard.require_permission("users.manage")
 def disable_user(username):
     """Disable a user account"""
     with server._users_lock:
@@ -451,14 +451,14 @@ def disable_user(username):
 
 
 @bp.route("/api/permissions", methods=["GET"])
-@server.require_auth
+@auth_guard.require_auth
 def get_permissions():
     """Get current user's permissions"""
     username = getattr(request, "user", None)
     if not username:
         return jsonify({"error": "Authentication required"}), 401
 
-    user_permissions = server.get_user_permissions(username)
+    user_permissions = auth_guard.get_user_permissions(username)
     user_role = server.USERS.get(username, {}).get("role", "user")
 
     return (
@@ -467,8 +467,8 @@ def get_permissions():
                 "success": True,
                 "permissions": user_permissions,
                 "role": user_role,
-                "all_permissions": server.PERMISSIONS,
-                "role_permissions": server.ROLE_PERMISSIONS,
+                "all_permissions": rbac.PERMISSIONS,
+                "role_permissions": rbac.ROLE_PERMISSIONS,
             }
         ),
         200,
@@ -476,11 +476,11 @@ def get_permissions():
 
 
 @bp.route("/api/roles", methods=["GET"])
-@server.require_permission("users.view")
+@auth_guard.require_permission("users.view")
 def list_roles():
     """List all available roles and their permissions"""
     roles_info = {}
-    for role, permissions in server.ROLE_PERMISSIONS.items():
+    for role, permissions in rbac.ROLE_PERMISSIONS.items():
         roles_info[role] = {
             "permissions": permissions,
             "permission_count": len(permissions),

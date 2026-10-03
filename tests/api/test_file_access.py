@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.rbac as rbac  # noqa: E402
 from api.config_redaction import redact_config_secrets  # noqa: E402
 
 ADMIN_KEYS_CONTENT = '{"the-real-admin-key": {"role": "admin"}}'
@@ -84,7 +85,7 @@ class TestFileBrowserIsAdminOnly:
         assert response.status_code == 200
 
     def test_no_role_but_admin_holds_files_view(self):
-        holders = [role for role, perms in api_module.ROLE_PERMISSIONS.items() if "files.view" in perms]
+        holders = [role for role, perms in rbac.ROLE_PERMISSIONS.items() if "files.view" in perms]
         assert holders == ["admin"]
 
 

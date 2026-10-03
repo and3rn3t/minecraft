@@ -9,13 +9,13 @@ get_ddns_config (api.blueprints.ddns).
 
 from flask import Blueprint, jsonify, request
 
-from api import config_redaction, server
+from api import auth_guard, config_redaction, server
 
 bp = Blueprint("config_files", __name__)
 
 
 @bp.route("/api/config/files", methods=["GET"])
-@server.require_permission("config.view")
+@auth_guard.require_permission("config.view")
 def list_config_files():
     """List available configuration files"""
     files = []
@@ -34,7 +34,7 @@ def list_config_files():
 
 
 @bp.route("/api/config/files/<path:filename>", methods=["GET"])
-@server.require_permission("config.view")
+@auth_guard.require_permission("config.view")
 def get_config_file(filename):
     """Get configuration file content"""
     if filename not in server.CONFIG_ALLOWED_PATHS:
@@ -64,7 +64,7 @@ def get_config_file(filename):
     # Only config.edit (admin) sees credentials: they are the ones who can
     # save, so a masked value can never be written back over a real one.
     redacted = False
-    if not server.has_permission(request.user, "config.edit"):
+    if not auth_guard.has_permission(request.user, "config.edit"):
         content, redacted = config_redaction.redact_config_secrets(content)
     return jsonify(
         {
@@ -78,7 +78,7 @@ def get_config_file(filename):
 
 
 @bp.route("/api/config/files/<path:filename>", methods=["POST"])
-@server.require_permission("config.edit")
+@auth_guard.require_permission("config.edit")
 def save_config_file(filename):
     """Save configuration file with automatic backup"""
     if filename not in server.CONFIG_ALLOWED_PATHS:
@@ -182,7 +182,7 @@ def save_config_file(filename):
 
 
 @bp.route("/api/config/files/<path:filename>/validate", methods=["POST"])
-@server.require_permission("config.edit")
+@auth_guard.require_permission("config.edit")
 def validate_config_file(filename):
     """Validate configuration file content"""
     if filename not in server.CONFIG_ALLOWED_PATHS:

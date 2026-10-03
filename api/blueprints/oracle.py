@@ -15,13 +15,13 @@ would silently patch a reference nothing here still uses.
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("oracle", __name__)
 
 
 @bp.route("/api/bedtime", methods=["GET"])
-@server.require_permission("server.view")
+@auth_guard.require_permission("server.view")
 def get_bedtime_status():
     """Current bedtime status: when it is, how long is left, whether it holds."""
     if not server.BEDTIME_AVAILABLE:
@@ -42,7 +42,7 @@ def _bedtime_control(operation):
     ok, message = operation(server.bedtime_mode.get_bedtime())
 
     server.log_audit_event(
-        server.get_username_from_request(), "bedtime.control", {"result": server.sanitize_string(message[:100])}
+        auth_guard.get_username_from_request(), "bedtime.control", {"result": server.sanitize_string(message[:100])}
     )
     if not ok:
         return jsonify({"success": False, "error": message}), 409
@@ -50,28 +50,28 @@ def _bedtime_control(operation):
 
 
 @bp.route("/api/bedtime/extend", methods=["POST"])
-@server.require_permission("server.control")
+@auth_guard.require_permission("server.control")
 def extend_bedtime():
     """Grant "five more minutes", within the configured limit."""
     return _bedtime_control(lambda bed: bed.extend())
 
 
 @bp.route("/api/bedtime/skip", methods=["POST"])
-@server.require_permission("server.control")
+@auth_guard.require_permission("server.control")
 def skip_bedtime():
     """Cancel bedtime for tonight only."""
     return _bedtime_control(lambda bed: bed.skip_tonight())
 
 
 @bp.route("/api/bedtime/now", methods=["POST"])
-@server.require_permission("server.control")
+@auth_guard.require_permission("server.control")
 def start_bedtime_now():
     """Bring bedtime forward to right now."""
     return _bedtime_control(lambda bed: bed.start_now())
 
 
 @bp.route("/api/oracle", methods=["GET"])
-@server.require_permission("oracle.view")
+@auth_guard.require_permission("oracle.view")
 def get_oracle_status():
     """Whether the Oracle is on, its settings, and whether it has an API key."""
     if not server.ORACLE_AVAILABLE:
@@ -81,7 +81,7 @@ def get_oracle_status():
 
 
 @bp.route("/api/oracle/exchanges", methods=["GET"])
-@server.require_permission("oracle.view")
+@auth_guard.require_permission("oracle.view")
 def get_oracle_exchanges():
     """Recent chat messages the Oracle has triaged, newest first."""
     if not server.ORACLE_AVAILABLE:
@@ -96,7 +96,7 @@ def get_oracle_exchanges():
 
 
 @bp.route("/api/oracle/quests", methods=["GET"])
-@server.require_permission("oracle.view")
+@auth_guard.require_permission("oracle.view")
 def get_oracle_quests():
     """Recently generated quests, newest first."""
     if not server.ORACLE_AVAILABLE:
@@ -118,27 +118,27 @@ def _oracle_set_enabled(enabled):
     orc.set_enabled(enabled)
 
     server.log_audit_event(
-        server.get_username_from_request(), "oracle.enabled" if enabled else "oracle.disabled", {}
+        auth_guard.get_username_from_request(), "oracle.enabled" if enabled else "oracle.disabled", {}
     )
     return jsonify({"success": True, "status": orc.status()})
 
 
 @bp.route("/api/oracle/enable", methods=["PUT"])
-@server.require_permission("oracle.manage")
+@auth_guard.require_permission("oracle.manage")
 def enable_oracle():
     """Turn the Oracle on."""
     return _oracle_set_enabled(True)
 
 
 @bp.route("/api/oracle/disable", methods=["PUT"])
-@server.require_permission("oracle.manage")
+@auth_guard.require_permission("oracle.manage")
 def disable_oracle():
     """Turn the Oracle off -- the kill switch."""
     return _oracle_set_enabled(False)
 
 
 @bp.route("/api/oracle/settings", methods=["PUT"])
-@server.require_permission("oracle.manage")
+@auth_guard.require_permission("oracle.manage")
 def update_oracle_settings():
     """Edit the allowlist and/or the per-player rate limit."""
     if not server.ORACLE_AVAILABLE:
@@ -169,7 +169,7 @@ def update_oracle_settings():
     orc.update_settings(allowlist=allowlist, rate_limit_per_minute=rate_limit_per_minute)
 
     server.log_audit_event(
-        server.get_username_from_request(),
+        auth_guard.get_username_from_request(),
         "oracle.settings",
         {"allowlist": allowlist, "rate_limit_per_minute": rate_limit_per_minute},
     )

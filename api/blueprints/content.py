@@ -10,13 +10,13 @@ import tempfile
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("content", __name__)
 
 
 @bp.route("/api/worlds", methods=["GET"])
-@server.require_permission("worlds.view")
+@auth_guard.require_permission("worlds.view")
 def list_worlds():
     """List all worlds"""
     stdout, _, _ = server.run_script("world-manager.sh", "list-json")
@@ -30,7 +30,7 @@ def list_worlds():
 
 
 @bp.route("/api/plugins", methods=["GET"])
-@server.require_permission("plugins.view")
+@auth_guard.require_permission("plugins.view")
 def list_plugins():
     """List installed plugins"""
     stdout, _, _ = server.run_script("plugin-manager.sh", "list-json")
@@ -50,7 +50,7 @@ DATAPACK_NAME_RE = re.compile(r"^[a-zA-Z0-9_]+$")
 
 
 @bp.route("/api/datapacks", methods=["GET"])
-@server.require_permission("datapacks.view")
+@auth_guard.require_permission("datapacks.view")
 def list_datapacks():
     """List datapacks tracked under config/datapacks/, with enabled state for the current world"""
     stdout, _, _ = server.run_script("datapack-manager.sh", "list-json")
@@ -64,7 +64,7 @@ def list_datapacks():
 
 
 @bp.route("/api/datapacks/install", methods=["POST"])
-@server.require_permission("datapacks.manage")
+@auth_guard.require_permission("datapacks.manage")
 def install_datapack():
     """Install a datapack from a URL or an uploaded zip, then deploy and reload it"""
     name = request.form.get("name", "").strip()
@@ -119,7 +119,7 @@ def install_datapack():
 
 
 @bp.route("/api/datapacks/<name>/enable", methods=["PUT"])
-@server.require_permission("datapacks.manage")
+@auth_guard.require_permission("datapacks.manage")
 def enable_datapack(name):
     """Deploy a tracked datapack into the current world and reload"""
     if not DATAPACK_NAME_RE.match(name):
@@ -131,7 +131,7 @@ def enable_datapack(name):
 
 
 @bp.route("/api/datapacks/<name>/disable", methods=["PUT"])
-@server.require_permission("datapacks.manage")
+@auth_guard.require_permission("datapacks.manage")
 def disable_datapack(name):
     """Remove a datapack from the current world and reload, keeping its tracked source"""
     if not DATAPACK_NAME_RE.match(name):
@@ -143,7 +143,7 @@ def disable_datapack(name):
 
 
 @bp.route("/api/datapacks/<name>", methods=["DELETE"])
-@server.require_permission("datapacks.manage")
+@auth_guard.require_permission("datapacks.manage")
 def delete_datapack(name):
     """Back up and delete a datapack's tracked source (config/datapacks/<name>)"""
     if not DATAPACK_NAME_RE.match(name):

@@ -14,9 +14,10 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
+import api.rbac as rbac  # noqa: E402
 import api.auth_crypto as auth_crypto  # noqa: E402
-PERMISSIONS = api_module.PERMISSIONS
-ROLE_PERMISSIONS = api_module.ROLE_PERMISSIONS
+PERMISSIONS = rbac.PERMISSIONS
+ROLE_PERMISSIONS = rbac.ROLE_PERMISSIONS
 app = api_module.app
 
 
@@ -525,7 +526,7 @@ class TestAPIKeyAccess:
         """A typo in the config file must not widen a key"""
         test_key = self._make_key({"permissions": ["server.view", "not.a.permission"]})
 
-        assert api_module.get_api_key_permissions(api_module.API_KEYS[test_key]) == ["server.view"]
+        assert rbac.get_api_key_permissions(api_module.API_KEYS[test_key]) == ["server.view"]
 
     def test_pre_scoping_keys_are_migrated_to_admin(self):
         """Keys written before scoping keep working, but say so explicitly"""
@@ -1063,3 +1064,20 @@ class TestConfigFilePermissions:
                     )
                     # Should pass permission check (may fail on validation or file operations)
                     assert response.status_code in [200, 400, 404, 500]
+
+
+class TestRefusedApiKeysLookAlike:
+    """An unknown API key and a disabled one get the same answer.
+
+    Telling them apart would confirm to someone guessing keys that a disabled
+    key exists, so the two responses must not diverge.
+    """
+
+    def test_unknown_and_disabled_keys_are_indistinguishable(self, client, monkeypatch):
+        monkeypatch.setitem(api_module.API_KEYS, "mc_disabled_key", {"name": "old", "enabled": False, "role": "admin"})
+
+        unknown = client.get("/api/status", headers={"X-API-Key": "mc_never_issued"})
+        disabled = client.get("/api/status", headers={"X-API-Key": "mc_disabled_key"})
+
+        assert unknown.status_code == disabled.status_code == 401
+        assert unknown.get_json() == disabled.get_json() == {"error": "Invalid API key"}

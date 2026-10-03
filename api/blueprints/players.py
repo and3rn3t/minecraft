@@ -7,13 +7,13 @@ import re
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("players", __name__)
 
 
 @bp.route("/api/players", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_players():
     """Get list of online players"""
     stdout, _, _ = server.run_rcon_command("list")
@@ -30,7 +30,7 @@ def get_players():
 
 
 @bp.route("/api/players/whitelist", methods=["GET"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def get_whitelist():
     """Get whitelisted players"""
     whitelist_file = server.PROJECT_ROOT / "data" / "whitelist.json"
@@ -44,7 +44,7 @@ def get_whitelist():
 
 
 @bp.route("/api/players/whitelist", methods=["POST"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def add_whitelist():
     """Add player to whitelist"""
     data = request.get_json() or {}
@@ -59,7 +59,7 @@ def add_whitelist():
 
 
 @bp.route("/api/players/whitelist/<player>", methods=["DELETE"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def remove_whitelist(player):
     """Remove player from whitelist"""
     stdout, stderr, code = server.run_script("whitelist-manager.sh", "remove", player)
@@ -69,7 +69,7 @@ def remove_whitelist(player):
 
 
 @bp.route("/api/players/banned", methods=["GET"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def get_banned():
     """Get banned players"""
     banned_file = server.PROJECT_ROOT / "data" / "banned-players.json"
@@ -83,7 +83,7 @@ def get_banned():
 
 
 @bp.route("/api/players/ban", methods=["POST"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def ban_player():
     """Ban a player"""
     data = request.get_json() or {}
@@ -92,7 +92,7 @@ def ban_player():
     if not player:
         return jsonify({"error": "Player name required"}), 400
 
-    username = server.get_username_from_request()
+    username = auth_guard.get_username_from_request()
     server.log_audit_event(username, "player.ban", {"player": player, "reason": reason})
 
     stdout, stderr, code = server.run_script("ban-manager.sh", "ban", player, reason)
@@ -102,7 +102,7 @@ def ban_player():
 
 
 @bp.route("/api/players/ban/<player>", methods=["DELETE"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def unban_player(player):
     """Unban a player"""
     stdout, stderr, code = server.run_script("ban-manager.sh", "unban", player)
@@ -112,7 +112,7 @@ def unban_player(player):
 
 
 @bp.route("/api/players/ops", methods=["GET"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def get_ops():
     """Get operators"""
     ops_file = server.PROJECT_ROOT / "data" / "ops.json"
@@ -126,7 +126,7 @@ def get_ops():
 
 
 @bp.route("/api/players/op", methods=["POST"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def grant_op():
     """Grant operator status"""
     data = request.get_json() or {}
@@ -142,7 +142,7 @@ def grant_op():
 
 
 @bp.route("/api/players/op/<player>", methods=["DELETE"])
-@server.require_permission("players.manage")
+@auth_guard.require_permission("players.manage")
 def revoke_op(player):
     """Revoke operator status"""
     stdout, stderr, code = server.run_script("op-manager.sh", "revoke", player)
@@ -152,7 +152,7 @@ def revoke_op(player):
 
 
 @bp.route("/api/server/properties", methods=["GET"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def get_server_properties():
     """Get all server properties"""
     props_file = server.PROJECT_ROOT / "data" / "server.properties"
@@ -171,7 +171,7 @@ def get_server_properties():
 
 
 @bp.route("/api/server/properties/<key>", methods=["GET"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def get_server_property(key):
     """Get specific server property"""
     stdout, stderr, code = server.run_script("server-properties-manager.sh", "get", key)
@@ -181,7 +181,7 @@ def get_server_property(key):
 
 
 @bp.route("/api/server/properties/<key>", methods=["PUT"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def set_server_property(key):
     """Set server property"""
     data = request.get_json() or {}
@@ -203,7 +203,7 @@ SERVER_PROPERTY_PRESETS = ("low-end", "balanced", "high-performance")
 
 
 @bp.route("/api/server/properties/preset", methods=["POST"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def apply_server_preset():
     """Apply a performance preset to server.properties"""
     data = request.get_json() or {}
@@ -230,7 +230,7 @@ def apply_server_preset():
         server.app.logger.error("Preset '%s' failed: %s", preset, server.sanitize_string(stderr, max_length=200))
         return jsonify({"error": "Failed to apply preset"}), 500
 
-    server.log_audit_event(server.get_username_from_request(), "server.properties.preset", {"preset": preset})
+    server.log_audit_event(auth_guard.get_username_from_request(), "server.properties.preset", {"preset": preset})
     return jsonify({"success": True, "message": f"Preset '{preset}' applied"}), 200
 
 
@@ -249,7 +249,7 @@ def _require_player_stats():
 
 
 @bp.route("/api/players/stats", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_all_player_stats():
     """Statistics for every player the world has a file for"""
     unavailable = _require_player_stats()
@@ -261,7 +261,7 @@ def get_all_player_stats():
 
 
 @bp.route("/api/players/stats/leaderboard", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_player_stats_leaderboard():
     """Rank players by one counter"""
     unavailable = _require_player_stats()
@@ -292,7 +292,7 @@ def get_player_stats_leaderboard():
 
 
 @bp.route("/api/players/stats/metrics", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_player_stats_metrics():
     """The counters a leaderboard can be built on"""
     unavailable = _require_player_stats()
@@ -306,7 +306,7 @@ def get_player_stats_metrics():
 # order, so /leaderboard and /metrics above are not captured by <player>. A
 # test pins that, since it is the kind of thing that breaks silently.
 @bp.route("/api/players/stats/<player>", methods=["GET"])
-@server.require_permission("players.view")
+@auth_guard.require_permission("players.view")
 def get_player_stats(player):
     """One player's statistics, by name"""
     unavailable = _require_player_stats()

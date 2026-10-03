@@ -76,6 +76,18 @@ All notable changes to this project will be documented in this file.
   stay on `api.server` and are read at call time. CodeQL totals are unchanged.
   Adds tests for the invalid-YAML error responses, which had none.
 
+- **`api/server.py` split, part 2** — the permission model (`api/rbac.py`: the
+  permission names, the role table, API-key scoping) and request authentication
+  (`api/auth_guard.py`: `require_auth`, `require_permission`, `has_permission`,
+  CSRF checks, `get_username_from_request`) move out of the app module. Routes
+  use `@auth_guard.require_permission(...)`. `USERS` and `API_KEYS` stay on
+  `api.server` and are read at call time. The unused `require_api_key`
+  decorator is deleted. `auth_guard` imports `server` after its own definitions,
+  so `import api.auth_guard` works whichever module is imported first (it failed
+  with "partially initialized module" before); a test imports each module first.
+  `_issue_csrf_token` is now the public `issue_csrf_token`, and `/api/status` no
+  longer runs authentication twice.
+
 ### Fixed
 
 - **A missing auth library no longer disables an unrelated feature** — bcrypt and

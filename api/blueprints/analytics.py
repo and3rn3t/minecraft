@@ -11,13 +11,13 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("analytics", __name__)
 
 
 @bp.route("/api/analytics/collect", methods=["POST"])
-@server.require_permission("analytics.view")
+@auth_guard.require_permission("analytics.view")
 def collect_analytics():
     """Trigger analytics data collection"""
     stdout, stderr, code = server.run_script("analytics-collector.sh")
@@ -27,7 +27,7 @@ def collect_analytics():
 
 
 @bp.route("/api/analytics/report", methods=["GET"])
-@server.require_permission("analytics.view")
+@auth_guard.require_permission("analytics.view")
 def get_analytics_report():
     """Get analytics report"""
     try:
@@ -61,7 +61,7 @@ def get_analytics_report():
 
 
 @bp.route("/api/analytics/trends", methods=["GET"])
-@server.require_permission("analytics.view")
+@auth_guard.require_permission("analytics.view")
 def get_analytics_trends():
     """Get performance trends"""
     try:
@@ -91,7 +91,7 @@ def get_analytics_trends():
 
 
 @bp.route("/api/analytics/anomalies", methods=["GET"])
-@server.require_permission("analytics.view")
+@auth_guard.require_permission("analytics.view")
 def get_analytics_anomalies():
     """Get detected anomalies"""
     try:
@@ -118,7 +118,7 @@ def get_analytics_anomalies():
 
 
 @bp.route("/api/analytics/predictions", methods=["GET"])
-@server.require_permission("analytics.view")
+@auth_guard.require_permission("analytics.view")
 def get_analytics_predictions():
     """Get resource usage predictions"""
     try:
@@ -145,7 +145,7 @@ def get_analytics_predictions():
 
 
 @bp.route("/api/analytics/player-behavior", methods=["GET"])
-@server.require_permission("analytics.view")
+@auth_guard.require_permission("analytics.view")
 def get_player_behavior():
     """Get player behavior analytics"""
     try:
@@ -167,7 +167,7 @@ def get_player_behavior():
 
 
 @bp.route("/api/analytics/custom-report", methods=["POST"])
-@server.require_permission("analytics.generate")
+@auth_guard.require_permission("analytics.generate")
 def generate_custom_report():
     """Generate custom analytics report"""
     try:

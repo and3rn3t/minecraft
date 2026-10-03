@@ -9,13 +9,13 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
-from api import server
+from api import auth_guard, server
 
 bp = Blueprint("announcements", __name__)
 
 
 @bp.route("/api/announcements", methods=["GET"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def get_announcements():
     """Get all announcements"""
     stdout, stderr, code = server.run_script("announcement-manager.sh", "list")
@@ -26,7 +26,7 @@ def get_announcements():
 
 
 @bp.route("/api/announcements", methods=["POST"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def create_announcement():
     """Create a new announcement"""
     data = request.get_json() or {}
@@ -55,7 +55,7 @@ def create_announcement():
 
 
 @bp.route("/api/announcements/<announcement_id>/send", methods=["POST"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def send_announcement(announcement_id):
     """Send an announcement immediately"""
     stdout, stderr, code = server.run_script("announcement-manager.sh", "send", announcement_id)
@@ -65,7 +65,7 @@ def send_announcement(announcement_id):
 
 
 @bp.route("/api/announcements/<announcement_id>", methods=["DELETE"])
-@server.require_permission("server.manage")
+@auth_guard.require_permission("server.manage")
 def delete_announcement(announcement_id):
     """Delete an announcement"""
     stdout, stderr, code = server.run_script("announcement-manager.sh", "delete", announcement_id)
@@ -75,7 +75,7 @@ def delete_announcement(announcement_id):
 
 
 @bp.route("/api/metrics", methods=["GET"])
-@server.require_permission("metrics.view")
+@auth_guard.require_permission("metrics.view")
 def get_metrics():
     """Get server metrics"""
     # Run monitor script
