@@ -18,29 +18,14 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, session
 
-# Optional CORS support
-try:
-    from flask_cors import CORS  # type: ignore  # noqa: F401
-
-    CORS_AVAILABLE = True
-except ImportError:
-    CORS_AVAILABLE = False
-    CORS = None  # Placeholder for type checking
-
-# Optional rate limiting support (brute-force protection on auth endpoints).
-# The hand-rolled `rate_limit`/`is_rate_limit_exceeded` further below predates
-# this and stays in place for the one route it already covers; anything new
-# uses this, since per-minute counters shared safely across a threaded server
-# are exactly what Flask-Limiter is for.
-try:
-    from flask_limiter import Limiter  # type: ignore[import-untyped]
-    from flask_limiter.util import get_remote_address  # type: ignore[import-untyped]
-
-    LIMITER_AVAILABLE = True
-except ImportError:
-    LIMITER_AVAILABLE = False
-    Limiter = None
-    get_remote_address = None
+# CORS, rate limiting and the security helpers are required, not optional: a
+# missing one used to be swallowed and replaced with a no-op, which left the
+# API running with no brute-force protection or command sanitising and nothing
+# to say so. They are pinned in requirements.txt, so an ImportError here means
+# a broken install and should stop the service at startup.
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Optional WebSocket support
 try:
@@ -82,28 +67,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 if __name__ == "__main__":
     sys.modules.setdefault("api.server", sys.modules[__name__])
 
-# Import security utilities
-try:
-    from api.security import (
-        is_rate_limit_exceeded,
-        sanitize_minecraft_command,
-        sanitize_string,
-    )
-
-    SECURITY_AVAILABLE = True
-except ImportError:
-    SECURITY_AVAILABLE = False
-
-    # Provide fallback functions if security module unavailable
-    def sanitize_minecraft_command(cmd):
-        return True, (cmd[:256] if cmd else ""), None
-
-    def sanitize_string(s, max_length=1000, allow_newlines=False):
-        return str(s)[:max_length] if s else ""
-
-    def is_rate_limit_exceeded(*args, **kwargs):
-        return False
-
+from api.security import sanitize_minecraft_command, sanitize_string
 
 # In-process RCON client. Keeps one authenticated connection open instead of
 # paying for a TCP handshake and login per command.
@@ -211,9 +175,6 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 
-# Rate limiting storage (in-memory, use Redis in production)
-RATE_LIMIT_STORAGE = {}
-
 # CORS configuration - restrict to specific origins in production
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 
@@ -223,20 +184,7 @@ if SOCKETIO_AVAILABLE:
 else:
     socketio = None
 
-# Enable CORS if available
-if CORS_AVAILABLE:
-    CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
-else:
-    # Fallback: Add CORS headers manually if needed
-    @app.after_request
-    def after_request_cors(response):
-        origin = request.headers.get("Origin")
-        if origin and (ALLOWED_ORIGINS == ["*"] or origin in ALLOWED_ORIGINS):
-            response.headers.add("Access-Control-Allow-Origin", origin)
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
-        response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-        response.headers.add("Access-Control-Allow-Credentials", "true")
-        return response
+CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 
 
 def _warn_if_cors_wildcard_with_credentials(allowed_origins):
@@ -263,25 +211,17 @@ def _warn_if_cors_wildcard_with_credentials(allowed_origins):
 _warn_if_cors_wildcard_with_credentials(ALLOWED_ORIGINS)
 
 # Rate limiting for brute-force-prone auth endpoints (login, register, 2FA,
-# OAuth), applied per route below via @auth_rate_limit(...).
+# OAuth) and for RCON command submission, applied per route via
+# @auth_rate_limit(...).
 # storage_uri="memory://" is fine for this app's single-process deployment;
 # a multi-worker/gunicorn setup would need a shared backend (e.g. Redis)
 # instead, since in-memory counters aren't shared across processes.
-if LIMITER_AVAILABLE:
-    limiter = Limiter(get_remote_address, app=app, storage_uri="memory://", default_limits=[])
-else:
-    limiter = None
+limiter = Limiter(get_remote_address, app=app, storage_uri="memory://", default_limits=[])
 
 
 def auth_rate_limit(limit_string):
-    """Rate-limit decorator for auth routes; a no-op if Flask-Limiter isn't installed."""
-
-    def decorator(f):
-        if limiter is None:
-            return f
-        return limiter.limit(limit_string)(f)
-
-    return decorator
+    """Per-route rate limit (per client IP) using the shared Flask-Limiter instance."""
+    return limiter.limit(limit_string)
 
 
 _CSP = "; ".join(
@@ -330,36 +270,6 @@ def security_headers(response):
     # Remove server header
     response.headers.pop("Server", None)
     return response
-
-
-# Rate limiting decorator
-def rate_limit(max_per_minute=60, per_endpoint=False):
-    """Simple rate limiting decorator"""
-
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if not SECURITY_AVAILABLE:
-                return f(*args, **kwargs)
-
-            # Get identifier (IP address or user)
-            identifier = request.remote_addr or "unknown"
-            if hasattr(request, "user") and request.user:
-                identifier = f"{identifier}:{request.user}"
-
-            # Add endpoint to identifier if per_endpoint is True
-            if per_endpoint:
-                identifier = f"{identifier}:{request.endpoint}"
-
-            # Check rate limit (60 requests per minute by default)
-            if is_rate_limit_exceeded(identifier, max_per_minute, 60, RATE_LIMIT_STORAGE):
-                return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
-
-            return f(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
 
 
 # Configuration
@@ -1745,17 +1655,16 @@ if SOCKETIO_AVAILABLE:
         # Sanitise exactly as POST /api/server/command does. This path reached
         # RCON unvalidated, so the WebSocket was a way around the command
         # allowlist that the REST endpoint enforces.
-        if SECURITY_AVAILABLE:
-            is_valid, sanitized_command, _ = sanitize_minecraft_command(command)
-            if not is_valid:
-                log_audit_event(
-                    _stream_actor(),
-                    "server.command.rejected",
-                    {"original_command": sanitize_string(command[:100]), "source": "websocket"},
-                )
-                socketio.emit("command_error", {"message": "Invalid command format"}, room=request.sid)
-                return
-            command = sanitized_command
+        is_valid, sanitized_command, _ = sanitize_minecraft_command(command)
+        if not is_valid:
+            log_audit_event(
+                _stream_actor(),
+                "server.command.rejected",
+                {"original_command": sanitize_string(command[:100]), "source": "websocket"},
+            )
+            socketio.emit("command_error", {"message": "Invalid command format"}, room=request.sid)
+            return
+        command = sanitized_command
 
         log_audit_event(_stream_actor(), "server.command", {"command": sanitize_string(command[:100])})
 

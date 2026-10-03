@@ -289,8 +289,6 @@ class TestLoginRateLimit:
     """
 
     def test_login_returns_429_after_limit_exceeded(self, client, temp_users_file, mock_bcrypt):
-        if api_module.limiter is None:
-            pytest.skip("Flask-Limiter not installed")
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
@@ -304,8 +302,6 @@ class TestLoginRateLimit:
         assert response.status_code == 429
 
     def test_login_succeeds_within_limit(self, client, temp_users_file, mock_bcrypt):
-        if api_module.limiter is None:
-            pytest.skip("Flask-Limiter not installed")
         if not mock_bcrypt:
             pytest.skip("bcrypt not available")
 
