@@ -2,6 +2,11 @@
 
 This guide shows you how to pull the latest code changes from GitHub and update all components on your Raspberry Pi 5.
 
+On a Pi that runs the deploy agent you do not need any of this: pushes to `main`
+that pass CI arrive on their own (see [AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md)).
+Use this guide when the agent is off, when the checkout is on another branch, or
+to see what the agent does for you.
+
 ## Quick Update
 
 ### Simple Git Pull

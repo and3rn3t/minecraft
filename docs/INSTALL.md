@@ -247,6 +247,27 @@ First startup takes 5-10 minutes as it:
 
 You'll see "Done!" in the logs when ready.
 
+### Start on Boot
+
+So the server comes back by itself after a power cut or a reboot, install the
+shipped systemd unit. It expects the checkout at `~/minecraft-server` and the
+`pi` user, which is what the steps above set up:
+
+```bash
+sudo cp systemd/minecraft.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now minecraft.service
+```
+
+If your user or checkout path differs, change `User=`, `Group=` and the paths in
+the copy under `/etc/systemd/system/`, then run `sudo systemctl daemon-reload`.
+
+That unit starts only the game server. The API, the web panel, backups, image
+updates and automatic deployment each have their own unit; see
+[RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md) to install them and
+[AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md) for how a push to `main`
+reaches the Pi.
+
 ## Network Configuration
 
 ### Local Network Access

@@ -1,289 +1,120 @@
-# How to Ensure You're Using the Latest Docker Image
+# Updating the Game Server Image
 
-This guide shows you how to check, pull, and automatically update to the latest Docker image on your Raspberry Pi 5.
+How the game server's Docker image stays current, how to see which one is
+running, and how to switch to a prebuilt registry image if you would rather pull
+than build.
 
-## Quick Check: What Image Am I Using?
+## How it is updated by default
 
-### Check Current Image
+`docker-compose.yml` has a `build:` section, so the Pi **builds the image itself**
+from the `Dockerfile`. There is no registry image to pull. Two things keep it
+current, and neither restarts the server while someone is playing:
 
-```bash
-# See what image your container is using
-docker inspect minecraft-server --format='{{.Config.Image}}'
+| What | When | What it does |
+| --- | --- | --- |
+| Deploy agent (`minecraft-deploy.timer`) | Every 5 minutes | After a green commit on `main` changes the `Dockerfile`, a compose file, `scripts/start.sh` or `scripts/download-server.sh`, rebuilds the image and restarts the server once nobody is online. See [AUTO_DEPLOYMENT_SETUP.md](AUTO_DEPLOYMENT_SETUP.md) |
+| `minecraft-update.timer`, which runs `scripts/auto-update.sh run` | 5 minutes after boot, then hourly | Compares the image the container is running with the image its tag points at now, and restarts the server only if they differ **and** nobody is online. A server that was stopped on purpose is left stopped. With `build:` there is nothing to pull, so in practice this picks up an image the deploy agent rebuilt while players were on |
 
-# See when the image was created
-docker images ghcr.io/and3rn3t/minecraft-server:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}"
-
-# See container status
-docker ps -a | grep minecraft-server
-```
-
-### Check Image Digest (Most Accurate)
-
-```bash
-# Get the digest of the image you're currently using
-docker inspect minecraft-server --format='{{.Image}}'
-
-# Compare with what's in the registry
-docker manifest inspect ghcr.io/and3rn3t/minecraft-server:latest | grep -A 1 digest
-```
-
-## Method 1: Manual Update (Immediate)
-
-### Step 1: Pull Latest Image
+Install the timer once (the other units are in
+[RPI5_FULL_DEPLOYMENT.md](RPI5_FULL_DEPLOYMENT.md)):
 
 ```bash
-cd ~/minecraft-server
-
-# Pull the latest image from registry
-docker compose pull
-
-# Or if using docker directly
-docker pull ghcr.io/and3rn3t/minecraft-server:latest
-```
-
-### Step 2: Restart Container with New Image
-
-```bash
-# Stop current container
-docker compose down
-
-# Start with new image (will use latest)
-docker compose up -d
-
-# Or force recreate
-docker compose up -d --force-recreate
-```
-
-### Step 3: Verify New Image
-
-```bash
-# Check container is running
-docker ps | grep minecraft-server
-
-# Check logs to confirm it started with new image
-docker logs minecraft-server --tail 20
-```
-
-## Method 2: Automatic Updates (Recommended)
-
-### Option A: Use Systemd Service (Pulls on Start)
-
-The `minecraft.service` already pulls the latest image before starting:
-
-```bash
-# Check if service is installed
-sudo systemctl status minecraft.service
-
-# Restart service (will pull latest image)
-sudo systemctl restart minecraft.service
-
-# Or reload (pulls and recreates)
-sudo systemctl reload minecraft.service
-```
-
-### Option B: Use Auto-Update Timer (Periodic Checks)
-
-Set up automatic updates every hour:
-
-```bash
-# Install update service and timer
-sudo cp systemd/minecraft-update.service /etc/systemd/system/
-sudo cp systemd/minecraft-update.timer /etc/systemd/system/
-
-# Enable and start timer
+sudo cp systemd/minecraft-update.service systemd/minecraft-update.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable minecraft-update.timer
-sudo systemctl start minecraft-update.timer
+sudo systemctl enable --now minecraft-update.timer
 
-# Check timer status
-sudo systemctl status minecraft-update.timer
-
-# View when next update will run
-sudo systemctl list-timers minecraft-update.timer
+# When it last ran and when it runs next
+systemctl list-timers minecraft-update.timer
 ```
 
-**What this does:**
+## What is running
 
-- Checks for new image every hour
-- Pulls latest image if available
-- Restarts container with new image
-- Logs updates to `/var/log/minecraft-update.log`
+```bash
+# Which image the container was started from
+docker inspect minecraft-server --format '{{.Config.Image}}'
 
-## Method 3: Use Pull Policy (Always Check)
+# When that image was built
+docker inspect minecraft-server --format '{{.Image}}' | xargs docker image inspect --format '{{.Created}}'
 
-Update your `docker-compose.yml` to always pull on start:
+# Is a newer one waiting? Changes nothing.
+./scripts/auto-update.sh check
+```
+
+## Update now
+
+```bash
+# What the timer does, on demand: restarts only if the image changed and nobody is online
+./scripts/auto-update.sh run
+
+# Rebuild by hand. This restarts the server, so check that nobody is online first
+docker compose build
+docker compose up -d
+```
+
+## Pulling a prebuilt image instead of building
+
+CI publishes images to GitHub Container Registry, `ghcr.io/and3rn3t/minecraft-server`:
+
+| Published by | Tags |
+| --- | --- |
+| A push to `main` (ARM64 only) | `latest`, `main`, `main-<short sha>` |
+| A release (ARM64 and AMD64) | `X.Y.Z`, `X.Y`, `X` |
+
+The default compose file does not use them. To pull instead of build, replace the
+`build:` block with an `image:` line:
 
 ```yaml
 services:
   minecraft:
     image: ghcr.io/and3rn3t/minecraft-server:latest
-    pull_policy: always # Always check for updates
-    # ... rest of config
 ```
 
-Then every time you start:
+`scripts/auto-update.sh` then runs `docker compose pull` each hour and restarts
+the server only when the pulled image differs and nobody is online. To follow a
+specific release, use its tag (`:1.6.0`) instead of `latest`.
+
+If the package is private, log in once on the Pi with a personal access token that
+has only `read:packages`:
 
 ```bash
-docker compose up -d
+echo "$TOKEN" | docker login ghcr.io -u and3rn3t --password-stdin
 ```
 
-It will automatically pull the latest image if available.
-
-## Verify You Have the Latest Image
-
-### Compare Image Digests
-
-```bash
-# Get digest of local image
-LOCAL_DIGEST=$(docker inspect ghcr.io/and3rn3t/minecraft-server:latest --format='{{.RepoDigests}}' | cut -d'@' -f2 | cut -d']' -f1)
-
-# Get digest from registry (requires authentication)
-REGISTRY_DIGEST=$(docker manifest inspect ghcr.io/and3rn3t/minecraft-server:latest | grep -oP '"digest":\s*"\K[^"]+')
-
-# Compare
-if [ "$LOCAL_DIGEST" = "$REGISTRY_DIGEST" ]; then
-    echo "✅ You have the latest image!"
-else
-    echo "⚠️  Image is outdated. Run: docker compose pull"
-fi
-```
-
-### Check Image Build Date
-
-```bash
-# See when your local image was created
-docker images ghcr.io/and3rn3t/minecraft-server:latest --format "Created: {{.CreatedAt}}"
-
-# Compare with GitHub Actions (check latest commit time on main branch)
-# Or check registry metadata
-```
-
-### Simple Check Script
-
-Create `scripts/check-image-update.sh`:
-
-```bash
-#!/bin/bash
-echo "Checking for image updates..."
-
-# Pull without downloading (dry run)
-docker pull ghcr.io/and3rn3t/minecraft-server:latest 2>&1 | grep -q "Image is up to date"
-
-if [ $? -eq 0 ]; then
-    echo "✅ You have the latest image"
-else
-    echo "⚠️  New image available! Run: docker compose pull && docker compose up -d"
-fi
-```
+Docker keeps the credential in `~/.docker/config.json`. Do not put the token in a
+systemd unit.
 
 ## Troubleshooting
 
-### Authentication Issues
+### The update never happens
 
-If you get authentication errors:
+`auto-update.sh` writes to the journal, and the unit adds a "finished" line to
+`logs/minecraft-update.log`:
 
 ```bash
-# Login to GitHub Container Registry
-echo "YOUR_GITHUB_TOKEN" | docker login ghcr.io -u and3rn3t --password-stdin
-
-# Or use your GitHub username and Personal Access Token
-docker login ghcr.io
+sudo systemctl status minecraft-update.service
+sudo journalctl -u minecraft-update.service --since "1 day ago"
+tail logs/minecraft-update.log
 ```
 
-### Image Not Found
+The usual reasons are in its messages:
 
-If image doesn't exist in registry:
+- **"Server is not running; leaving it stopped"**: it never starts a server that was stopped.
+- **"New image found, but N player(s) online"**: it restarts once the server is empty.
+- **"A deploy is changing the server right now"**: the deploy agent holds the lock; it tries again next run.
+- **"Already up to date"**: the running container already uses the current image.
 
-1. Check CI workflow ran successfully
-2. Verify image was pushed: `ghcr.io/and3rn3t/minecraft-server:latest`
-3. Check GitHub Actions logs
+### The pull fails with 403 or "not found"
 
-### Container Won't Start with New Image
+Only applies when you use a registry image. Check that CI's `main` run passed and
+pushed the tag, that the package is visible to you, and that the token has
+`read:packages` and has not expired.
+
+### The container will not start with the new image
 
 ```bash
-# Check logs
-docker logs minecraft-server
-
-# Check if old container is still running
-docker ps -a
-
-# Force remove and recreate
-docker compose down
+docker logs minecraft-server --tail 50
 docker compose up -d --force-recreate
 ```
 
-## Best Practices
-
-### 1. Always Use Registry Images in Production
-
-```yaml
-# docker-compose.yml
-services:
-  minecraft:
-    image: ghcr.io/and3rn3t/minecraft-server:latest
-    pull_policy: always
-```
-
-### 2. Set Up Auto-Updates
-
-Use the systemd timer for automatic updates:
-
-```bash
-sudo systemctl enable minecraft-update.timer
-```
-
-### 3. Monitor Updates
-
-Check update logs:
-
-```bash
-# View update history
-tail -f /var/log/minecraft-update.log
-
-# Check when last update ran
-sudo systemctl status minecraft-update.service
-```
-
-### 4. Test Before Production
-
-```bash
-# Pull and test in a separate container
-docker run --rm ghcr.io/and3rn3t/minecraft-server:latest echo "Image works!"
-
-# Or test with a different tag first
-docker pull ghcr.io/and3rn3t/minecraft-server:main
-docker compose -f docker-compose.test.yml up -d
-```
-
-## Quick Reference
-
-```bash
-# Check current image
-docker inspect minecraft-server --format='{{.Config.Image}}'
-
-# Pull latest
-docker compose pull
-
-# Update and restart
-docker compose pull && docker compose up -d --force-recreate
-
-# Check for updates (dry run)
-docker pull ghcr.io/and3rn3t/minecraft-server:latest
-
-# View update logs
-tail -f /var/log/minecraft-update.log
-
-# Manual update via systemd
-sudo systemctl reload minecraft.service
-```
-
-## Summary
-
-**To ensure you're always using the latest image:**
-
-1. ✅ **Use registry-based docker-compose.yml** (not local build)
-2. ✅ **Set `pull_policy: always`** in docker-compose.yml
-3. ✅ **Enable auto-update timer** for periodic checks
-4. ✅ **Manually pull** when you want immediate updates
-
-The easiest setup is using the systemd timer which checks every hour and automatically updates when a new image is available.
+If it still fails, go back to the previous image with its `main-<short sha>` or
+release tag, or rebuild from the last known-good commit.

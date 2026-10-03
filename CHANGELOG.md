@@ -52,6 +52,20 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Setup docs consolidated** — `MINECRAFT_SERVER_SETUP.md`, `DOCKER_BOOT_SETUP.md`
+  and `DOCKER_DEPLOYMENT_FLOW.md` are removed. The first two were a walkthrough and a
+  generic "boot any Docker image" template that duplicated `INSTALL.md` and
+  `RPI5_FULL_DEPLOYMENT.md` (and pasted a systemd unit that had drifted from the
+  shipped `systemd/minecraft.service`); the third was a plan written before the deploy
+  agent existed and said CI does not push images, which it does. `INSTALL.md` gains a
+  "Start on Boot" section that installs the shipped unit. `UPDATE_DOCKER_IMAGE.md` is
+  rewritten to match the repo: the compose file builds the image on the Pi, the deploy
+  agent and the hourly `auto-update.sh` restart only when nobody is online, and pulling a
+  prebuilt GHCR image is an opt-in (the old guide assumed a registry image, pointed at a
+  script that does not exist, and logged to a path the unit cannot write).
+  `SYSTEM_OPTIMIZATIONS.md` is cut to what `optimize-system.sh` applies: the generic code
+  advice, the pasted cleanup script and its timer, and a reference to a
+  `check-disk-space.sh` that was never written are gone.
 - **Security dependencies are now required at startup** — `flask-cors`,
   `flask-limiter` and `api/security.py` used to be imported inside
   `try/except ImportError` with silent no-op fallbacks, so a broken install

@@ -162,8 +162,8 @@ The rest install the same way:
 | `minecraft-playit-sync.timer` | Every 15 min, keeps the game address's SRV record on the tunnel's port |
 | `minecraft-analytics.timer` | Every 5 min, collects analytics |
 
-See **[docs/DOCKER_BOOT_SETUP.md](docs/DOCKER_BOOT_SETUP.md)** and
-**[docs/AUTO_DEPLOYMENT_SETUP.md](docs/AUTO_DEPLOYMENT_SETUP.md)**.
+See **[docs/RPI5_FULL_DEPLOYMENT.md](docs/RPI5_FULL_DEPLOYMENT.md)** for installing them and
+**[docs/AUTO_DEPLOYMENT_SETUP.md](docs/AUTO_DEPLOYMENT_SETUP.md)** for automatic deployment.
 
 ## Remote Access
 
