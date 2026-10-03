@@ -142,6 +142,11 @@ WORLD_SEED=
 CREATED=2025-01-15 10:30:00
 ```
 
+The file is plain data: it is read line by line and never executed, so a seed
+can be any text, including spaces. A world the server generated itself has no
+config file; `config` and `switch` write a default one for it without touching
+the world.
+
 ### Applying World Configuration
 
 Apply world-specific settings:
