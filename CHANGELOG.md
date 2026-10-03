@@ -62,6 +62,12 @@ All notable changes to this project will be documented in this file.
   at startup. Verified against a live server over both the polling and
   WebSocket transports. `eventlet` is dropped from `api/requirements.txt`.
 
+- **ESLint 9** — the web app moves from ESLint 8 and `.eslintrc.cjs` to a flat
+  `web/eslint.config.js`. The shared `@and3rn3t/eslint-config` was not used: it
+  targets TypeScript files only and omits `eslint-plugin-react`, which this
+  JSX codebase needs. ESLint's stricter defaults reported two unused `catch`
+  bindings, now removed; Playwright specs get Node globals.
+
 ### Fixed
 
 - **Deaths, joins, leaves and advancements are recognised again on 26.x** —

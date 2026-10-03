@@ -17,6 +17,12 @@ export const AuthProvider = ({ children }) => {
       const userData = await api.getCurrentUser();
       setUser(userData);
     } catch (error) {
+      // A 401 just means nobody is logged in. Anything else (server down,
+      // malformed response) also leaves the user logged out, but is worth a
+      // trace in the console.
+      if (error.response?.status !== 401) {
+        console.error('Failed to check authentication:', error);
+      }
       // User not authenticated, clear state
       setUser(null);
       localStorage.removeItem('auth_token');

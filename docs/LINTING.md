@@ -121,21 +121,10 @@ enable=all
 
 ### ESLint Configuration
 
-ESLint is configured in `web/.eslintrc.cjs`:
-
-```javascript
-module.exports = {
-  root: true,
-  env: { browser: true, es2020: true },
-  extends: [
-    'eslint:recommended',
-    'plugin:react/recommended',
-    'plugin:react/jsx-runtime',
-    'plugin:react-hooks/recommended',
-  ],
-  // ... additional configuration
-};
-```
+ESLint 9 is configured with a flat config in `web/eslint.config.js`
+(`@eslint/js`, `eslint-plugin-react`, `react-hooks`, `react-refresh`). Ignored
+paths live in that file's `ignores` entry rather than in a separate ignore
+file, and `npm run lint` fails on any warning (`--max-warnings 0`).
 
 ## Linting Script
 
@@ -324,7 +313,7 @@ The project includes Cursor configuration in `docs/CURSOR_CONFIGURATION.md` with
 
 ### Adding New Linting Rules
 
-1. Update configuration files (`.shellcheckrc`, `.eslintrc.cjs`, etc.)
+1. Update configuration files (`.shellcheckrc`, `eslint.config.js`, etc.)
 2. Test locally with `./scripts/lint.sh`
 3. Update CI/CD workflow if needed
 4. Document new rules in this guide
