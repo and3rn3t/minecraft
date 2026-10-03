@@ -20,6 +20,8 @@ describe('OAuthButtons', () => {
     vi.clearAllMocks();
     // Mock API call that AuthProvider makes on mount
     api.getCurrentUser.mockRejectedValue(new Error('Not authenticated'));
+    // jsdom has no alert(); the Apple error paths call it directly.
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
     globalThis.window.open = vi.fn(() => ({
       close: vi.fn(),
       closed: false,

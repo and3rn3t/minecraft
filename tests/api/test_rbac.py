@@ -14,7 +14,9 @@ PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import api.server as api_module  # noqa: E402
-from api.server import PERMISSIONS, ROLE_PERMISSIONS, app
+PERMISSIONS = api_module.PERMISSIONS
+ROLE_PERMISSIONS = api_module.ROLE_PERMISSIONS
+app = api_module.app
 
 
 @pytest.fixture
@@ -31,8 +33,6 @@ def temp_users_file(tmp_path, monkeypatch):
     users_file = tmp_path / "config" / "users.json"
     users_file.parent.mkdir(parents=True, exist_ok=True)
 
-    import api.server as api_module
-
     monkeypatch.setattr(api_module, "USERS_FILE", users_file)
     api_module.USERS = {}
 
@@ -45,8 +45,6 @@ def temp_api_keys_file(tmp_path, monkeypatch):
     keys_file = tmp_path / "config" / "api-keys.json"
     keys_file.parent.mkdir(parents=True, exist_ok=True)
 
-    import api.server as api_module
-
     monkeypatch.setattr(api_module, "API_KEYS_FILE", keys_file)
     api_module.API_KEYS = {}
 
@@ -56,8 +54,6 @@ def temp_api_keys_file(tmp_path, monkeypatch):
 @pytest.fixture
 def admin_user(temp_users_file, monkeypatch):
     """Create an admin user for testing"""
-    import api.server as api_module
-
     api_module.USERS["admin"] = {
         "username": "admin",
         "password": "hashed_admin",
@@ -72,8 +68,6 @@ def admin_user(temp_users_file, monkeypatch):
 @pytest.fixture
 def operator_user(temp_users_file, monkeypatch):
     """Create an operator user for testing"""
-    import api.server as api_module
-
     api_module.USERS["operator"] = {
         "username": "operator",
         "password": "hashed_operator",
@@ -88,8 +82,6 @@ def operator_user(temp_users_file, monkeypatch):
 @pytest.fixture
 def regular_user(temp_users_file, monkeypatch):
     """Create a regular user for testing"""
-    import api.server as api_module
-
     api_module.USERS["user"] = {
         "username": "user",
         "password": "hashed_user",
@@ -274,8 +266,6 @@ class TestUserManagementPermissions:
 
     def test_update_user_role_with_permission(self, client, admin_user, temp_users_file):
         """Update user role works with users.manage permission"""
-        import api.server as api_module
-
         # Create a test user
         api_module.USERS["testuser"] = {
             "username": "testuser",
@@ -325,7 +315,6 @@ class TestServerControlPermissions:
         client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
-            from unittest.mock import MagicMock
 
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -375,7 +364,6 @@ class TestBackupPermissions:
         client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
-            from unittest.mock import MagicMock
 
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -395,7 +383,6 @@ class TestBackupPermissions:
         client.environ_base["HTTP_X_CSRF_TOKEN"] = "test-csrf-token"
 
         with patch("api.server.subprocess.run") as mock_run:
-            from unittest.mock import MagicMock
 
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -424,8 +411,6 @@ class TestAPIKeyPermissions:
 
     def test_list_api_keys_with_permission(self, client, admin_user, temp_users_file, temp_api_keys_file):
         """List API keys works with api_keys.view permission"""
-        import api.server as api_module
-
         # Create a test API key
         test_key = "test-api-key-123456789012345678901234567890"
         api_module.API_KEYS[test_key] = {
@@ -517,7 +502,6 @@ class TestAPIKeyAccess:
         assert users.status_code == 403
 
         with patch("api.server.subprocess.run") as mock_run:
-            from unittest.mock import MagicMock
 
             mock_result = MagicMock()
             mock_result.returncode = 1
@@ -928,8 +912,6 @@ class TestUserEnableDisable:
 
     def test_enable_user_requires_permission(self, client, regular_user, temp_users_file):
         """Enable user requires users.manage permission"""
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {
             "username": "testuser",
             "password": "hashed_test",
@@ -948,8 +930,6 @@ class TestUserEnableDisable:
 
     def test_enable_user_with_permission(self, client, admin_user, temp_users_file):
         """Enable user works with users.manage permission"""
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {
             "username": "testuser",
             "password": "hashed_test",
@@ -969,8 +949,6 @@ class TestUserEnableDisable:
 
     def test_disable_user_with_permission(self, client, admin_user, temp_users_file):
         """Disable user works with users.manage permission"""
-        import api.server as api_module
-
         api_module.USERS["testuser"] = {
             "username": "testuser",
             "password": "hashed_test",
@@ -990,8 +968,6 @@ class TestUserEnableDisable:
 
     def test_cannot_disable_last_admin(self, client, admin_user, temp_users_file):
         """Cannot disable the last admin user"""
-        import api.server as api_module
-
         # Count admins
         admin_count = sum(1 for u in api_module.USERS.values() if u.get("role") == "admin" and u.get("enabled"))
 
@@ -1022,7 +998,6 @@ class TestConfigFilePermissions:
 
         # Regular user should have config.view permission
         with patch("api.server.subprocess.run") as mock_run:
-            from unittest.mock import MagicMock
 
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -1075,7 +1050,6 @@ class TestConfigFilePermissions:
         with patch("api.server.Path.exists", return_value=True):
             with patch("api.server.Path.write_text"):
                 with patch("api.server.subprocess.run") as mock_run:
-                    from unittest.mock import MagicMock
 
                     mock_result = MagicMock()
                     mock_result.returncode = 0

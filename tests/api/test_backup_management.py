@@ -13,7 +13,9 @@ import pytest
 PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.server import app
+import api.server as api_module  # noqa: E402
+
+app = api_module.app
 
 
 @pytest.fixture
@@ -28,8 +30,6 @@ def client():
 def mock_api_keys(monkeypatch):
     """Mock API keys for testing"""
     test_key = "test-api-key-123456789012345678901234567890"
-    import api.server as api_module
-
     api_module.API_KEYS = {
         test_key: {"name": "test-key", "enabled": True, "created": "2025-01-15T00:00:00Z", "role": "admin"}
     }
@@ -43,8 +43,6 @@ def temp_backup_environment(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     backups_dir.mkdir()
     data_dir.mkdir()
-
-    import api.server as api_module
 
     monkeypatch.setattr(api_module, "PROJECT_ROOT", tmp_path)
 
@@ -172,8 +170,6 @@ class TestBackupDelete:
     def test_delete_backup_success(self, client, mock_api_keys, temp_backup_environment, monkeypatch):
         """Delete backup successfully removes backup file"""
         backups_dir, data_dir, backup_file = temp_backup_environment
-
-        import api.server as api_module
 
         monkeypatch.setattr(api_module, "PROJECT_ROOT", PathLib(temp_backup_environment[0].parent))
 
