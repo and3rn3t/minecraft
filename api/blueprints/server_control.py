@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from api import auth_guard, server
+from api.security import sanitize_minecraft_command, sanitize_string
 
 bp = Blueprint("server_control", __name__)
 
@@ -88,30 +89,30 @@ def send_command():
         return jsonify({"error": "Command must be a string"}), 400
 
     # Validate and sanitize command to prevent command injection
-    is_valid, sanitized_command, error_msg = server.sanitize_minecraft_command(command)
+    is_valid, sanitized_command, error_msg = sanitize_minecraft_command(command)
     if not is_valid:
         server.log_audit_event(
             auth_guard.get_username_from_request(),
             "server.command.rejected",
-            {"original_command": server.sanitize_string(command[:100]), "reason": error_msg},
+            {"original_command": sanitize_string(command[:100]), "reason": error_msg},
         )
         return jsonify({"error": "Invalid command format"}), 400
     command = sanitized_command
 
     username = auth_guard.get_username_from_request()
-    server.log_audit_event(username, "server.command", {"command": server.sanitize_string(command[:100])})
+    server.log_audit_event(username, "server.command", {"command": sanitize_string(command[:100])})
 
     stdout, stderr, code = server.run_rcon_command(command)
 
     if code == 0:
         # Sanitize response before returning
-        safe_stdout = server.sanitize_string(stdout, max_length=5000) if stdout else stdout
-        return jsonify({"success": True, "response": safe_stdout, "command": server.sanitize_string(command[:100])}), 200
+        safe_stdout = sanitize_string(stdout, max_length=5000) if stdout else stdout
+        return jsonify({"success": True, "response": safe_stdout, "command": sanitize_string(command[:100])}), 200
     else:
         # Don't expose detailed error messages - generic error only
         error_msg = "Command execution failed"
         if stderr:
             # Only log detailed error, don't expose to client
-            safe_stderr = server.sanitize_string(stderr[:500])
+            safe_stderr = sanitize_string(stderr[:500])
             server.log_audit_event(username, "server.command.failed", {"error": safe_stderr[:100]})
         return jsonify({"success": False, "error": error_msg}), 500

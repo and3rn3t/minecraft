@@ -8,6 +8,7 @@ import re
 from flask import Blueprint, jsonify, request
 
 from api import auth_guard, server
+from api.security import sanitize_string
 
 bp = Blueprint("players", __name__)
 
@@ -227,7 +228,7 @@ def apply_server_preset():
         # than to the caller, and it is subprocess output going into a log
         # line, so it is stripped of newlines first — otherwise it could
         # forge entries of its own.
-        server.app.logger.error("Preset '%s' failed: %s", preset, server.sanitize_string(stderr, max_length=200))
+        server.app.logger.error("Preset '%s' failed: %s", preset, sanitize_string(stderr, max_length=200))
         return jsonify({"error": "Failed to apply preset"}), 500
 
     server.log_audit_event(auth_guard.get_username_from_request(), "server.properties.preset", {"preset": preset})

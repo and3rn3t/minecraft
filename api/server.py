@@ -29,17 +29,12 @@ from flask_limiter.util import get_remote_address
 # simple-websocket for the upgrade), which needs no monkey-patching. eventlet
 # was used before and is deprecated upstream.
 try:
-    from flask_socketio import (
-        SocketIO,  # type: ignore[import-untyped]
-        disconnect,  # type: ignore[import-untyped]
-    )
+    from flask_socketio import SocketIO  # type: ignore[import-untyped]
 
     SOCKETIO_AVAILABLE = True
 except ImportError:
     SOCKETIO_AVAILABLE = False
     SocketIO = None  # Placeholder for type checking
-    emit = None
-    disconnect = None
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -55,8 +50,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 if __name__ == "__main__":
     sys.modules.setdefault("api.server", sys.modules[__name__])
 
-from api import auth_crypto, auth_guard, rbac  # noqa: E402
-from api.security import sanitize_minecraft_command, sanitize_string
 
 # In-process RCON client. Keeps one authenticated connection open instead of
 # paying for a TCP handshake and login per command.
@@ -675,357 +668,7 @@ ALLOWED_FILE_PATHS = [
 
 # File Browser Endpoints
 # WebSocket event handlers for real-time log streaming
-if SOCKETIO_AVAILABLE:
-    # Session ids currently subscribed to the log stream
-    active_log_streams = set()
-    # sid -> the identity that opened that connection, as ("api_key", key) or
-    # ("user", username). The socket authenticates once at connect, so later
-    # messages on the same connection are checked against the identity
-    # recorded here. The identity itself is stored rather than its resolved
-    # permissions, so narrowing, disabling or deleting a key or user takes
-    # effect on sockets it already opened instead of only on the next
-    # connection.
-    _stream_keys = {}
-    _log_streams_lock = threading.Lock()
-    # Mutable holder rather than a module-level bool, so the reader and the
-    # starter share one piece of state without `global` declarations. The
-    # follower no longer stops when the last client disconnects, so `stop` is
-    # what shutdown and the tests use to bring it down deliberately.
-    _log_reader_state = {"running": False, "stop": False, "proc": None}
-
-    LOG_BACKLOG_LINES = 200
-
-    def get_log_tail(lines=100):
-        """Get last N lines of server logs"""
-        try:
-            result = subprocess.run(
-                ["docker", "logs", "--tail", str(lines), "minecraft-server"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                return result.stdout.split("\n")
-            return []
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return []
-
-    def _publish_log_line(line):
-        """Feed one log line to the event bus, returning the event or None.
-
-        Persistence failures and handler errors are contained by the bus itself;
-        this wrapper exists so that a bus problem can never stop log streaming.
-        """
-        if not EVENTS_AVAILABLE:
-            return None
-        try:
-            return game_events.get_bus().handle_line(line)
-        except Exception as exc:  # noqa: BLE001 - streaming must outlive the bus
-            app.logger.error(f"Event bus failed on a log line: {exc}")
-            return None
-
-    def _log_reader():
-        """Follow the container log, fan lines out, and drive the event bus.
-
-        The previous implementation gave every client its own thread that ran
-        `docker logs --tail 50` every second and diffed the result against the
-        last batch, which scaled badly, missed lines that scrolled past between
-        polls, and duplicated any line that legitimately repeated. One follower
-        process streams the log instead, so lines arrive in order, exactly once.
-
-        It now also runs whether or not anybody is watching. The log is the only
-        real-time signal the Minecraft server produces, so a follower that
-        started on the first browser connection and stopped on the last one
-        meant every death, advancement and chat message that happened with the
-        dashboard closed was lost. Events are parsed and recorded continuously;
-        the WebSocket fanout is just one consumer of them.
-
-        It attaches with `--tail 0` deliberately. Because every line read here
-        is persisted as an event, replaying a backlog would record the same
-        deaths and advancements again on every API restart and every re-attach,
-        and the counts would climb with each one. New clients still get their
-        scrollback: `handle_connect` sends `get_log_tail()` separately, and that
-        path does not touch the bus. The trade is that events occurring while
-        the API is down are not captured, which is far better than recording
-        some of them repeatedly.
-        """
-        while not _log_reader_state["stop"]:
-            proc = None
-            try:
-                proc = subprocess.Popen(
-                    ["docker", "logs", "-f", "--tail", "0", "minecraft-server"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                )
-                with _log_streams_lock:
-                    _log_reader_state["proc"] = proc
-
-                for line in proc.stdout:
-                    if _log_reader_state["stop"]:
-                        break
-
-                    line = line.rstrip("\n")
-                    if not line.strip():
-                        continue
-
-                    # Parse and persist first, so an event is recorded even if
-                    # no client is connected to receive it.
-                    event = _publish_log_line(line)
-
-                    with _log_streams_lock:
-                        subscribers = list(active_log_streams)
-                    for sid in subscribers:
-                        socketio.emit("logs", {"logs": [line], "type": "update"}, room=sid)
-                        if event is not None:
-                            socketio.emit("game_event", event.to_dict(), room=sid)
-            except FileNotFoundError:
-                # Docker is not installed; there is nothing to stream
-                with _log_streams_lock:
-                    subscribers = list(active_log_streams)
-                for sid in subscribers:
-                    socketio.emit("error", {"message": "Docker is not available"}, room=sid)
-                with _log_streams_lock:
-                    _log_reader_state["running"] = False
-                return
-            except Exception as e:  # noqa: BLE001 - surfaced to the client below
-                with _log_streams_lock:
-                    subscribers = list(active_log_streams)
-                app.logger.error(f"Log streaming error: {e}")
-                for sid in subscribers:
-                    socketio.emit("error", {"message": "Log streaming error"}, room=sid)
-            finally:
-                with _log_streams_lock:
-                    _log_reader_state["proc"] = None
-                if proc is not None:
-                    try:
-                        proc.kill()
-                    except Exception:
-                        # Best effort: the process has usually exited on its
-                        # own by this point, and failing to reap it must not
-                        # stop the reader from re-attaching.
-                        pass
-
-            if _log_reader_state["stop"]:
-                break
-
-            # The container may have stopped or restarted, and `docker logs -f`
-            # exits when it does. Pause briefly, then re-attach, so the server
-            # coming back up resumes the stream without anyone intervening.
-            socketio.sleep(2)
-
-        with _log_streams_lock:
-            _log_reader_state["running"] = False
-
-    def _ensure_log_reader():
-        """Start the single follower thread if it is not already running"""
-        with _log_streams_lock:
-            if _log_reader_state["running"]:
-                return
-            _log_reader_state["running"] = True
-            _log_reader_state["stop"] = False
-        socketio.start_background_task(_log_reader)
-
-    def stop_log_reader():
-        """Stop the follower.
-
-        Setting the flag alone is not enough. A quiet server leaves the reader
-        blocked in `for line in proc.stdout`, where it never gets to check the
-        flag, so `docker logs -f` is killed to break the read. The reader then
-        unblocks, sees the flag and exits.
-        """
-        with _log_streams_lock:
-            _log_reader_state["stop"] = True
-            proc = _log_reader_state["proc"]
-
-        if proc is not None:
-            try:
-                proc.kill()
-            except Exception:
-                # Already exited, which is the outcome we wanted anyway.
-                pass
-
-    @socketio.on("connect")
-    def handle_connect(auth):
-        """Handle WebSocket connection.
-
-        Accepts either an API key or a JWT, mirroring auth_guard.require_auth's REST
-        behavior — without the token path, any user who logged in with a
-        username/password (no API key ever issued) could use every REST
-        endpoint but not the log/console stream.
-        """
-        api_key = auth.get("api_key") if auth else None
-        token = auth.get("token") if auth else None
-
-        identity = None  # ("api_key", key) or ("user", username)
-
-        if api_key:
-            if api_key not in API_KEYS:
-                socketio.emit("error", {"message": "Invalid API key"}, room=request.sid)
-                disconnect(request.sid)
-                return False
-
-            key_info = API_KEYS.get(api_key, {})
-            if not key_info.get("enabled", True):
-                socketio.emit("error", {"message": "API key disabled"}, room=request.sid)
-                disconnect(request.sid)
-                return False
-
-            identity = ("api_key", api_key)
-        elif token:
-            username = auth_crypto.verify_token(token)
-            if not username or username not in USERS:
-                socketio.emit("error", {"message": "Invalid or expired token"}, room=request.sid)
-                disconnect(request.sid)
-                return False
-
-            if not USERS[username].get("enabled", True):
-                socketio.emit("error", {"message": "Account disabled"}, room=request.sid)
-                disconnect(request.sid)
-                return False
-
-            identity = ("user", username)
-        else:
-            socketio.emit("error", {"message": "API key or token required"}, room=request.sid)
-            disconnect(request.sid)
-            return False
-
-        # The log stream is server output, so it needs the same permission the
-        # REST log endpoints require. Any enabled key used to be enough.
-        if not _identity_has_permission(identity, "logs.view"):
-            socketio.emit("error", {"message": "Permission denied: logs.view"}, room=request.sid)
-            disconnect(request.sid)
-            return False
-
-        with _log_streams_lock:
-            active_log_streams.add(request.sid)
-            _stream_keys[request.sid] = identity
-
-        # Send the backlog to this client only, then let the shared follower
-        # deliver everything that arrives afterwards.
-        socketio.emit("logs", {"logs": get_log_tail(LOG_BACKLOG_LINES), "type": "initial"}, room=request.sid)
-        socketio.emit("connected", {"message": "Connected to log stream"}, room=request.sid)
-
-        _ensure_log_reader()
-        return True  # connection accepted
-
-    @socketio.on("disconnect")
-    def handle_disconnect():
-        """Handle WebSocket disconnection"""
-        with _log_streams_lock:
-            active_log_streams.discard(request.sid)
-            _stream_keys.pop(request.sid, None)
-
-    def _identity_has_permission(identity, permission):
-        """Resolve a stream identity from handle_connect to a live permission check."""
-        if not identity:
-            return False
-        kind, value = identity
-        if kind == "api_key":
-            key_info = API_KEYS.get(value)
-            if not key_info or not key_info.get("enabled", True):
-                return False
-            return permission in rbac.get_api_key_permissions(key_info)
-        if kind == "user":
-            if value not in USERS or not USERS[value].get("enabled", True):
-                return False
-            return auth_guard.has_permission(value, permission)
-        return False
-
-    def _stream_may(permission):
-        """Check the live scope of the identity that opened this connection.
-
-        Re-read rather than trusting what the key or user could do at connect
-        time: a key revoked, a user disabled, or a role narrowed through the
-        management API would otherwise keep its old rights on an open socket
-        for as long as it stayed connected.
-        """
-        with _log_streams_lock:
-            identity = _stream_keys.get(request.sid)
-
-        return _identity_has_permission(identity, permission)
-
-    def _stream_actor():
-        """Who opened this socket, named as auth_guard.get_username_from_request() names
-        REST callers, for the audit log. Commands sent over the socket were all
-        recorded as "__api_key__", whoever sent them."""
-        with _log_streams_lock:
-            identity = _stream_keys.get(request.sid)
-        if not identity:
-            return "unknown"
-        kind, value = identity
-        if kind == "api_key":
-            return f"api_key:{API_KEYS.get(value, {}).get('name', 'unknown')}"
-        return value
-
-    @socketio.on("request_logs")
-    def handle_request_logs(data):
-        """Handle log request from client"""
-        if not _stream_may("logs.view"):
-            socketio.emit("error", {"message": "Permission denied: logs.view"}, room=request.sid)
-            return
-        lines = data.get("lines", 100) if data else 100
-        logs = get_log_tail(lines)
-        socketio.emit("logs", {"logs": logs, "type": "request"}, room=request.sid)
-
-    @socketio.on("execute_command")
-    def handle_execute_command(data):
-        """Handle command execution from client"""
-        # The connect handler only proved the key was valid, never that it was
-        # allowed to run commands, so a read-only key could drive the console.
-        if not _stream_may("server.command"):
-            socketio.emit("command_error", {"message": "Permission denied: server.command"}, room=request.sid)
-            return
-
-        command = data.get("command") if data else None
-        if not command:
-            socketio.emit("command_error", {"message": "Command required"}, room=request.sid)
-            return
-        if not isinstance(command, str):
-            # Raising inside the sanitizer happens before the try block below,
-            # which would leave the client waiting with no error at all.
-            socketio.emit("command_error", {"message": "Command must be a string"}, room=request.sid)
-            return
-
-        # Sanitise exactly as POST /api/server/command does. This path reached
-        # RCON unvalidated, so the WebSocket was a way around the command
-        # allowlist that the REST endpoint enforces.
-        is_valid, sanitized_command, _ = sanitize_minecraft_command(command)
-        if not is_valid:
-            log_audit_event(
-                _stream_actor(),
-                "server.command.rejected",
-                {"original_command": sanitize_string(command[:100]), "source": "websocket"},
-            )
-            socketio.emit("command_error", {"message": "Invalid command format"}, room=request.sid)
-            return
-        command = sanitized_command
-
-        log_audit_event(_stream_actor(), "server.command", {"command": sanitize_string(command[:100])})
-
-        # Execute command via RCON
-        try:
-            stdout, stderr, code = run_rcon_command(command)
-            if code == 0:
-                socketio.emit(
-                    "command_response", {"command": command, "response": stdout, "success": True}, room=request.sid
-                )
-            else:
-                socketio.emit(
-                    "command_response",
-                    {"command": command, "response": stderr or "Command failed", "success": False},
-                    room=request.sid,
-                )
-        except Exception as e:
-            app.logger.error(f"Failed to execute command over the socket: {e}")
-            socketio.emit(
-                "command_error",
-                {"message": "Failed to execute command", "command": command},
-                room=request.sid,
-            )
-
-else:
+if not SOCKETIO_AVAILABLE:
     # WebSocket not available
     warnings.warn("Flask-SocketIO not available. WebSocket support disabled.", stacklevel=1)
 
@@ -1088,7 +731,7 @@ def start_event_capture():
         orc.start_worker()
         bus.subscribe(orc.handle_event)
 
-    _ensure_log_reader()
+    realtime.ensure_log_reader()
     return True
 
 
@@ -1127,6 +770,12 @@ app.register_blueprint(oracle_bp)
 app.register_blueprint(players_bp)
 app.register_blueprint(scheduler_bp)
 app.register_blueprint(server_control_bp)
+
+# The WebSocket handlers register themselves on `socketio` as this imports (and
+# register nothing when Flask-SocketIO is missing), so it comes last, after
+# everything they read from this module exists. Imported unconditionally so
+# `realtime` is always defined for start_event_capture.
+from api import realtime  # noqa: E402
 
 
 if __name__ == "__main__":

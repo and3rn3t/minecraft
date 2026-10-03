@@ -197,7 +197,7 @@ Raw `logs` messages continue unchanged, so the existing Logs page is unaffected.
   resumes streaming without intervention.
 - If Docker is not installed the reader reports it once and stops, rather than
   retrying forever.
-- `stop_log_reader()` in [`api/server.py`](../api/server.py) brings the follower
+- `stop_log_reader()` in [`api/realtime.py`](../api/realtime.py) brings the follower
   down deliberately. It kills the `docker logs` process to break the blocking
   read, because a quiet server would otherwise leave the reader parked in it.
 - Buffered events are also flushed on a timer, so the last few on a quiet server

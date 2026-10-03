@@ -8,6 +8,7 @@ import subprocess
 from flask import Blueprint, jsonify, request
 
 from api import auth_guard, server
+from api.security import sanitize_string
 
 bp = Blueprint("audit", __name__)
 
@@ -102,7 +103,7 @@ def get_game_events():
 
     player = request.args.get("player")
     if player:
-        player = server.sanitize_string(player, max_length=16)
+        player = sanitize_string(player, max_length=16)
 
     records = server.game_events.get_bus().read(limit=limit, event_type=event_type, player=player)
 
@@ -136,11 +137,11 @@ def get_deaths():
 
     player = request.args.get("player")
     if player:
-        player = server.sanitize_string(player, max_length=16)
+        player = sanitize_string(player, max_length=16)
 
     category = request.args.get("category")
     if category:
-        category = server.sanitize_string(category, max_length=32)
+        category = sanitize_string(category, max_length=32)
 
     hall = server.hall_of_deaths.get_hall()
     return jsonify(

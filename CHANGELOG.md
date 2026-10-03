@@ -88,6 +88,17 @@ All notable changes to this project will be documented in this file.
   `_issue_csrf_token` is now the public `issue_csrf_token`, and `/api/status` no
   longer runs authentication twice.
 
+- **`api/server.py` split, part 3** — the WebSocket log stream and console move to
+  `api/realtime.py`: the single log-follower thread, the stream state, and the
+  connect, disconnect, request-logs and execute-command handlers. It reads the
+  Socket.IO instance, `USERS`, `API_KEYS`, the RCON runner and the audit logger
+  from `api.server` at call time. `ensure_log_reader` is now public because
+  `server.py` starts it with the event capture. Modules that used
+  `server.sanitize_string` / `server.sanitize_minecraft_command` import them
+  from `api.security` instead of going through `server`.
+  `api.realtime` imports cleanly without Flask-SocketIO (its handlers are then
+  simply not registered), so `server.py` imports it unconditionally.
+
 ### Fixed
 
 - **A missing auth library no longer disables an unrelated feature** — bcrypt and

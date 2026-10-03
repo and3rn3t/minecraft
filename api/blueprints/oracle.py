@@ -16,6 +16,7 @@ would silently patch a reference nothing here still uses.
 from flask import Blueprint, jsonify, request
 
 from api import auth_guard, server
+from api.security import sanitize_string
 
 bp = Blueprint("oracle", __name__)
 
@@ -42,7 +43,7 @@ def _bedtime_control(operation):
     ok, message = operation(server.bedtime_mode.get_bedtime())
 
     server.log_audit_event(
-        auth_guard.get_username_from_request(), "bedtime.control", {"result": server.sanitize_string(message[:100])}
+        auth_guard.get_username_from_request(), "bedtime.control", {"result": sanitize_string(message[:100])}
     )
     if not ok:
         return jsonify({"success": False, "error": message}), 409
