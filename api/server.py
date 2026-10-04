@@ -6,6 +6,7 @@ Provides HTTP API for remote server management
 
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -50,6 +51,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 if __name__ == "__main__":
     sys.modules.setdefault("api.server", sys.modules[__name__])
 
+from api.security import sanitize_for_log  # noqa: E402
 
 # In-process RCON client. Keeps one authenticated connection open instead of
 # paying for a TCP handshake and login per command.
@@ -552,10 +554,28 @@ def run_rcon_command(command):
     return run_script("rcon-client.sh", "command", command)
 
 
+# What a crashed Python script leaves on stderr: a traceback, or for a script that
+# will not even compile (SyntaxError, IndentationError) just the frame line, the
+# source line and the error. Either carries file paths and source, which no client
+# should see, so any frame line `File "...", line N` marks the output as Python's.
+_PYTHON_ERROR_OUTPUT = re.compile(r'^\s*Traceback \(most recent call last\)|^\s*File ".+", line \d+', re.MULTILINE)
+
+
 def script_error(stderr, fallback, *, status=500, include_success_flag=False):
     """The `else` branch most run_script() callers repeat: surface stderr, or
     a route-specific fallback message when the script printed nothing to it.
+
+    Scripts print messages meant to be read ("Player not found"), so those pass
+    through. Python's own error output (a traceback, or a syntax error from a
+    script that would not compile) is the exception: it goes to the log and the
+    route's fallback message goes to the client.
     """
+    if isinstance(stderr, bytes):
+        # Callers pass text (text=True), but a filter that raises on bytes is a poor one
+        stderr = stderr.decode("utf-8", errors="replace")
+    if stderr and _PYTHON_ERROR_OUTPUT.search(stderr):
+        app.logger.error("A script raised an unhandled exception:\n    %s", sanitize_for_log(stderr))
+        stderr = None
     body = {"error": stderr or fallback}
     if include_success_flag:
         body["success"] = False

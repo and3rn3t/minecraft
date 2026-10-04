@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from api import auth_guard, server
+from api.security import sanitize_for_log
 
 bp = Blueprint("analytics", __name__)
 
@@ -49,7 +50,11 @@ def get_analytics_report():
     )
 
     if result.returncode != 0:
-        return jsonify({"error": "Failed to generate report", "details": result.stderr}), 500
+        # The script's stderr can be a traceback (paths, source lines): log it, don't send it
+        server.app.logger.error(
+            "analytics-processor.py exited %s:\n    %s", result.returncode, sanitize_for_log(result.stderr)
+        )
+        return jsonify({"error": "Failed to generate report"}), 500
 
     # Load latest report
     report_file = server.PROJECT_ROOT / "analytics" / "processed" / "latest_report.json"

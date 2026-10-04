@@ -36,7 +36,7 @@ def get_ddns_status():
         status_output = result.stdout
         return jsonify({"success": True, "status": status_output}), 200
     else:
-        return jsonify({"success": False, "error": result.stderr or "Failed to get status"}), 500
+        return server.script_error(result.stderr, "Failed to get status", include_success_flag=True)
 
 
 @bp.route("/api/ddns/update", methods=["POST"])
@@ -56,7 +56,7 @@ def update_ddns():
         if result.returncode == 0:
             return jsonify({"success": True, "message": "DDNS updated successfully", "output": result.stdout}), 200
         else:
-            return jsonify({"success": False, "error": result.stderr or "DDNS update failed"}), 500
+            return server.script_error(result.stderr, "DDNS update failed", include_success_flag=True)
     except subprocess.TimeoutExpired:
         return jsonify({"error": "DDNS update timed out"}), 504
     except Exception as e:  # noqa: BLE001 - route boundary: logged, generic 500 to the client
