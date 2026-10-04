@@ -213,6 +213,10 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Check the vendor chunks are still produced
+        working-directory: web
+        run: npm run check:chunks
+
       # Coverage thresholds live in web/vitest.config.js; below them this fails.
       - name: Run Vitest tests
         working-directory: web
