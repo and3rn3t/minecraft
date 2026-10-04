@@ -33,8 +33,9 @@ case "\$*" in
     # The archive step: tar runs in a throwaway container. A test makes it fail by creating tar-fails
     "compose run"*)
         # tar-junk: exit 0 but write something that is not a tar stream, so the archive step "works"
-        # and only the integrity check can tell
-        if [ -f "$STATE_DIR/tar-junk" ]; then echo "this is not a tar stream"; exit 0; fi
+        # and only the integrity check can tell. It has to be at least a full 512-byte block:
+        # GNU tar lists a shorter stream as an empty archive and exits 0, where BSD tar rejects it.
+        if [ -f "$STATE_DIR/tar-junk" ]; then head -c 1024 /dev/zero | tr '\0' 'x'; exit 0; fi
         if [ -f "$STATE_DIR/tar-fails" ]; then
             echo "tar: ./world/playerdata/steve.dat: Cannot open: Permission denied" >&2
             echo "tar: Exiting with failure status due to previous errors" >&2
