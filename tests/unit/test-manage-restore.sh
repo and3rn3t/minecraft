@@ -1,9 +1,11 @@
 #!/usr/bin/env bats
-# Unit Tests: manage.sh restore
+# Unit Tests: manage.sh restore (and the failure path of manage.sh backup)
 #
 # docker is stubbed on PATH (compose is scripts/lib/common.sh's wrapper around
 # it); calls are logged to $STATE_DIR/calls. The confirmation prompt reads
 # from stdin, so tests pipe "y" or "n" into `manage.sh restore` via `bash -c`.
+
+bats_require_minimum_version 1.5.0
 
 load '../helpers/bats-support/load'
 load '../helpers/bats-assert/load'
@@ -28,6 +30,14 @@ setup() {
 echo "docker \$*" >> "$STATE_DIR/calls"
 case "\$*" in
     "compose version") echo "Docker Compose version v2.0.0" ;;
+    # The archive step: tar runs in a throwaway container. A test makes it fail by creating tar-fails
+    "compose run"*)
+        if [ -f "$STATE_DIR/tar-fails" ]; then
+            echo "tar: ./world/playerdata/steve.dat: Cannot open: Permission denied" >&2
+            echo "tar: Exiting with failure status due to previous errors" >&2
+            exit 2
+        fi
+        ;;
     ps) [ -f "$STATE_DIR/running" ] && echo "abc123 minecraft-server Up" ;;
     "ps --format {{.Names}}") [ -f "$STATE_DIR/running" ] && echo "minecraft-server" ;;
     "compose logs -f minecraft") cat "$STATE_DIR/log-line" ;;
@@ -178,4 +188,27 @@ restore_declined() {
     restore_confirmed backups/good.tar.gz
     assert_failure
     assert_line "No clean-load confirmation"
+}
+
+# Substring checks that fail the test on every bash. A bare `[[ ... ]]` that is not the last
+# command does not abort a Bats test on bash 3.2 (macOS), so a wrong assertion would pass.
+stderr_has() { [[ "$stderr" == *"$1"* ]] || { echo "expected stderr to contain: $1"; echo "stderr: $stderr"; return 1; }; }
+stdout_lacks() { [[ "$output" != *"$1"* ]] || { echo "expected stdout NOT to contain: $1"; echo "stdout: $output"; return 1; }; }
+
+@test "a failed backup says why on stderr, which is all POST /api/backup returns" {
+    mkdir -p data
+    echo "level" > data/level.dat
+    touch "$STATE_DIR/tar-fails"
+
+    run --separate-stderr scripts/manage.sh backup
+
+    assert_failure
+    stderr_has "Backup creation failed"
+    stderr_has "Permission denied"
+    # Nothing about the failure on stdout, where the API would never see it
+    stdout_lacks "Backup creation failed"
+    stdout_lacks "Permission denied"
+    # and no half-written archive is left behind
+    run bash -c "ls backups | grep -c '^minecraft_backup_' || true"
+    [ "$output" = "0" ]
 }

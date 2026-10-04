@@ -26,15 +26,6 @@ extend-exclude = '''
 # the way three copies of the same command-line flags did.
 line-length = 120
 target-version = "py311"
-exclude = [
-    ".git",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "build",
-    "dist",
-    "node_modules",
-]
 
 [tool.ruff.lint]
 # Rules that flag defects or keep the code consistent, not preferences. The full

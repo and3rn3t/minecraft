@@ -22,6 +22,18 @@ id = "generic-api-key"
 
 [rules.allowlist]
 regexTarget = "match"
+# Python tool caches (.mypy_cache and friends): gitignored and rebuilt on demand, so only a
+# working-tree scan (`make secrets`) ever reads them. A type checker's cache of a test file
+# repeats that file's made-up credentials, which this rule reports. Scoped to this rule
+# (generic-api-key, declared just above), the one that actually fires, in the form 8.24.3
+# honours (a top-level or scanner-level allowlist is not honoured there, or is rejected
+# outright by newer versions next to [[allowlists]]); a token in any other path is still
+# reported.
+paths = [
+  '''(^|/)\.mypy_cache/''',
+  '''(^|/)\.ruff_cache/''',
+  '''(^|/)\.pytest_cache/''',
+]
 regexes = [
   # tests/api/* and web/src/**/__tests__/*: the dummy key API-key fixtures
   # authenticate with (Python) or mock a create-key response with (JS).
@@ -57,11 +69,3 @@ description = "Bare PEM header in the Apple OAuth instructions, with no key mate
 condition = "AND"
 paths = ['''docs/OAUTH_SETUP\.md''']
 regexes = ['''-----BEGIN PRIVATE KEY-----''']
-
-[[allowlists]]
-description = "Python tool caches: gitignored and rebuilt on demand, so a working-tree scan has no business in them. A type checker's cache of a test file repeats that file's made-up credentials, which is all that was ever found here."
-paths = [
-  '''(^|/)\.mypy_cache/''',
-  '''(^|/)\.ruff_cache/''',
-  '''(^|/)\.pytest_cache/''',
-]
