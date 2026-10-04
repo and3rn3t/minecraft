@@ -242,11 +242,17 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **A failed backup now tells the admin panel why** — `scripts/manage.sh` printed the
-  `tar`/`gzip` diagnostics on stdout, but `POST /api/backup` returns only stderr when the
-  script fails, so the panel showed a failure with no reason. The failure message and
-  the last lines of the `tar` log now go to stderr. (Found in review of #76 and pushed
-  after that PR had merged, so it never landed.)
+- **A failed backup now tells the admin panel why** — two things hid the reason. In
+  `scripts/manage.sh`, the `tar`/`gzip` diagnostics, the missing-data-directory message
+  and the failed integrity check all went to stdout, while `POST /api/backup` returns
+  only stderr when the script fails; they now go to stderr, and an archive that fails
+  the integrity check is removed instead of being left to show up in the list of backups.
+  In the panel, `useErrorHandler` preferred `err.message`, which an Axios error always
+  has ("Request failed with status code 500"), over `err.response.data.error`, the
+  reason the API returned; the API's message now comes first, for every page that uses
+  the hook (its test used a plain object with no `message`, so it could not see this;
+  there is now one with a real `AxiosError`). Each fix has a test that fails without it.
+  (Found in review of #76 and pushed after that PR had merged, so it never landed.)
 - **ruff's built-in excludes are back** — `pyproject.toml` set `exclude`, which
   *replaces* ruff's defaults rather than adding to them, so seven entries stood in for
   the default twenty-five (dropping `.mypy_cache`, `.pytest_cache`, `.ruff_cache`, `.tox`

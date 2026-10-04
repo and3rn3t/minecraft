@@ -116,7 +116,8 @@ create_backup() {
     BACKUP_FILE="$BACKUP_DIR/minecraft_backup_$TIMESTAMP.tar.gz"
 
     if [ ! -d "./data" ]; then
-        echo -e "${RED}No data directory found${NC}"
+        # stderr, because that is what POST /api/backup returns on failure
+        echo -e "${RED}No data directory found${NC}" >&2
         exit 1
     fi
 
@@ -151,7 +152,10 @@ create_backup() {
             FILE_COUNT=$(tar -tzf "$BACKUP_FILE" | wc -l)
             echo -e "${GREEN}Backup verified: $FILE_COUNT files archived${NC}"
         else
-            echo -e "${RED}Warning: Backup verification failed${NC}"
+            # An archive that cannot be listed is not a backup: leaving it would put it in
+            # the list of backups the panel offers to restore
+            echo -e "${RED}Backup verification failed: $BACKUP_FILE is not a readable archive and was removed${NC}" >&2
+            rm -f "$BACKUP_FILE"
             exit 1
         fi
     else

@@ -32,6 +32,9 @@ case "\$*" in
     "compose version") echo "Docker Compose version v2.0.0" ;;
     # The archive step: tar runs in a throwaway container. A test makes it fail by creating tar-fails
     "compose run"*)
+        # tar-junk: exit 0 but write something that is not a tar stream, so the archive step "works"
+        # and only the integrity check can tell
+        if [ -f "$STATE_DIR/tar-junk" ]; then echo "this is not a tar stream"; exit 0; fi
         if [ -f "$STATE_DIR/tar-fails" ]; then
             echo "tar: ./world/playerdata/steve.dat: Cannot open: Permission denied" >&2
             echo "tar: Exiting with failure status due to previous errors" >&2
@@ -209,6 +212,30 @@ stdout_lacks() { [[ "$output" != *"$1"* ]] || { echo "expected stdout NOT to con
     stdout_lacks "Backup creation failed"
     stdout_lacks "Permission denied"
     # and no half-written archive is left behind
+    run bash -c "ls backups | grep -c '^minecraft_backup_' || true"
+    [ "$output" = "0" ]
+}
+
+@test "a backup without a data directory says so on stderr" {
+    # no ./data in this test directory
+    run --separate-stderr scripts/manage.sh backup
+
+    assert_failure
+    stderr_has "No data directory found"
+    stdout_lacks "No data directory found"
+}
+
+@test "an archive that fails the integrity check is reported on stderr and removed" {
+    mkdir -p data
+    echo "level" > data/level.dat
+    touch "$STATE_DIR/tar-junk"
+
+    run --separate-stderr scripts/manage.sh backup
+
+    assert_failure
+    stderr_has "Backup verification failed"
+    stdout_lacks "Backup verification failed"
+    # the unreadable archive is not left behind to be offered as a backup
     run bash -c "ls backups | grep -c '^minecraft_backup_' || true"
     [ "$output" = "0" ]
 }
