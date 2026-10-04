@@ -65,7 +65,7 @@ make build             # docker compose build
 rather than three minutes into a pull request.
 
 ```bash
-make ci                # everything below, in the order CI runs it
+make ci                # everything below; the BATS suite runs alongside the other steps
 make hooks             # install the pre-commit hooks (do this once per clone)
 make doctor            # which of the supporting tools are installed
 make secrets           # gitleaks, as the Gitleaks workflow runs it
@@ -86,6 +86,12 @@ A missing tool **fails** `make ci` rather than being skipped. A gate that
 reports success while quietly omitting a job is how the checks here came to be
 trusted without running. Opt out deliberately with `SKIP_CODEQL=1` or
 `SKIP_BATS=1` when you have a reason to.
+
+`make ci` takes about two minutes. The BATS files run in parallel (`BATS_JOBS=N`
+sets how many, `BATS_JOBS=1` runs them one at a time), and the whole suite runs in
+the background while the other steps do. A failure still fails the run, and the
+suite's output is printed when it finishes. `CI_SERIAL=1 make ci` runs every step
+in order, which reads better when you are chasing a failure.
 
 `make codeql` prints the whole-repository total and then the results sitting on
 lines this branch changed, which is what the CodeQL check reports on a pull
