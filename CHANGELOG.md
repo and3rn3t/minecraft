@@ -52,14 +52,15 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Web test tooling brought up to date** — jsdom 23 → 29, msw 2 → 3, jest-dom 6 → 7,
-  jest-axe 8 → 11 and Vitest 5.0.1 → 5.0.3. The existing tests pass unchanged, and
+- **Web test tooling brought up to date** — jsdom 23 → 29, jest-dom 6 → 7, jest-axe 8 → 11
+  and Vitest 5.0.1 → 5.0.3. msw stays on 2.x: Vitest's mocker declares `msw ^2.4.9` as its
+  peer, and `npm ci` rejects a lockfile with msw 3. The existing tests pass unchanged, and
   these are dev-only, so the app bundle is not affected. `npm audit` findings are
   unchanged by the upgrade; they come from Tailwind 3's dependencies, which the Tailwind
   4 upgrade is expected to remove. Playwright is left to its own pin
   (`scripts/check-playwright-pin.sh`). The declared Node range in `web/package.json`
-  was `>=20.19`, which msw 3 and Vitest already rule out; it is now
-  `^22.13.0 || >=24.0.0` (CI runs Node 22).
+  was `>=20.19`, which Vitest and jsdom already rule out; it is now
+  `^22.13.0 || ^24.0.0 || >=26.0.0`, the overlap of what they support (CI runs Node 22).
 - **Playwright 1.56.1 → 1.63.0** — `@playwright/test` and `playwright` are now pinned
   exactly in `web/package.json` (the version has to equal the CI container's tag, so a
   caret range only invited a lockfile that drifts ahead of it), the lockfile,
