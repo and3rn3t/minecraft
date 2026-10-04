@@ -105,6 +105,7 @@ New here? Read `INSTALL.md`, then keep `QUICK_REFERENCE.md` open.
 | [CI_CD.md](CI_CD.md) | GitHub Actions pipeline and release process |
 | [CURSOR_CONFIGURATION.md](CURSOR_CONFIGURATION.md) | Cursor IDE setup |
 | [ROADMAP.md](ROADMAP.md) | Everything planned, in order — the only roadmap |
+| [TECH_DEBT.md](TECH_DEBT.md) | Dependency pins, test gaps and other maintenance work that is not on the roadmap |
 
 AI assistants read [`../AGENTS.md`](../AGENTS.md) — the single source of truth for
 conventions. See also [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
