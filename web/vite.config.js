@@ -7,6 +7,33 @@ import { defineConfig } from 'vite';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Rolldown groups modules by path, not by package name, so each vendor chunk lists
+// the packages that belong to it, including the ones those packages pull in. If a
+// package is missing here its code lands in the main chunk, which is only a caching
+// loss, not a build failure.
+const REACT_VENDOR_PACKAGES = [
+  'react',
+  'react-dom',
+  'scheduler', // react-dom's scheduler
+  'react-router', // react-router-dom's core
+  'react-router-dom',
+];
+const SOCKET_VENDOR_PACKAGES = [
+  'socket.io-client',
+  'socket.io-parser',
+  'engine.io-client',
+  'engine.io-parser',
+  '@socket.io/component-emitter',
+];
+
+// Matches a file inside node_modules/<package>/ on both POSIX and Windows paths
+const SEP = '[\\\\/]';
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const vendorPattern = packages =>
+  new RegExp(
+    `node_modules${SEP}(${packages.map(name => escapeRegExp(name).replaceAll('/', SEP)).join('|')})${SEP}`
+  );
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -35,12 +62,14 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          // Separate vendor chunks for better caching
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'socket-vendor': ['socket.io-client'],
+        // Separate vendor chunks for better caching
+        codeSplitting: {
+          groups: [
+            { name: 'react-vendor', test: vendorPattern(REACT_VENDOR_PACKAGES) },
+            { name: 'socket-vendor', test: vendorPattern(SOCKET_VENDOR_PACKAGES) },
+          ],
         },
       },
     },

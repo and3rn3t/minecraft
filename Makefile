@@ -4,7 +4,7 @@
 # Prefer the Docker Compose v2 plugin, fall back to the legacy v1 binary
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests check-playwright-pin test-visual test-visual-update
+.PHONY: help start stop restart status logs backup console update install clean test lint lint-bash lint-python lint-js lint-yaml lint-docker coverage coverage-check coverage-report benchmark build-multiarch ci hooks pre-commit secrets actionlint codeql doctor shell-syntax bash-tests check-playwright-pin check-web-build test-visual test-visual-update
 
 # Default target
 help:
@@ -147,6 +147,11 @@ PLAYWRIGHT_DOCKER = docker run --rm -v "$(CURDIR)/web":/work -v minecraft-web-no
 # The playwright-tests job's first step: every place the version is pinned agrees.
 check-playwright-pin:
 	@./scripts/check-playwright-pin.sh
+
+# The frontend job's Build and vendor-chunk steps. `make test` only runs Vitest, so
+# without this a broken vite.config.js or a lost vendor split is first seen in CI.
+check-web-build:
+	@cd web && npm run build && npm run check:chunks
 
 test-visual:
 	@echo "Running all Playwright tests in $(PLAYWRIGHT_IMAGE), as CI does..."
@@ -414,6 +419,7 @@ ci:
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory shell-syntax
 	@$(MAKE) --no-print-directory check-playwright-pin
+	@$(MAKE) --no-print-directory check-web-build
 	@$(MAKE) --no-print-directory actionlint
 	@$(MAKE) --no-print-directory secrets
 	@$(MAKE) --no-print-directory test

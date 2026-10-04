@@ -33,6 +33,11 @@ export default [
     languageOptions: { globals: globals.node },
   },
   {
+    // Build-time scripts run in Node
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: globals.node },
+  },
+  {
     // Playwright specs run in Node, and a fixture's `use` callback is not a
     // React hook.
     files: ['tests/e2e/**/*.js'],

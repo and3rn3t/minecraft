@@ -52,6 +52,16 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Vite 6 → 8 and `@vitejs/plugin-react` 4 → 6** — Vite 8 bundles with Rolldown, which
+  does not accept the object form of `build.rollupOptions.output.manualChunks`, so the
+  vendor split in `web/vite.config.js` now uses `build.rolldownOptions.output.codeSplitting`
+  groups and still produces the `react-vendor` and `socket-vendor` chunks. A lost
+  group would not fail the build (the code just falls back into the main chunk), so
+  `npm run check:chunks` (`web/scripts/check-build-chunks.mjs`) builds in memory and
+  fails if either chunk is missing or their libraries land elsewhere; it runs in the
+  frontend CI job and in `make ci` (`make check-web-build`), which previously never ran
+  the web build at all. The build, lint and existing tests pass without other changes. `npm audit` findings are
+  unchanged; Tailwind 3's dependencies still cause them.
 - **Web test tooling brought up to date** — jsdom 23 → 29, jest-dom 6 → 7, jest-axe 8 → 11
   and Vitest 5.0.1 → 5.0.3. msw stays on 2.x: Vitest's mocker declares `msw ^2.4.9` as its
   peer, and `npm ci` rejects a lockfile with msw 3. The existing tests pass unchanged, and
