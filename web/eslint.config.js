@@ -10,13 +10,17 @@ export default [
   react.configs.flat.recommended,
   react.configs.flat['jsx-runtime'],
   {
+    // The react plugin's recommended rules apply to every file, whatever its
+    // extension, and warn on each lint run when no React version is configured
+    settings: { react: { version: 'detect' } },
+  },
+  {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: globals.browser,
     },
-    settings: { react: { version: 'detect' } },
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,

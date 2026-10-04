@@ -52,6 +52,15 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **React 18 → 19** — `react` and `react-dom` 19.3, `@types/react` and `@types/react-dom`
+  19. Nothing in the app used a removed API (no `ReactDOM.render`, `propTypes` or
+  `defaultProps` on components); the `forwardRef` wrappers in `components/ui` still work
+  and were left alone. The build, vendor-chunk check, lint and existing tests pass
+  without code changes and without new warnings. `eslint-plugin-react-hooks` stays on 5;
+  its 7.x adds React Compiler rules and is a separate change. The ESLint config now sets
+  the React version (`detect`) in one global block instead of only for `.js`/`.jsx`
+  files, which stops every lint run printing "React version not specified" for the
+  `.mjs` build-chunk script.
 - **Vite 6 → 8 and `@vitejs/plugin-react` 4 → 6** — Vite 8 bundles with Rolldown, which
   does not accept the object form of `build.rollupOptions.output.manualChunks`, so the
   vendor split in `web/vite.config.js` now uses `build.rolldownOptions.output.codeSplitting`
