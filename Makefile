@@ -415,23 +415,33 @@ bash-tests:
 # SKIP_CODEQL=1 or SKIP_BATS=1 if you need to.
 ci:
 	@echo "=== Running the checks CI runs ==="
-	@$(MAKE) --no-print-directory pre-commit
-	@$(MAKE) --no-print-directory lint
-	@$(MAKE) --no-print-directory shell-syntax
-	@$(MAKE) --no-print-directory check-playwright-pin
-	@$(MAKE) --no-print-directory check-web-build
-	@$(MAKE) --no-print-directory actionlint
-	@$(MAKE) --no-print-directory secrets
-	@$(MAKE) --no-print-directory test
-	@if [ -n "$(SKIP_BATS)" ]; then \
+	@# The Bats suite is the slowest step and needs nothing from the others, so it runs
+	@# in the background while they do, and its (buffered) output is printed at the end.
+	@# If another step fails first, the suite's whole process tree is stopped (no job
+	@# control: `set -m` is not available to every /bin/sh without a terminal).
+	@# CI_SERIAL=1 runs everything one step at a time, in order.
+	@bats_log=$$(mktemp); bats_pid=""; \
+	trap 'rm -f "$$bats_log" "$$bats_log.rc"' EXIT; \
+	tree() { echo "$$1"; for child in $$(pgrep -P "$$1" 2>/dev/null); do tree "$$child"; done; }; \
+	if [ -n "$(SKIP_BATS)" ]; then \
 		echo "Skipping the bash-tests job (SKIP_BATS set)."; \
+	elif [ -n "$(CI_SERIAL)" ]; then \
+		$(MAKE) --no-print-directory bash-tests || exit 1; \
 	else \
-		$(MAKE) --no-print-directory bash-tests; \
-	fi
-	@if [ -n "$(SKIP_CODEQL)" ]; then \
+		( $(MAKE) --no-print-directory bash-tests > "$$bats_log" 2>&1; echo $$? > "$$bats_log.rc" ) & bats_pid=$$!; \
+	fi; \
+	for step in pre-commit lint shell-syntax check-playwright-pin check-web-build actionlint secrets test; do \
+		$(MAKE) --no-print-directory $$step || { [ -n "$$bats_pid" ] && kill $$(tree "$$bats_pid") 2>/dev/null; wait "$$bats_pid" 2>/dev/null; exit 1; }; \
+	done; \
+	if [ -n "$$bats_pid" ]; then \
+		echo "=== bash-tests (ran alongside the steps above) ==="; \
+		wait $$bats_pid; cat "$$bats_log"; \
+		[ "$$(cat "$$bats_log.rc")" = "0" ] || { echo "bash-tests failed"; exit 1; }; \
+	fi; \
+	if [ -n "$(SKIP_CODEQL)" ]; then \
 		echo "Skipping CodeQL (SKIP_CODEQL set)."; \
 	else \
-		$(MAKE) --no-print-directory codeql; \
+		$(MAKE) --no-print-directory codeql || exit 1; \
 	fi
 	@echo ""
 	@echo "All CI-parity checks passed."

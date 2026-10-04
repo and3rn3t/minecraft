@@ -52,6 +52,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`make ci` is about twice as fast** — the BATS suite was 157 of its 231 seconds, run
+  one file after another. `scripts/run-tests.sh` now runs the files in parallel
+  (`BATS_JOBS` sets the count, `1` is the old serial run) with each file's output
+  buffered and printed in order, and `make ci` runs the suite in the background while
+  the other steps run. A failing file or a failing step still fails the run, and an
+  early failure stops the background suite. `CI_SERIAL=1 make ci` keeps the old order.
+  The tests themselves are unchanged. The bash-tests CI job gets the parallel run too.
 - **React 18 → 19** — `react` and `react-dom` 19.3, `@types/react` and `@types/react-dom`
   19. Nothing in the app used a removed API (no `ReactDOM.render`, `propTypes` or
   `defaultProps` on components); the `forwardRef` wrappers in `components/ui` still work

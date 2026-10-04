@@ -66,7 +66,51 @@ run_bash_tests() {
         return
     fi
 
-    if ! bats "${files[@]}"; then
+    # The files share nothing (each builds its own mktemp directory), so they run
+    # side by side: the suite takes about as long as its slowest file instead of the
+    # sum of all of them. Output is buffered per file and printed in order, so the
+    # log reads the same as a serial run. BATS_JOBS=1 gives the old serial run.
+    local jobs="${BATS_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
+    if [ "$jobs" -le 1 ] || [ "${#files[@]}" -le 1 ]; then
+        if ! bats "${files[@]}"; then
+            FAILED_SUITES+=("bash")
+        fi
+        return
+    fi
+
+    # Results are named by position in the list, not by file name, so two files can
+    # never write to the same place.
+    local out_dir index
+    out_dir="$(mktemp -d)"
+    # Removed however the run ends: normally, on an early return, or on Ctrl-C/kill
+    trap 'rm -rf "$out_dir"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    local failed=0 xargs_status
+    for index in "${!files[@]}"; do
+        printf '%s\0%s\0' "$index" "${files[$index]}"
+    done |
+        xargs -0 -n 2 -P "$jobs" bash -c \
+            'out="$1/$2.out"; bats "$3" > "$out" 2>&1 </dev/null; echo $? > "$out.rc"' _ "$out_dir"
+    xargs_status=$?
+    # Each worker records its own result and always exits 0, so a non-zero status here
+    # means xargs could not run the workers at all
+    if [ "$xargs_status" -ne 0 ]; then
+        echo -e "${RED}Could not start the BATS runs in parallel (xargs exited ${xargs_status}).${NC}"
+        failed=1
+    fi
+
+    for index in "${!files[@]}"; do
+        cat "$out_dir/$index.out"
+        if [ "$(cat "$out_dir/$index.out.rc" 2>/dev/null || echo 1)" != "0" ]; then
+            failed=1
+        fi
+    done
+    rm -rf "$out_dir"
+    trap - EXIT INT TERM
+
+    if [ "$failed" -ne 0 ]; then
         FAILED_SUITES+=("bash")
     fi
 }
