@@ -79,7 +79,10 @@ All notable changes to this project will be documented in this file.
   `make secrets` no longer fails on `.mypy_cache`, `.ruff_cache` and `.pytest_cache`:
   gitleaks scans the whole working tree, ignored files included, and a type checker's
   cache of a test file repeats that file's made-up credentials. Those three directories
-  are allowlisted in `.gitleaks.toml`; a token anywhere else is still caught.
+  are allowlisted on the `generic-api-key` rule in `.gitleaks.toml`, the form gitleaks
+  8.24.3 (the pinned version) honours; a top-level allowlist does nothing there and a
+  scanner-level one is rejected by newer versions. Checked against both. A token anywhere
+  else is still caught.
 - **Tailwind CSS 3 → 4** — done with the official upgrade tool, then checked page by
   page. The theme moved from `web/tailwind.config.js` to an `@theme` block in
   `web/src/index.css`, PostCSS uses `@tailwindcss/postcss`, and `autoprefixer` is gone
@@ -239,6 +242,26 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **A failed backup now tells the admin panel why** — two things hid the reason. In
+  `scripts/manage.sh`, the `tar`/`gzip` diagnostics, the missing-data-directory message
+  and the failed integrity check all went to stdout, while `POST /api/backup` returns
+  only stderr when the script fails; they now go to stderr, and an archive that fails
+  the integrity check is removed instead of being left to show up in the list of backups.
+  In the panel, `useErrorHandler` preferred `err.message`, which an Axios error always
+  has ("Request failed with status code 500"), over `err.response.data.error`, the
+  reason the API returned; the API's message now comes first, for every page that uses
+  the hook (its test used a plain object with no `message`, so it could not see this;
+  there is now one with a real `AxiosError`). Each fix has a test that fails without it.
+  (Found in review of #76 and pushed after that PR had merged, so it never landed.)
+- **ruff's built-in excludes are back** — `pyproject.toml` set `exclude`, which
+  *replaces* ruff's defaults rather than adding to them, so seven entries stood in for
+  the default twenty-five (dropping `.mypy_cache`, `.pytest_cache`, `.ruff_cache`, `.tox`
+  and others). Nothing here needs excluding beyond the defaults, so the list is gone.
+  Lint results are unchanged. (From #37, same fate as above.)
+- **The vendor-chunk check now looks at every package, not one per chunk** — and keeps
+  its own list, separate from `vite.config.js`'s, so a typo there cannot change what it
+  expects (`web/scripts/check-build-chunks.mjs`). Written in review of #103 and pushed
+  after it merged, so `main` still had the one-package version.
 - **`PROJECT_ROOT` is now a clean absolute path in every API module** — each derived it
   from `Path(__file__).parent.parent`, which keeps any `..` the module was imported
   through. Removing the tests' `sys.path` edits showed it: pytest's `pythonpath = ../..`
