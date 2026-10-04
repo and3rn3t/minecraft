@@ -1,7 +1,6 @@
 """Tests for the game event bus (api/events.py)."""
 
 import json
-import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -9,10 +8,7 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.events import (  # noqa: E402
+from api.events import (
     EVENT_ADVANCEMENT,
     EVENT_CHAT,
     EVENT_COMMAND,
@@ -29,6 +25,8 @@ from api.events import (  # noqa: E402
     parse_line,
     reset_bus,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 def line(message, thread="Server thread/INFO", time="16:04:23"):

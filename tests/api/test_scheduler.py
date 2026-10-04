@@ -10,17 +10,15 @@ that the right choice.
 
 import importlib.util
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path as PathLib
 
 import pytest
 
-PROJECT_ROOT = PathLib(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.server as api_module
+from api.blueprints import scheduler as scheduler_bp
 
-import api.server as api_module  # noqa: E402
-from api.blueprints import scheduler as scheduler_bp  # noqa: E402
+PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 
 
 @pytest.fixture

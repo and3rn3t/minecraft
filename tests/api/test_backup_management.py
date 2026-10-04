@@ -4,16 +4,14 @@ Tests for backup management API endpoints (restore/delete)
 """
 
 import json
-import sys
 from pathlib import Path as PathLib
 from unittest.mock import patch
 
 import pytest
 
-PROJECT_ROOT = PathLib(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.server as api_module
 
-import api.server as api_module  # noqa: E402
+PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 
 app = api_module.app
 

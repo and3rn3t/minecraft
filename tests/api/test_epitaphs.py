@@ -1,20 +1,18 @@
 """Tests for epitaph writing (api/epitaphs.py)."""
 
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.epitaphs import (  # noqa: E402
+from api.epitaphs import (
     Death,
     TemplateEpitaphWriter,
     classify_cause,
     extract_culprit,
     write_epitaph,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.mark.unit

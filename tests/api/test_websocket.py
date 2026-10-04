@@ -8,18 +8,16 @@ handlers directly with request.sid mocked, as test_log_streaming.py does.
 """
 
 import json
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.auth_crypto as auth_crypto
+import api.realtime as realtime
+import api.server as api_module
 
-import api.auth_crypto as auth_crypto  # noqa: E402
-import api.realtime as realtime  # noqa: E402
-import api.server as api_module  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 pytestmark = pytest.mark.skipif(
     not api_module.SOCKETIO_AVAILABLE,

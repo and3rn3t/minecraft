@@ -27,7 +27,7 @@ import threading
 from pathlib import Path
 from typing import Iterable, Optional
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RCON_CONFIG_FILE = PROJECT_ROOT / "config" / "rcon.conf"
 
 # Packet types from the Source RCON protocol

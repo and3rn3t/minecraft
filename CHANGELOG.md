@@ -52,6 +52,34 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`scripts/setup-docker-boot.sh` removed** — a 411-line generator for a generic
+  `docker-app` systemd service (compose, `docker run` and a Minecraft mode). Nothing in
+  the docs, tests, CI or Makefile used it; `systemd/minecraft.service` and the install
+  guides already cover starting at boot, and its units pulled an image where this
+  project's compose file builds one. It is in git history if it is ever wanted.
+- **Tidying left over from the dependency work** — `api/server.py` loses its last
+  self-contained piece: the code that wires the Hall of Deaths, pet cemetery, bedtime
+  mode and the Oracle to the event bus moves to `api/event_capture.py` (about 100
+  lines, read through `api.server` at call time like the other split-out modules), and
+  it now has tests, which it had none of (`tests/api/test_event_capture.py`; each of
+  five deliberate breakages of it is caught). The 32 test files that edited `sys.path`
+  by hand no longer do: `tests/api/pytest.ini` already puts the project on the path, so
+  the inserts, the `# noqa: E402` marks they needed and the unused imports are gone.
+  `@axe-core/react`, a dev dependency nothing imported, is removed. In the web app, 64
+  raw hex colours in `index.css` and `Layout.jsx` (`border-t-[#E0E0E0]`,
+  `from-[#6D4C41]`, ...) now use the theme tokens they already equalled
+  (`border-t-minecraft-text`, `from-minecraft-dirt`, ...), and so do 21 plain hex values in
+  the rules of `index.css` itself (the toast gradients, scrollbar, skeleton, body
+  background and so on, as `var(--color-minecraft-…)`). Every route renders
+  bit-identically to before (24 of 24 screenshots compared), and a browser comparison of
+  540 resolved values across the custom classes in every state (base, hover, active,
+  focus, including the toasts, which screenshots cannot reach) found no difference. The danger button's hover
+  shade, `#D32F2F`, becomes a new `minecraft-danger-hover` token. One raw value stays
+  because no token has it: `#9C27B0`, a purple in the audit log.
+  `make secrets` no longer fails on `.mypy_cache`, `.ruff_cache` and `.pytest_cache`:
+  gitleaks scans the whole working tree, ignored files included, and a type checker's
+  cache of a test file repeats that file's made-up credentials. Those three directories
+  are allowlisted in `.gitleaks.toml`; a token anywhere else is still caught.
 - **Tailwind CSS 3 → 4** — done with the official upgrade tool, then checked page by
   page. The theme moved from `web/tailwind.config.js` to an `@theme` block in
   `web/src/index.css`, PostCSS uses `@tailwindcss/postcss`, and `autoprefixer` is gone
@@ -211,6 +239,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`PROJECT_ROOT` is now a clean absolute path in every API module** — each derived it
+  from `Path(__file__).parent.parent`, which keeps any `..` the module was imported
+  through. Removing the tests' `sys.path` edits showed it: pytest's `pythonpath = ../..`
+  gave `api/server.py` a root of `.../tests/api/../..`, and the file browser's
+  `relative_to(PROJECT_ROOT)` check then raised `ValueError` and answered 500 for
+  anything under it. The same would happen in production behind a symlinked or relative
+  install path. All eight modules now resolve it (`tests/api/test_project_root.py` fails
+  against the old code).
 - **`GET /api/logs` no longer waits 30 seconds** — it ran `manage.sh logs` first and
   kept only its `stderr` as a fallback, but that script follows the log (`compose logs
   -f`), so every request waited for `run_script`'s 30-second timeout before it even

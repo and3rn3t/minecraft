@@ -7,16 +7,12 @@ rather than mocked.
 
 import socket
 import struct
-import sys
 import threading
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.rcon import (  # noqa: E402
+from api.rcon import (
     MAX_COMMAND_LENGTH,
     PACKET_TYPE_AUTH_RESPONSE,
     PACKET_TYPE_COMMAND,
@@ -35,6 +31,8 @@ from api.rcon import (  # noqa: E402
     load_rcon_config,
     reset_client,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Fixture value only. The fake server below compares against this exact
 # string; it is not a credential for anything.

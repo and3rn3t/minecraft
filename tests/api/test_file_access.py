@@ -7,17 +7,15 @@ now needs files.view (admin only). The config-file viewer stays open to
 config.view but masks credential values for anyone who cannot edit config.
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.rbac as rbac
+import api.server as api_module
+from api.config_redaction import redact_config_secrets
 
-import api.rbac as rbac  # noqa: E402
-import api.server as api_module  # noqa: E402
-from api.config_redaction import redact_config_secrets  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 ADMIN_KEYS_CONTENT = '{"the-real-admin-key": {"role": "admin"}}'
 

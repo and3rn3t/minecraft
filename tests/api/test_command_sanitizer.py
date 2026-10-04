@@ -8,17 +8,15 @@ space, because whitespace sat in its shell-metacharacter class, and it read
 tested, so the Console quietly accepted nothing but bare commands like "list".
 """
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.server as api_module
+from api.security import sanitize_minecraft_command, sanitize_string
 
-import api.server as api_module  # noqa: E402
-from api.security import sanitize_minecraft_command, sanitize_string  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class TestAcceptsRealCommands:

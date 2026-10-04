@@ -4,18 +4,16 @@ Tests for Role-Based Access Control (RBAC) functionality
 """
 
 import json
-import sys
 from pathlib import Path as PathLib
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = PathLib(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.auth_crypto as auth_crypto
+import api.rbac as rbac
+import api.server as api_module
 
-import api.auth_crypto as auth_crypto  # noqa: E402
-import api.rbac as rbac  # noqa: E402
-import api.server as api_module  # noqa: E402
+PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 
 PERMISSIONS = rbac.PERMISSIONS
 ROLE_PERMISSIONS = rbac.ROLE_PERMISSIONS

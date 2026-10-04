@@ -12,16 +12,14 @@ variable), so it isn't something a test can flip per-case against the live
 warning any time the wildcard default is still in effect.
 """
 
-import sys
 import warnings
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from api.server import _warn_if_cors_wildcard_with_credentials
 
-from api.server import _warn_if_cors_wildcard_with_credentials  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class TestCorsWildcardWarning:

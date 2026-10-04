@@ -5,28 +5,22 @@ Pytest configuration for API tests
 import copy
 import json
 import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add project root to path before importing tests.api.factories
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-# Import app after path setup
-import api.server as api_module  # noqa: E402
-
-app = api_module.app
-
-# Imports must come after sys.path modification
-from tests.api.factories import (  # noqa: E402
+import api.server as api_module
+from tests.api.factories import (
     create_api_key_data,
     create_backup_metadata,
     create_server_properties,
     create_user_data,
 )
+
+app = api_module.app
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture(autouse=True)

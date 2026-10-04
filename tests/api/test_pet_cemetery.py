@@ -1,16 +1,12 @@
 """Tests for the Pet Cemetery (api/pet_cemetery.py)."""
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.events import GameEvent  # noqa: E402
-from api.pet_cemetery import (  # noqa: E402
+from api.events import GameEvent
+from api.pet_cemetery import (
     CEMETERY_ORIGIN,
     CEMETERY_PLOT_SPACING,
     CEMETERY_ROW_LENGTH,
@@ -23,6 +19,8 @@ from api.pet_cemetery import (  # noqa: E402
     reset_cemetery,
     write_gentle_epitaph,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 def pet_death_event(name="Biscuit", entity_type="EntityWolf", cause="was slain by Skeleton"):

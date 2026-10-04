@@ -6,18 +6,15 @@ Tests for the REST API server
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add project root to path before importing api.server
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Import after path modification
-from api.server import app  # noqa: E402
+from api.server import app
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture
