@@ -18,7 +18,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 @pytest.mark.real_subprocess
 @pytest.mark.parametrize(
     "module",
-    ["api.server", "api.auth_guard", "api.auth_crypto", "api.paths", "api.config_redaction", "api.rbac", "api.realtime"],
+    [
+        "api.server",
+        "api.auth_guard",
+        "api.auth_crypto",
+        "api.paths",
+        "api.config_redaction",
+        "api.rbac",
+        "api.realtime",
+        "api.event_capture",
+    ],
 )
 def test_module_imports_first(module):
     result = subprocess.run(

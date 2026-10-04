@@ -10,17 +10,15 @@ was caught and every schedule was skipped silently from then on.
 import importlib.util
 import json
 import shutil
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.realtime as realtime
+import api.server as api_module
 
-import api.realtime as realtime  # noqa: E402
-import api.server as api_module  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture(scope="module")

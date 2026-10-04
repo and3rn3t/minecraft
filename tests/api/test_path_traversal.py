@@ -17,7 +17,6 @@ of an allowed directory is what defeats naive implementations, and it works here
 only because the path is resolved *before* the allowlist check.
 """
 
-import sys
 import uuid
 from io import BytesIO
 from pathlib import Path as PathLib
@@ -25,12 +24,11 @@ from unittest.mock import patch
 
 import pytest
 
-PROJECT_ROOT = PathLib(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.auth_crypto as auth_crypto
+import api.server as api_module
+from api.paths import is_path_allowed
 
-import api.auth_crypto as auth_crypto  # noqa: E402
-import api.server as api_module  # noqa: E402
-from api.paths import is_path_allowed  # noqa: E402
+PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 
 # Payloads that defeat a naive check. Encoded forms are included because a
 # check running before URL decoding sees different bytes than the filesystem.

@@ -5,20 +5,18 @@ pin the one rule that matters about it: reporting a failure must never raise, be
 it runs on threads that have to keep going.
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from api.bedtime import Bedtime
+from api.error_reporting import ErrorReporting
+from api.events import EventBus
+from api.hall_of_deaths import HallOfDeaths
+from api.oracle import Oracle
+from api.pet_cemetery import PetCemetery
 
-from api.bedtime import Bedtime  # noqa: E402
-from api.error_reporting import ErrorReporting  # noqa: E402
-from api.events import EventBus  # noqa: E402
-from api.hall_of_deaths import HallOfDeaths  # noqa: E402
-from api.oracle import Oracle  # noqa: E402
-from api.pet_cemetery import PetCemetery  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class Worker(ErrorReporting):

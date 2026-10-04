@@ -29,7 +29,7 @@ from typing import Callable, Optional
 
 from api.error_reporting import ErrorReporting
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BEDTIME_CONFIG_FILE = PROJECT_ROOT / "config" / "bedtime.conf"
 
 # What happens when the countdown reaches zero.

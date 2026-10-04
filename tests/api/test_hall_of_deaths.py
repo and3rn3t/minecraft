@@ -1,16 +1,12 @@
 """Tests for the Hall of Deaths (api/hall_of_deaths.py)."""
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.events import GameEvent  # noqa: E402
-from api.hall_of_deaths import (  # noqa: E402
+from api.events import GameEvent
+from api.hall_of_deaths import (
     MAX_ANNOUNCEMENT_LENGTH,
     HallOfDeaths,
     build_tellraw,
@@ -18,6 +14,8 @@ from api.hall_of_deaths import (  # noqa: E402
     load_deaths_config,
     reset_hall,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 def death_event(player="Jonah", cause="was slain by Zombie", timestamp="2026-09-19T12:00:00+00:00"):

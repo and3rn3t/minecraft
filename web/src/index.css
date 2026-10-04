@@ -28,6 +28,7 @@
   --color-minecraft-danger-light: #f44336;
   --color-minecraft-danger: #c62828;
   --color-minecraft-danger-dark: #b71c1c;
+  --color-minecraft-danger-hover: #d32f2f;
 
   --color-minecraft-warning-light: #ffb74d;
   --color-minecraft-warning: #f57c00;
@@ -120,8 +121,8 @@
 }
 
 @utility btn-minecraft {
-  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#616161] border-b-[#616161] bg-[#8D6E63] text-white;
-  @apply hover:bg-[#6D4C41] hover:shadow-lg active:border-t-[#616161] active:border-l-[#616161] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-minecraft-text border-l-minecraft-text border-r-minecraft-stone-dark border-b-minecraft-stone-dark bg-minecraft-dirt-light text-white;
+  @apply hover:bg-minecraft-dirt hover:shadow-lg active:border-t-minecraft-stone-dark active:border-l-minecraft-stone-dark active:border-r-minecraft-text active:border-b-minecraft-text;
   @apply transition-all duration-150 ease-out;
   @apply transform hover:scale-[1.02] active:scale-[0.98];
   box-shadow:
@@ -130,8 +131,8 @@
 }
 
 @utility btn-minecraft-primary {
-  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#33691E] border-b-[#33691E] bg-[#558B2F] text-white;
-  @apply hover:bg-[#7CB342] hover:shadow-lg active:border-t-[#33691E] active:border-l-[#33691E] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-minecraft-text border-l-minecraft-text border-r-minecraft-grass-dark border-b-minecraft-grass-dark bg-minecraft-grass text-white;
+  @apply hover:bg-minecraft-grass-light hover:shadow-lg active:border-t-minecraft-grass-dark active:border-l-minecraft-grass-dark active:border-r-minecraft-text active:border-b-minecraft-text;
   @apply transition-all duration-150 ease-out;
   @apply transform hover:scale-[1.02] active:scale-[0.98];
   box-shadow:
@@ -140,8 +141,8 @@
 }
 
 @utility btn-minecraft-danger {
-  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#B71C1C] border-b-[#B71C1C] bg-[#C62828] text-white;
-  @apply hover:bg-[#D32F2F] hover:shadow-lg active:border-t-[#B71C1C] active:border-l-[#B71C1C] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-minecraft-text border-l-minecraft-text border-r-minecraft-danger-dark border-b-minecraft-danger-dark bg-minecraft-danger text-white;
+  @apply hover:bg-minecraft-danger-hover hover:shadow-lg active:border-t-minecraft-danger-dark active:border-l-minecraft-danger-dark active:border-r-minecraft-text active:border-b-minecraft-text;
   @apply transition-all duration-150 ease-out;
   @apply transform hover:scale-[1.02] active:scale-[0.98];
   box-shadow:
@@ -154,7 +155,7 @@
      under a 5s poll reads as flicker rather than an entrance. Opt in with
      the Card primitive's `animateIn` prop (adds Tailwind's animate-fadeIn)
      where a real one-time entrance is wanted. */
-  @apply bg-[#6D4C41] border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#5D4037] border-b-[#5D4037];
+  @apply bg-minecraft-dirt border-2 border-t-minecraft-text border-l-minecraft-text border-r-minecraft-dirt-dark border-b-minecraft-dirt-dark;
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.3),
     0 4px 6px rgba(0, 0, 0, 0.2);
@@ -168,14 +169,19 @@
 }
 
 @utility input-minecraft {
-  @apply bg-[#5D4037] border-2 border-t-[#616161] border-l-[#616161] border-r-[#E0E0E0] border-b-[#E0E0E0] text-white font-minecraft text-xs px-3 py-2;
-  @apply focus:outline-hidden focus:border-t-[#558B2F] focus:border-l-[#558B2F] focus:border-r-[#7CB342] focus:border-b-[#7CB342] focus:shadow-lg;
+  @apply bg-minecraft-dirt-dark border-2 border-t-minecraft-stone-dark border-l-minecraft-stone-dark border-r-minecraft-text border-b-minecraft-text text-white font-minecraft text-xs px-3 py-2;
+  @apply focus:outline-hidden focus:border-t-minecraft-grass focus:border-l-minecraft-grass focus:border-r-minecraft-grass-light focus:border-b-minecraft-grass-light focus:shadow-lg;
   box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.2);
   @apply transition-all duration-200;
 }
 
 @utility skeleton {
-  background: linear-gradient(90deg, #5d4037 25%, #6d4c41 50%, #5d4037 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-minecraft-dirt-dark) 25%,
+    var(--color-minecraft-dirt) 50%,
+    var(--color-minecraft-dirt-dark) 75%
+  );
   background-size: 1000px 100%;
   animation: shimmer 2s infinite;
 }
@@ -192,8 +198,8 @@
     font-weight: 400;
 
     color-scheme: dark;
-    color: #e0e0e0;
-    background-color: #3e2723;
+    color: var(--color-minecraft-text);
+    background-color: var(--color-minecraft-background);
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -211,7 +217,7 @@
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    background: #3e2723;
+    background: var(--color-minecraft-background);
     background-image: repeating-linear-gradient(
       0deg,
       transparent,
@@ -268,18 +274,18 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #5d4037;
-  border: 2px solid #616161;
+  background: var(--color-minecraft-dirt-dark);
+  border: 2px solid var(--color-minecraft-stone-dark);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #8d6e63;
-  border: 2px solid #616161;
+  background: var(--color-minecraft-dirt-light);
+  border: 2px solid var(--color-minecraft-stone-dark);
   transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6d4c41;
+  background: var(--color-minecraft-dirt);
 }
 
 /* Toast notification styles */
@@ -301,23 +307,39 @@
 }
 
 .toast-success {
-  @apply border-t-[#7CB342] border-l-[#7CB342] border-r-[#558B2F] border-b-[#558B2F];
-  background: linear-gradient(135deg, #558b2f 0%, #7cb342 100%);
+  @apply border-t-minecraft-grass-light border-l-minecraft-grass-light border-r-minecraft-grass border-b-minecraft-grass;
+  background: linear-gradient(
+    135deg,
+    var(--color-minecraft-grass) 0%,
+    var(--color-minecraft-grass-light) 100%
+  );
 }
 
 .toast-error {
-  @apply border-t-[#F44336] border-l-[#F44336] border-r-[#C62828] border-b-[#C62828];
-  background: linear-gradient(135deg, #c62828 0%, #f44336 100%);
+  @apply border-t-minecraft-danger-light border-l-minecraft-danger-light border-r-minecraft-danger border-b-minecraft-danger;
+  background: linear-gradient(
+    135deg,
+    var(--color-minecraft-danger) 0%,
+    var(--color-minecraft-danger-light) 100%
+  );
 }
 
 .toast-info {
-  @apply border-t-[#42A5F5] border-l-[#42A5F5] border-r-[#2196F3] border-b-[#2196F3];
-  background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
+  @apply border-t-minecraft-water-light border-l-minecraft-water-light border-r-minecraft-water border-b-minecraft-water;
+  background: linear-gradient(
+    135deg,
+    var(--color-minecraft-water) 0%,
+    var(--color-minecraft-water-light) 100%
+  );
 }
 
 .toast-warning {
-  @apply border-t-[#FFB74D] border-l-[#FFB74D] border-r-[#F57C00] border-b-[#F57C00];
-  background: linear-gradient(135deg, #f57c00 0%, #ffb74d 100%);
+  @apply border-t-minecraft-warning-light border-l-minecraft-warning-light border-r-minecraft-warning border-b-minecraft-warning;
+  background: linear-gradient(
+    135deg,
+    var(--color-minecraft-warning) 0%,
+    var(--color-minecraft-warning-light) 100%
+  );
 }
 
 /* Toast.jsx hardcodes text-white on the message and close button for every
@@ -328,11 +350,11 @@
    source order, same as the focus-visible rule above. */
 .toast-warning p,
 .toast-warning button {
-  color: #3e2723;
+  color: var(--color-minecraft-background);
 }
 
 .toast-warning button:hover {
-  color: #212121;
+  color: var(--color-minecraft-background-dark);
 }
 
 /* Respect a system-level request to minimize motion: shrink every

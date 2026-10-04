@@ -40,7 +40,7 @@ from pydantic import BaseModel, Field
 from api.error_reporting import ErrorReporting
 from api.security import is_rate_limit_exceeded, sanitize_string
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ORACLE_DIR = PROJECT_ROOT / "data" / "oracle"
 ORACLE_CONFIG_FILE = PROJECT_ROOT / "config" / "oracle.conf"
 

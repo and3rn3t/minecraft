@@ -4,16 +4,12 @@ Every scheduling method takes the current time as an argument, so a whole
 evening can be walked through without waiting for one.
 """
 
-import sys
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.bedtime import (  # noqa: E402
+from api.bedtime import (
     ACTION_ANNOUNCE,
     ACTION_KICK,
     ACTION_STOP,
@@ -24,7 +20,9 @@ from api.bedtime import (  # noqa: E402
     parse_clock,
     reset_bedtime,
 )
-from api.events import GameEvent  # noqa: E402
+from api.events import GameEvent
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # 2026-09-21 is a Monday, so 09-25 is a Friday.
 MONDAY = date(2026, 9, 21)

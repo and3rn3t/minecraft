@@ -1,16 +1,12 @@
 """Tests for The Oracle (api/oracle.py)."""
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from api.events import GameEvent  # noqa: E402
-from api.oracle import (  # noqa: E402
+from api.events import GameEvent
+from api.oracle import (
     MAX_TELLRAW_LENGTH,
     ClaudeOracleResponder,
     Oracle,
@@ -23,6 +19,8 @@ from api.oracle import (  # noqa: E402
     reset_oracle,
     save_oracle_config,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 def chat_event(player="Jonah", message="hello oracle", timestamp="2026-09-19T12:00:00+00:00"):

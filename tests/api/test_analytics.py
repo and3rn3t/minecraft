@@ -6,24 +6,20 @@ Tests for analytics endpoints
 
 import json
 import sys
+import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add project root to path
+from api.server import app
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-# Add scripts directory to path for analytics_processor import
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
-sys.path.insert(0, str(SCRIPTS_DIR))
 
-# Create a mock analytics_processor module for patching
-# The actual file is analytics-processor.py (with hyphen), but it's imported as analytics_processor
-# We need to create a mock module that can be patched
-import types  # noqa: E402
-
-from api.server import app  # noqa: E402
+# A stand-in for the analytics_processor module, so the endpoints can be tested without it.
+# The real file is analytics-processor.py (a hyphen), which cannot be imported by that name
+# anyway, so nothing here needs scripts/ on sys.path.
 
 
 # Create mock AnalyticsProcessor class

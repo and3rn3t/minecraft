@@ -30,7 +30,7 @@ from typing import Callable, Optional
 from api.epitaphs import classify_cause, extract_culprit
 from api.error_reporting import ErrorReporting
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PET_CEMETERY_DIR = PROJECT_ROOT / "data" / "pet_cemetery"
 
 DEFAULT_RETENTION_DAYS = 365

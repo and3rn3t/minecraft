@@ -78,6 +78,8 @@ Tailwind utility correctly wins over an earlier one on the same property.
   need isn't a token yet, add it to the `@theme` block in `web/src/index.css` rather than
   inlining it — that's how the app ended up with 21 different hand-written
   hex values for the same handful of intended colors.
+  One raw value remains because no token has it yet: `#9C27B0`, a purple in
+  `AuditLogs.jsx`. The danger button's hover shade has one: `danger-hover`.
 - Don't build a new button/card/input/modal/table by hand. If a primitive
   doesn't fit, extend the primitive rather than working around it.
 - Don't use `window.confirm()` for a new destructive action — use `Modal`.

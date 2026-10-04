@@ -5,17 +5,14 @@ Tests API endpoints beyond just authentication checks
 """
 
 import json
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from api.server import LONG_SCRIPT_TIMEOUT, app
 
-from api.server import LONG_SCRIPT_TIMEOUT, app  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture

@@ -57,3 +57,11 @@ description = "Bare PEM header in the Apple OAuth instructions, with no key mate
 condition = "AND"
 paths = ['''docs/OAUTH_SETUP\.md''']
 regexes = ['''-----BEGIN PRIVATE KEY-----''']
+
+[[allowlists]]
+description = "Python tool caches: gitignored and rebuilt on demand, so a working-tree scan has no business in them. A type checker's cache of a test file repeats that file's made-up credentials, which is all that was ever found here."
+paths = [
+  '''(^|/)\.mypy_cache/''',
+  '''(^|/)\.ruff_cache/''',
+  '''(^|/)\.pytest_cache/''',
+]

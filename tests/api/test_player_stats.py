@@ -8,16 +8,14 @@ says so.
 """
 
 import json
-import sys
 from pathlib import Path as PathLib
 
 import pytest
 
-PROJECT_ROOT = PathLib(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+import api.player_stats as player_stats
+import api.server as api_module
 
-import api.player_stats as player_stats  # noqa: E402
-import api.server as api_module  # noqa: E402
+PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 
 JONAH = "11111111-1111-1111-1111-111111111111"
 SILAS = "22222222-2222-2222-2222-222222222222"

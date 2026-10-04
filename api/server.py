@@ -38,7 +38,7 @@ except ImportError:
     SocketIO = None  # Placeholder for type checking
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # The service runs this file as a script (`python api/server.py`), so it is
@@ -582,31 +582,6 @@ def script_error(stderr, fallback, *, status=500, include_success_flag=False):
     return jsonify(body), status
 
 
-def _stop_server_for_bedtime():
-    """Stop the server the way the rest of the project does."""
-    _, stderr, code = run_script("manage.sh", "stop", timeout=600)
-    if code != 0:
-        raise RuntimeError(stderr or f"manage.sh stop returned {code}")
-
-
-def _run_game_command(command):
-    """Run a command for a feature that needs the server to see it."""
-    _, stderr, code = run_rcon_command(command)
-    if code != 0:
-        raise RuntimeError(stderr or f"RCON returned {code}")
-
-
-def _announce_in_game(command):
-    """Run a command whose only purpose is to show players something.
-
-    Raises on failure so the caller can record that the announcement did not
-    reach anyone, which is the normal case when the server is stopped.
-    """
-    _, stderr, code = run_rcon_command(command)
-    if code != 0:
-        raise RuntimeError(stderr or f"RCON returned {code}")
-
-
 @app.route("/api/health", methods=["GET"])
 def health():
     """Health check endpoint"""
@@ -695,68 +670,6 @@ if not SOCKETIO_AVAILABLE:
     warnings.warn("Flask-SocketIO not available. WebSocket support disabled.", stacklevel=1)
 
 
-def start_event_capture():
-    """Begin following the server log as soon as the API starts.
-
-    Capture must not wait for a browser: events that happen while the dashboard
-    is closed are exactly the ones worth recording. Tests skip this so no
-    background thread or docker call escapes into the suite.
-    """
-    if not (SOCKETIO_AVAILABLE and socketio and EVENTS_AVAILABLE):
-        return False
-
-    bus = game_events.get_bus()
-    bus.set_error_logger(app.logger.error)
-    # Without this, the last few events on a quiet server stay buffered until
-    # something else happens.
-    bus.start_periodic_flush()
-
-    if DEATHS_AVAILABLE:
-        # The announcer is injected rather than imported by the hall, so the
-        # hall stays testable without a server and without RCON.
-        hall = hall_of_deaths.get_hall(announcer=_announce_in_game)
-        hall.set_error_logger(app.logger.error)
-        # Announcing makes a network call, and bus handlers run on the log
-        # follower thread. The worker keeps an unreachable server from stalling
-        # event processing behind each death.
-        hall.start_worker()
-        bus.subscribe(hall.handle_event)
-
-    if PET_CEMETERY_AVAILABLE:
-        # Same injection pattern as the hall above: the runner is passed in
-        # rather than imported, so the cemetery stays testable without RCON.
-        cemetery = pet_cemetery.get_cemetery(runner=_run_game_command)
-        cemetery.set_error_logger(app.logger.error)
-        cemetery.start_worker()
-        bus.subscribe(cemetery.handle_event)
-
-    if BEDTIME_AVAILABLE:
-        bed = bedtime_mode.get_bedtime(runner=_run_game_command, stopper=_stop_server_for_bedtime)
-        bed.set_error_logger(app.logger.error)
-        # Stopping the server is not enough on its own: a restart policy or the
-        # update timer can bring it back and reopen the evening. Turning joins
-        # away during the closed window is what actually holds the line.
-        bus.subscribe(bed.on_player_join)
-        bed.start()
-
-    if ORACLE_AVAILABLE:
-        # Same injection pattern as pet_cemetery above. The audit logger is
-        # its own callable, not a direct log_audit_event() call from inside
-        # oracle.py: that function reads Flask's request proxy when
-        # ip_address isn't passed explicitly, and the Oracle's worker thread
-        # has no request context, so the sentinel below is passed here.
-        orc = oracle.get_oracle(runner=_run_game_command)
-        orc.set_error_logger(app.logger.error)
-        orc.set_audit_logger(
-            lambda player, action, details: log_audit_event(player, action, details, ip_address="minecraft-chat")
-        )
-        orc.start_worker()
-        bus.subscribe(orc.handle_event)
-
-    realtime.ensure_log_reader()
-    return True
-
-
 # Blueprints, split out of this file by feature area. Each imports what it
 # needs from this module by name; importing them only here, after everything
 # above is defined, is what keeps that import one-directional instead of
@@ -793,11 +706,11 @@ app.register_blueprint(players_bp)
 app.register_blueprint(scheduler_bp)
 app.register_blueprint(server_control_bp)
 
-# The WebSocket handlers register themselves on `socketio` as this imports (and
+# The WebSocket handlers register themselves on `socketio` as `realtime` imports (and
 # register nothing when Flask-SocketIO is missing), so it comes last, after
-# everything they read from this module exists. Imported unconditionally so
-# `realtime` is always defined for start_event_capture.
-from api import realtime  # noqa: E402
+# everything they read from this module exists. `realtime` is imported here for that
+# side effect and is not used by name; `event_capture` follows because it imports it.
+from api import event_capture, realtime  # noqa: E402, F401
 
 if __name__ == "__main__":
     if not API_ENABLED:
@@ -807,7 +720,7 @@ if __name__ == "__main__":
     print(f"Starting Minecraft Server API on {API_HOST}:{API_PORT}")
     if SOCKETIO_AVAILABLE and socketio:
         print("WebSocket support enabled")
-        if start_event_capture():
+        if event_capture.start_event_capture():
             print("Game event capture enabled")
         # Threading mode serves through Werkzeug, which Flask-SocketIO only
         # runs outside debug if told it is intended. That is the case here: a

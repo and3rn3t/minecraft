@@ -76,7 +76,7 @@ const Layout = ({ children }) => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-6 border-b-2 border-minecraft-dirt-dark bg-linear-to-br from-[#6D4C41] to-[#5D4037]">
+        <div className="p-6 border-b-2 border-minecraft-dirt-dark bg-linear-to-br from-minecraft-dirt to-minecraft-dirt-dark">
           <h1 className="text-lg font-minecraft text-minecraft-grass-light leading-tight drop-shadow-lg">
             MINECRAFT
           </h1>
@@ -117,13 +117,13 @@ const Layout = ({ children }) => {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t-2 border-minecraft-dirt-dark bg-linear-to-t from-[#5D4037] to-[#6D4C41]">
+        <div className="p-4 border-t-2 border-minecraft-dirt-dark bg-linear-to-t from-minecraft-dirt-dark to-minecraft-dirt">
           {isAuthenticated && user && (
             <div className="mb-3 text-[8px] font-minecraft p-3 bg-minecraft-dirt rounded-sm border border-minecraft-dirt-dark">
               <div className="text-minecraft-text-dark mb-1">LOGGED IN AS</div>
               <div className="text-[10px] text-minecraft-text-light font-bold">{user.username}</div>
               {user.role && (
-                <div className="text-[8px] text-minecraft-grass-light mt-1 uppercase bg-[#558B2F]/20 px-2 py-1 inline-block rounded-sm">
+                <div className="text-[8px] text-minecraft-grass-light mt-1 uppercase bg-minecraft-grass/20 px-2 py-1 inline-block rounded-sm">
                   {user.role}
                 </div>
               )}

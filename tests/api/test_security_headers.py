@@ -7,15 +7,13 @@ in particular) had never actually been asserted, so a change to the policy
 string had no test catching an accidental regression.
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from api.server import app
 
-from api.server import app  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture

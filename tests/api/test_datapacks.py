@@ -4,16 +4,14 @@
 import io
 import json
 import os
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from api.server import app
 
-from api.server import app  # noqa: E402
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture

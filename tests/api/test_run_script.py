@@ -6,16 +6,14 @@ timeout handling and the not-found path were never exercised.
 """
 
 import subprocess
-import sys
 from pathlib import Path as PathLib
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = PathLib(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from api.server import DEFAULT_SCRIPT_TIMEOUT, LONG_SCRIPT_TIMEOUT, run_script
 
-from api.server import DEFAULT_SCRIPT_TIMEOUT, LONG_SCRIPT_TIMEOUT, run_script  # noqa: E402
+PROJECT_ROOT = PathLib(__file__).parent.parent.parent
 
 
 class TestRunScriptTimeouts:
