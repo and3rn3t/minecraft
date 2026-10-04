@@ -6,25 +6,25 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick, index = 0 }
       bg: 'bg-minecraft-grass',
       light: 'bg-minecraft-grass-light',
       border: 'border-minecraft-grass-light',
-      glow: 'shadow-[0_0_15px_rgba(124,179,66,0.3)]',
+      glow: 'shadow-glow-success',
     },
     error: {
-      bg: 'bg-[#C62828]',
-      light: 'bg-[#F44336]',
-      border: 'border-[#F44336]',
-      glow: 'shadow-[0_0_15px_rgba(198,40,40,0.3)]',
+      bg: 'bg-minecraft-danger',
+      light: 'bg-minecraft-danger-light',
+      border: 'border-minecraft-danger-light',
+      glow: 'shadow-glow-danger',
     },
     warning: {
-      bg: 'bg-[#F57C00]',
-      light: 'bg-[#FFB74D]',
-      border: 'border-[#FFB74D]',
-      glow: 'shadow-[0_0_15px_rgba(245,124,0,0.3)]',
+      bg: 'bg-minecraft-warning',
+      light: 'bg-minecraft-warning-light',
+      border: 'border-minecraft-warning-light',
+      glow: 'shadow-glow-warning',
     },
     info: {
       bg: 'bg-minecraft-water',
       light: 'bg-minecraft-water-light',
       border: 'border-minecraft-water-light',
-      glow: 'shadow-[0_0_15px_rgba(33,150,243,0.3)]',
+      glow: 'shadow-glow-info',
     },
   };
 
@@ -55,7 +55,7 @@ const StatusCard = ({ title, value, status, icon, subtitle, onClick, index = 0 }
             {title}
           </h2>
           <span
-            className="w-9 h-9 flex items-center justify-center text-lg bg-[#5D4037] border-2 border-t-[#8D6E63] border-l-[#8D6E63] border-r-[#3E2723] border-b-[#3E2723] transition-transform duration-200 hover:scale-110 shrink-0"
+            className="w-9 h-9 flex items-center justify-center text-lg bg-minecraft-dirt-dark border-2 border-t-minecraft-dirt-light border-l-minecraft-dirt-light border-r-minecraft-background border-b-minecraft-background transition-transform duration-200 hover:scale-110 shrink-0"
             style={{ imageRendering: 'pixelated' }}
           >
             {icon}

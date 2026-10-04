@@ -204,7 +204,7 @@ const OAuthButtons = () => {
       <button
         onClick={handleGoogleOAuth}
         disabled={loading !== null}
-        className="w-full flex items-center justify-center gap-3 px-4 py-2 bg-white hover:bg-gray-100 disabled:bg-gray-600 disabled:cursor-not-allowed text-gray-900 rounded transition-colors"
+        className="w-full flex items-center justify-center gap-3 px-4 py-2 bg-white hover:bg-gray-100 disabled:bg-gray-600 disabled:cursor-not-allowed text-gray-900 rounded-sm transition-colors"
       >
         {loading === 'google' ? (
           <span className="animate-spin">⏳</span>
@@ -236,7 +236,7 @@ const OAuthButtons = () => {
       <button
         onClick={handleAppleOAuth}
         disabled={loading !== null}
-        className="w-full flex items-center justify-center gap-3 px-4 py-2 bg-black hover:bg-gray-900 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded transition-colors"
+        className="w-full flex items-center justify-center gap-3 px-4 py-2 bg-black hover:bg-gray-900 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-sm transition-colors"
       >
         {loading === 'apple' ? (
           <span className="animate-spin">⏳</span>

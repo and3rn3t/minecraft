@@ -20,7 +20,7 @@ API, and a React web admin panel.
 | --- | --- |
 | Server management | Bash scripts in `scripts/`, shared helpers in `scripts/lib/common.sh` |
 | REST API | Python 3.11+ / Flask (`api/server.py`) |
-| Web admin panel | React 18 + Vite + Tailwind CSS (`web/`) |
+| Web admin panel | React 19 + Vite 8 + Tailwind CSS 4 (`web/`) |
 | Containers | Docker + Docker Compose v2 |
 | Service management | systemd units in `systemd/` |
 | Tests | pytest (API), Vitest (React), Playwright (browser E2E), BATS (shell) |

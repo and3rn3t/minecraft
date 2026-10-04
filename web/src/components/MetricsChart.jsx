@@ -34,7 +34,7 @@ const MetricsChart = memo(({ metrics }) => {
               {metrics.metrics?.cpu_percent ? `${cpuPercent}%` : 'N/A'}
             </p>
           </div>
-          <div className="mt-4 bg-minecraft-dirt h-3 border-2 border-[#5D4037] overflow-hidden">
+          <div className="mt-4 bg-minecraft-dirt h-3 border-2 border-minecraft-dirt-dark overflow-hidden">
             <div
               className="h-full transition-all duration-500 ease-out"
               style={{
@@ -69,7 +69,7 @@ const MetricsChart = memo(({ metrics }) => {
               </span>
             )}
           </div>
-          <div className="mt-4 bg-minecraft-dirt h-3 border-2 border-[#5D4037] overflow-hidden">
+          <div className="mt-4 bg-minecraft-dirt h-3 border-2 border-minecraft-dirt-dark overflow-hidden">
             <div
               className="h-full transition-all duration-500 ease-out"
               style={{

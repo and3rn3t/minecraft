@@ -14,11 +14,11 @@ const TONE_CLASS = {
 // .toast-warning in index.css (white lands ~2.7:1 there; AA needs 4.5:1).
 // Dark text clears it easily (~7.8:1) and matches that fix's color.
 const TONE_TEXT_CLASS = {
-  warning: 'text-[#3E2723]',
+  warning: 'text-minecraft-background',
 };
 
 const TONE_DISMISS_CLASS = {
-  warning: 'text-[#3E2723]/80 hover:text-[#3E2723]',
+  warning: 'text-minecraft-background/80 hover:text-minecraft-background',
 };
 
 /**
