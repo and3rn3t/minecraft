@@ -1,114 +1,82 @@
 # Roadmap
 
 The single source of truth for what is planned, in what order, and what has been
-ruled out. It replaces the four documents this repo used to keep in parallel
-(`TASKS.md`, `FAMILY_SERVER_ROADMAP.md`, `MINECRAFT_ENHANCEMENTS.md` and
-`MINECRAFT_GAMEPLAY_ENHANCEMENTS.md`), which duplicated and contradicted each
-other.
+ruled out. **What shipped is not described here.** That record lives in [`../CHANGELOG.md`](../CHANGELOG.md) and in git history, and the guides are indexed in [INDEX.md](INDEX.md). Maintenance work lives in
+[TECH_DEBT.md](TECH_DEBT.md).
 
-**What shipped is not described here.** That record lives in
-[`../CHANGELOG.md`](../CHANGELOG.md) and in git history. The table under
-[Where this stands](#where-this-stands) names the finished areas so the
-unfinished work has context, and points at each area's guide; everything after
-it is work that is not done.
-
-Audience: Matt, planning what to build next on the Pi 5 server for Jonah and
-Silas.
+Audience: Matt, planning what to build next on the Pi 5 server for Jonah and Silas.
 
 ## Legend
 
-Every item carries a feasibility rating, which is about this hardware and this
-setup rather than about difficulty in general:
+Every item carries a feasibility rating, which is about this hardware and this setup rather than about difficulty in general:
 
-- **Green** — works on the Pi 5, on vanilla (26.3 today), with what is
-  already in the repo.
-- **Yellow** — works, but with a real constraint: extra RAM, extra hardware, a
-  server-type change, or the work belongs on the Mac rather than the Pi.
+- **Green** — works on the Pi 5, on vanilla (26.3 today), with what is already in the repo. Datapack work stays Green on Paper too.
+- **Yellow** — works, but with a real constraint: extra RAM, extra hardware, a server-type change (plugins mean Paper, mods mean Fabric), or the work belongs on the Mac rather than the Pi.
 - **Red** — don't, or not yet. These live in [Ruled out](#ruled-out).
 
 ---
 
 ## Where this stands
 
-**v1.5.0**, released 2026-09-19.
+**v1.6.0**, released 2026-09-28. The management product is finished: backups, monitoring, the API and admin panel, auth, plugin, mod and world management, and the move to Minecraft 26.3. So is the first layer of family content: the datapack pipeline and its advancement tree, Lucky Blocks, Graves, the Pet Cemetery, the Hall of Deaths, Bedtime mode and the Oracle.
 
-The management product is effectively finished. Every version milestone the old
-roadmap projected out to mid-2026 has already shipped, several of them years
-ahead of the dates written down:
+The question this roadmap answers is no longer "what else should the admin panel do". It is: **what could this server do that no other Minecraft server does?** What remains is the experience the kids actually see, once the [Pi checklist](#pi-checklist) is closed.
 
-| Area | State | Guide |
-| --- | --- | --- |
-| Backups, retention, verification, scheduling | Running on the Pi every other day since 2026-09-28 — see [O2](#o2-backups-that-actually-run--green-code-done) | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
-| Offsite backup (R2, S3, B2) | Scheduler wired to upload automatically; not yet enabled on the Pi — see [O2](#o2-backups-that-actually-run--green-code-done) | [CLOUD_BACKUP.md](CLOUD_BACKUP.md) |
-| Monitoring, TPS, metrics, Prometheus | Done | [BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md) |
-| Analytics, trends, anomalies, predictions | Done | [ANALYTICS.md](ANALYTICS.md) |
-| Version checking and one-command updates | Done | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md) |
-| Paper / Spigot / Fabric server types | Done | [UPDATE_MANAGEMENT.md](UPDATE_MANAGEMENT.md#server-type-support) |
-| Plugin and mod management | Done | [PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md), [MOD_SUPPORT.md](MOD_SUPPORT.md) |
-| Multi-world management | Done | [MULTI_WORLD.md](MULTI_WORLD.md) |
-| REST API, OpenAPI spec | Done | [API.md](API.md) |
-| Web admin panel | Done | [WEB_INTERFACE.md](WEB_INTERFACE.md) |
-| Auth, RBAC, OAuth, 2FA, API keys, audit log | Done | [RBAC.md](RBAC.md), [API_KEYS.md](API_KEYS.md), [OAUTH_SETUP.md](OAUTH_SETUP.md) |
-| Dynamic DNS (DuckDNS, No-IP, Cloudflare) | Done | [DYNAMIC_DNS.md](DYNAMIC_DNS.md) |
-| Game access through CGNAT (playit.gg tunnel, SRV sync) | Done | [PLAYIT.md](PLAYIT.md) |
-| CI/CD, multi-arch images, test suites | Done | [CI_CD.md](CI_CD.md), [TESTING.md](TESTING.md) |
-| Pooled RCON client | Done | [RCON.md](RCON.md) |
-| Game event bus | Done | [EVENT_BUS.md](EVENT_BUS.md) |
-| Hall of Deaths | Done | [HALL_OF_DEATHS.md](HALL_OF_DEATHS.md) |
-| Bedtime mode | Done | [BEDTIME.md](BEDTIME.md) |
-| Player statistics from the game's own files | Done | [PLAYER_STATS.md](PLAYER_STATS.md) |
-| Datapack pipeline | Done | [DATAPACKS.md](DATAPACKS.md) |
-| Family advancement tree | Done | [ADVANCEMENTS.md](ADVANCEMENTS.md) |
-| Lucky Blocks | Done | [LUCKY_BLOCKS.md](LUCKY_BLOCKS.md) |
-| Graves | Done | [GRAVES.md](GRAVES.md) |
-| Pet Cemetery | Done | [PET_CEMETERY.md](PET_CEMETERY.md) |
-| Minecraft version, 1.20.4 -> 26.3 | Done | [../CHANGELOG.md](../CHANGELOG.md) |
-| The Oracle | Done, unreleased (on `main`, after v1.5.0) | [ORACLE.md](ORACLE.md) |
+## Next up
 
-So the question this roadmap answers is no longer "what else should the admin
-panel do". It is: **what could this server do that no other Minecraft server
-does?** The management layer is good enough, and what remains is the
-experience the kids actually see — once
-[Operations and reliability](#operations-and-reliability) is closed. Two rows
-above were marked Done because the code exists, while the Pi itself was not
-running them.
-
----
+1. Close the [Pi checklist](#pi-checklist). A backup that has never been restored or uploaded offsite is a hope.
+2. **W6** (Siri and Shortcuts) and **I1** (Hearthstone, Tether, Whistle): hours of work, no new infrastructure.
+3. **B2** (boss levels and scaling) on datapacks, alongside P5. F9 is decided: vanilla, so B1 waits.
 
 ## Build order
 
-Roughly the next year of evenings, ordered so that each step makes the next one
-cheaper. Every open item except O1 and O7 appears in exactly one row; rows are grouped by the
-plumbing they share, so each row is mostly content on top of the row before.
+Roughly the next year of evenings, ordered so that each step makes the next one cheaper. Every open item except O1 and D1 appears in exactly one row; rows are grouped by the plumbing they share, so each row is mostly content on top of the row before.
 
 | Order | Items | Why here |
 | --- | --- | --- |
-| 0 | O2, O3, O4, O5 | The server has no working backups. Nothing below matters if the world is lost |
+| 0 | Pi checklist | The Pi's backups have never been confirmed offsite or restored. Nothing below matters if the world is lost |
 | 1 | W6, I1 | Hours of work, immediate payoff, no new infrastructure. I1 is three hand-built items, and doubles as the prototype for W2 |
-| 2 | F8, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one |
+| 2 | F8, F9, P8, P7, P3, P10 | Scoreboard, team and bossbar tooling, then the games that run on it. P10 is P3's reward track, so they ship as one. F9 is a decision, now made (stay vanilla), and stays here only so its revisit condition is not lost |
 | 3 | F6, W4, T3, M5, R3, O6 | Delivery: F6 builds items and queues them for the next join, and everything else in the row hands a player something. O6 switches the scheduler back on as M5's first step. R3's weekly digest is the Gazette's parent edition |
 | 4 | H5, P11, I2, I3, I4 | Rewards, paid out through row 3's queue. I2–I4 stock H5's trader and P11's prizes, so emeralds have something to buy |
 | 5 | M2, M1, M7, T6 | Spectacle from data that already exists: map and time-lapse rendered on the Mac, statues from the `advancement` event, the server list from the stats |
-| 6 | W2, P9, P4, M4, P1, P5, P6, I5 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1, P5 and I5 are datapack content; P6 is scheduler content |
+| 6 | W2, P9, P4, M4, P1, P5, B2, B1, P6, I5 | Content on the pipelines above. W2 once the datapack validator can be trusted; P9 and P4 share a template-world reset and both feed M4's Museum; P1, P5 and I5 are datapack content; B2 (scaling) ships with P5, and B1 (MythicMobs) only once F9 is revisited and moves to Paper; P6 is scheduler content |
 | 7 | H1, H2, H3 | House and game wired to each other |
 | 8 | F4, T1, M3, H4, T4, T2, T5, T7 | The big projects: new hardware, Mac-side rendering or a resource pack. F4 comes first in this row: T1 serves its pack through it |
 
-Two open items have no row. O1 is deferred until the player list settles
-(see its entry). O7 has no dependents, so it ships whenever
-`api/server.py`'s startup block is next touched.
-
-The one decision gate this list used to carry — do the boys play on iPads? —
-is settled: everyone who plays, the boys and their friends, is on a PC with
-Java Edition. Cross-play (R1) moved to [Ruled out](#ruled-out).
+O1 is deferred until the player list settles (see its entry). D1 is blocked on
+upstream. The small management pieces in
+[Standalone management pieces](#standalone-management-pieces) have no row; take
+one when it is in the way.
 
 ---
 
 ## Operations and reliability
 
-Found by checking the live Pi against this document rather than the repo
-against itself. None of it is new feature work; all of it is the gap between
-"the script exists" and "the script runs". O2 is the live problem — fix it
-on the Pi before building anything else. O1 is deliberately deferred.
+### Pi checklist
+
+All of this is built and shipped; what is left runs on the Pi, not in the repo.
+Delete each line when it is done.
+
+- [ ] **Backups.** Confirm the timer's first runs (`systemctl list-timers`,
+      `logs/backup-scheduler.log`; a "Skipping backup" line means the time
+      check is in the way). Set `AUTO_UPLOAD="true"` in
+      `config/cloud-backup-r2.conf` (or s3/b2) and confirm an object lands
+      (`cloud-backup-r2.sh list`). Until then every backup sits on the same SD
+      card as the world.
+- [ ] **Secrets.** Install `age`, generate a keypair with the private key kept
+      off the Pi, and set `AGE_RECIPIENT` in `config/backup-secrets.conf`
+      ([CLOUD_BACKUP.md](CLOUD_BACKUP.md#secrets-backup)). Find the path of the
+      `minecraft-api.service` override that sets `ALLOWED_ORIGINS`
+      (`systemctl cat minecraft-api.service`) and add it to `backup-secrets.sh`,
+      which does not cover it yet.
+- [ ] **One real restore.** Download a real backup from the Pi, run
+      `manage.sh restore` against it and join with
+      [LOCAL_TESTING.md](LOCAL_TESTING.md#restoring-a-real-backup)'s local
+      server.
+- [ ] **Notifications.** Set `NTFY_URL` in `config/notify.conf`, then force each
+      failure path once (backup, unhealthy container, deploy refusal) and
+      confirm exactly one notification fires, not a flood.
 
 ### O1. Close the game server to strangers — Green, deferred
 
@@ -132,67 +100,6 @@ dashboard button should make a one-tap job for a parent. Don't use
 `scripts/whitelist-manager.sh` for this yet: its RCON call is a stub, so it
 only edits `whitelist.json`, which the running server doesn't reread.
 
-### O2. Backups that actually run — Green, code done
-
-`minecraft-backup.timer` was enabled on the Pi on 2026-09-28 and backs up at
-03:00 every other day. `backup-scheduler.sh` now also uploads offsite (R2,
-S3 or B2, whichever has `AUTO_UPLOAD="true"`) after a successful local
-backup. What's left is on the Pi, not in the repo:
-
-- **Confirm the first runs.** Check `systemctl list-timers` and
-  `logs/backup-scheduler.log` after the first night; a "Skipping backup" line
-  there means the scheduler's time check is still in the way.
-- **Set `AUTO_UPLOAD="true"`** in `config/cloud-backup-r2.conf` (or s3/b2) on
-  the Pi and confirm an object actually lands (`cloud-backup-r2.sh list`).
-  Every backup still sits on the same SD card as the world until this is on.
-
-### O3. Back up the secrets, not just the world — Green, code done
-
-`manage.sh backup` tars `./data` only. Everything that makes the admin panel
-work lives outside it and exists only on the Pi: `config/users.json`
-(accounts and their 2FA secrets), `config/api-keys.json`, `config/api.conf`
-(the `SECRET_KEY` that signs sessions and API tokens), `config/oauth.conf`,
-`config/rcon.conf`, `~/.cloudflared/` (tunnel credentials), and
-`~/playit/secret.toml` (the playit.gg agent's claim). Rebuilding those after
-an SD card failure means re-creating every account, re-claiming the playit
-agent and re-registering the tunnel.
-
-`scripts/backup-secrets.sh` now archives all of that into an
-[age](https://age-encryption.org)-encrypted `.tar.age`, uploaded offsite the
-same way as the world backup, and runs automatically after every scheduled
-backup — see [CLOUD_BACKUP.md#secrets-backup](CLOUD_BACKUP.md#secrets-backup).
-Still open on the Pi: install `age`, generate a keypair (keeping the private
-key off the Pi), and set `AGE_RECIPIENT` in `config/backup-secrets.conf`. Also
-still open: confirming the exact path of the `minecraft-api.service` systemd
-override that sets `ALLOWED_ORIGINS` (`systemctl cat minecraft-api.service`
-on the Pi) — `backup-secrets.sh` doesn't back it up yet, only the config files
-above.
-
-### O4. A restore command, and one real restore — Green, code done
-
-There is no world-restore command in `scripts/`: restores exist only for
-plugin configs and for pulling a file down from cloud storage. `manage.sh
-restore <backup>` now does this (stops the server, moves `data/` aside rather
-than deleting it, extracts, starts, checks the log for a clean world load),
-covered by `tests/unit/test-manage-restore.sh`. Still open: actually running
-it against a real backup downloaded from the Pi and joining with
-[LOCAL_TESTING.md](LOCAL_TESTING.md#restoring-a-real-backup)'s local server —
-a backup that has never been restored is a hope, not a backup.
-
-### O5. Tell someone when something breaks — Green, code done
-
-Nothing notified anyone when a backup failed, the container went unhealthy, or
-the deploy agent no-opped on a dirty checkout — which is how the Pi silently
-stayed behind `main` for several merges before it was noticed. New
-`scripts/lib/notify.sh` is a shared ntfy helper (`config/notify.conf`),
-called on backup failure, on a failed `health-check.sh` (debounced so a
-container stuck unhealthy notifies once, not on every poll), and from
-`deploy-agent.sh` when it refuses to deploy over local edits or the wrong
-branch (also debounced). R3's gameplay notifications can reuse the same
-helper. Still open: setting `NTFY_URL` in `config/notify.conf` on the Pi and
-forcing each failure path once to confirm exactly one notification fires, not
-a flood.
-
 ### O6. Re-check what the scheduler is for — Green
 
 `minecraft-scheduler.timer` is disabled on the Pi, so
@@ -202,23 +109,11 @@ scheduler content. Enable it as the first step of whichever of those ships
 first, after reviewing what schedules are already configured, rather than
 switching on a timer that fires every minute with unknown contents.
 
-### O7. The API's websocket stack — Green, done
-
-The API served Socket.IO with `async_mode="eventlet"`, which is deprecated
-upstream. It now runs Flask-SocketIO in threading mode with `simple-websocket`
-and no monkey-patching, still as a single process (the in-memory rate limiter
-assumes one). `socketio.run` passes `allow_unsafe_werkzeug=True`, which is
-deliberate for a single process behind nginx; moving to a production WSGI
-server would need the rate limiter's storage moved out of memory first.
-
 ---
 
 ## Foundations
 
-Plumbing that several features below depend on. Five are done and described
-in [EVENT_BUS.md](EVENT_BUS.md), [RCON.md](RCON.md), [PLAYER_STATS.md](PLAYER_STATS.md),
-[DATAPACKS.md](DATAPACKS.md) and [../CHANGELOG.md](../CHANGELOG.md) (the
-1.20.4 -> 26.3 upgrade, F7) rather than repeated here.
+Plumbing that several features below depend on.
 
 ### F8. Scoreboards, teams and bossbars — Green
 
@@ -231,35 +126,71 @@ fifth.
 
 Bedtime mode already drives a bossbar, so factor that code out rather than
 writing a second. Titles are partly covered by
-`scripts/announcement-manager.sh`; extend it rather than replace it. This
-replaces the scoreboard, team, bossbar and title rows the management backlog
-used to carry.
+`scripts/announcement-manager.sh`; extend it rather than replace it.
+
+### F9. Paper or vanilla — decided: stay vanilla, revisit for B1 — Yellow
+
+The server runs `SERVER_TYPE=vanilla` on 26.3. Plugins such as MythicMobs
+(B1) only load on Paper, so this is the gate for everything plugin-shaped.
+Paper is already supported by `scripts/switch-server-type.sh` and
+`SERVER_TYPE=paper`, so the switch itself is small; the cost is elsewhere.
+
+**What Paper keeps.** Datapacks, the event bus's log matching, RCON and the
+backup and restore paths all work unchanged, so nearly every item on this
+roadmap stays Green. Paper is also faster than vanilla on a Pi.
+
+**What it costs.**
+
+- **Version lag.** Paper and each plugin follow Minecraft's releases late. A
+  plugin that lists 26.2 is not a promise about 26.3. Check the plugin's own
+  page for the exact version *before* switching, and expect to hold the
+  Minecraft version back when a plugin is behind.
+- **RAM.** Plugins add heap on a box already capped by `MEMORY_MAX`. Measure
+  with the Pi's own metrics ([BACKUP_AND_MONITORING.md](BACKUP_AND_MONITORING.md)),
+  not by estimate, before adding a second large plugin.
+- **Behaviour differences** the kids can notice: Paper changes some redstone,
+  mob-spawn and item-despawn defaults. Test with a world copy first, using
+  [LOCAL_TESTING.md](LOCAL_TESTING.md).
+- **Chat and log formats.** Re-verify the event bus patterns against a live
+  Paper server, as was needed after the 26.3 upgrade; vanilla's log lines are
+  not guaranteed to match.
+
+**Decision: stay on vanilla 26.3.** B2 gets most of what MythicMobs would give,
+works today, and keeps the server as the lowest-maintenance version of itself.
+The newest MythicMobs build found listed 26.2, so moving now would mean either
+holding Minecraft back or waiting on the plugin, for a benefit B2 mostly
+delivers anyway.
+
+**Revisit when** B2 has run for a while and its limits show (hand-written phase
+and ability functions getting unwieldy, or a boss design that needs skills a
+datapack can't express) **and** MythicMobs lists the exact Minecraft version in
+use. Then: take a backup, switch on a copy of the world, run the event-bus and
+datapack checks, and switch the Pi last. Until then `SERVER_TYPE` stays
+`vanilla`.
 
 ### F6. Items and delivery — Green, build it with W4
 
-Six features hand a player something: the Gazette book (W4), mail (T3), the
-time capsule (M5), chore pay (H5), bounty rewards (P11) and anything the
-Oracle ([ORACLE.md](ORACLE.md)) awards. All of them need two things, and should share both.
+Every feature that hands a player something shares this: the Gazette book (W4),
+mail (T3), the time capsule (M5), chore pay (H5), bounty rewards (P11) and
+whatever the Oracle ([ORACLE.md](ORACLE.md)) awards. Those items refer back
+here instead of repeating it.
 
-**Building the item.** `/give` with the contents attached as components,
-not the NBT tags older guides still show (1.20.5 replaced item NBT, and the
-server is on 26.3):
+**Building the item.** `/give` with the contents attached as components, not
+the NBT tags older guides still show (1.20.5 replaced item NBT, and the server
+is on 26.3):
 
 ```text
 /give @p written_book[written_book_content={title:"...",author:"...",pages:['...']}]
 ```
 
-**Delivering it.** The recipient is usually offline when the item is created —
-a Sunday-morning Gazette, a letter from Mom, a chore paid during school. Keep
-a small persistent queue per player and drain it on the `join` event, with a
-title and a sound so arriving mail feels like an event. A full inventory
-leaves the item queued rather than dropping it on the floor.
+**Delivering it.** The recipient is usually offline when the item is created.
+Keep a small persistent queue per player and drain it on the `join` event, with
+a title and a sound so arriving mail feels like an event. A full inventory
+leaves the item queued rather than dropping it on the floor. The queue is also
+the record of what was paid out.
 
 **Build it as the first commit of W4, not before.** Nothing constructs items
-today, so a module written now would be guessing at what the callers need,
-and would be wrong in the way abstractions written without a caller usually
-are. The constraint is recorded here so W4 starts with it rather than
-discovering it.
+today, so a module written now would be guessing at what its callers need.
 
 ### F4. Resource pack hosting — Green
 
@@ -301,7 +232,9 @@ every generated command through an allowlist before it ever touches the disk.
 `api/security.py` already has `ALLOWED_MINECRAFT_COMMANDS` and
 `BLOCKED_COMMAND_PREFIXES` for exactly this shape of problem — extend that
 pattern. Keep the family datapack in git so a bad generation is one `git revert`
-away, and add `/undo-invention` to disable the last pack and reload.
+away, and add `/undo-invention` to disable the last pack and reload. The
+recipe and loot-table managers fall out of the same pipeline
+([DATAPACKS.md](DATAPACKS.md)) rather than needing their own.
 
 A ten-year-old inventing a working item by describing it is the single most
 "knock your socks off" thing on this list.
@@ -313,13 +246,14 @@ funniest deaths of the week, whose base grew the most, who mined the most
 diamonds, what is coming up next week, a picture of the map.
 
 Delivered two ways — as an HTML page on the dashboard, and **in game as an
-actual written book** placed in each player's inventory through F6, using
-the `written_book_content` component. Receiving a physical newspaper in your inventory on a Sunday is a ritual.
+actual written book** placed in each player's inventory through
+[F6](#f6-items-and-delivery--green-build-it-with-w4). Receiving a physical
+newspaper in your inventory on a Sunday is a ritual.
 
 Reads its numbers from [PLAYER_STATS.md](PLAYER_STATS.md) and its obituaries
-from the Hall of Deaths, which already stores
-the week's obituaries. Start with F6: the book writer is where item
-construction is invented, and T3 and M5 both inherit it.
+from the Hall of Deaths, which already stores the week's obituaries. Start with
+F6: the book writer is where item construction is invented, and T3 and M5 both
+inherit it.
 
 ### W6. Siri, Shortcuts and HomeKit — Green
 
@@ -377,6 +311,9 @@ server's own TPS and the Pi's CPU temperature, both already collected by
 - A meteor shower tonight — the `sky` and `telescope` repos know — means an
   automatic firework show at the real peak time.
 
+Weather and time scheduling beyond this belong here too, not in a separate
+manager.
+
 **Caveat:** hard-syncing time breaks sleeping in beds and scrambles mob-spawn
 expectations, which kids notice fast. Make it a per-world toggle, sync on a slow
 cadence, and consider syncing weather and moon only. The meteor-shower fireworks
@@ -411,9 +348,8 @@ a saddle, the cool armour trim templates — behind that shop, so real-world
 effort buys real in-game value. The items in [Tier 5](#tier-5--things-worth-owning)
 are its top shelf: things that exist only on this server.
 
-Two details make it work. Payment must survive the player being offline, so
-it goes through F6's delivery queue, the same one T3's mail uses.
-And a parent approves each payment on the dashboard rather than it firing
+Two details make it work. Payment goes through F6's delivery queue, so it
+survives the player being offline. And a parent approves each payment on the dashboard rather than it firing
 automatically, so it stays a reward and never becomes something to negotiate
 with a script.
 
@@ -519,7 +455,9 @@ scheduling and ceremony.
 
 Scripted boss encounters via datapack functions: a summoned mob with custom
 attributes, equipment and a name, a bossbar tracking its health, phases that
-trigger at health thresholds, and loot worth the fight. Scheduled for Friday
+trigger at health thresholds, and loot worth the fight. Difficulty scaling is
+[B2](#b2-boss-levels-and-scaling--green-datapack); [B1](#b1-mythicmobs-bosses-and-mobs--yellow-deferred-by-f9)
+is the plugin route, deferred until F9 is revisited. Scheduled for Friday
 evenings and announced in the Gazette all week.
 
 ### P6. Birthdays and holidays — Green
@@ -561,7 +499,10 @@ plot, a timer on the bossbar, and creative mode inside the plot boundary.
 
 When time is up the dashboard shows a screenshot or map render of each plot
 and **the grown-ups vote from their phones** — Mom and grandparents included,
-through a no-login link with a one-time code that can do nothing but vote. The winner's build goes to the
+through a no-login link with a one-time code that can do nothing but vote.
+Scheduled contests with sign-up and prizes (P4, P5, P9) are the case for a
+generic event manager; build those three first and generalise only if a
+pattern emerges. The winner's build goes to the
 Museum (M4) and on the front page of the Gazette.
 
 ### P10. The expanding world — Green
@@ -573,7 +514,8 @@ announcement and a firework show at spawn, and everyone rushes to see what
 was just revealed.
 
 It turns the whole world into a progression system with a single vanilla
-command. The world border manager in the backlog is its dashboard half.
+command. Its dashboard half is a world border manager (centre, size, damage,
+knockback, animated changes); build that first, as a small module of its own.
 
 ### P11. The bounty board — Green
 
@@ -593,6 +535,80 @@ on request and persists them to `data/oracle/quests.jsonl` — there is
 nowhere else for them to go yet. Once this board exists, it should read from
 that file rather than the Oracle keeping its own separate list, so there is
 one list of things to do rather than two.
+
+---
+
+## Tier 4b — Bosses, levels and dungeons
+
+Raid Night (P5) is the event; this tier is what makes its fights worth
+repeating. Two ways to build it: B2 on plain datapacks, which works today, and
+B1 on MythicMobs, which needs Paper and so waits on F9's revisit condition. They are not rivals.
+B2's design (what scales with what) carries over to B1 unchanged.
+
+### B2. Boss levels and scaling — Green, datapack
+
+A boss that is fair for one ten-year-old and one adult is neither. Tune it from
+what is actually in the world when it spawns:
+
+- **By players present.** On spawn, a function counts the players within range
+  and applies attribute modifiers to the boss (`max_health`, `attack_damage`,
+  `armor`), then sets its health to the new maximum. One kid gets a boss they
+  can beat; three people get a harder one.
+- **By tier.** Bosses come in levels (1 to 5 is plenty) held in a scoreboard
+  objective and shown in the name and bossbar (F8). Level comes from the
+  family's progress, e.g. advancements from the family tree
+  ([ADVANCEMENTS.md](ADVANCEMENTS.md)) or P10's border size, so the same Friday
+  boss gets tougher as they do, and loot improves with the level.
+- **Safety rails for this audience.** A damage cap per hit, a hard `Difficulty`
+  floor and ceiling per boss, no environment kills, and the graves system
+  ([GRAVES.md](GRAVES.md)) so a loss costs time, not a build. Each fight also
+  takes a parent-set maximum level on the dashboard.
+
+Attribute names and the modifier format changed across 1.21.x releases, so
+confirm them against 26.3 before writing the functions (the same warning as
+[Tier 5](#tier-5--things-worth-owning)). The dashboard half is a levels table
+and a "next raid" level override through F8's endpoints.
+
+### B1. MythicMobs bosses and mobs — Yellow, deferred by F9
+
+[MythicMobs](https://www.spigotmc.org/resources/5702/) defines custom mobs,
+skills, phases and drops in YAML, with built-in level modifiers. It replaces
+the hand-written phase and ability functions P5 would otherwise need with
+config files you can keep in git. Use it for:
+
+- P5's bosses: phases at health thresholds, summons, telegraphed attacks.
+- Scaling by level and by distance from spawn, so B2's design is a config
+  rather than functions.
+- Drops that feed I4's cards, with a unique drop per boss.
+
+**Before starting.**
+
+- Confirm the plugin lists the exact Minecraft version the Pi runs. It listed
+  26.2 as the newest when this was written; 26.3 was unconfirmed.
+- Check the free version covers it. Free is reported to cover most needs; the
+  premium build adds a few features (check which of them the bosses need).
+- **Budget the Pi.** Cap concurrent custom mobs and keep skill ticking light.
+  A boss fight that drops TPS below ~15 on the Pi is a failed design, and
+  `analytics-collector.sh` already records TPS to prove it.
+- Plugin configs live in `plugins/`, so add them to the backups, and add the
+  API's plugin management ([PLUGIN_MANAGEMENT.md](PLUGIN_MANAGEMENT.md)) to
+  the install path rather than hand-copying jars.
+
+### D1. When Dungeons Arise — Red for now, blocked upstream
+
+Not workable today. When Dungeons Arise is a **mod** (Fabric, Forge or
+NeoForge), not a plugin, and as of this writing it supports up to 1.21.1 while
+the server is on 26.3. It also cannot run beside MythicMobs: that needs Paper,
+this needs a mod loader. The server can be one or the other.
+
+Revisit only if WDA publishes a build for the Minecraft version in use. Until
+then, I5 (family dungeons) covers "structures worth exploring" with
+datapack structures, which work on vanilla and on Paper. To get WDA's feel
+sooner, evaluate a worldgen **datapack** that adds dungeons and check that it
+supports 26.x before trusting it, running it through
+[DATAPACKS.md](DATAPACKS.md)'s validator. Moving the server to Fabric to run
+WDA would also mean holding Minecraft back to 1.21.1 and giving up the whole
+26.3 upgrade, which is not worth it.
 
 ---
 
@@ -665,7 +681,10 @@ P10's expanding border shows them off well: every time it grows, there is new
 ground to explore.
 
 Needs a new world or unexplored chunks to appear in, so pair it with P10's
-fresh world or push the border outwards.
+fresh world or push the border outwards. Enabling, disabling and re-spacing
+vanilla structures is the same datapack work. This is also the working answer to
+[D1](#d1-when-dungeons-arise--red-for-now-blocked-upstream) until upstream
+catches up.
 
 ---
 
@@ -729,9 +748,9 @@ volcano lair", with the icon swapped for a holiday version or the latest
 champion's face.
 
 Both are read only at startup, so this rides the existing restart schedule.
-The server icon manager in the backlog is half of it already. Minutes of work
-once written, and it makes the server feel alive before they have even
-joined.
+The icon half is a small manager: set from a file or generate from an image,
+and validate a 64×64 PNG. Minutes of work once written, and it makes the server
+feel alive before they have even joined.
 
 ### T7. Design-a-world — Yellow
 
@@ -759,110 +778,30 @@ the same data rather than as a second report.
 
 ---
 
-## Management and tooling backlog
-
-Smaller, well-understood pieces of the management product. None of them are
-blocking anything; pick them up when one is in the way.
-
-### Minecraft configuration
-
-| Item | Priority | Notes |
-| --- | --- | --- |
-| Gamerule manager | P2 | `scripts/gamerule-manager.sh` plus `GET`/`PUT /api/gamerules/<rule>`; get, set, list, presets, validation |
-| Entity management | P2 | Mob caps, tracking range, density; `GET /api/entities/stats`, `POST /api/entities/optimize` |
-| Chunk management | P2 | Pre-generation for performance, loading radius, chunk stats and cleanup |
-| World border manager | P2 | Centre, size, damage, knockback, animated changes; needed by P10 (the expanding world) |
-| Spawn protection manager | P3 | Radius and behaviour |
-| Server icon manager | P2 | Set from file, generate from image, validate 64×64 PNG; half of T6 |
-| Structure generation control | P3 | Enable/disable structures, spawn rates, custom templates |
-
-### Scoreboards and teams
-
-Moved to [F8](#f8-scoreboards-teams-and-bossbars--green): six games on this
-roadmap depend on it, so it is a foundation rather than backlog.
-
-### Player and automation
-
-| Item | Priority | Notes |
-| --- | --- | --- |
-| Advancement manager | P2 | List, grant, revoke, track progress; pairs with [ADVANCEMENTS.md](ADVANCEMENTS.md) (family tree) |
-| Command chain manager | P2 | Named, reusable command sequences with variables and conditional branching |
-| Player note system | P2 | Admin notes on a player, categorised and timestamped |
-| Player teleport history | P2 | Saved locations, back/return, teleport requests |
-| Automated world maintenance | P2 | Entity cleanup, chunk optimisation, lag-spike detection, backup before maintenance |
-| Server event manager | P2 | Scheduled tournaments and contests with registration and reward distribution. Overlaps P4, P5 and P9 — build those first and generalise if a pattern emerges |
-| Weather and time scheduling | P3 | Superseded in spirit by H3; build only the parts H3 doesn't cover |
-| Recipe and loot table managers | P3 | Mostly free now that [DATAPACKS.md](DATAPACKS.md)'s pipeline exists |
-
-### Economy and rewards
-
-Covered in vanilla: emeralds are the currency, H5's trader and
-[Tier 5](#tier-5--things-worth-owning)'s items are what they buy, and F6's
-delivery queue is the payment record. A plugin economy (EssentialsX, Vault)
-with balances and `/pay` means leaving vanilla, which most of this roadmap
-depends on. Revisit only if the server moves to Paper for another reason.
-
 ---
 
-## Infrastructure and technical debt
+## Standalone management pieces
 
-- **Web UI pages for what already exists.** The API has endpoints with no page:
-  events, announcements, gamerules once they land. Check `api/openapi.yaml`
-  against `web/src/pages/` before adding anything new.
-- **Test coverage gaps.** The API is at about 87% against a 77% gate. The
-  weakest modules are the `ddns`, `players` and `announcements` blueprints
-  (56–58%) and `api/auth_crypto.py` (64%); CI's coverage report has the current
-  numbers. Fifteen BATS suites cover the backup, restore, deploy, world and
-  plugin scripts among others, but most of the rest of `scripts/` has no test
-  that names it: `ddns-updater.sh`, `cloud-backup-s3.sh`, `cloud-backup-b2.sh`,
-  `whitelist-manager.sh`, `op-manager.sh`, `health-check.sh` and the monitors.
-  Close the gaps alongside the feature that touches them, not as a separate
-  project.
-- **`api/server.py` is still the biggest file, but no longer very large.** It
-  went from 5,554 lines to 732 as the permission model, request authentication,
-  config redaction, path checks, the WebSocket console, error reporting, the
-  event-bus wiring and fourteen blueprints moved out. Each reads the shared state
-  through `api.server` at call time, which is what lets a test patch it in one
-  place. What is left is the app and its CORS and security-header setup, config
-  and secret loading, user and API-key persistence, the script and RCON runners,
-  the error handlers and the startup block. Keep doing what worked: new features
-  get their own module, and a block of `server.py` follows when it is touched
-  anyway, not as a project of its own.
-- **Architecture diagrams.** One diagram of log → event bus → feature handlers →
-  RCON would save more explaining than any amount of prose.
-- **`eslint-plugin-react-hooks` 5 → 7.** Version 7 adds the React Compiler lint
-  rules, so it is a triage, not a drop-in bump: turn them on, then decide per
-  finding whether the code changes or the rule is switched off. React 19 is in
-  and ESLint 9 is allowed, so nothing blocks it. Do it as its own change so the
-  findings are not mixed with anything else.
-- **ESLint 9 → 10, with `@eslint/js` 10.** Blocked: the newest
-  `eslint-plugin-react` (7.37.5) only supports ESLint up to 9. Check its
-  releases before starting. `eslint-plugin-react-refresh` 0.5 already allows both
-  and can move whenever it is convenient.
-- **`msw` 2 → 3.** Blocked: Vitest 5's mocker declares `msw ^2.4.9` as its peer,
-  and `npm ci` rejects a lockfile that has msw 3 (it broke CI when the test
-  tooling was last upgraded). Revisit when Vitest widens the range.
-- **`jsdom` 29 → 30 and `globals` 16 → 17.** `globals` has no known blocker.
-  `jsdom` 30 needs Node `^22.22.2` or `^24.15.0`, which is stricter than the
-  `engines.node` in `web/package.json` (`^22.13.0 || ^24.0.0 || >=26.0.0`), so it
-  also means raising that floor and checking the Node version CI runs.
-- **One raw colour left in the web app: `#9C27B0`.** It is the audit log's colour
-  for `user.*` actions (`getActionColor` in `AuditLogs.jsx`), and no theme token
-  has it. Either add a token for it (the other four categories already use
-  `minecraft-*` tokens) or reuse an existing one. The keyboard-focus yellow and
-  the placeholder fallback in `index.css` are literals on purpose.
-- **Run the BATS suite on Linux before pushing.** `make ci` reproduces CI on a
-  Mac, but the shell tests run under macOS's bash 3.2 and BSD tools there and
-  under bash 5 and GNU tools in CI. That has already bitten twice: a test of a
-  corrupt archive passed locally and failed in CI because GNU `tar` lists a
-  stream shorter than one 512-byte block as an empty archive, and on bash 3.2 a
-  failing bare `[[ ]]` in the middle of a test does not fail it. A
-  `make bash-tests-linux` that runs the suite in an Ubuntu container, the way
-  `make test-visual` does for Playwright, would catch both before a push. The
-  same gap exists for gitleaks: `make secrets` runs a newer version than the one
-  CI pins (8.24.3), which ignores top-level `[[allowlists]]` blocks, so
-  `docs/OAUTH_SETUP.md` is still reported on a full working-tree scan with that
-  version.
+Small, well-understood pieces of the management product that nothing on the
+roadmap depends on. Pick one up when it is in the way.
+
+| Item | Notes |
+| --- | --- |
+| Gamerule manager | `scripts/gamerule-manager.sh` plus `GET`/`PUT /api/gamerules/<rule>`: get, set, list, presets, validation |
+| Entity management | Mob caps, tracking range, density; `GET /api/entities/stats`. Gives B1 its concurrent-mob budget |
+| Chunk management | Pre-generation, loading radius, chunk stats and cleanup |
+| Automated world maintenance | Entity cleanup, lag-spike detection, a backup before maintenance |
+| Advancement manager | List, grant, revoke, track progress; pairs with [ADVANCEMENTS.md](ADVANCEMENTS.md), and makes B2's level tiers testable |
+| Command chain manager | Named, reusable command sequences with variables and conditional branches |
+| Player teleport history | Saved locations, back/return, teleport requests |
+| Player notes | Admin notes on a player, categorised and timestamped |
+| Spawn protection manager | Radius and behaviour |
+| Web UI pages for what exists | The API has endpoints with no page (events, announcements). Check `api/openapi.yaml` against `web/src/pages/` before adding anything |
+
+Folded into the items they serve: the world border manager into P10, the server
+icon manager into T6, structure generation control into I5, weather and time
+scheduling into H3, the recipe and loot table managers into W2, and the server
+event manager into P9. Scoreboards and teams are F8.
 
 ---
 
@@ -883,6 +822,8 @@ Recorded so they don't get proposed again. These were on earlier roadmaps.
 | Video tutorials, multi-language docs | Cancelled previously; nothing has changed |
 | Geyser and Floodgate cross-play (was R1) | Everyone who plays, the boys and their friends, is on a PC with Java Edition. It would cost a second JVM (300–500MB) for players who don't exist. Revisit if a tablet, phone or console player turns up |
 | Simple Voice Chat | Needs Fabric or Paper plus a client mod for every player. Two brothers in the same house can shout |
+| When Dungeons Arise (as a mod) | Supports up to 1.21.1; the server is on 26.3, and a mod loader excludes Paper plugins such as MythicMobs. Tracked as [D1](#d1-when-dungeons-arise--red-for-now-blocked-upstream) with a revisit condition. I5 covers the need meanwhile |
+| Plugin economy (EssentialsX, Vault) | Emeralds, H5's trader and F6's queue already are the economy, and a balance and `/pay` add nothing for two kids. Revisit only if F9 chooses Paper for another reason |
 | WASM plugins, GPU world generation, ML chunk optimisation | No |
 | Blockchain world ownership, quantum optimisation, VR/AR | No |
 
@@ -892,12 +833,10 @@ Recorded so they don't get proposed again. These were on earlier roadmaps.
 
 - One roadmap. When something ships, delete its entry here and describe it in
   [`../CHANGELOG.md`](../CHANGELOG.md) — don't leave a checked box behind.
-  Restating completed work in two places is what made the previous four
-  documents disagree with each other.
 - New ideas go in the tier they belong to with a feasibility rating, not at the
   end.
-- IDs are never reused. The gaps in the numbering (W1, P2, M6, R1, R2 and
-  so on) are items that shipped or were ruled out; renumbering would break
+- IDs are never reused. The gaps in the numbering (O2–O5, O7, W1, P2, M6, R1, R2
+  and so on) are items that shipped or were ruled out; renumbering would break
   links in the changelog and in commit messages.
 - Anything decided against goes in [Ruled out](#ruled-out) with a reason, rather
   than being silently deleted.
