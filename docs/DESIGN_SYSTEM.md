@@ -39,12 +39,12 @@ Each primitive wraps the existing `.btn-minecraft*`/`.card-minecraft`/
 `.input-minecraft` CSS classes, so using one doesn't change how anything
 looks — it just means every page builds the same concept the same way.
 
-## Tokens (`web/tailwind.config.js`)
+## Tokens (`@theme` in `web/src/index.css`)
 
 - **Material palette** — `minecraft.{grass,dirt,stone,water,background,text}`,
   each `{ light, DEFAULT, dark }`. Use the bare name for the class, e.g.
-  `bg-minecraft-grass` — **not** `bg-minecraft-grass-DEFAULT`. Tailwind maps
-  a `DEFAULT` key onto the bare class name; the `-DEFAULT` suffix form was a
+  `bg-minecraft-grass` — **not** `bg-minecraft-grass-DEFAULT`. The bare name is
+  the base shade (`--color-minecraft-grass` in `@theme`); the `-DEFAULT` suffix form was a
   real bug found during this pass (81 occurrences across the app, none of
   which ever generated a CSS rule) and doesn't work.
 - **Semantic aliases** — `minecraft.{success,danger,warning,info}`, same
@@ -75,7 +75,7 @@ Tailwind utility correctly wins over an earlier one on the same property.
 ## What not to do
 
 - Don't write a new raw hex color in JSX (`bg-[#C62828]`). If the color you
-  need isn't a token yet, add it to `tailwind.config.js` rather than
+  need isn't a token yet, add it to the `@theme` block in `web/src/index.css` rather than
   inlining it — that's how the app ended up with 21 different hand-written
   hex values for the same handful of intended colors.
 - Don't build a new button/card/input/modal/table by hand. If a primitive

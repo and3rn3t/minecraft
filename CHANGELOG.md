@@ -52,6 +52,23 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Tailwind CSS 3 → 4** — done with the official upgrade tool, then checked page by
+  page. The theme moved from `web/tailwind.config.js` to an `@theme` block in
+  `web/src/index.css`, PostCSS uses `@tailwindcss/postcss`, and `autoprefixer` is gone
+  (Tailwind 4 prefixes itself). The upgrade also clears every `npm audit` finding, all
+  of which came from Tailwind 3's dependencies. Needed by hand: `bg-opacity-*`, which
+  the tool left behind and Tailwind 4 removed, became `bg-…/20` (three places); the
+  tool's placement of the global `:root`/`body` rules in `@layer utilities` became
+  `@layer base`; and Tailwind 4's changed defaults are put back so the look does not
+  change: fixed line heights for the default text sizes (the new ratios shrank
+  `.btn-minecraft` buttons from 16px to 13px wherever `text-[10px]` overrode the
+  size), the gray placeholder color, and the pointer cursor on buttons. The login
+  heading gets an explicit `lg:leading-8`, because Tailwind 4 now lets `leading-tight`
+  win over a responsive text size where 3 let the responsive size win. All visual
+  regression snapshots pass unchanged, and a pixel comparison of all 24 routes against
+  Tailwind 3 found the same layout everywhere and no difference above 3/255 in any
+  color channel, which is consistent with Tailwind 4's gradient and drop-shadow changes.
+  Tailwind 4 needs Safari 16.4, Chrome 111 or Firefox 128 or newer.
 - **`make ci` is about twice as fast** — the BATS suite was 157 of its 231 seconds, run
   one file after another. `scripts/run-tests.sh` now runs the files in parallel
   (`BATS_JOBS` sets the count, `1` is the old serial run) with each file's output

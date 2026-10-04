@@ -63,7 +63,7 @@ const Layout = ({ children }) => {
       {sidebarOpen && (
         <button
           type="button"
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 cursor-default"
+          className="lg:hidden fixed inset-0 bg-black/50 z-40 cursor-default"
           onClick={() => setSidebarOpen(false)}
           aria-label="Close sidebar"
         />
@@ -76,7 +76,7 @@ const Layout = ({ children }) => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-6 border-b-2 border-[#5D4037] bg-gradient-to-br from-[#6D4C41] to-[#5D4037]">
+        <div className="p-6 border-b-2 border-minecraft-dirt-dark bg-linear-to-br from-[#6D4C41] to-[#5D4037]">
           <h1 className="text-lg font-minecraft text-minecraft-grass-light leading-tight drop-shadow-lg">
             MINECRAFT
           </h1>
@@ -87,7 +87,7 @@ const Layout = ({ children }) => {
         <nav className="mt-4 flex-1 overflow-y-auto pb-4">
           {Object.entries(GROUPED_ITEMS).map(([category, items]) => (
             <div key={category} className="mb-4">
-              <div className="px-4 py-2 text-[8px] font-minecraft text-minecraft-text-dark uppercase border-b border-[#5D4037] mb-2">
+              <div className="px-4 py-2 text-[8px] font-minecraft text-minecraft-text-dark uppercase border-b border-minecraft-dirt-dark mb-2">
                 {category}
               </div>
               {items.map(item => {
@@ -100,7 +100,7 @@ const Layout = ({ children }) => {
                     aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center px-4 py-3 text-[10px] font-minecraft transition-all duration-150 ${
                       isActive
-                        ? 'bg-gradient-to-r from-minecraft-grass to-minecraft-grass-light text-white border-r-4 border-minecraft-grass-light shadow-lg'
+                        ? 'bg-linear-to-r from-minecraft-grass to-minecraft-grass-light text-white border-r-4 border-minecraft-grass-light shadow-lg'
                         : 'text-minecraft-text-dark hover:bg-minecraft-dirt hover:text-white hover:pl-6'
                     }`}
                   >
@@ -117,13 +117,13 @@ const Layout = ({ children }) => {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t-2 border-[#5D4037] bg-gradient-to-t from-[#5D4037] to-[#6D4C41]">
+        <div className="p-4 border-t-2 border-minecraft-dirt-dark bg-linear-to-t from-[#5D4037] to-[#6D4C41]">
           {isAuthenticated && user && (
-            <div className="mb-3 text-[8px] font-minecraft p-3 bg-minecraft-dirt rounded border border-[#5D4037]">
+            <div className="mb-3 text-[8px] font-minecraft p-3 bg-minecraft-dirt rounded-sm border border-minecraft-dirt-dark">
               <div className="text-minecraft-text-dark mb-1">LOGGED IN AS</div>
               <div className="text-[10px] text-minecraft-text-light font-bold">{user.username}</div>
               {user.role && (
-                <div className="text-[8px] text-minecraft-grass-light mt-1 uppercase bg-[#558B2F] bg-opacity-20 px-2 py-1 inline-block rounded">
+                <div className="text-[8px] text-minecraft-grass-light mt-1 uppercase bg-[#558B2F]/20 px-2 py-1 inline-block rounded-sm">
                   {user.role}
                 </div>
               )}

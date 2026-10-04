@@ -51,7 +51,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-minecraft-background p-4">
       <Card padding="lg" animateIn className="w-full max-w-md p-8 shadow-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-xl lg:text-2xl font-minecraft text-minecraft-grass-light mb-2 leading-tight drop-shadow-lg">
+          <h1 className="text-xl lg:text-2xl font-minecraft text-minecraft-grass-light mb-2 leading-tight lg:leading-8 drop-shadow-lg">
             MINECRAFT ADMIN
           </h1>
           <h2 className="text-sm font-minecraft text-minecraft-text-light">LOGIN</h2>

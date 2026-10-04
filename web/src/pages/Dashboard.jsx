@@ -206,10 +206,10 @@ const Dashboard = () => {
                   key={player}
                   padding="md"
                   style={{ animationDelay: `${index * 60}ms` }}
-                  className="bg-minecraft-dirt text-center text-[10px] font-minecraft text-minecraft-text-light transition-all duration-200 hover:scale-105 hover:border-minecraft-grass-light hover:bg-minecraft-grass hover:bg-opacity-20 hover:shadow-lg"
+                  className="bg-minecraft-dirt text-center text-[10px] font-minecraft text-minecraft-text-light transition-all duration-200 hover:scale-105 hover:border-minecraft-grass-light hover:bg-minecraft-grass/20 hover:shadow-lg"
                 >
                   <div className="mb-1 text-lg">🧑</div>
-                  <div className="break-words">{player}</div>
+                  <div className="wrap-break-word">{player}</div>
                 </Card>
               ))}
             </div>

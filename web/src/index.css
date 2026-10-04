@@ -1,64 +1,233 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-:root {
-  /* Body face by default — readable at the small sizes most of the app
+@theme {
+  --color-minecraft-grass-light: #7cb342;
+  --color-minecraft-grass: #558b2f;
+  --color-minecraft-grass-dark: #33691e;
+
+  --color-minecraft-dirt-light: #8d6e63;
+  --color-minecraft-dirt: #6d4c41;
+  --color-minecraft-dirt-dark: #5d4037;
+
+  --color-minecraft-stone-light: #9e9e9e;
+  --color-minecraft-stone: #757575;
+  --color-minecraft-stone-dark: #616161;
+
+  --color-minecraft-water-light: #42a5f5;
+  --color-minecraft-water: #2196f3;
+  --color-minecraft-water-dark: #1976d2;
+
+  --color-minecraft-background-light: #424242;
+  --color-minecraft-background: #3e2723;
+  --color-minecraft-background-dark: #212121;
+
+  --color-minecraft-text-light: #ffffff;
+  --color-minecraft-text: #e0e0e0;
+  --color-minecraft-text-dark: #bdbdbd;
+
+  --color-minecraft-danger-light: #f44336;
+  --color-minecraft-danger: #c62828;
+  --color-minecraft-danger-dark: #b71c1c;
+
+  --color-minecraft-warning-light: #ffb74d;
+  --color-minecraft-warning: #f57c00;
+  --color-minecraft-warning-dark: #e65100;
+
+  --color-minecraft-success-light: #7cb342;
+  --color-minecraft-success: #558b2f;
+  --color-minecraft-success-dark: #33691e;
+
+  --color-minecraft-info-light: #42a5f5;
+  --color-minecraft-info: #2196f3;
+  --color-minecraft-info-dark: #1976d2;
+
+  --font-minecraft: 'Press Start 2P', monospace;
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-body: 'VT323', monospace;
+
+  /* Tailwind 4 made the default line heights ratios (text-xs = 1.333), where 3 had
+     fixed rem values (1rem). The two differ whenever a component overrides the font
+     size after the fact, as `.btn-minecraft` (text-xs) plus `text-[10px]` does: 16px
+     became 13.3px. These restore the 3.x values so the upgrade changes no layout. */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+
+  --text-caption: 8px;
+  --text-caption--line-height: 1.6;
+  --text-body: 10px;
+  --text-body--line-height: 1.8;
+  --text-label: 11px;
+  --text-label--line-height: 1.6;
+  --text-h2: 16px;
+  --text-h2--line-height: 1.4;
+  --text-h1: 20px;
+  --text-h1--line-height: 1.3;
+  --text-display: 24px;
+  --text-display--line-height: 1.3;
+
+  --animate-fadeIn: fadeIn 0.3s ease-out;
+
+  --shadow-glow-success: 0 0 15px rgba(124, 179, 66, 0.3);
+  --shadow-glow-danger: 0 0 15px rgba(198, 40, 40, 0.3);
+  --shadow-glow-warning: 0 0 15px rgba(245, 124, 0, 0.3);
+  --shadow-glow-info: 0 0 15px rgba(33, 150, 243, 0.3);
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  /* Tailwind 4 colors placeholders as the text color at 50% and no longer gives
+     buttons a pointer cursor; both are restored to how 3.x looked and behaved. */
+  ::placeholder {
+    color: var(--color-gray-400, #9ca3af);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility btn-minecraft {
+  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#616161] border-b-[#616161] bg-[#8D6E63] text-white;
+  @apply hover:bg-[#6D4C41] hover:shadow-lg active:border-t-[#616161] active:border-l-[#616161] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+  @apply transition-all duration-150 ease-out;
+  @apply transform hover:scale-[1.02] active:scale-[0.98];
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+@utility btn-minecraft-primary {
+  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#33691E] border-b-[#33691E] bg-[#558B2F] text-white;
+  @apply hover:bg-[#7CB342] hover:shadow-lg active:border-t-[#33691E] active:border-l-[#33691E] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+  @apply transition-all duration-150 ease-out;
+  @apply transform hover:scale-[1.02] active:scale-[0.98];
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(92, 184, 92, 0.3);
+}
+
+@utility btn-minecraft-danger {
+  @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#B71C1C] border-b-[#B71C1C] bg-[#C62828] text-white;
+  @apply hover:bg-[#D32F2F] hover:shadow-lg active:border-t-[#B71C1C] active:border-l-[#B71C1C] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
+  @apply transition-all duration-150 ease-out;
+  @apply transform hover:scale-[1.02] active:scale-[0.98];
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(198, 40, 40, 0.3);
+}
+
+@utility card-minecraft {
+  /* No animation here — it used to fade in on every mount (65 uses), which
+     under a 5s poll reads as flicker rather than an entrance. Opt in with
+     the Card primitive's `animateIn` prop (adds Tailwind's animate-fadeIn)
+     where a real one-time entrance is wanted. */
+  @apply bg-[#6D4C41] border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#5D4037] border-b-[#5D4037];
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 4px 6px rgba(0, 0, 0, 0.2);
+  @apply transition-shadow duration-200;
+
+  &:hover {
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+      0 6px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@utility input-minecraft {
+  @apply bg-[#5D4037] border-2 border-t-[#616161] border-l-[#616161] border-r-[#E0E0E0] border-b-[#E0E0E0] text-white font-minecraft text-xs px-3 py-2;
+  @apply focus:outline-hidden focus:border-t-[#558B2F] focus:border-l-[#558B2F] focus:border-r-[#7CB342] focus:border-b-[#7CB342] focus:shadow-lg;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.2);
+  @apply transition-all duration-200;
+}
+
+@utility skeleton {
+  background: linear-gradient(90deg, #5d4037 25%, #6d4c41 50%, #5d4037 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+@layer base {
+  :root {
+    /* Body face by default — readable at the small sizes most of the app
      renders text at. Press Start 2P (the display face, `font-minecraft`)
      is a blocky pixel font meant for headings, nav and buttons; using it
      as the *body* font made copy, tables and logs hard to scan. */
-  font-family: 'VT323', monospace;
-  font-size: 16px;
-  line-height: 1.4;
-  font-weight: 400;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 400;
 
-  color-scheme: dark;
-  color: #e0e0e0;
-  background-color: #3e2723;
+    color-scheme: dark;
+    color: #e0e0e0;
+    background-color: #3e2723;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* For icons/sprites, not text. */
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: -webkit-optimize-contrast; /* For Edge 79+ */
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: #3e2723;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.1) 2px,
-    rgba(0, 0, 0, 0.1) 4px
-  );
-}
-
-#root {
-  width: 100%;
-  min-height: 100vh;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* For icons/sprites, not text. */
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast; /* For Edge 79+ */
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: #3e2723;
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.1) 2px,
+      rgba(0, 0, 0, 0.1) 4px
+    );
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
   }
 }
 
+/* Animations. `fadeIn` is declared in @theme above, next to its --animate-fadeIn. */
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
@@ -79,71 +248,7 @@ body {
   }
 }
 
-/* Minecraft-style button */
-@layer components {
-  .btn-minecraft {
-    @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#616161] border-b-[#616161] bg-[#8D6E63] text-white;
-    @apply hover:bg-[#6D4C41] hover:shadow-lg active:border-t-[#616161] active:border-l-[#616161] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
-    @apply transition-all duration-150 ease-out;
-    @apply transform hover:scale-[1.02] active:scale-[0.98];
-    box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
-      0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .btn-minecraft-primary {
-    @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#33691E] border-b-[#33691E] bg-[#558B2F] text-white;
-    @apply hover:bg-[#7CB342] hover:shadow-lg active:border-t-[#33691E] active:border-l-[#33691E] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
-    @apply transition-all duration-150 ease-out;
-    @apply transform hover:scale-[1.02] active:scale-[0.98];
-    box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
-      0 2px 4px rgba(92, 184, 92, 0.3);
-  }
-
-  .btn-minecraft-danger {
-    @apply px-4 py-2 font-minecraft text-xs border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#B71C1C] border-b-[#B71C1C] bg-[#C62828] text-white;
-    @apply hover:bg-[#D32F2F] hover:shadow-lg active:border-t-[#B71C1C] active:border-l-[#B71C1C] active:border-r-[#E0E0E0] active:border-b-[#E0E0E0];
-    @apply transition-all duration-150 ease-out;
-    @apply transform hover:scale-[1.02] active:scale-[0.98];
-    box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
-      0 2px 4px rgba(198, 40, 40, 0.3);
-  }
-
-  /* No animation here — it used to fade in on every mount (65 uses), which
-     under a 5s poll reads as flicker rather than an entrance. Opt in with
-     the Card primitive's `animateIn` prop (adds Tailwind's animate-fadeIn)
-     where a real one-time entrance is wanted. */
-  .card-minecraft {
-    @apply bg-[#6D4C41] border-2 border-t-[#E0E0E0] border-l-[#E0E0E0] border-r-[#5D4037] border-b-[#5D4037];
-    box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.3),
-      0 4px 6px rgba(0, 0, 0, 0.2);
-    @apply transition-shadow duration-200;
-  }
-
-  .card-minecraft:hover {
-    box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.3),
-      0 6px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  .input-minecraft {
-    @apply bg-[#5D4037] border-2 border-t-[#616161] border-l-[#616161] border-r-[#E0E0E0] border-b-[#E0E0E0] text-white font-minecraft text-xs px-3 py-2;
-    @apply focus:outline-none focus:border-t-[#558B2F] focus:border-l-[#558B2F] focus:border-r-[#7CB342] focus:border-b-[#7CB342] focus:shadow-lg;
-    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.2);
-    @apply transition-all duration-200;
-  }
-
-  .skeleton {
-    background: linear-gradient(90deg, #5d4037 25%, #6d4c41 50%, #5d4037 75%);
-    background-size: 1000px 100%;
-    animation: shimmer 2s infinite;
-  }
-}
-
-/* Keyboard focus. Outside @layer so it beats the focus:outline-none the
+/* Keyboard focus. Outside @layer so it beats the focus:outline-hidden the
    button/input classes above apply for the mouse case — un-layered CSS
    always wins over anything inside a @layer, regardless of source order.
    .btn-minecraft* had no focus state at all before this; .input-minecraft
