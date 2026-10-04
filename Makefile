@@ -419,14 +419,15 @@ ci:
 	@# in the background while they do, and its (buffered) output is printed at the end.
 	@# If another step fails first, the suite's whole process tree is stopped (no job
 	@# control: `set -m` is not available to every /bin/sh without a terminal).
-	@# CI_SERIAL=1 runs everything one step at a time, in order.
-	@bats_log=$$(mktemp); bats_pid=""; \
+	@# CI_SERIAL=1 runs everything one step at a time, in the order CI lists them
+	@# (the fast checks first, then the suite, then CodeQL).
+	@bats_log=$$(mktemp); bats_pid=""; bats_serial=""; \
 	trap 'rm -f "$$bats_log" "$$bats_log.rc"' EXIT; \
 	tree() { echo "$$1"; for child in $$(pgrep -P "$$1" 2>/dev/null); do tree "$$child"; done; }; \
 	if [ -n "$(SKIP_BATS)" ]; then \
 		echo "Skipping the bash-tests job (SKIP_BATS set)."; \
 	elif [ -n "$(CI_SERIAL)" ]; then \
-		$(MAKE) --no-print-directory bash-tests || exit 1; \
+		bats_serial=1; \
 	else \
 		( $(MAKE) --no-print-directory bash-tests > "$$bats_log" 2>&1; echo $$? > "$$bats_log.rc" ) & bats_pid=$$!; \
 	fi; \
@@ -437,6 +438,8 @@ ci:
 		echo "=== bash-tests (ran alongside the steps above) ==="; \
 		wait $$bats_pid; cat "$$bats_log"; \
 		[ "$$(cat "$$bats_log.rc")" = "0" ] || { echo "bash-tests failed"; exit 1; }; \
+	elif [ -n "$$bats_serial" ]; then \
+		$(MAKE) --no-print-directory bash-tests || exit 1; \
 	fi; \
 	if [ -n "$(SKIP_CODEQL)" ]; then \
 		echo "Skipping CodeQL (SKIP_CODEQL set)."; \
