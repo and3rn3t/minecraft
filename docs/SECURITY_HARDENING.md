@@ -105,7 +105,8 @@ SECRET_KEY=your-secure-random-64-character-hex-string
 - **Script output**:
   - Management scripts print messages meant to be read ("Player not found"), and
     `script_error()` in `api/server.py` passes those through.
-  - A Python traceback never reaches a client. `script_error()` logs it and returns the
+  - Python's own error output (a traceback, or the `SyntaxError` of a script that will
+    not compile) never reaches a client. `script_error()` logs it and returns the
     route's fallback message; a route that runs a Python script itself
     (`GET /api/analytics/report`) returns a fixed message and logs the detail.
   - What is logged passes through `sanitize_for_log()` in `api/security.py`: control

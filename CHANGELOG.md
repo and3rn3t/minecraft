@@ -176,9 +176,10 @@ All notable changes to this project will be documented in this file.
   through), and the two DDNS routes that returned `stderr` directly go through it. The
   panel never read `details`. The detail that is logged goes through a new
   `sanitize_for_log()` (control characters dropped, continuation lines indented so text
-  imitating a log entry cannot start a line, capped at 4,000 characters) and uses lazy
-  `%s` formatting. New tests in `tests/api/test_script_error.py`; six of them fail
-  against the old code.
+  imitating a log entry cannot start a line, capped at 4,000 characters, indentation included) and uses lazy
+  `%s` formatting. A script that will not compile prints a `SyntaxError` with only a
+  `File "...", line N` frame and no "Traceback" header, so any such frame line counts as
+  Python's own output. New tests in `tests/api/test_script_error.py`.
 - **`cleanup-system.sh` no longer deletes what it should not** — it deleted every
   `*.tar.gz` backup older than 30 days as soon as there were more than 10 (its comment
   said "keep at least 10", but nothing enforced it, so it could leave one), including

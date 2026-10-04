@@ -214,22 +214,25 @@ def sanitize_for_log(value, limit: int = 4000) -> str:
     Newlines and tabs are kept, because a traceback is the point, but every other
     control character is dropped (NULs, carriage returns and escape sequences can
     overwrite or colour what a reader sees). Continuation lines are indented, so text
-    that imitates a log entry cannot start at column zero, and the result is capped
-    at ``limit`` characters.
+    that imitates a log entry cannot start at column zero, and the result, indentation
+    and truncation note included, is never longer than ``limit`` characters.
 
     Args:
         value: The text (or bytes) to sanitize
-        limit: The most characters to keep
+        limit: The longest result to return (at least 64, so the note always fits)
 
     Returns:
         A string safe to pass as a logging argument
     """
     text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
     text = "".join(ch for ch in text if ch in "\n\t" or ch.isprintable())
-    truncated = len(text) - limit
-    if truncated > 0:
-        text = text[:limit] + f"... [{truncated} more characters]"
-    return text.replace("\n", "\n    ")
+    # Indent first and cap last: indenting grows the text by four characters per line
+    text = text.replace("\n", "\n    ")
+    limit = max(limit, 64)
+    if len(text) <= limit:
+        return text
+    keep = limit - 40  # room for the note, which is at most 40 characters
+    return text[:keep] + f"... [{len(text) - keep} more characters]"
 
 
 def is_rate_limit_exceeded(identifier: str, limit: int, window: int, storage: dict) -> bool:

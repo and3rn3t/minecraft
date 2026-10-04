@@ -78,6 +78,25 @@ class TestScriptError:
 
         assert body == {"error": "Failed"}
 
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            '  File "/home/pi/minecraft/scripts/x.py", line 3\n    def broken(:\n               ^\nSyntaxError: invalid syntax',
+            '  File "/home/pi/minecraft/scripts/x.py", line 7\n    pass\nIndentationError: unexpected indent',
+        ],
+        ids=["SyntaxError", "IndentationError"],
+    )
+    def test_a_syntax_error_from_a_script_that_will_not_compile_is_replaced_too(self, stderr):
+        """Python prints these without the "Traceback" header, only the frame line."""
+        assert self._call(stderr, "Failed") == ({"error": "Failed"}, 500)
+
+    @pytest.mark.parametrize(
+        "message",
+        ["Player not found", 'Config "server.properties", line missing', "File not found: world/level.dat"],
+    )
+    def test_ordinary_messages_that_mention_files_pass_through(self, message):
+        assert self._call(message, "Failed") == ({"error": message}, 500)
+
 
 class TestSanitizeForLog:
     def test_a_multi_line_traceback_stays_readable_and_indented(self):
@@ -101,8 +120,19 @@ class TestSanitizeForLog:
     def test_long_text_is_capped_with_a_note(self):
         out = sanitize_for_log("x" * 5000, limit=100)
 
-        assert out.startswith("x" * 100)
-        assert out.endswith("... [4900 more characters]")
+        assert len(out) <= 100
+        assert out.startswith("x" * 60)
+        assert out.endswith(" more characters]")
+
+    def test_the_cap_counts_the_indentation_it_adds(self):
+        """Each newline becomes five characters, so capping before indenting overshot."""
+        out = sanitize_for_log("\n" * 4000)
+
+        assert len(out) <= 4000
+        assert out.endswith(" more characters]")
+
+    def test_text_within_the_limit_is_returned_whole(self):
+        assert sanitize_for_log("a\nb", limit=64) == "a\n    b"
 
     def test_bytes_and_other_types_are_accepted(self):
         assert sanitize_for_log(b"caf\xc3\xa9 \xff") == "caf\u00e9 \ufffd"
