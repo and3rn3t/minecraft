@@ -8,7 +8,7 @@
 
 # Pinned by digest (the multi-arch index) so builds are reproducible; Renovate
 # bumps the tag and digest together.
-FROM eclipse-temurin:25-jre-noble@sha256:693fdaf83831eeeefd9709eae44c8b8706622652f972cf5903bd0e481bbf6ad3
+FROM eclipse-temurin:25-jre-noble@sha256:3f2223fe04b750aa5a8179e29b5c9a1ddf7665fc9bb08bfe11ad01d143bc13a5
 
 ARG MINECRAFT_VERSION=26.3
 
