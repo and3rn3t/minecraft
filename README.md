@@ -1,5 +1,13 @@
 # Minecraft Server for Raspberry Pi 5
 
+**A self-hosted Minecraft server stack tuned for the Raspberry Pi 5, with backups, a REST API and a web admin panel.**
+
+[![CI](https://github.com/and3rn3t/minecraft/actions/workflows/main.yml/badge.svg)](https://github.com/and3rn3t/minecraft/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/and3rn3t/minecraft)](https://github.com/and3rn3t/minecraft/releases)
+
+![Web admin panel dashboard](docs/screenshot.png)
+
 A self-hosted Minecraft server stack tuned for the Raspberry Pi 5 (ARM64): Docker
 deployment, automated and offsite backups, plugin and mod management, multi-world
 support, RCON, a REST API, and a React web admin panel — plus a layer of family
@@ -22,14 +30,16 @@ Works on x86_64 too — the Pi is just what it is optimised for.
 - 🚀 Auto-deploy: the Pi pulls the newest green commit on `main` every 5 minutes
 - 🧒 Family gameplay features on an event bus — see [below](#gameplay-features)
 
-## Requirements
+## Getting started
+
+### Requirements
 
 - Raspberry Pi 5 (4GB minimum, 8GB recommended)
 - MicroSD card, 32GB or larger
 - Raspberry Pi OS (64-bit)
 - Docker with the Compose v2 plugin (the setup script installs it)
 
-## Quick Start
+### Quick Start
 
 ```bash
 # On the Pi
@@ -51,6 +61,16 @@ Connect from Minecraft using the Pi's address on port `25565`.
 
 Full walkthrough, including flashing the SD card: **[docs/INSTALL.md](docs/INSTALL.md)**.
 Deploying the API and web panel as well: **[docs/RPI5_FULL_DEPLOYMENT.md](docs/RPI5_FULL_DEPLOYMENT.md)**.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Server management | Bash scripts in `scripts/` |
+| REST API | Python 3.11+ / Flask (`api/server.py`) |
+| Web admin panel | React 19 + Vite + Tailwind CSS 4 (`web/`) |
+| Containers | Docker + Docker Compose v2, systemd units |
+| Tests | pytest, Vitest, Playwright, BATS |
 
 ## Managing the Server
 
@@ -288,4 +308,4 @@ See **[docs/RASPBERRY_PI_OPTIMIZATIONS.md](docs/RASPBERRY_PI_OPTIMIZATIONS.md)**
 
 ## License
 
-See [LICENSE](LICENSE). Security reports: [SECURITY.md](SECURITY.md).
+[MIT](LICENSE). Security reports: [SECURITY.md](SECURITY.md).
