@@ -5,7 +5,7 @@ simple-websocket==1.1.0  # WebSocket upgrade for Flask-SocketIO's threading mode
 bcrypt==4.3.0
 pyjwt[crypto]==2.15.1  # [crypto] pulls in `cryptography`, needed for RS256 (Apple ID token verification)
 authlib==1.9.1
-requests==2.33.0
+requests==2.34.2
 pyotp==2.9.0
 qrcode[pil]==7.4.2
 croniter==2.0.7
