@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   update-release-draft:
-    uses: and3rn3t/.github/.github/workflows/reusable-release-drafter.yml@v1
+    uses: and3rn3t/.github/.github/workflows/reusable-release-drafter.yml@bee3d0a11a39b66867b89dddc0306362587aa011 # v1
 
   # Release Drafter v7 split the autolabeler into its own action; it applies the
   # `autolabeler` rules in .github/release-drafter.yml (conventional-commit titles).
